@@ -1,0 +1,40 @@
+#!/bin/bash
+
+#
+# Lunch podman image to build nextsecurity
+# As default the script mounts as volume staging and build dirs to speedup successibe builds
+#
+
+VALID_ARGS=$(getopt -o n --long no-cache -- "$@")
+if [[ $? -ne 0 ]]; then
+    exit 1;
+fi
+
+cache=1
+opts=""
+
+eval set -- "$VALID_ARGS"
+while [ : ]; do
+  case "$1" in
+    -n | --no-cache)
+        echo "Disable caching"
+	cache=0
+        shift
+        ;;
+    --) shift; 
+        break 
+        ;;
+  esac
+done
+
+# Setup ouput dir
+# Change the owner accordingly to user inside the container
+mkdir -p bin
+chown 1000:1000 bin
+
+# Setup cache volumes
+if [ $cache -ge 1 ]; then
+    opts=" -v nextsecurity-build_dir:/home/build/openwrt/build_dir -v nextsecurity-staging_dir:/home/build/openwrt/staging_dir "
+fi
+
+podman run --rm -ti -v ./bin:/home/build/openwrt/bin -v ./config:/config $opts ghcr.io/nethserver/nextsecurity-builder "$@"

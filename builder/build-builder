@@ -1,0 +1,50 @@
+#!/bin/bash
+set -e
+
+
+OWRT_VERSION="22.03.0-rc1"
+repobase="ghcr.io/nethserver"
+reponame="nextsecurity-builder"
+
+container=$(buildah from docker.io/debian:bullseye-slim)
+
+trap "buildah rm ${container}" EXIT
+
+echo "Installing build depencies..."
+buildah run ${container} -- apt-get update 
+buildah run ${container} -- apt-get install -y build-essential ccache \
+    ecj fastjar file g++ gawk gettext git java-propose-classpath libelf-dev libncurses5-dev \
+    libncursesw5-dev libssl-dev python3 unzip wget python3-setuptools python3-dev \
+    rsync subversion swig time xsltproc zlib1g-dev linux-headers-amd64 make sudo libpam0g-dev \
+    liblzma-dev libsnmp-dev wget
+
+echo "Creating 'build' user"
+buildah run ${container} -- useradd -s /bin/bash -m build
+
+echo "Downloading OpenWrt $OWRT_VERSION"
+buildah run --user build ${container} -- bash -c "ls /home; cd /home/build && wget https://github.com/openwrt/openwrt/archive/refs/tags/v${OWRT_VERSION}.tar.gz -O openwrt.tgz"
+
+echo "Extracting OpenWrt image"
+buildah run --user build ${container} -- bash -c "cd /home/build && mkdir openwrt && tar xvf openwrt.tgz --strip-components=1 -C openwrt && rm -f openwrt.tgz"
+
+echo "Remove telephony feed"
+buildah run --user build ${container} -- bash -c "cd /home/build/openwrt && sed -i '/telephony/d' feeds.conf.default"
+
+echo "Setup fast feed download"
+buildah run --user build ${container} -- bash -c "cd /home/build/openwrt && sed -i 's/src-git-full/src-git/' feeds.conf.default"
+
+echo "Update feeds"
+buildah run --user build ${container} -- bash -c "cd /home/build/openwrt && ./scripts/feeds update && ./scripts/feeds install -a"
+
+echo "Creating default config"
+buildah run --user build ${container} -- bash -c "cd /home/build/openwrt && make defconfig"
+
+echo "Download feeds"
+buildah run --user build ${container} -- bash -c "cd /home/build/openwrt && make -j 2 download"
+
+echo "Setup image"
+buildah add "${container}" entrypoint.sh /entrypoint.sh
+buildah add "${container}" make.sh /make.sh
+buildah add "${container}" ../config /config
+buildah config --user build --workingdir /home/build/openwrt --entrypoint='["/entrypoint.sh"]' --cmd='["/make.sh"]' ${container}
+buildah commit "${container}" "${repobase}/${reponame}"
