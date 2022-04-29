@@ -36,6 +36,9 @@ if [ $cache -ge 1 ]; then
     opts=" -v nextsecurity-build_dir:/home/build/openwrt/build_dir:z -v nextsecurity-staging_dir:/home/build/openwrt/staging_dir:z "
 fi
 
+# Download latest image
+podman pull -q ghcr.io/nethserver/nextsecurity-builder
+
 # Run podman with at least the following dirs mounted:
 # - /config: store custom config used by 'made defconfig'
 # - uci-defaults: uci scripts copied inside the final image
