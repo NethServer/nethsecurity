@@ -1,0 +1,30 @@
+name: "Publish builder image"
+
+on:
+  workflow_dispatch:
+
+permissions:
+  packages: write
+
+jobs:
+  publish_images:
+    name: 'Publish module images'
+    runs-on: ubuntu-latest
+    env:
+      IMAGETAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v2
+      - id: build
+        run: |
+          # Build the module images
+          cd builder/
+          bash build-builder
+      - id: publish
+        run: |
+          # Publish the branch
+          trap 'buildah logout ghcr.io' EXIT
+          buildah login -u ${{ github.actor }} --password-stdin ghcr.io <<<"${{ secrets.GITHUB_TOKEN }}"
+          image='ghcr.io/nethserver/nextsecurity-builder'
+          buildah push $image docker://${image}:${IMAGETAG:-latest}
+          urls="${image}:${IMAGETAG:-latest}"$'\n'"${urls}"
+          echo "::notice title=Image URLs::${urls}"
