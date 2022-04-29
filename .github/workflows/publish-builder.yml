@@ -2,6 +2,9 @@ name: "Publish builder image"
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - 'builder/**'
 
 permissions:
   packages: write
