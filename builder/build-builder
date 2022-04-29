@@ -17,6 +17,7 @@ buildah run ${container} -- apt-get install -y build-essential ccache \
     libncursesw5-dev libssl-dev python3 unzip wget python3-setuptools python3-dev \
     rsync subversion swig time xsltproc zlib1g-dev linux-headers-amd64 make sudo libpam0g-dev \
     liblzma-dev libsnmp-dev wget
+buildah run ${container} -- apt-get clean
 
 echo "Creating 'build' user"
 buildah run ${container} -- useradd -s /bin/bash -m build
