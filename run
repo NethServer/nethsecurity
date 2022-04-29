@@ -30,15 +30,15 @@ done
 # Setup output dir
 # Change the owner according to the user inside the container
 mkdir -p bin
-chown 1000:1000 bin
 
 # Setup cache volumes
 if [ $cache -ge 1 ]; then
-    opts=" -v nextsecurity-build_dir:/home/build/openwrt/build_dir -v nextsecurity-staging_dir:/home/build/openwrt/staging_dir "
+    opts=" -v nextsecurity-build_dir:/home/build/openwrt/build_dir:z -v nextsecurity-staging_dir:/home/build/openwrt/staging_dir:z "
 fi
 
 # Run podman with at least the following dirs mounted:
-# - bin: it contain the build output
 # - /config: store custom config used by 'made defconfig'
 # - uci-defaults: uci scripts copied inside the final image
-podman run --rm -ti -v ./bin:/home/build/openwrt/bin -v ./config:/config -v ./uci-defaults:/home/build/openwrt/files/etc/uci-defaults $opts ghcr.io/nethserver/nextsecurity-builder "$@"
+podman run -ti --name nextsec-builder -v ./config:/config:z -v ./uci-defaults:/uci-defaults:z $opts ghcr.io/nethserver/nextsecurity-builder "$@"
+podman cp nextsec-builder:/home/build/openwrt/bin/ .
+podman rm nextsec-builder
