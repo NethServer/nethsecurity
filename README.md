@@ -8,7 +8,8 @@ Build requirements:
 - 2GB or more of RAM
 - at least 40GB of free disk space
 
-Tested on Debian bullseye.
+The build system is based on a rootless podman container.
+Tested on Debian 11 and Fedora 35.
 
 ## Usage
 
