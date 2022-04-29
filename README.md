@@ -37,10 +37,18 @@ During the start-up, the container will:
 All files with `.conf` extension inside the `config` directory will be merged to create the diffconfig.
 The `.conf` files must respect the syntax of OpenWrt `.config` file.
 
-Best practice:
+Best practices:
 
 - create a `.conf` file for each image customization
 - add comments to the conf file to explain why an option has been set
+
+See [config diff file](https://openwrt.org/docs/guide-developer/toolchain/use-buildsystem#configure_using_config_diff_file) for more info.
+
+## UCI defaults
+
+All files inside `uci-defaults` will be copied inside the final image.
+
+See [UCI  defaults](https://openwrt.org/docs/guide-developer/uci-defaults) for more info.
 
 ## Builder image
 
