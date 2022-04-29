@@ -1,0 +1,1 @@
+sed -i "/^root:/s/\/ash$/\/bash/" /etc/passwd
