@@ -21,5 +21,10 @@ done
 # Apply the configuration
 make defconfig
 
+# Generate local build key
+if [ ! -f key-build.pub ]; then
+    ./staging_dir/host/bin/usign -G -s ./key-build -p ./key-build.pub -c "Local build key"
+fi
+
 # Start the container CMD
 exec "${@}"
