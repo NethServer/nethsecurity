@@ -1,0 +1,24 @@
+name: "Build nextsec image"
+
+runs-on: self-hosted
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish_images:
+    name: 'Build nextsec image'
+    runs-on: ubuntu-latest
+    env:
+      IMAGETAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v2
+      - id: build
+        run: |
+          # Build the image
+          ./run
+      - uses: actions/upload-artifact@v3
+        with:
+          name: bin
+          path: bin/
+          retention-days: 5
