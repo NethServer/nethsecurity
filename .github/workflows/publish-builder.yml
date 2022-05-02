@@ -28,6 +28,9 @@ jobs:
           trap 'buildah logout ghcr.io' EXIT
           buildah login -u ${{ github.actor }} --password-stdin ghcr.io <<<"${{ secrets.GITHUB_TOKEN }}"
           image='ghcr.io/nethserver/nextsecurity-builder'
+          if [[ "${IMAGETAG}" == "main" || "${IMAGETAG}" == "master" ]]; then
+              IMAGETAG=latest
+          fi
           buildah push $image docker://${image}:${IMAGETAG:-latest}
           urls="${image}:${IMAGETAG:-latest}"$'\n'"${urls}"
           echo "::notice title=Image URLs::${urls}"
