@@ -22,7 +22,7 @@ done
 make defconfig
 
 # Generate local build key
-if [ ! -f key-build.pub ]; then
+if [[ ! -f key-build.pub && -f ./staging_dir/host/bin/usign ]]; then
     ./staging_dir/host/bin/usign -G -s ./key-build -p ./key-build.pub -c "Local build key"
 fi
 
