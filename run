@@ -5,6 +5,8 @@
 # As default the script mounts as volume staging and build dirs to speedup successibe builds
 #
 
+workdir=$(pwd)
+
 VALID_ARGS=$(getopt -o n --long no-cache -- "$@")
 if [[ $? -ne 0 ]]; then
     exit 1;
@@ -28,8 +30,11 @@ while [ : ]; do
 done
 
 # Setup output dir
-# Change the owner according to the user inside the container
-mkdir -p bin
+# Delete existing backup, but save current output before starting the build
+if [ -d bin ]; then
+    rm -rf bin.bak
+    mv bin bin.bak
+fi
 
 # Setup cache volumes
 if [ $cache -ge 1 ]; then
@@ -39,9 +44,21 @@ fi
 # Download latest image
 podman pull -q ghcr.io/nethserver/nextsecurity-builder
 
+# Renove existing container
+if [ "$(podman ps -a --format '{{.Names}}')" == "nextsec-builder" ]; then
+    podman rm nextsec-builder
+fi
+
 # Run podman with at least the following dirs mounted:
 # - /config: store custom config used by 'made defconfig'
 # - uci-defaults: uci scripts copied inside the final image
 podman run -ti --name nextsec-builder -v ./config:/config:z -v ./uci-defaults:/uci-defaults:z $opts ghcr.io/nethserver/nextsecurity-builder "$@"
-podman cp nextsec-builder:/home/build/openwrt/bin/ .
-podman rm nextsec-builder
+podman cp nextsec-builder:/home/build/openwrt/bin/ $workdir/
+if [ $? -eq 0 ]; then
+    podman rm nextsec-builder
+else
+    echo
+    echo "Export of built binararies failed: the container has not been removed"
+    echo "To remove the container use: podman rm nextsec-builder"
+    echo
+fi

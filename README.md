@@ -20,6 +20,8 @@ Clone the repository, then to start the build just execute:
 
 The script will create a `bin` directory inside the current working directory.
 At the end, the `bin` directory will contain the output of the build.
+If a previous `bin` directory already exists, it will be renamed to `bin.bak`.
+If a previous `bin.bak` directory already exists, it will be removed.
 
 To speed up next builds, the script will also create `staging_dir` and `build_dir` directories as cache.
 To avoid cache creation, pass the `--no-cache` option: `./run --no-cache`.
@@ -32,6 +34,7 @@ If you need a shell inside the build container, execute:
 During the start-up, the container will:
 
 - generate the diffconfig
+- generate a random public key to sign packages
 
 ## Image configuration
 
