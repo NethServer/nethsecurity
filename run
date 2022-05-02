@@ -42,7 +42,7 @@ if [ $cache -ge 1 ]; then
 fi
 
 # Download latest image
-podman pull -q ghcr.io/nethserver/nextsecurity-builder
+podman pull ghcr.io/nethserver/nextsecurity-builder
 
 # Renove existing container
 if [ "$(podman ps -a --format '{{.Names}}')" == "nextsec-builder" ]; then
