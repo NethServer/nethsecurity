@@ -43,8 +43,8 @@ buildah run --user build ${container} -- bash -c "cd /home/build/openwrt && make
 echo "Download feeds"
 buildah run --user build ${container} -- bash -c "cd /home/build/openwrt && make -j 2 download"
 
-echo "Setup uci-default dir"
-buildah run --user build ${container} -- bash -c "mkdir -p /home/build/openwrt/files/etc/uci-defaults"
+echo "Setup files dir"
+buildah run --user build ${container} -- bash -c "mkdir -p /home/build/openwrt/files/"
 
 echo "Setup sudo for the entrypoint"
 buildah run ${container} -- bash -c "echo 'build ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/build; chmod 0440 /etc/sudoers.d/build"

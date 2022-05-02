@@ -6,7 +6,7 @@ OUTPUT=/home/build/openwrt/.config
 
 # hack to avoid changing permissions on local file system
 sudo cp -r /config /config-tmp
-sudo cp -r /uci-defaults/* /home/build/openwrt/files/etc/uci-defaults/
+sudo cp -r /files/* /home/build/openwrt/files/
 
 # Fix permissions
 sudo chown -R build:build /config-tmp /home/build/openwrt/files/etc/uci-defaults 2>/dev/null

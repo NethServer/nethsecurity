@@ -48,9 +48,11 @@ Best practices:
 
 See [config diff file](https://openwrt.org/docs/guide-developer/toolchain/use-buildsystem#configure_using_config_diff_file) for more info.
 
-## UCI defaults
+## Custom files
 
-All files inside `uci-defaults` will be copied inside the final image.
+All files from `files` directory will be copied inside the final image.
+
+To setup a UCI default, just put a file inside `files/etc/uci-defaults`.
 
 See [UCI  defaults](https://openwrt.org/docs/guide-developer/uci-defaults) for more info.
 
