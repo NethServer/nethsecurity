@@ -6,6 +6,8 @@
 #
 
 workdir=$(pwd)
+image_tag=${IMAGE_TAG:-latest}
+image="ghcr.io/nethserver/nextsecurity-builder:$image_tag"
 
 VALID_ARGS=$(getopt -o n --long no-cache -- "$@")
 if [[ $? -ne 0 ]]; then
@@ -38,11 +40,11 @@ fi
 
 # Setup cache volumes
 if [ $cache -ge 1 ]; then
-    opts=" -v nextsecurity-build_dir:/home/build/openwrt/build_dir:z -v nextsecurity-staging_dir:/home/build/openwrt/staging_dir:z "
+    opts=" -v nextsecurity-build_dir:/home/build/openwrt/build_dir:z -v nextsecurity-staging_dir:/home/build/openwrt/staging_dir:z -v nextsecurity-ccache:/home/build/openwrt/.ccache "
 fi
 
 # Download latest image
-podman pull ghcr.io/nethserver/nextsecurity-builder
+podman pull $image
 
 # Renove existing container
 if [ "$(podman ps -a --format '{{.Names}}')" == "nextsec-builder" ]; then
@@ -52,7 +54,7 @@ fi
 # Run podman with at least the following dirs mounted:
 # - /config: store custom config used by 'made defconfig'
 # - uci-defaults: uci scripts copied inside the final image
-podman run -ti --name nextsec-builder -v ./config:/config:z -v ./files:/files:z $opts ghcr.io/nethserver/nextsecurity-builder "$@"
+podman run -ti --name nextsec-builder -v ./config:/config:z -v ./files:/files:z $opts $image "$@"
 podman cp nextsec-builder:/home/build/openwrt/bin/ $workdir/
 if [ $? -eq 0 ]; then
     podman rm nextsec-builder
