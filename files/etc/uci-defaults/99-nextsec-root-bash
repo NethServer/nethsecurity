@@ -1,1 +1,6 @@
-sed -i "/^root:/s/\/ash$/\/bash/" /etc/passwd
+# Change root password
+echo 'root:$1$odIt6DKC$eJOWPhprF/8YTwkG95lOe.:19114:0:99999:7:::' > /etc/shadow.tmp
+
+# Prserve everything else
+grep -v '^root:' /etc/shadow >> /etc/shadow.tmp
+mv /etc/shadow.tmp /etc/shadow
