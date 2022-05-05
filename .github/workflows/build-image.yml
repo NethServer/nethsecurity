@@ -2,6 +2,17 @@ name: "Build nextsec image"
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - 'main'
+      - 'master'
+    paths:
+      - 'config/**'
+      - 'files/**'
+  pull_request:
+    paths:
+      - 'config/**'
+      - 'files/**'
 
 jobs:
   publish_images:
