@@ -60,7 +60,8 @@ if [ $? -eq 0 ]; then
     podman rm nextsec-builder
 else
     echo
-    echo "Export of built binararies failed: the container has not been removed"
+    echo "Export of built binaries failed: the container has not been removed"
     echo "To remove the container use: podman rm nextsec-builder"
+    echo "To re-try export built binaries: podman cp nextsec-builder:/home/build/openwrt/bin/ $workdir/"
     echo
 fi
