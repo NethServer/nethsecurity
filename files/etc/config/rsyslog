@@ -7,29 +7,6 @@ config syslog syslog
     list modules 'imuxsock'
     list modules 'imklog'
 
-config selector
-	option source '*.info;mail.none;authpriv.none;cron.none'
+config selector default
+	option source '*.*'
 	option destination '/var/log/messages'
-
-config selector
-    option source 'authpriv.*'
-    option destination '/var/log/secure'
-
-config selector
-    option source 'mail.*'
-    option destination '/var/log/maillog'
-
-config selector
-    option source 'cron.*'
-    option destination '/var/log/cron'
-
-config selector
-    option source 'local7.*'
-    option destination '/var/log/boot.log'
-
-config forwarder 'promtail'
-       option protocol 'tcp'
-       option port ''
-       option rfc '5424'
-       option target ''
-       option source '*.*'
