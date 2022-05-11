@@ -1,0 +1,5 @@
+uci -q batch << EOI
+set nginx._lan.error_log=syslog:server=unix:/dev/log
+set nginx._lan.access_log=/var/log/nginx/access.log
+commit system
+EOI
