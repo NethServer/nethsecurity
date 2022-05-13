@@ -7,9 +7,14 @@ OUTPUT=/home/build/openwrt/.config
 # hack to avoid changing permissions on local file system
 sudo cp -r /config /config-tmp
 sudo cp -r /files/* /home/build/openwrt/files/
+sudo cp -r /nspackages /home/build/openwrt/
+
+echo "src-link nethserver /home/build/openwrt/nspackages" >> feeds.conf.default
+./scripts/feeds update nethserver
+./scripts/feeds install -a -p nethserver
 
 # Fix permissions
-sudo chown -R build:build /config-tmp /home/build/openwrt/files/etc/uci-defaults 2>/dev/null
+sudo chown -R build:build /config-tmp /home/build/openwrt/{files,nspackages} >/dev/null
 
 # Generate diffconfigfrom .conf file inside config directory
 > $OUTPUT

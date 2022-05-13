@@ -56,6 +56,10 @@ To setup a UCI default, just put a file inside `files/etc/uci-defaults`.
 
 See [UCI  defaults](https://openwrt.org/docs/guide-developer/uci-defaults) for more info.
 
+## Custom packages
+
+All new packages can be added inside the `packages` directory.
+
 ## Builder image
 
 The `nethserver/nextsecurity-builder` is a container image to build nextsecurity.
