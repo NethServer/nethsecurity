@@ -54,7 +54,7 @@ fi
 # Run podman with at least the following dirs mounted:
 # - /config: store custom config used by 'made defconfig'
 # - uci-defaults: uci scripts copied inside the final image
-podman run -ti --name nextsec-builder -v ./config:/config:z -v ./files:/files:z $opts $image "$@"
+podman run -ti --name nextsec-builder -v ./config:/config:z -v ./files:/files:z -v ./packages:/nspackages:z $opts $image "$@"
 podman cp nextsec-builder:/home/build/openwrt/bin/ $workdir/
 if [ $? -eq 0 ]; then
     podman rm nextsec-builder
