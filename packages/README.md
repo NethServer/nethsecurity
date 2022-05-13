@@ -29,4 +29,9 @@ define Package/ns-myapp
 endef
 ```
 
+To compile only the package, use:
+```
+make package/feeds/nextsecurity/ns-myapp/{download,compile} V=sc
+```
+
 For more info, see [upstream guide](https://openwrt.org/docs/guide-developer/packages)
