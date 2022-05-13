@@ -1,0 +1,17 @@
+#!/bin/sh /etc/rc.common
+# Copyright (C) 2022 Nethesis
+
+START=80
+
+USE_PROCD=1
+
+start_service() {
+    procd_open_instance
+    procd_set_param command ns-plug
+    procd_close_instance
+}
+
+service_triggers()
+{
+    procd_add_reload_trigger "ns-plug"
+}

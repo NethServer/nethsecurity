@@ -1,0 +1,68 @@
+#!/bin/sh
+
+#
+# Connect to a remote NextSecurity controller
+#
+
+UCI_CONF="ns-plug"
+CONFIG_FILE="/usr/share/ns-plug/client.conf"
+
+server=$(uci get ${UCI_CONF}.config.server)
+system_id=$(uci get ${UCI_CONF}.config.system_id)
+
+# Exit early of no server has been set
+if [ -z "${server}" ]; then
+    exit 1
+fi
+
+# If no system_id has been set, just use the mac address of lan device
+if [ -z "${system_id}" ]; then
+    system_id=$(ip -br -o link show dev $(uci get network.lan.device) | awk '{print $3}' | sed 's/://g')
+fi
+
+# No system_id, exit with error
+if [ -z "${system_id}" ]; then
+    exit 1
+fi
+
+# Retrieve VPN config
+data=$(curl -s --fail ${server}/api/servers/token/${system_id})
+
+# No token found, exit with error
+if [ $? -gt 0 ]; then
+    exit 2
+fi
+host=$(echo $data | jq -r .host)
+port=$(echo $data | jq -r .port)
+cert=$(echo $data | jq -r .cert)
+key=$(echo $data | jq -r .key)
+ca=$(echo $data | jq -r .ca)
+cat <<EOF > ${CONFIG_FILE}
+client
+server-poll-timeout 5
+nobind
+float
+explicit-exit-notify 1
+remote ${host} ${port} udp
+dev nsc
+dev-type tun
+tls-client
+<ca>
+${ca}
+</ca>
+<cert>
+${cert}
+</cert>
+<key>
+${key}
+</key>
+auth-nocache
+verb 3
+EOF
+
+# Setup the connection
+if [ -f ${CONFIG_FILE} ]; then
+    exec openvpn ${CONFIG_FILE}
+else
+    exit 3
+fi
