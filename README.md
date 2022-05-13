@@ -60,6 +60,8 @@ See [UCI  defaults](https://openwrt.org/docs/guide-developer/uci-defaults) for m
 
 All new packages can be added inside the `packages` directory.
 
+See [packages doc](packages/README.md).
+
 ## Builder image
 
 The `nethserver/nextsecurity-builder` is a container image to build nextsecurity.
