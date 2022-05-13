@@ -9,9 +9,9 @@ sudo cp -r /config /config-tmp
 sudo cp -r /files/* /home/build/openwrt/files/
 sudo cp -r /nspackages /home/build/openwrt/
 
-echo "src-link nethserver /home/build/openwrt/nspackages" >> feeds.conf.default
-./scripts/feeds update nethserver
-./scripts/feeds install -a -p nethserver
+echo "src-link nextsecurity /home/build/openwrt/nspackages" >> feeds.conf.default
+./scripts/feeds update nextsecurity
+./scripts/feeds install -a -p nextsecurity
 
 # Fix permissions
 sudo chown -R build:build /config-tmp /home/build/openwrt/{files,nspackages} >/dev/null
