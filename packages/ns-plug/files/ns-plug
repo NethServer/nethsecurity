@@ -7,17 +7,17 @@
 UCI_CONF="ns-plug"
 CONFIG_FILE="/usr/share/ns-plug/client.conf"
 
-server=$(uci get ${UCI_CONF}.config.server)
-system_id=$(uci get ${UCI_CONF}.config.system_id)
+server=$(uci -q get ${UCI_CONF}.config.server)
+system_id=$(uci -q get ${UCI_CONF}.config.system_id)
 
-# Exit early of no server has been set
+# Exit early if no server has been set
 if [ -z "${server}" ]; then
     exit 1
 fi
 
 # If no system_id has been set, just use the mac address of lan device
 if [ -z "${system_id}" ]; then
-    system_id=$(ip -br -o link show dev $(uci get network.lan.device) | awk '{print $3}' | sed 's/://g')
+    system_id=$(ip -br -o link show dev $(uci -q get network.lan.device) | awk '{print $3}' | sed 's/://g')
 fi
 
 # No system_id, exit with error
