@@ -1,0 +1,12 @@
+config syslog syslog
+    option tcp_input '0'
+    option tcp_input_port '514'
+    option udp_input '0'
+    option udp_input_port '514'
+    option default_template 'RSYSLOG_TraditionalFileFormat'
+    list modules 'imuxsock'
+    list modules 'imklog'
+
+config selector default
+	option source '*.*'
+	option destination '/var/log/messages'
