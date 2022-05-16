@@ -1,0 +1,3 @@
+config main 'config'
+    option server ''
+    option system_id ''
