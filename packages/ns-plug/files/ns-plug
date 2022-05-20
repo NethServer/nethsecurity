@@ -25,18 +25,54 @@ if [ -z "${system_id}" ]; then
     exit 1
 fi
 
-# Retrieve VPN config
-data=$(curl -s --fail ${server}/api/servers/token/${system_id})
-
-# No token found, exit with error
-if [ $? -gt 0 ]; then
-    exit 2
+# Create controller user if not exits
+user=$(uci get rpcd.controller.username 2>/dev/null)
+if [ -z "${user}" ]; then
+    user=$(openssl rand -hex 12)
+    uci set rpcd.controller=login
+    uci set rpcd.controller.username=${user}
+    uci add_list rpcd.controller.read='*'
+    uci add_list rpcd.controller.write='*'
+    uci commit
 fi
-host=$(echo $data | jq -r .host)
-port=$(echo $data | jq -r .port)
-cert=$(echo $data | jq -r .cert)
-key=$(echo $data | jq -r .key)
-ca=$(echo $data | jq -r .ca)
+
+# Generate random password at each restart
+secret=$(date +%s$RANDOM | sha256sum | awk '{print $1}')
+# Encrypt the password
+passwd=$(uhttpd -m ${secret})
+
+# Register the server
+valid=0
+response=""
+until [ ${valid} -eq 1 ]
+do
+    data='{"system_id": "'${system_id}'", "username": "'${user}'", "password": "'${secret}'"}'
+    response=$(curl -sL -H "Content-Type: application/json" ${server}/api/servers/register -X POST --data '{"system_id": "'${system_id}'", "username": "'${user}'", "password": "'${secret}'"}' -w  "|%{http_code}")
+    http_code=$(echo $response | cut -d'|' -f2)
+    if [ "${http_code}" == "409" ]; then
+        # Duplicat entry, cleanup uci config
+        uci delete rpcd.controller
+        uci commit
+        exit 4
+    elif [ "${http_code}" == "403" ]; then
+        sleep 10
+    elif [ "${http_code}" == "200" ]; then
+        valid=1
+    else
+        exit 5
+    fi
+done
+
+# Save the new password after successfull registration
+uci set rpcd.controller.password=${passwd}
+uci commit
+
+# Configuration received, setup the VPN
+host=$(echo ${response} | jq -r .host)
+port=$(echo ${response} | jq -r .port)
+cert=$(echo ${response} | jq -r .cert)
+key=$(echo ${response} | jq -r .key)
+ca=$(echo ${response} | jq -r .ca)
 cat <<EOF > ${CONFIG_FILE}
 client
 server-poll-timeout 5
@@ -60,7 +96,7 @@ auth-nocache
 verb 3
 EOF
 
-# Setup the connection
+# Start the VPN
 if [ -f ${CONFIG_FILE} ]; then
     exec openvpn ${CONFIG_FILE}
 else
