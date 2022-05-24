@@ -9,6 +9,7 @@ on:
     paths:
       - 'config/**'
       - 'files/**'
+      - 'packages/**'
   pull_request:
     paths:
       - 'config/**'
