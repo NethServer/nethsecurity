@@ -26,7 +26,7 @@ if [ -z "${system_id}" ]; then
 fi
 
 # Create controller user if not exits
-user=$(uci get rpcd.controller.username 2>/dev/null)
+user=$(uci -q get rpcd.controller.username 2>/dev/null)
 if [ -z "${user}" ]; then
     user=$(openssl rand -hex 12)
     uci set rpcd.controller=login
@@ -41,13 +41,20 @@ secret=$(date +%s$RANDOM | sha256sum | awk '{print $1}')
 # Encrypt the password
 passwd=$(uhttpd -m ${secret})
 
+# Disable certificate verification if tls_verify is set to 0
+curl_opts="-sL"
+tls_verify=$(uci -q get ${UCI_CONF}.config.tls_verify)
+if [ "${tls_verify}" == "0" ]; then
+    curl_opts="${curl_opts}k"
+fi
+
 # Register the server
 valid=0
 response=""
 until [ ${valid} -eq 1 ]
 do
     data='{"system_id": "'${system_id}'", "username": "'${user}'", "password": "'${secret}'"}'
-    response=$(curl -sL -H "Content-Type: application/json" ${server}/api/servers/register -X POST --data '{"system_id": "'${system_id}'", "username": "'${user}'", "password": "'${secret}'"}' -w  "|%{http_code}")
+    response=$(curl ${curl_opts} -H "Content-Type: application/json" ${server}/api/servers/register -X POST --data '{"system_id": "'${system_id}'", "username": "'${user}'", "password": "'${secret}'"}' -w  "|%{http_code}")
     http_code=$(echo $response | cut -d'|' -f2)
     if [ "${http_code}" == "409" ]; then
         # Duplicat entry, cleanup uci config

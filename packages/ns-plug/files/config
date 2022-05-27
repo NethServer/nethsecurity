@@ -1,3 +1,4 @@
 config main 'config'
     option server ''
     option system_id ''
+    option tls_verify '1'
