@@ -2,7 +2,7 @@
 set -e
 
 
-OWRT_VERSION="22.03.0-rc1"
+OWRT_VERSION="22.03.0-rc3"
 repobase="ghcr.io/nethserver"
 reponame="nextsecurity-builder"
 
