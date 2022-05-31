@@ -9,6 +9,6 @@ location /stand-alone {
         rewrite ^/stand-alone(/.*)$ $1 last;
 }
 
-location ~ ^/(logs|controller|settings) {
+location ~ ^/(logs|controller|settings|manage) {
         return 301 /configuration;
 }
