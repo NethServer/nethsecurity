@@ -10,11 +10,9 @@ PKG_NAME:=ns-ui
 PKG_VERSION:=0.0.1
 PKG_RELEASE:=$(AUTORELEASE)
 
-PKG_SOURCE_PROTO:=git
-PKG_SOURCE_URL:=https://github.com/NethServer/nextsecurity-controller
-PKG_SOURCE_VERSION=d59474ebc5a81ad9eb5b8a0451dc8940d40755c0
-
-#PKG_BUILD_DIR:=$(BUILD_DIR)/ns-ui-$(PKG_VERSION)
+PKG_SOURCE:=ui.tar.gz
+PKG_SOURCE_URL:=https://nextsec-testing.fra1.digitaloceanspaces.com
+PKG_HASH:=skip
 
 PKG_MAINTAINER:=Giacomo Sanchietti <giacomo.sanchietti@nethesis.it>
 PKG_LICENSE:=GPL-3.0-only
@@ -22,7 +20,6 @@ PKG_LICENSE:=GPL-3.0-only
 include $(INCLUDE_DIR)/package.mk
 
 HOST_BUILD_PARALLEL:=1
-PKG_BUILD_DEPENDS:=node/host
 
 define Package/ns-ui
 	SECTION:=base
@@ -40,12 +37,13 @@ endef
 define Package/ns-ui/conffiles
 endef
 
+define Build/Configure
+endef
+
 # this is required, otherwise compile will fail
 define Build/Compile
-	(export NODE_OPTIONS='--max-old-space-size=1024'; \
-		cd $(PKG_BUILD_DIR)/ui/; \
-		npm install && npm run build; \
-		sed -i 's/"controller"/"stand-alone"/' ./dist/config/config.production.js; \
+	(cd $(PKG_BUILD_DIR)/../dist; \
+		sed -i 's/"controller"/"stand-alone"/' config/config.production.js; \
 	)
 endef
 
@@ -53,7 +51,7 @@ define Package/ns-ui/install
 	$(INSTALL_DIR) $(1)/www-ns
 	$(INSTALL_DIR) $(1)/etc/nginx/conf.d
 	$(INSTALL_CONF) ./files/00ns.locations $(1)/etc/nginx/conf.d/
-	$(CP) $(PKG_BUILD_DIR)/ui/dist/* $(1)/www-ns
+	$(CP) $(PKG_BUILD_DIR)/../dist/* $(1)/www-ns
 endef
  
 $(eval $(call BuildPackage,ns-ui))
