@@ -44,3 +44,21 @@ jobs:
         with:
           name: squashfs-image
           path: bin/targets/**/nextsecurity-*-x86-64-generic-squashfs-combined.img.gz
+      - uses: BetaHuhn/do-spaces-action@v2
+        if: ${{ github.ref == 'refs/heads/master' }}
+        with:
+          access_key: ${{ secrets.ACCESS_KEY }}
+          secret_key: ${{ secrets.SECRET_KEY }}
+          space_name: ${{ secrets.SPACE_NAME }}
+          space_region: ${{ secrets.SPACE_REGION }}
+          source: bin/packages
+          out_dir: packages
+      - uses: BetaHuhn/do-spaces-action@v2
+        if: ${{ github.ref == 'refs/heads/master' }}
+        with:
+          access_key: ${{ secrets.ACCESS_KEY }}
+          secret_key: ${{ secrets.SECRET_KEY }}
+          space_name: ${{ secrets.SPACE_NAME }}
+          space_region: ${{ secrets.SPACE_REGION }}
+          source: bin/targets
+          out_dir: targets
