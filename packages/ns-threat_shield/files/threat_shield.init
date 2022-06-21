@@ -1,0 +1,7 @@
+#!/bin/sh /etc/rc.common
+
+START=20
+
+start() {
+    /usr/sbin/ts
+}

@@ -1,0 +1,70 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# http://www.nethesis.it - nethserver@nethesis.it
+#
+# This script is part of NextSecurity
+#
+# NethServer is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License,
+# or any later version.
+#
+# NethServer is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with NethServer.  If not, see COPYING.
+#
+
+#
+# Threat shield: download remote blocklist
+#
+
+URL=$(uci get threat_shield.config.url)
+SYSTEM_SECRET=$(uci -q get ns-plug.config.secret)
+SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
+DEST_DIR=/var/ns-threat_shield/
+
+function exit_error {
+    >&2 echo "[ERROR] $@"
+    exit 1
+}
+
+if [ -z "$URL" ]; then
+    exit_error "Blacklist URL is not set"
+fi
+
+# Prepare work directory
+mkdir -p $DEST_DIR
+
+# Inject authentication into URL
+proto="$(echo $URL | grep :// | sed -e's,^\(.*://\).*,\1,g')"
+url="$(echo ${URL/$proto/})"
+auth=""
+if [[ "$SYSTEM_SECRET" != "" && "$SYSTEM_ID" != "" ]]; then
+    auth="$SYSTEM_ID:$SYSTEM_SECRET@"
+fi
+
+# Clone repository if not exits
+if [ -d "$DEST_DIR/.git" ]; then
+    # Pull changes
+    opts="--git-dir=$DEST_DIR/.git --work-tree=$DEST_DIR"
+
+    git $opts fetch --all &>/dev/null
+    if [ $? -gt 0 ]; then
+        exit_error "Can't update blacklist repository: fetch failed"
+    fi
+    git $opts reset --hard origin/master &>/dev/null
+else
+    git clone --depth 1 --quiet $proto$auth$url $DEST_DIR
+    if [ $? -gt 0 ]; then
+        exit_error "Can't download blacklist repository"
+    fi
+
+    # do not leak secret
+    chmod 600 "$DEST_DIR/.git/config"
+fi
