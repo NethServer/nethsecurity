@@ -13,6 +13,9 @@ def get_interface_name(interfaces, hwaddr):
 
     return None
 
+def sanitize(name):
+    return name.translate({ord(i): '_' for i in ' -'})
+
 if not sys.argv[1]:
     print(f"Usage: {sys.argv[0]} <export_directory>")
     sys.exit(1)
@@ -22,27 +25,73 @@ data = json.load(f)
 f.close()
 
 u = EUci()
-local_interfaces = json.loads(subprocess.run("ip --json address show", check=True, capture_output=True))
 
-for v in data['vlans']:
-    u.set("network", "", "type", v["type"])
-    u.set("network", "", "type", v["id"])
-
-# Cleanup default configuration
+# Cleanup default network configuration
 for section in u.get("network"):
     s_type = u.get("network", section)
     if s_type == "interface" and (section == "wan" or section == "wan6" or section == "lan"):
-        print(f"Deleting {section}")
+        print(f"Deleting interface {section}")
         u.delete("network", section)
     if s_type == "device":
         ts = u.get_all("network", section)
         if ts['name'] == 'br-lan':
-            print(f"Deleting {section}")
+            print(f"Deleting interface {section}")
             u.delete("network", section)
 
+# Cleanup default firewall zones
+for section in u.get("firewall"):
+    s_type = u.get("firewall", section)
+    if s_type == "zone":
+        z_name = u.get("firewall", section, "name")
+        if z_name == "wan" or z_name == "wan6" or z_name == "lan":
+            print(f"Deleting zone {section}: {u.get_all('firewall', section)}")
+            u.delete("network", section)
+
+local_interfaces = json.loads(subprocess.run(["/sbin/ip", "--json", "address", "show"], check=True, capture_output=True).stdout)
+
+# Create vlan devices
+for v in data['vlans']:
+    iname = get_interface_name(local_interfaces, v["hwaddr"])
+    vname = f'vlan{v["vid"]}'
+    u.set("network", vname, "device") # create named record
+    u.set("network", vname, "type", v["type"])
+    u.set("network", vname, "vid", v["vid"])
+    u.set("network", vname, "ifname", iname)
+    u.set("network", vname, "name", f'{iname}.{v["vid"]}')
+
+# Create interfaces
+for i in data['interfaces']:
+    iname = sanitize(i["interface"])
+    print(f'Creating interface {iname}')
+    u.set("network", iname, "interface") # create named record
+    u.set("network", iname, "proto", i["proto"])
+    u.set("network", iname, "device", get_interface_name(local_interfaces, i["hwaddr"]))
+    if i["ipaddr"]:
+        u.set("network", iname, "ipaddr", i["ipaddr"])
+        u.set("network", iname, "netmask", i["netmask"])
+    if i["gateway"]:
+        u.set("network", iname, "gateway", i["gateway"])
+
+# Create firewall zones
+for z in data['zones']:
+    print(f'Creating zone {z["name"]}')
+    u.set("firewall", z["name"], "zone") # create named record
+    u.set("firewall", z["name"], "name", z["name"])
+    u.set("firewall", z["name"], "output", z["output"])
+    u.set("firewall", z["name"], "input", z["input"])
+    u.set("firewall", z["name"], "forward", z["forward"])
+    u.set("firewall", z["name"], "network", [sanitize(n) for n in z["network"]])
+    if z["name"].startswith("wan"): # setup masquerading for wans
+        u.set("firewall", z["name"], "masq", '1')
+        u.set("firewall", z["name"], "mtu_fix", '1')
+
+# Create firewall forwardings
+for f in data['forwardings']:
+    fname = f'{f["src"]}2{f["dest"]}'
+    print(f'Creating forwarding {fname}')
+    u.set("firewall", fname, "forwarding") # create named record
+    u.set("firewall", fname, "src", f["src"])
+    u.set("firewall", fname, "dest", f["dest"])
+
 u.commit("network")
-
-
-
-
-print(data)
+u.commit("firewall")
