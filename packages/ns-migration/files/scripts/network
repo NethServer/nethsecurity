@@ -2,6 +2,7 @@
 
 import sys
 import json
+import argparse
 import subprocess
 from glob import glob
 from euci import EUci
@@ -16,35 +17,41 @@ def get_interface_name(interfaces, hwaddr):
 def sanitize(name):
     return name.translate({ord(i): '_' for i in ' -.'})
 
-if not sys.argv[1]:
-    print(f"Usage: {sys.argv[0]} <export_directory>")
-    sys.exit(1)
+# Parse command line arguments
+parser = argparse.ArgumentParser(description="Import network and basic firewall configuration")
+parser.add_argument("--quiet", "-q", action="store_true", help="don't print executed actions to stdout")
+parser.add_argument("export_dir", nargs=1, help="export directory with uncompressed files")
+args = parser.parse_args()
 
-f = open(f'{sys.argv[1]}/network.json')
+vprint = print if not args.quiet else lambda *a, **k: None
+
+# Read NS7 network configurations
+f = open(f'{args.export_dir[0]}/network.json')
 data = json.load(f)
 f.close()
 
+# Initialize UCI pointer
 u = EUci()
 
 # Cleanup default firewall zones
 for section in u.get("firewall"):
     s_type = u.get("firewall", section)
     if s_type == "zone":
-        z_name = u.get("firewall", section, "name")
-        if z_name == "wan" or z_name == "wan6" or z_name == "lan":
-            print(f"Deleting zone {section}: {u.get_all('firewall', section)}")
+        zname = u.get("firewall", section, "name")
+        if zname == "wan" or zname == "wan6" or zname == "lan":
+            vprint(f"Deleting zone {section} ({zname})")
             u.delete("firewall", section)
 
 # Cleanup default network configuration
 for section in u.get("network"):
     s_type = u.get("network", section)
     if s_type == "interface" and (section == "wan" or section == "wan6" or section == "lan"):
-        print(f"Deleting interface {section}")
+        vprint(f"Deleting interface {section}")
         u.delete("network", section)
     if s_type == "device":
         ts = u.get_all("network", section)
         if ts['name'] == 'br-lan':
-            print(f"Deleting interface {section}")
+            vprint(f"Deleting interface {section}")
             u.delete("network", section)
 
 local_interfaces = json.loads(subprocess.run(["/sbin/ip", "--json", "address", "show"], check=True, capture_output=True).stdout)
@@ -62,7 +69,7 @@ for v in data['vlans']:
 # Create interfaces
 for i in data['interfaces']:
     iname = sanitize(i["interface"])
-    print(f'Creating interface {iname}')
+    vprint(f'Creating interface {iname}')
     u.set("network", iname, "interface") # create named record
     u.set("network", iname, "proto", i["proto"])
     u.set("network", iname, "device", get_interface_name(local_interfaces, i["hwaddr"]))
@@ -74,7 +81,7 @@ for i in data['interfaces']:
 
 # Create firewall zones
 for z in data['zones']:
-    print(f'Creating zone {z["name"]}')
+    vprint(f'Creating zone {z["name"]}')
     u.set("firewall", z["name"], "zone") # create named record
     u.set("firewall", z["name"], "name", z["name"])
     u.set("firewall", z["name"], "output", z["output"])
@@ -88,14 +95,14 @@ for z in data['zones']:
 # Create firewall forwardings
 for f in data['forwardings']:
     fname = f'{f["src"]}2{f["dest"]}'
-    print(f'Creating forwarding {fname}')
+    vprint(f'Creating forwarding {fname}')
     u.set("firewall", fname, "forwarding") # create named record
     u.set("firewall", fname, "src", f["src"])
     u.set("firewall", fname, "dest", f["dest"])
 
 # Create snat rules
 for s in data['snats']:
-    print(f'Creating SNAT {s["name"]}')
+    vprint(f'Creating SNAT {s["name"]}')
     sname = sanitize(s["name"])
     u.set("firewall", sname, "nat") # create named record
     u.set("firewall", sname, "name", s["name"])
