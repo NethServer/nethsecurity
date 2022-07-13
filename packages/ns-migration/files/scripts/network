@@ -79,6 +79,20 @@ for i in data['interfaces']:
     if i["gateway"]:
         u.set("network", iname, "gateway", i["gateway"])
 
+# Create aliases
+acount = len(data['aliases'])
+for a in data['aliases']:
+    aname = sanitize(a["device"])+str(acount)
+    vprint(f'Creating alias {aname}')
+    u.set("network", aname, "interface") # create named record
+    u.set("network", aname, "device", f'@{sanitize(a["device"])}')
+    u.set("network", aname, "ipaddr", a["ipaddr"])
+    u.set("network", aname, "netmask", a["netmask"])
+    u.set("network", aname, "proto", a["proto"])
+    if a["gateway"]:
+        u.set("network", aname, "gateway", a["gateway"])
+    acount = acount - 1
+
 # Create firewall zones
 for z in data['zones']:
     vprint(f'Creating zone {z["name"]}')
@@ -110,7 +124,7 @@ for s in data['snats']:
     u.set("firewall", sname, "proto", [s["proto"]])
     u.set("firewall", sname, "snat_ip", s["snat_ip"])
     u.set("firewall", sname, "src_ip", s["src_ip"])
-    u.set("firewall", sname, "src", sanitize(s["src"]))
+    u.set("firewall", sname, "src", "wan")
 
 # Save configuration
 u.commit("network")
