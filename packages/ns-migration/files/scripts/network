@@ -14,7 +14,7 @@ def get_interface_name(interfaces, hwaddr):
     return None
 
 def sanitize(name):
-    return name.translate({ord(i): '_' for i in ' -'})
+    return name.translate({ord(i): '_' for i in ' -.'})
 
 if not sys.argv[1]:
     print(f"Usage: {sys.argv[0]} <export_directory>")
@@ -26,6 +26,15 @@ f.close()
 
 u = EUci()
 
+# Cleanup default firewall zones
+for section in u.get("firewall"):
+    s_type = u.get("firewall", section)
+    if s_type == "zone":
+        z_name = u.get("firewall", section, "name")
+        if z_name == "wan" or z_name == "wan6" or z_name == "lan":
+            print(f"Deleting zone {section}: {u.get_all('firewall', section)}")
+            u.delete("firewall", section)
+
 # Cleanup default network configuration
 for section in u.get("network"):
     s_type = u.get("network", section)
@@ -36,15 +45,6 @@ for section in u.get("network"):
         ts = u.get_all("network", section)
         if ts['name'] == 'br-lan':
             print(f"Deleting interface {section}")
-            u.delete("network", section)
-
-# Cleanup default firewall zones
-for section in u.get("firewall"):
-    s_type = u.get("firewall", section)
-    if s_type == "zone":
-        z_name = u.get("firewall", section, "name")
-        if z_name == "wan" or z_name == "wan6" or z_name == "lan":
-            print(f"Deleting zone {section}: {u.get_all('firewall', section)}")
             u.delete("network", section)
 
 local_interfaces = json.loads(subprocess.run(["/sbin/ip", "--json", "address", "show"], check=True, capture_output=True).stdout)
@@ -93,5 +93,18 @@ for f in data['forwardings']:
     u.set("firewall", fname, "src", f["src"])
     u.set("firewall", fname, "dest", f["dest"])
 
+# Create snat rules
+for s in data['snats']:
+    print(f'Creating SNAT {s["name"]}')
+    sname = sanitize(s["name"])
+    u.set("firewall", sname, "nat") # create named record
+    u.set("firewall", sname, "name", s["name"])
+    u.set("firewall", sname, "target", s["target"])
+    u.set("firewall", sname, "proto", [s["proto"]])
+    u.set("firewall", sname, "snat_ip", s["snat_ip"])
+    u.set("firewall", sname, "src_ip", s["src_ip"])
+    u.set("firewall", sname, "src", sanitize(s["src"]))
+
+# Save configuration
 u.commit("network")
 u.commit("firewall")
