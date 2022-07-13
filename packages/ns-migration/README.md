@@ -19,3 +19,11 @@ cd /tmp
 tar xvzf export.tar.gz
 /usr/share/firewall-import/network /tmp/export
 ```
+
+## network
+
+Differences since NS7:
+
+- source NAT are connected to `wan` outbound zone and not to a specific interface;
+  this configuration can be changed by setting `src` option to `*` and adding `device` option set to the WAN physical ethernet interface
+  
