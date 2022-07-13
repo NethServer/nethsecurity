@@ -1,0 +1,48 @@
+#!/usr/bin/python3
+
+import sys
+import json
+import subprocess
+from glob import glob
+from euci import EUci
+
+def get_interface_name(interfaces, hwaddr):
+    for interface in interfaces:
+        if interface["address"] == hwaddr:
+            return interface["ifname"]
+
+    return None
+
+if not sys.argv[1]:
+    print(f"Usage: {sys.argv[0]} <export_directory>")
+    sys.exit(1)
+
+f = open(f'{sys.argv[1]}/network.json')
+data = json.load(f)
+f.close()
+
+u = EUci()
+local_interfaces = json.loads(subprocess.run("ip --json address show", check=True, capture_output=True))
+
+for v in data['vlans']:
+    u.set("network", "", "type", v["type"])
+    u.set("network", "", "type", v["id"])
+
+# Cleanup default configuration
+for section in u.get("network"):
+    s_type = u.get("network", section)
+    if s_type == "interface" and (section == "wan" or section == "wan6" or section == "lan"):
+        print(f"Deleting {section}")
+        u.delete("network", section)
+    if s_type == "device":
+        ts = u.get_all("network", section)
+        if ts['name'] == 'br-lan':
+            print(f"Deleting {section}")
+            u.delete("network", section)
+
+u.commit("network")
+
+
+
+
+print(data)

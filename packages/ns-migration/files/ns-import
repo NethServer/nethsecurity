@@ -1,0 +1,29 @@
+#!/bin/sh
+
+function usage {
+    echo "$0 <exported_archive>"
+    exit 1
+}
+
+if [ -z "$1" ]; then
+    usage    
+fi
+
+if [ ! -f $1 ]; then
+    echo "No such file or directory: '$1'"
+    exit 1
+fi
+
+tmp_dir=$(mktemp -d)
+work_dir=$(pwd)
+archive="$work_dir/$1"
+cd $tmp_dir
+tar xvzf "$archive"
+cd $work_dir
+
+for f in $(find /usr/share/firewall-import/ -type f)
+do
+    $f "$tmp_dir/export"
+done
+
+rm -rf $tmp_dir
