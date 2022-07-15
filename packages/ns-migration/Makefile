@@ -39,6 +39,7 @@ define Package/ns-migration/install
 	$(INSTALL_BIN) ./files/ns-import $(1)/usr/sbin/ns-import
 	$(INSTALL_BIN) ./files/scripts/network $(1)/usr/share/ns-migration/network
 	$(INSTALL_BIN) ./files/scripts/dhcp $(1)/usr/share/ns-migration/dhcp
+	$(INSTALL_BIN) ./files/scripts/dns $(1)/usr/share/ns-migration/dns
 endef
  
 $(eval $(call BuildPackage,ns-migration))
