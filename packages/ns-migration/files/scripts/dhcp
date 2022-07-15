@@ -1,0 +1,79 @@
+#!/usr/bin/python3
+
+import sys
+import json
+import argparse
+import subprocess
+from glob import glob
+from euci import EUci
+
+def get_interface_name(euci, interfaces, hwaddr):
+    name = ""
+    for interface in interfaces:
+        if interface["address"] == hwaddr:
+            name = interface["ifname"]
+        if name:
+            break
+
+    for section in u.get("network"):
+        if  u.get("network", section) == "interface" and (u.get("network", section, "device") == name):
+            return section
+
+    return None
+
+def sanitize(name):
+    return name.translate({ord(i): '_' for i in ' -.'})
+
+# Parse command line arguments
+parser = argparse.ArgumentParser(description="Import network and basic firewall configuration")
+parser.add_argument("--quiet", "-q", action="store_true", help="don't print executed actions to stdout")
+parser.add_argument("export_dir", nargs=1, help="export directory with uncompressed files")
+args = parser.parse_args()
+
+vprint = print if not args.quiet else lambda *a, **k: None
+
+# Read NS7 network configurations
+f = open(f'{args.export_dir[0]}/dhcp.json')
+data = json.load(f)
+f.close()
+
+# Initialize UCI pointer
+u = EUci()
+
+local_interfaces = json.loads(subprocess.run(["/sbin/ip", "--json", "address", "show"], check=True, capture_output=True).stdout)
+
+# Set global options
+for section in u.get("dhcp"):
+    if  u.get("dhcp", section) == "dnsmasq":
+        u.set("dhcp", section, "dhcpleasemax", data['general']["dhcpleasemax"])
+
+# Setup DHCP ranges
+rcounter = len(data['servers'])
+for s in data['servers']:
+    iname = get_interface_name(u, local_interfaces, s["hwaddr"])
+    sname = f'dhcp{rcounter}'
+    vprint(f'Creating DHCP server {sname} on {iname}')
+    u.set("dhcp", sname, "dhcp") # create named record
+    u.set("dhcp", sname, "interface", iname)
+    u.set("dhcp", sname, "leasetime", s["leasetime"])
+    u.set("dhcp", sname, "ignore", s["ignore"])
+    u.set("dhcp", sname, "start", s["start"])
+    u.set("dhcp", sname, "limit", s["limit"])
+    u.set("dhcp", sname, "dhcp_option", s["dhcp_option"])
+    if s["domain"]:
+        u.set("dhcp", sname, "domain", s["domain"])
+    rcounter = rcounter - 1
+
+# Create static leases
+for r in data['reservations']:
+    rname = sanitize(r["name"])
+    vprint(f'Creating static lease {rname}')
+    u.set("dhcp", rname, "host") # create named record
+    #u.set("network", aname, "device", u.get("network", sanitize(a["device"]), "device"))
+    u.set("dhcp", rname, "name", rname)
+    u.set("dhcp", rname, "mac", r['mac'])
+    u.set("dhcp", rname, "ip", r['ip'])
+    u.set("dhcp", rname, "dns", 1)
+
+# Save configuration
+u.commit("dhcp")
