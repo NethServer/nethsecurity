@@ -14,6 +14,7 @@ if [ ! -f $1 ]; then
     exit 1
 fi
 
+# Prepare target directories and explode archive
 tmp_dir=$(mktemp -d)
 work_dir=$(pwd)
 archive="$work_dir/$1"
@@ -21,9 +22,15 @@ cd $tmp_dir
 tar xvzf "$archive"
 cd $work_dir
 
+# Execute all scripts
 for f in $(find /usr/share/firewall-import/ -type f)
 do
     $f "$tmp_dir/export"
 done
 
 rm -rf $tmp_dir
+
+# Restart services
+service network restart
+service firewall restart
+service dnsmasq restart
