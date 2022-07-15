@@ -29,9 +29,16 @@ define Package/ns-myapp
 endef
 ```
 
-To compile only the package, use:
+To compile only the package, lunch the shell inside the container then use:
 ```
 make package/feeds/nextsecurity/ns-myapp/{download,compile} V=sc
 ```
+
+Or, using a one-liner:
+```
+./run bash -- -c "make package/feeds/nextsecurity/ns-myapp{download,compile} V=sc"
+```
+
+The package will be availale inside `bin/packages/x86_64/nextsecurity/ns-myapp_<version>_all.ipk`.
 
 For more info, see [upstream guide](https://openwrt.org/docs/guide-developer/packages)
