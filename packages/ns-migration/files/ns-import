@@ -23,7 +23,7 @@ tar xvzf "$archive"
 cd $work_dir
 
 # Execute all scripts
-for f in $(find /usr/share/firewall-import/ -type f)
+for f in $(find /usr/share/ns-migration/ -type f)
 do
     $f "$tmp_dir/export"
 done
