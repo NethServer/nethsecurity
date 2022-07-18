@@ -31,8 +31,7 @@ for r in data['reservations']:
     rname = fwutils.sanitize(r["name"])
     fwutils.vprint(f'Creating static lease {rname}')
     u.set("dhcp", rname, "host") # create named record
-    #u.set("network", aname, "device", u.get("network", fwutils.sanitize(a["device"]), "device"))
-    u.set("dhcp", rname, "name", rname)
+    u.set("dhcp", rname, "name", r["name"])
     u.set("dhcp", rname, "mac", r['mac'])
     u.set("dhcp", rname, "ip", r['ip'])
     u.set("dhcp", rname, "dns", 1)
