@@ -26,4 +26,7 @@ Differences since NS7:
 
 - source NAT are connected to `wan` outbound zone and not to a specific interface;
   this configuration can be changed by setting `src` option to `*` and adding `device` option set to the WAN physical ethernet interface
-  
+ 
+## dhcp
+
+- TFTP options are migrated, but not the content of the tftp_root directory. To re-enable the service make sure to setup `tftp_root` option
