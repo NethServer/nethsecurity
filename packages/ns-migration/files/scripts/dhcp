@@ -26,8 +26,23 @@ for s in data['servers']:
         u.set("dhcp", sname, "domain", s["domain"])
     rcounter = rcounter - 1
 
+
+# Check if an IP address has been already reserved
+def already_reserved(ip):
+    for section in u.get_all('dhcp'):
+        if u.get('dhcp', section) != 'host':
+            continue
+        if u.get('dhcp', section, 'ip') == ip:
+            return True
+    return False
+
 # Create static leases
 for r in data['reservations']:
+    # DHCP will refuse to start if there are multiple static leases with the same IP address
+    if already_reserved(r['ip']):
+        fwutils.vprint(f'Skipping duplicate lease {r["name"]}')
+        continue
+
     rname = fwutils.sanitize(r["name"])
     fwutils.vprint(f'Creating static lease {rname}')
     u.set("dhcp", rname, "host") # create named record
