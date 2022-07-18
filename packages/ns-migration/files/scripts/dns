@@ -12,9 +12,11 @@ for section in u.get("system"):
         u.set("system", section, "hostname", fqdn)
         del data["general"]["hostname"] # avoid to set an unsupported option in the next loop
 
+dnsmasq_section = ''
 # Set global options
 for section in u.get("dhcp"):
     if  u.get("dhcp", section) == "dnsmasq":
+        dnsmasq_section = section # for later use
         for o in data['general']:
             fwutils.vprint(f"Setting DNS option {o}")
             u.set("dhcp", section, o, data['general'][o])
@@ -31,6 +33,14 @@ for host in data["hosts"]:
     u.set("dhcp", hname, "domain") # create named record
     for o in host:
         u.set("dhcp", hname, o, host[o])
+
+# Create wildcard hosts
+addresses = []
+for address in data["addresses"]:
+    aname = fwutils.sanitize(address["name"])
+    fwutils.vprint(f'Creating wildcard record {aname}')
+    addresses.append(f'/{address["name"]}/{address["ip"]}')
+u.set("dhcp", dnsmasq_section, "address", addresses)
 
 # Save configuration
 u.commit("dhcp")
