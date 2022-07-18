@@ -17,15 +17,21 @@ fi
 # Prepare target directories and explode archive
 tmp_dir=$(mktemp -d)
 work_dir=$(pwd)
-archive="$work_dir/$1"
+
+# Find absolute path of the archive
+archive=$(cd "$(dirname -- "$1")" >/dev/null; pwd -P)/$(basename -- "$1")
+
+# Explode the archive
 cd $tmp_dir
-tar xvzf "$archive"
+tar xzf "$archive"
 cd $work_dir
 
 # Execute all scripts
 for f in $(find /usr/share/ns-migration/ -type f)
 do
-    $f "$tmp_dir/export"
+    if [ -x "$f" ]; then
+        "$f" "$tmp_dir/export"
+    fi
 done
 
 rm -rf $tmp_dir

@@ -1,52 +1,14 @@
 #!/usr/bin/python3
 
-import sys
-import json
-import argparse
-import subprocess
-from glob import glob
-from euci import EUci
+import fwutils
 
-def get_interface_name(euci, interfaces, hwaddr):
-    name = ""
-    for interface in interfaces:
-        if interface["address"] == hwaddr:
-            name = interface["ifname"]
-        if name:
-            break
-
-    for section in u.get("network"):
-        if  u.get("network", section) == "interface" and (u.get("network", section, "device") == name):
-            return section
-
-    return None
-
-def sanitize(name):
-    return name.translate({ord(i): '_' for i in ' -.'})
-
-# Parse command line arguments
-parser = argparse.ArgumentParser(description="Import network and basic firewall configuration")
-parser.add_argument("--quiet", "-q", action="store_true", help="don't print executed actions to stdout")
-parser.add_argument("export_dir", nargs=1, help="export directory with uncompressed files")
-args = parser.parse_args()
-
-vprint = print if not args.quiet else lambda *a, **k: None
-
-# Read NS7 network configurations
-f = open(f'{args.export_dir[0]}/dns.json')
-data = json.load(f)
-f.close()
-
-# Initialize UCI pointer
-u = EUci()
-
-local_interfaces = json.loads(subprocess.run(["/sbin/ip", "--json", "address", "show"], check=True, capture_output=True).stdout)
+(u, data) = fwutils.init("dns.json")
 
 # Setup hostname
 fqdn = f'{data["general"]["hostname"]}.{data["general"]["domain"]}'
 for section in u.get("system"):
     if  u.get("system", section) == "system":
-        vprint(f"Setting FQDN {fqdn}")
+        fwutils.vprint(f"Setting FQDN {fqdn}")
         u.set("system", section, "hostname", fqdn)
         del data["general"]["hostname"] # avoid to set an unsupported option in the next loop
 
@@ -54,18 +16,18 @@ for section in u.get("system"):
 for section in u.get("dhcp"):
     if  u.get("dhcp", section) == "dnsmasq":
         for o in data['general']:
-            vprint(f"Setting DNS option {o}")
+            fwutils.vprint(f"Setting DNS option {o}")
             u.set("dhcp", section, o, data['general'][o])
 
-        vprint(f"Setting DNS forwardings")
+        fwutils.vprint(f"Setting DNS forwardings")
         u.set("dhcp", section, "server", data["forwardings"])
         u.set("dhcp", section, "local", f'/{data["general"]["domain"]}/')
 
 
 # Create hosts entries
 for host in data["hosts"]:
-    hname = sanitize(host["name"])
-    vprint(f'Creating host {hname}')
+    hname = fwutils.sanitize(host["name"])
+    fwutils.vprint(f'Creating host {hname}')
     u.set("dhcp", hname, "domain") # create named record
     for o in host:
         u.set("dhcp", hname, o, host[o])

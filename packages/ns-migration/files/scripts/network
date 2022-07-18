@@ -1,37 +1,8 @@
 #!/usr/bin/python3
 
-import sys
-import json
-import argparse
-import subprocess
-from glob import glob
-from euci import EUci
+import fwutils
 
-def get_interface_name(interfaces, hwaddr):
-    for interface in interfaces:
-        if interface["address"] == hwaddr:
-            return interface["ifname"]
-
-    return None
-
-def sanitize(name):
-    return name.translate({ord(i): '_' for i in ' -.'})
-
-# Parse command line arguments
-parser = argparse.ArgumentParser(description="Import network and basic firewall configuration")
-parser.add_argument("--quiet", "-q", action="store_true", help="don't print executed actions to stdout")
-parser.add_argument("export_dir", nargs=1, help="export directory with uncompressed files")
-args = parser.parse_args()
-
-vprint = print if not args.quiet else lambda *a, **k: None
-
-# Read NS7 network configurations
-f = open(f'{args.export_dir[0]}/network.json')
-data = json.load(f)
-f.close()
-
-# Initialize UCI pointer
-u = EUci()
+(u, data) = fwutils.init("network.json")
 
 # Cleanup default firewall zones
 for section in u.get("firewall"):
@@ -39,26 +10,24 @@ for section in u.get("firewall"):
     if s_type == "zone":
         zname = u.get("firewall", section, "name")
         if zname == "wan" or zname == "wan6" or zname == "lan":
-            vprint(f"Deleting zone {section} ({zname})")
+            fwutils.vprint(f"Deleting zone {section} ({zname})")
             u.delete("firewall", section)
 
 # Cleanup default network configuration
 for section in u.get("network"):
     s_type = u.get("network", section)
     if s_type == "interface" and (section == "wan" or section == "wan6" or section == "lan"):
-        vprint(f"Deleting interface {section}")
+        fwutils.vprint(f"Deleting interface {section}")
         u.delete("network", section)
     if s_type == "device":
         ts = u.get_all("network", section)
         if ts['name'] == 'br-lan':
-            vprint(f"Deleting interface {section}")
+            fwutils.vprint(f"Deleting interface {section}")
             u.delete("network", section)
-
-local_interfaces = json.loads(subprocess.run(["/sbin/ip", "--json", "address", "show"], check=True, capture_output=True).stdout)
 
 # Create vlan devices
 for v in data['vlans']:
-    iname = get_interface_name(local_interfaces, v["hwaddr"])
+    iname = fwutils.get_device_name(v["hwaddr"])
     vname = f'vlan{v["vid"]}'
     u.set("network", vname, "device") # create named record
     u.set("network", vname, "type", v["type"])
@@ -68,11 +37,11 @@ for v in data['vlans']:
 
 # Create interfaces
 for i in data['interfaces']:
-    iname = sanitize(i["interface"])
-    vprint(f'Creating interface {iname}')
+    iname = fwutils.sanitize(i["interface"])
+    fwutils.vprint(f'Creating interface {iname}')
     u.set("network", iname, "interface") # create named record
     u.set("network", iname, "proto", i["proto"])
-    u.set("network", iname, "device", get_interface_name(local_interfaces, i["hwaddr"]))
+    u.set("network", iname, "device", fwutils.get_device_name(i["hwaddr"]))
     if i["ipaddr"]:
         u.set("network", iname, "ipaddr", i["ipaddr"])
         u.set("network", iname, "netmask", i["netmask"])
@@ -82,10 +51,11 @@ for i in data['interfaces']:
 # Create aliases
 acount = len(data['aliases'])
 for a in data['aliases']:
-    aname = sanitize(a["device"])+str(acount)
-    vprint(f'Creating alias {aname}')
+    aname = fwutils.sanitize(a["device"])+str(acount)
+    fwutils.vprint(f'Creating alias {aname}')
     u.set("network", aname, "interface") # create named record
-    u.set("network", aname, "device", f'@{sanitize(a["device"])}')
+    #u.set("network", aname, "device", u.get("network", fwutils.sanitize(a["device"]), "device"))
+    u.set("network", aname, "device", f'@{fwutils.sanitize(a["device"])}')
     u.set("network", aname, "ipaddr", a["ipaddr"])
     u.set("network", aname, "netmask", a["netmask"])
     u.set("network", aname, "proto", a["proto"])
@@ -95,13 +65,13 @@ for a in data['aliases']:
 
 # Create firewall zones
 for z in data['zones']:
-    vprint(f'Creating zone {z["name"]}')
+    fwutils.vprint(f'Creating zone {z["name"]}')
     u.set("firewall", z["name"], "zone") # create named record
     u.set("firewall", z["name"], "name", z["name"])
     u.set("firewall", z["name"], "output", z["output"])
     u.set("firewall", z["name"], "input", z["input"])
     u.set("firewall", z["name"], "forward", z["forward"])
-    u.set("firewall", z["name"], "network", [sanitize(n) for n in z["network"]])
+    u.set("firewall", z["name"], "network", [fwutils.sanitize(n) for n in z["network"]])
     if z["name"].startswith("wan"): # setup masquerading for wans
         u.set("firewall", z["name"], "masq", '1')
         u.set("firewall", z["name"], "mtu_fix", '1')
@@ -109,15 +79,15 @@ for z in data['zones']:
 # Create firewall forwardings
 for f in data['forwardings']:
     fname = f'{f["src"]}2{f["dest"]}'
-    vprint(f'Creating forwarding {fname}')
+    fwutils.vprint(f'Creating forwarding {fname}')
     u.set("firewall", fname, "forwarding") # create named record
     u.set("firewall", fname, "src", f["src"])
     u.set("firewall", fname, "dest", f["dest"])
 
 # Create snat rules
 for s in data['snats']:
-    vprint(f'Creating SNAT {s["name"]}')
-    sname = sanitize(s["name"])
+    fwutils.vprint(f'Creating SNAT {s["name"]}')
+    sname = fwutils.sanitize(s["name"])
     u.set("firewall", sname, "nat") # create named record
     u.set("firewall", sname, "name", s["name"])
     u.set("firewall", sname, "target", s["target"])

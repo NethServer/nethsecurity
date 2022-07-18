@@ -1,46 +1,8 @@
 #!/usr/bin/python3
 
-import sys
-import json
-import argparse
-import subprocess
-from glob import glob
-from euci import EUci
+import fwutils
 
-def get_interface_name(euci, interfaces, hwaddr):
-    name = ""
-    for interface in interfaces:
-        if interface["address"] == hwaddr:
-            name = interface["ifname"]
-        if name:
-            break
-
-    for section in u.get("network"):
-        if  u.get("network", section) == "interface" and (u.get("network", section, "device") == name):
-            return section
-
-    return None
-
-def sanitize(name):
-    return name.translate({ord(i): '_' for i in ' -.'})
-
-# Parse command line arguments
-parser = argparse.ArgumentParser(description="Import network and basic firewall configuration")
-parser.add_argument("--quiet", "-q", action="store_true", help="don't print executed actions to stdout")
-parser.add_argument("export_dir", nargs=1, help="export directory with uncompressed files")
-args = parser.parse_args()
-
-vprint = print if not args.quiet else lambda *a, **k: None
-
-# Read NS7 network configurations
-f = open(f'{args.export_dir[0]}/dhcp.json')
-data = json.load(f)
-f.close()
-
-# Initialize UCI pointer
-u = EUci()
-
-local_interfaces = json.loads(subprocess.run(["/sbin/ip", "--json", "address", "show"], check=True, capture_output=True).stdout)
+(u, data) = fwutils.init("dhcp.json")
 
 # Set global options
 for section in u.get("dhcp"):
@@ -50,9 +12,9 @@ for section in u.get("dhcp"):
 # Setup DHCP ranges
 rcounter = len(data['servers'])
 for s in data['servers']:
-    iname = get_interface_name(u, local_interfaces, s["hwaddr"])
+    iname = fwutils.get_interface_name(u, s["hwaddr"])
     sname = f'dhcp{rcounter}'
-    vprint(f'Creating DHCP server {sname} on {iname}')
+    fwutils.vprint(f'Creating DHCP server {sname} on {iname}')
     u.set("dhcp", sname, "dhcp") # create named record
     u.set("dhcp", sname, "interface", iname)
     u.set("dhcp", sname, "leasetime", s["leasetime"])
@@ -66,10 +28,10 @@ for s in data['servers']:
 
 # Create static leases
 for r in data['reservations']:
-    rname = sanitize(r["name"])
-    vprint(f'Creating static lease {rname}')
+    rname = fwutils.sanitize(r["name"])
+    fwutils.vprint(f'Creating static lease {rname}')
     u.set("dhcp", rname, "host") # create named record
-    #u.set("network", aname, "device", u.get("network", sanitize(a["device"]), "device"))
+    #u.set("network", aname, "device", u.get("network", fwutils.sanitize(a["device"]), "device"))
     u.set("dhcp", rname, "name", rname)
     u.set("dhcp", rname, "mac", r['mac'])
     u.set("dhcp", rname, "ip", r['ip'])
