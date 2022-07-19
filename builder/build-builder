@@ -1,6 +1,11 @@
 #!/bin/bash
-set -e
 
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+set -e
 
 OWRT_VERSION="22.03.0-rc5"
 repobase="ghcr.io/nethserver"

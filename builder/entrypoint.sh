@@ -1,5 +1,10 @@
 #!/bin/bash
 
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
 echo "Preparing build environment ..."
 
 OUTPUT=/home/build/openwrt/.config

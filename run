@@ -1,6 +1,11 @@
 #!/bin/bash
 
 #
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+#
 # Launch podman image to build nextsecurity
 # As default the script mounts as volume staging and build dirs to speedup successibe builds
 #
