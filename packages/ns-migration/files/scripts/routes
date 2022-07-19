@@ -13,6 +13,7 @@ counter = len(data['routes'])
 
 for route in data['routes']:
     rname = f'route{counter}'
+    fwutils.vprint(f'Creating route {rname}')
     route['interface'] = fwutils.get_interface_name(u, route['interface'])
     u.set("network", rname, "route")
     for option in route:
