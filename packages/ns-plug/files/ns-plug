@@ -1,6 +1,11 @@
 #!/bin/sh
 
 #
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+#
 # Connect to a remote NextSecurity controller
 #
 
