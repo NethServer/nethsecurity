@@ -1,0 +1,32 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import fwutils
+
+(u, data) = fwutils.init("ssh.json")
+
+# Set global options
+for section in u.get("dropbear"):
+    if  u.get("dropbear", section) == "dropbear":
+        for option in data['ssh']:
+            u.set("dropbear", section, option, data['ssh'][option])
+
+with open('/etc/dropbear/authorized_keys', 'w') as f:
+    f.write(data['authorized_keys'])
+
+if data['ssh_from_wan']:
+    section =  "Allow_SSH_from_WAN"
+    u.set("firewall", section, 'rule')
+    u.set("firewall", section, 'name', section.replace("_","-"))
+    u.set("firewall", section, 'proto', 'tcp')
+    u.set("firewall", section, 'src', 'wan')
+    u.set("firewall", section, 'target', 'ACCEPT')
+    u.set("firewall", section, 'dest_port', data['ssh']['Port'])
+    u.commit("firewall")
+
+# Save configuration
+u.commit("dropbear")
