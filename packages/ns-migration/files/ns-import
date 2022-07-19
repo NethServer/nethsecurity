@@ -1,5 +1,10 @@
 #!/bin/sh
 
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
 function usage {
     echo "$0 <exported_archive>"
     exit 1

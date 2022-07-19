@@ -1,5 +1,10 @@
 #!/usr/bin/python3
 
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
 import re
 import sys
 import json

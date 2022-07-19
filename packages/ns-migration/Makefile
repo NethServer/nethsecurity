@@ -1,7 +1,6 @@
 #
-# Copyright (C) 2022 Nethesis
-#
-# This is free software, licensed under the GNU General Public License v3.
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
 #
 
 include $(TOPDIR)/rules.mk
