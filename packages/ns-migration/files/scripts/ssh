@@ -13,12 +13,16 @@ import fwutils
 for section in u.get("dropbear"):
     if  u.get("dropbear", section) == "dropbear":
         for option in data['ssh']:
+            fwutils.vprint(f"Setting SSH option {option}")
             u.set("dropbear", section, option, data['ssh'][option])
 
-with open('/etc/dropbear/authorized_keys', 'w') as f:
-    f.write(data['authorized_keys'])
+if data['authorized_keys']:
+    fwutils.vprint(f"Setting SSH authorized_keys")
+    with open('/etc/dropbear/authorized_keys', 'w') as f:
+        f.write(data['authorized_keys'])
 
 if data['ssh_from_wan']:
+    fwutils.vprint(f"Allowing SSH access from WAN")
     section =  "Allow_SSH_from_WAN"
     u.set("firewall", section, 'rule')
     u.set("firewall", section, 'name', section.replace("_","-"))
