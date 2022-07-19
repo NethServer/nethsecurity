@@ -1,0 +1,23 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import fwutils
+
+(u, data) = fwutils.init("time.json")
+
+# Set global options
+for option in data['ntp']:
+    fwutils.vprint(f"Setting NTP option {option}")
+    u.set("system", "ntp", option, data['ntp'][option])
+
+for section in u.get("system"):
+    if  u.get("system", section) == "timezone":
+        fwutils.vprint(f"Setting timezone")
+        u.set("system", section, "timezone", data['timezone'])
+
+# Save configuration
+u.commit("system")

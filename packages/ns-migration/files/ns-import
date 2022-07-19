@@ -46,3 +46,5 @@ service network restart
 service firewall restart
 service dnsmasq restart
 service dropbear restart
+service system restart
+service sysntpd restart
