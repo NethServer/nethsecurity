@@ -1,0 +1,23 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import fwutils
+
+(u, data) = fwutils.init("routes.json")
+
+counter = len(data['routes'])
+
+for route in data['routes']:
+    rname = f'route{counter}'
+    route['interface'] = fwutils.get_interface_name(u, route['interface'])
+    u.set("network", rname, "route")
+    for option in route:
+        u.set("network", rname, option, route[option])
+
+
+# Save configuration
+u.commit("network")
