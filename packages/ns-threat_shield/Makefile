@@ -22,7 +22,7 @@ define Package/ns-threat_shield
 	CATEGORY:=NextSecurity
 	TITLE:=Threat shield block list
 	URL:=https://github.com/NethServer/nextsecurity/
-	DEPENDS:=+git-http +wget-ssl +adblock
+	DEPENDS:=+git-http +wget-ssl +adblock +jq
 	PKGARCH:=all
 endef
  
