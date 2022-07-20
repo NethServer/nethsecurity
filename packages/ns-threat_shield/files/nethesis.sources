@@ -1,0 +1,30 @@
+{
+        "yoroi_malware_level1": {
+                "url": "https://__USER__:__PASSWORD__@bl.nethesis.it/plain/nethesis-blacklists/yoroi_malware_level1.dns",
+                "rule": "/^([[:alnum:]_-]{1,63}\\.)+[[:alpha:]]+([[:space:]]|$)/{print tolower($1)}",
+                "size": "XL",
+                "focus": "malware",
+                "descurl": "https://www.nethesis.it"
+        },
+        "yoroi_malware_level2": {
+                "url": "https://__USER__:__PASSWORD__@bl.nethesis.it/plain/nethesis-blacklists/yoroi_malware_level2.dns",
+                "rule": "/^([[:alnum:]_-]{1,63}\\.)+[[:alpha:]]+([[:space:]]|$)/{print tolower($1)}",
+                "size": "XL",
+                "focus": "malware",
+                "descurl": "https://www.nethesis.it"
+        },
+        "yoroi_susp_level1": {
+                "url": "https://__USER__:__PASSWORD__@bl.nethesis.it/plain/nethesis-blacklists/yoroi_suspicious_level1.dns",
+                "rule": "/^([[:alnum:]_-]{1,63}\\.)+[[:alpha:]]+([[:space:]]|$)/{print tolower($1)}",
+                "size": "XL",
+                "focus": "malware",
+                "descurl": "https://www.nethesis.it"
+        },
+        "yoroi_susp_level2": {
+                "url": "https://__USER__:__PASSWORD__@bl.nethesis.it/plain/nethesis-blacklists/yoroi_suspicious_level2.dns",
+                "rule": "/^([[:alnum:]_-]{1,63}\\.)+[[:alpha:]]+([[:space:]]|$)/{print tolower($1)}",
+                "size": "XL",
+                "focus": "malware",
+                "descurl": "https://www.nethesis.it"
+        }
+}

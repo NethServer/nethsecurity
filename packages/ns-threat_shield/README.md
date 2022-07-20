@@ -1,5 +1,12 @@
 # ns-threat_shield
 
+This package is composed by 2 different services:
+
+- ts-ip: it blocks traffic from a given list of IPs
+- ts-dns: it blocks DNS queries from a given list of domains
+
+## ts-ip
+
 ns-threat_shield blocks traffic from a given list of IPs, it's based on fw4..
 This is a partial porting of [nethserver-blacklist](https://github.com/NethServer/nethserver-blacklist/).
 
@@ -50,3 +57,22 @@ uci set threat_shield.config.status=0
 uci commit
 ts
 ```
+
+## ts-dns
+
+Threat shield DNS is a wrapper around [adblock](https://github.com/openwrt/packages/tree/master/net/adblock).
+If `adblock` is enabled and the machine has a valid subscription, the following extra block categories will be available:
+
+- `yoroi_malware_level1`
+- `yoroi_malware_level2`
+- `yoroi_susp_level1` (was `yoroi_suspicious_level1` on NS7)
+- `yoroi_susp_level2` (was `yoroi_suspicious_level2` on NS7)
+
+**NOTE**: to access the above block categories, the machine should have a valid entitlement for ths service.
+
+Usage example:
+```
+/etc/init.d/ts-dns start
+```
+
+DNS block categories will be automatically reload every 12 hours.
