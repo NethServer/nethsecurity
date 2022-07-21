@@ -57,6 +57,7 @@ if [ "$allow_list" != "" ]; then
     fi
 fi
 
+log_blocked=$(uci -q get threat_shield.config.log_blocked)
 categories=$(uci -q get threat_shield.config.categories)
 # Expand categories
 for cat in $categories
@@ -72,29 +73,35 @@ do
         count=$(grep -v '^#' $ipset | wc -l)
         times=$((count / MAX_IPS))
         if [ "$count" -gt "$MAX_IPS" ]; then
-            for i in $(seq 1 1 $times)
-            do
-            end=$((MAX_IPS * i))
-            start=$(( $((MAX_IPS * $((i - 1)))) + 1))
-            elements=$(grep -v '^#' $ipset | awk "NR>=$start&&NR<=$end" | tr '\n' ',')
+            for i in $(seq 1 1 $times); do
+                end=$((MAX_IPS * i))
+                start=$(( $((MAX_IPS * $((i - 1)))) + 1))
+                elements=$(grep -v '^#' $ipset | awk "NR>=$start&&NR<=$end" | tr '\n' ',')
+                if [ ! -z "$elements" ]; then
+                    echo add element inet threat_shield $name { $elements }
+                fi
+            done
+            remainder=$((count - end))
+            last=$((end + remainder))
+            end=$(( end + 1 ))
+            elements=$(grep -v '^#' $ipset | awk "NR>=$end&&NR<=$last" | tr '\n' ',')
             if [ ! -z "$elements" ]; then
                 echo add element inet threat_shield $name { $elements }
             fi
-        done
-        remainder=$((count - end))
-        last=$((end + remainder))
-        end=$(( end + 1 ))
-        elements=$(grep -v '^#' $ipset | awk "NR>=$end&&NR<=$last" | tr '\n' ',')
-        if [ ! -z "$elements" ]; then
-             echo add element inet threat_shield $name { $elements }
+        else
+            elements=$(grep -v '^#' $ipset | tr '\n' ',')
+            if [ ! -z "$elements" ]; then
+                echo add element inet threat_shield $name { $elements }
+            fi
         fi
-    else
-        elements=$(grep -v '^#' $ipset | tr '\n' ',')
-        if [ ! -z "$elements" ]; then
-            echo add element inet threat_shield $name { $elements }
+        if [ "$log_blocked" = 1 ]; then
+            log_src="log prefix \"ts:$name:src \""
+            log_dst="log prefix \"ts:$name:dst \""
+        else
+            log_src=""
+            log_dst=""
         fi
-        fi
-        echo add rule inet threat_shield block-src ip saddr @$name reject
-        echo add rule inet threat_shield block-dst ip daddr @$name reject
+        echo add rule inet threat_shield block-src ip saddr @$name $log_src reject
+        echo add rule inet threat_shield block-dst ip daddr @$name $log_dst reject
     done
 done
