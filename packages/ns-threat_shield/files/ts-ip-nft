@@ -25,14 +25,14 @@
 #
 
 MAX_IPS=10000
-DEST_DIR=/var/ns-threat_shield/
+DEST_DIR=/var/ts-ip/
 
 echo add table inet threat_shield
 echo add chain inet threat_shield block-src '{ type filter hook input priority -1; policy accept; }'
 echo add chain inet threat_shield block-dst '{ type filter hook output priority -1; policy accept; }'
 
 # Expand global allowlist
-global_allowlist="$DEST_DIR/whitelist.global"
+global_allowlist="$DEST_DIR/whitelist"
 if [ -f "$global_allowlist" ]; then
     name="global_allowlist"
     echo add set inet threat_shield $name { typeof ip saddr\; flags interval\; }
@@ -61,8 +61,12 @@ categories=$(uci -q get threat_shield.config.categories)
 # Expand categories
 for cat in $categories
 do
-    for ipset in $(find $DEST_DIR -name $cat.ipset -o -name $cat.netset)
+    for ipset in $(find $DEST_DIR -type f)
     do
+        # busybox find doesn't have "not" operator so we must check the whitelist file here
+        if [ "$ipset" = "whitelist" ]; then
+            continue
+        fi
         name=$(basename $ipset | cut -d '.' -f1)
         echo add set inet threat_shield $name { typeof ip saddr\; flags interval\; }
         count=$(grep -v '^#' $ipset | wc -l)

@@ -34,6 +34,6 @@ if [ "$status" == "0" ]; then
     exit 0
 fi
 
-if /usr/sbin/ts-download; then
-    /usr/sbin/ts-nft | nft -f -
+if /usr/sbin/ts-ip-download; then
+    /usr/sbin/ts-ip-nft | nft -f -
 fi

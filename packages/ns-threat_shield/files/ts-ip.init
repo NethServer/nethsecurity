@@ -3,5 +3,5 @@
 START=20
 
 start() {
-    /usr/sbin/ts
+    /usr/sbin/ts-ip
 }
