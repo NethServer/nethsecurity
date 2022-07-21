@@ -77,7 +77,7 @@ endef
 define Package/ns-threat_shield/postrm
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
-    rm -rf /var/ns-ip/
+    rm -rf /var/ns-ip/ /var/ns-dns/
 fi
 exit 0
 endef
