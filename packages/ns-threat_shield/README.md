@@ -1,66 +1,106 @@
 # ns-threat_shield
 
+This is a porting of [nethserver-blacklist](https://github.com/NethServer/nethserver-blacklist/).
+
 This package is composed by 2 different services:
 
-- ts-ip: it blocks traffic from a given list of IPs
-- ts-dns: it blocks DNS queries from a given list of domains
+- [ts-ip](#ts-ip): it blocks traffic from a given list of IPs
+- [ts-dns](#ts-dns): it blocks DNS queries from a given list of domains
+
+Both services use a the adblock JSON file format for category souces.
+Source files are gzipped to preserve space.
+If the machine is registered using [ns-plug](../ns-plug), the `system_id` and the `secret` will be used to authenticate requests to URL sources.
+Please note that to access the extra categories, the machine should have a valid entitlement for ths service.
 
 ## ts-ip
 
-ns-threat_shield blocks traffic from a given list of IPs, it's based on fw4..
-This is a partial porting of [nethserver-blacklist](https://github.com/NethServer/nethserver-blacklist/).
+Threat shield IP (`ts-ip`) blocks traffic from a given list of IPs, it's based on fw4..
 
 Main files:
 
-- `/usr/sbin/ts`: sh script to apply threat shield configuration
-- `/usr/sbin/ts-download`: sh script to download lists from a remote GIT repository
-- `/usr/sbin/ts-nft`: this sh script oupts nft code to stdout
-- `/etc/init.d/threat_shield`: start and stop threat_shield service
+- `/usr/sbin/ts-ip`: sh script to apply threat shield configuration
+- `/usr/sbin/ts-ip-download`: sh script to download lists from a remote GIT repository
+- `/usr/sbin/ts-ip-nft`: this sh script oupts nft code to stdout
+- `/etc/init.d/ts-ip`: start and stop threat shield IP service
 - `/etc/config/threat_shield`: UCI configuration file
 
-The `threat_shield` service requires the following options:
-- `url`
-- `categories`
-- `status`
+Available options:
+
+| Option             | Default                            | Description/Valid Values                                                                       |
+| :----------------- | :--------------------------------- | :--------------------------------------------------------------------------------------------- |
+| status             | 1, enabled                         | set to 0 to disable the ts-ip service                                                          |
+| categories         | -                                  | list of enabled block categories                                                               |
+| allow              | -                                  | list of IP address always allowed                                                              |
+| log_blocked        | 0, disabled                        | set to 1 to enable the logging of blocked packets. Log prefix: ts:_category_:_direction_.      |
+| srcarc             | -, /usr/share/threat_shield/nethesis-ip.sources.gz | full path to the used source archive                                           |
+
+
+The following categories require a valid entitlement:
+
+- `yoroi_malware_level1`
+- `yoroi_malware_level2`
+- `yoroi_susp_level1` (was `yoroi_suspicious_level1` on NS7)
+- `yoroi_susp_level2` (was `yoroi_suspicious_level2` on NS7)
+- `nethesis_level3`
+
+If a category is named `whitelist`, it will be used a global whitelist and all IP inside it will always be allowed.
+
+### Examples
+
+#### Start the service
+
+Enable the service and select one ore block categories:
 ```
-uci set threat_shield.config.url=https://github.com/firehol/blocklist-ipsets.git
-uci add_list threat_shield.config.categories=ciarmy
+uci add_list threat_shield.config.categories=yoroi_malware_level1
 uci set threat_shield.config.status=1
 uci commit
+ts-ip
 ```
 
-Apply the configuration by executing:
+To disable `ts-ip` use:
 ```
-ts
+uci set threat_shield.config.status=0
+uci commit
+ts-ip
 ```
 
-If the machine is registered using [ns-plug](../ns-plug), the `system_id` and the `secret` will be used to authenticate requests to the git repository.
+#### Local whitelist
 
 Local whitelist can be enabled by adding IP entries to the `allow` option. Example:
 ```
 uci add_list threat_shield.config.allow=1.1.1.1
 uci commit
-ts
+ts-ip
 ```
 
-To change the URL, first remove existing repository:
+#### Logging
+
+To enable logging of blocked packets use:
 ```
-rm -rf /var/ns-threat_shield/
-uci set threat_shield.config.url=https://mygit.local/repo
+uci set threat_shield.config.log_blocked=1
 uci commit
-ts
+ts-ip
 ```
 
-To disable threat shield use:
+Log lines have a prefix like `ts:_category_:_direction_`. Where `direction` can `src` or `dst`.
+Example of log line:
 ```
-uci set threat_shield.config.status=0
+Jul 21 08:48:34 nstest kernel: [26244.356917] ts:yoroi_malware_level1:dst IN= OUT=eth0 SRC=192.168.122.40 DST=217.70.184.38 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=15590 DF PROTO=ICMP TYPE=8 CODE=0 ID=21415 SEQ=0 MARK=0x3e00
+```
+
+#### Replace sources file
+
+To use a different sources file, copy the original one to a different path, then modify it.
+Finally setup the source archive path. Example:
+```
+uci set threat_shield.config.srcarc=/usr/share/threat_shield/mysources.gz
 uci commit
-ts
+ts-ip
 ```
 
 ## ts-dns
 
-Threat shield DNS is a wrapper around [adblock](https://github.com/openwrt/packages/tree/master/net/adblock).
+Threat shield DNS (`ts-dns`) is a wrapper around [adblock](https://github.com/openwrt/packages/tree/master/net/adblock).
 If `adblock` is enabled and the machine has a valid subscription, the following extra block categories will be available:
 
 - `yoroi_malware_level1`
@@ -68,7 +108,8 @@ If `adblock` is enabled and the machine has a valid subscription, the following 
 - `yoroi_susp_level1` (was `yoroi_suspicious_level1` on NS7)
 - `yoroi_susp_level2` (was `yoroi_suspicious_level2` on NS7)
 
-**NOTE**: to access the above block categories, the machine should have a valid entitlement for ths service.
+
+Extra categories are loaded from `/usr/share/threat_shield/nethesis-dns.sources.gz` and require a valid entitlement.
 
 Usage example:
 ```
@@ -76,3 +117,5 @@ Usage example:
 ```
 
 DNS block categories will be automatically reload every 12 hours.
+
+For more info see [adblock repository](https://github.com/openwrt/packages/tree/master/net/adblock).
