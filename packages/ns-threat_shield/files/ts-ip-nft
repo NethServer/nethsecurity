@@ -90,7 +90,7 @@ do
             log_src=""
             log_dst=""
         fi
-        echo add rule inet threat_shield block-src ip saddr @$name $log_src reject
+        echo add rule inet threat_shield block-src ip saddr @$name $log_src drop
         echo add rule inet threat_shield block-dst ip daddr @$name $log_dst reject
     done
 done
