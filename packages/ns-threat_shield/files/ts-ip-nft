@@ -53,8 +53,12 @@ do
         if [ "$ipset" = "whitelist" ]; then
             continue
         fi
+        # skip empty files
+        if [ ! -s $ipset ]; then
+            continue
+        fi
         name=$(basename $ipset | cut -d '.' -f1)
-        echo add set inet threat_shield $name { typeof ip saddr\; flags interval\; }
+        echo add set inet threat_shield $name { typeof ip saddr\; flags interval\; auto-merge\; }
         count=$(grep -v '^#' $ipset | wc -l)
         times=$((count / MAX_IPS))
         if [ "$count" -gt "$MAX_IPS" ]; then
