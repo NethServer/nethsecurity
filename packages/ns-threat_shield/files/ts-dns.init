@@ -20,7 +20,7 @@ if [ "$STATUS" != '1' ]; then
 fi
 
 SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
-SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
+SYSTEM_SECRET=$(uci -q get ns-plug.config.secret)
 
 if [ ! -z "$SYSTEM_SECRET" ] && [ ! -z "$SYSTEM_ID" ]; then
     # Setup Nethesis sources if the machine has a subscription
