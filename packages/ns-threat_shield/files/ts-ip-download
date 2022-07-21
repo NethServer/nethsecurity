@@ -26,7 +26,7 @@ if [ -z "$categories" ]; then
 fi
 
 
-def_sources="/usr/share/threat_shield/nethesis.sources.gz"
+def_sources="/usr/share/threat_shield/nethesis-ip.sources.gz"
 sources=$(uci -q get threat_shield.config.srcarc)
 if [ -z "$sources" ]; then
     sources=$def_sources

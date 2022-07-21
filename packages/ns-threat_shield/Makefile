@@ -39,17 +39,16 @@ define Package/ns-threat_shield/install
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/ts-ip.init $(1)/etc/init.d/ts-ip
+	$(INSTALL_BIN) ./files/ts-dns.init $(1)/etc/init.d/ts-dns
 	$(INSTALL_BIN) ./files/ts-ip $(1)/usr/sbin/ts-ip
 	$(INSTALL_BIN) ./files/ts-ip-download $(1)/usr/sbin/ts-ip-download
 	$(INSTALL_BIN) ./files/ts-ip-nft $(1)/usr/sbin/ts-ip-nft
 	$(INSTALL_CONF) ./files/20_threat_shield $(1)/etc/uci-defaults
-	$(INSTALL_CONF) ./files/nethesis.sources $(1)/etc/adblock
-	gzip -9n $(1)/etc/adblock/nethesis.sources
 	$(INSTALL_DIR) $(1)/usr/share/threat_shield
-	$(INSTALL_CONF) ./files/nethesis-ip.sources $(1)/usr/share/threat_shield
-	$(INSTALL_DIR) $(1)/etc/adblock
-	gzip -9n $(1)/etc/adblock/nethesis.sources
-	$(INSTALL_BIN) ./files/ts-dns.init $(1)/etc/init.d/ts-dns
+	$(INSTALL_DATA) ./files/nethesis-ip.sources $(1)/usr/share/threat_shield
+	$(INSTALL_DATA) ./files/nethesis-dns.sources $(1)/usr/share/threat_shield
+	gzip -9n $(1)/usr/share/threat_shield/nethesis-ip.sources
+	gzip -9n $(1)/usr/share/threat_shield/nethesis-dns.sources
 endef
 
 define Package/ns-threat_shield/postinst
