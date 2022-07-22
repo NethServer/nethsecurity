@@ -21,6 +21,7 @@ define Package/ns-migration
 	CATEGORY:=NextSecurity
 	TITLE:=NS7 2 NextSecurity migration
 	URL:=https://github.com/NethServer/nextsecurity/tree/master/packages/ns-migration
+	DEPENDS:=+python3-uci
 	PKGARCH:=all
 endef
  
