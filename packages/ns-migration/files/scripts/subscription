@@ -1,0 +1,19 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import fwutils
+
+(u, data) = fwutils.init("subscription.json")
+
+if data['subscription']['system_id']:
+    u.set('ns-plug', 'config', 'system_id', data['subscription']['system_id'])
+
+if data['subscription']['secret']:
+    u.set('ns-plug', 'config', 'secret', data['subscription']['secret'])
+
+# Save configuration
+u.commit("ns-plug")

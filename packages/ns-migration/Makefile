@@ -43,6 +43,7 @@ define Package/ns-migration/install
 	$(INSTALL_BIN) ./files/scripts/routes $(1)/usr/share/ns-migration/
 	$(INSTALL_BIN) ./files/scripts/time $(1)/usr/share/ns-migration/
 	$(INSTALL_BIN) ./files/scripts/ssh $(1)/usr/share/ns-migration/
+	$(INSTALL_BIN) ./files/scripts/subscription $(1)/usr/share/ns-migration/
 	$(INSTALL_DATA) ./files/scripts/fwutils.py $(1)/usr/share/ns-migration/
 endef
  

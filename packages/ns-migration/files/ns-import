@@ -49,3 +49,4 @@ service dropbear restart
 service system restart
 service cron restart
 service sysntpd restart
+service ns-plug restart
