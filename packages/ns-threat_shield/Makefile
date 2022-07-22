@@ -67,7 +67,7 @@ define Package/ns-threat_shield/prerm
 if [ -z "$${IPKG_INSTROOT}" ]; then
     uci set threat_shield.config.status=0
 	uci commit
-	/usr/sbin/ts
+	/usr/sbin/ts-ip
 	crontab -l | grep -v "/usr/sbin/ts-ip" | sort | uniq | crontab -
 	crontab -l | grep -v "/etc/init.d/ts-dns" | sort | uniq | crontab -
 fi
