@@ -36,9 +36,13 @@ define Package/ns-migration/install
 	$(INSTALL_DIR) $(1)/usr/share/ns-migration
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-import $(1)/usr/sbin/ns-import
-	$(INSTALL_BIN) ./files/scripts/network $(1)/usr/share/ns-migration/network
-	$(INSTALL_BIN) ./files/scripts/dhcp $(1)/usr/share/ns-migration/dhcp
-	$(INSTALL_BIN) ./files/scripts/dns $(1)/usr/share/ns-migration/dns
+	$(INSTALL_BIN) ./files/scripts/network $(1)/usr/share/ns-migration/
+	$(INSTALL_BIN) ./files/scripts/dhcp $(1)/usr/share/ns-migration/
+	$(INSTALL_BIN) ./files/scripts/dns $(1)/usr/share/ns-migration/
+	$(INSTALL_BIN) ./files/scripts/routes $(1)/usr/share/ns-migration/
+	$(INSTALL_BIN) ./files/scripts/time $(1)/usr/share/ns-migration/
+	$(INSTALL_BIN) ./files/scripts/ssh $(1)/usr/share/ns-migration/
+	$(INSTALL_DATA) ./files/scripts/fwutils.py $(1)/usr/share/ns-migration/
 endef
  
 $(eval $(call BuildPackage,ns-migration))
