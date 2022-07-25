@@ -1,0 +1,10 @@
+#!/bin/sh
+
+[ "$(uci -q get threat_shield.config.status)" != "" ] && exit 0
+
+uci -q import threat_shield << EOI
+config main 'config'
+	option url ''
+	option log_blocked '0'
+	option status '0'
+EOI

@@ -1,0 +1,24 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+#
+# Threat shield: download lists and setup firewalls
+#
+
+# Cleanup existing table 
+if nft list tables inet | grep -q 'table inet threat_shield'; then
+    nft delete table inet threat_shield
+fi
+
+status=$(uci get threat_shield.config.status)
+if [ "$status" == "0" ]; then
+    exit 0
+fi
+
+if /usr/sbin/ts-ip-download; then
+    /usr/sbin/ts-ip-nft | nft -f -
+fi

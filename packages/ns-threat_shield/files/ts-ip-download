@@ -1,0 +1,56 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+#
+# Threat shield: download remote blocklist
+#
+
+function exit_error {
+    >&2 echo "[ERROR] $@"
+    exit 1
+}
+
+SYSTEM_SECRET=$(uci -q get ns-plug.config.secret)
+SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
+DEST_DIR=/var/ts-ip/
+
+# No blocklist selected
+categories=$(uci -q get threat_shield.config.categories)
+if [ -z "$categories" ]; then
+    exit 0
+fi
+
+
+def_sources="/usr/share/threat_shield/nethesis-ip.sources.gz"
+sources=$(uci -q get threat_shield.config.srcarc)
+if [ -z "$sources" ]; then
+    sources=$def_sources
+fi
+if [ ! -f "$sources" ]; then
+    exit_error "'$sources' not found"
+fi
+
+# Prepare work directory
+mkdir -p $DEST_DIR
+
+sources_data=""
+if [ ! -z "$SYSTEM_SECRET" ] && [ ! -z "$SYSTEM_ID" ]; then
+    sources_data=$(zcat $sources | sed -e "s/__USER__/$SYSTEM_ID/" -e "s/__PASSWORD__/$SYSTEM_SECRET/")
+else
+    sources_data=$(zcat $sources)
+fi
+
+# Expand categories
+for cat in $categories
+do
+    url=$(echo $sources_data | jq -r ".$cat.url")
+    rule=$(echo $sources_data | jq -r ".$cat.rule")
+    if [ -z "url" ]; then
+        continue
+    fi
+    wget --compression=gzip --no-cache --no-cookies --max-redirect=0 --timeout=20 --quiet -O - $url | awk "$rule" > $DEST_DIR$cat
+done

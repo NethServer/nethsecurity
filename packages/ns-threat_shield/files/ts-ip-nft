@@ -1,0 +1,96 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+#
+# Threat shield: generate NFT script 
+#
+
+MAX_IPS=10000
+DEST_DIR=/var/ts-ip/
+
+echo add table inet threat_shield
+echo add chain inet threat_shield block-src '{ type filter hook input priority -1; policy accept; }'
+echo add chain inet threat_shield block-dst '{ type filter hook output priority -1; policy accept; }'
+
+# Expand global allowlist
+global_allowlist="$DEST_DIR/whitelist"
+if [ -f "$global_allowlist" ]; then
+    name="global_allowlist"
+    echo add set inet threat_shield $name { typeof ip saddr\; flags interval\; }
+    echo add rule inet threat_shield block-src ip saddr @$name accept
+    echo add rule inet threat_shield block-dst ip daddr @$name accept
+    elements=$(grep -v '^#' "$global_allowlist" | tr '\n' ',')
+    if [ ! -z "$elements" ]; then
+        echo add element inet threat_shield $name { $elements }
+    fi
+fi
+
+# Expand local
+allow_list=$(uci -q get threat_shield.config.allow)
+if [ "$allow_list" != "" ]; then
+    name="local_allowlist"
+    echo add set inet threat_shield $name { typeof ip saddr\; flags interval\; }
+    echo add rule inet threat_shield block-src ip saddr @$name accept
+    echo add rule inet threat_shield block-dst ip daddr @$name accept
+    elements=$(echo $allow_list | tr ' ' ',')
+    if [ ! -z "$elements" ]; then
+        echo add element inet threat_shield $name { $elements }
+    fi
+fi
+
+log_blocked=$(uci -q get threat_shield.config.log_blocked)
+categories=$(uci -q get threat_shield.config.categories)
+# Expand categories
+for cat in $categories
+do
+    for ipset in $(find $DEST_DIR -type f)
+    do
+        # busybox find doesn't have "not" operator so we must check the whitelist file here
+        if [ "$ipset" = "whitelist" ]; then
+            continue
+        fi
+        # skip empty files
+        if [ ! -s $ipset ]; then
+            continue
+        fi
+        name=$(basename $ipset | cut -d '.' -f1)
+        echo add set inet threat_shield $name { typeof ip saddr\; flags interval\; auto-merge\; }
+        count=$(grep -v '^#' $ipset | wc -l)
+        times=$((count / MAX_IPS))
+        if [ "$count" -gt "$MAX_IPS" ]; then
+            for i in $(seq 1 1 $times); do
+                end=$((MAX_IPS * i))
+                start=$(( $((MAX_IPS * $((i - 1)))) + 1))
+                elements=$(grep -v '^#' $ipset | awk "NR>=$start&&NR<=$end" | tr '\n' ',')
+                if [ ! -z "$elements" ]; then
+                    echo add element inet threat_shield $name { $elements }
+                fi
+            done
+            remainder=$((count - end))
+            last=$((end + remainder))
+            end=$(( end + 1 ))
+            elements=$(grep -v '^#' $ipset | awk "NR>=$end&&NR<=$last" | tr '\n' ',')
+            if [ ! -z "$elements" ]; then
+                echo add element inet threat_shield $name { $elements }
+            fi
+        else
+            elements=$(grep -v '^#' $ipset | tr '\n' ',')
+            if [ ! -z "$elements" ]; then
+                echo add element inet threat_shield $name { $elements }
+            fi
+        fi
+        if [ "$log_blocked" = 1 ]; then
+            log_src="log prefix \"ts:$name:src \""
+            log_dst="log prefix \"ts:$name:dst \""
+        else
+            log_src=""
+            log_dst=""
+        fi
+        echo add rule inet threat_shield block-src ip saddr @$name $log_src drop
+        echo add rule inet threat_shield block-dst ip daddr @$name $log_dst reject
+    done
+done

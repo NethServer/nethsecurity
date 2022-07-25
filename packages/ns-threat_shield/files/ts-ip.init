@@ -1,0 +1,12 @@
+#!/bin/sh /etc/rc.common
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+START=20
+
+start() {
+    /usr/sbin/ts-ip
+}

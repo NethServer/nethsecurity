@@ -1,0 +1,53 @@
+#!/bin/sh /etc/rc.common
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+#
+# Threat shield DNS: add Nethesis categories to adblock
+#
+
+DEST_DIR=/var/ts-dns/
+NETHESIS_SOURCES=/usr/share/threat_shield/nethesis-dns.sources.gz
+ADBLOCK_SOURCES=/etc/adblock/adblock.sources.gz
+
+STATUS=$(uci -q get adblock.global.adb_enabled)
+
+if [ "$STATUS" != '1' ]; then
+    exit 0
+fi
+
+SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
+SYSTEM_SECRET=$(uci -q get ns-plug.config.secret)
+
+if [ ! -z "$SYSTEM_SECRET" ] && [ ! -z "$SYSTEM_ID" ]; then
+    # Setup Nethesis sources if the machine has a subscription
+
+    # Prepare work directory
+    mkdir -p $DEST_DIR
+
+    # Explode sources, combine them in one object, replaces credentials and compress
+    gunzip -c $ADBLOCK_SOURCES $NETHESIS_SOURCES | jq -s '.[0]*.[1]' | sed -e "s/__USER__/$SYSTEM_ID/" -e "s/__PASSWORD__/$SYSTEM_SECRET/" | gzip > "$DEST_DIR"/combined.sources.gz
+
+    # Setup new blacklist source
+    uci set adblock.global.adb_srcarc="$DEST_DIR"combined.sources.gz
+
+    # Setup dnsmasq as backend
+    uci set adblock.global.adb_dns='dnsmasq'
+    uci set adblock.global.adb_dnsinstance='0'
+
+    # Setup curl with compression support
+    uci set adblock.global.adb_fetchutil='wget'
+    uci set adblock.global.adb_fetchparm="--compression=gzip --no-cache --no-cookies --max-redirect=0 --timeout=20 -O"
+
+else
+    # Reset sources to origin file if the machine has no subscription
+    uci -q delete adblock.global.adb_srcarc
+fi
+
+# Save changes
+uci commit adblock
+
+source /etc/init.d/adblock
