@@ -62,6 +62,33 @@ All new packages can be added inside the `packages` directory.
 
 See [packages doc](packages/README.md).
 
+## Package patches
+
+Some packages do not have sources that can be patched using [quilt](https://openwrt.org/docs/guide-developer/toolchain/use-patches-with-buildsystem).
+To patch an existing package put a patch inside `patches` directory, reflecting the structure of `feeds` directory.
+
+The patch can be created following these steps:
+
+- run the build system in interactive mode
+- enter the package directory to edit
+- generate a patch and copy it outside the container
+
+First, enter the build system by executing `./run bash`, then enter the directory package to edit. Example:
+```
+cd /home/build/openwrt/feeds/packages/net/adblock
+```
+
+Edit the files, then generate the patch using `git`:
+```
+cd /home/build/openwrt
+mkdir -p patches/feeds/packages
+git -C feeds/packages diff > patches/feeds/packages/100-adblock-bypass.patch
+```
+
+Finally, copy the patch outside the container and run the build.
+
+Note: before submitting a patch using this method, please try to open a pull request to the upstream repository!
+
 ## Builder image
 
 The `nethserver/nextsecurity-builder` is a container image to build nextsecurity.

@@ -13,19 +13,29 @@ OUTPUT=/home/build/openwrt/.config
 sudo cp -r /config /config-tmp
 sudo cp -r /files/* /home/build/openwrt/files/
 sudo cp -r /nspackages /home/build/openwrt/
+sudo cp -r /patches /home/build/openwrt/
 
 echo "src-link nextsecurity /home/build/openwrt/nspackages" >> feeds.conf.default
 ./scripts/feeds update nextsecurity
 ./scripts/feeds install -a -p nextsecurity
 
 # Fix permissions
-sudo chown -R build:build /config-tmp /home/build/openwrt/{files,nspackages} >/dev/null
+sudo chown -R build:build /config-tmp /home/build/openwrt/{files,nspackages,patches} >/dev/null
 
-# Generate diffconfigfrom .conf file inside config directory
+# Generate diffconfig from .conf file inside config directory
 > $OUTPUT
 for f in $(find /config-tmp -type f -name \*.conf)
 do
     cat $f >> $OUTPUT
+done
+
+# Apply package patches
+for p in $(find patches/ -type f -name *\.patch)
+do
+    # find original dir
+    dname=$(dirname $p)
+    dname=${dname#"patches/"}
+    patch -d $dname -F 2 -p 1 < $p
 done
 
 # Apply the configuration
