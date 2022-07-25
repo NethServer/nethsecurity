@@ -39,8 +39,8 @@ The following categories require a valid entitlement:
 
 - `yoroi_malware_level1`
 - `yoroi_malware_level2`
-- `yoroi_susp_level1` (was `yoroi_suspicious_level1` on NS7)
-- `yoroi_susp_level2` (was `yoroi_suspicious_level2` on NS7)
+- `yoroi_susp_level1` (was `yoroi_souspicious_level1` on NS7)
+- `yoroi_susp_level2` (was `yoroi_souspicious_level2` on NS7)
 - `nethesis_level3`
 
 If a category is named `whitelist`, it will be used a global whitelist and all IP inside it will always be allowed.
