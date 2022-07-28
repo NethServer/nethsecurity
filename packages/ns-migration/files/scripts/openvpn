@@ -1,0 +1,86 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import os
+import pwd
+import grp
+import os.path
+import fwutils
+
+def save_cert(path, data):
+    # setup rw permissions on ly for nobody user
+    os.umask(0o077)
+    with open(path, 'w') as f:
+        f.write(data)
+    
+    uid = pwd.getpwnam("nobody").pw_uid
+    gid = grp.getgrnam("nogroup").gr_gid
+    os.chown(path, uid, gid)
+
+
+iname="roadwarrior"
+cert_dir=f"/etc/openvpn/{iname}/certs"
+os.makedirs(cert_dir, exist_ok=True)
+
+(u, data) = fwutils.init("openvpn.json")
+
+# Setup global option
+u.set("openvpn", iname, "openvpn")
+for option in data['rw']['options']:
+    fwutils.vprint(f"Setting OpenVPN roadwarrior option {option}")
+    u.set("openvpn", iname, option, data['rw']['options'][option])
+
+# Setup server certificates
+for cert in data['rw']['ca']:
+    save_cert(os.path.join(cert_dir, cert), data['rw']['ca'][cert])
+u.set("openvpn", iname, 'dh', os.path.join(cert_dir, 'dh.pem'))
+u.set("openvpn", iname, 'ca', os.path.join(cert_dir, 'ca.crt'))
+u.set("openvpn", iname, 'cert', os.path.join(cert_dir, 'srv.crt'))
+u.set("openvpn", iname, 'key', os.path.join(cert_dir, 'srv.key'))
+u.set("openvpn", iname, 'crl-verify', os.path.join(cert_dir, 'crl.pem'))
+
+u.set("openvpn", iname, 'client_connect', f'"/usr/libexec/ns-openvpn/openvpn-connect {iname}"')
+u.set("openvpn", iname, 'client_disconnect', f'"/usr/libexec/ns-openvpn/openvpn-disconnect {iname}"')
+
+# Create user entries
+for user in data["users"]:
+    sname = fwutils.sanitize(user["name"])
+    fwutils.vprint(f"Creating OpenVPN roadwarrior user {sname}")
+    u.set("openvpn", sname, "user")
+    u.set("openvpn", sname, "instance", iname)
+    u.set("openvpn", sname, "ipaddr", user["ipaddr"])
+    u.set("openvpn", sname, "enabled", user["enabled"])
+    save_cert(os.path.join(cert_dir, f'{sname}.key'), user['key'])
+    save_cert(os.path.join(cert_dir, f'{sname}.crt'), user['crt'])
+
+# Add interface to wan
+for section in u.get("firewall"):
+    s_type = u.get("firewall", section)
+    if s_type == "zone":
+        zname = u.get("firewall", section, "name")
+        if zname == "lan":
+            try:
+                devices = u.get_all("firewall", section, "device")
+            except:
+                devices = []
+            if not data['rw']['options']['dev'] in devices:
+                fwutils.vprint(f"Adding OpenVPN device to lan zone")
+                devices.append(data['rw']['options']['dev'])
+                u.set("firewall", section, "device", devices)
+
+# Open OpenVPN port
+rname="allow_openvpn_rw"
+u.set("firewall", rname, "rule")
+u.set("firewall", rname, "name", "Allow-OpenVPN-RW")
+u.set("firewall", rname, "src", "wan")
+u.set("firewall", rname, "dest_port", data['rw']['options']['port'])
+u.set("firewall", rname, "proto", data['rw']['options']['proto'])
+u.set("firewall", rname, "target", "ACCEPT")
+
+# Save configuration
+u.commit("openvpn")
+u.commit("firewall")

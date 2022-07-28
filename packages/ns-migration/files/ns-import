@@ -52,3 +52,4 @@ service sysntpd restart
 service ns-plug restart
 service ts-dns restart
 service ts-ip restart
+service openvpn restart
