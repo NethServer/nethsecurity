@@ -1,0 +1,44 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import sqlite3
+import os
+
+def create_connections_db():
+    conn = sqlite3.connect(database_path)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE connections
+				 (common_name text, virtual_ip_addr text, remote_ip_addr text, start_time integer, duration integer, bytes_received integer, bytes_sent integer)''')
+    c.execute("CREATE INDEX idx_common_name ON connections (common_name)")
+    conn.commit()
+    conn.close()
+
+# setup destination dir
+odir=f'/var/openvpn/{os.environ["INSTANCE"]}'
+os.makedirs(odir, exist_ok=True)
+
+database_path = f'{odir}/connections.db'
+database_exists = os.path.isfile(database_path)
+
+if not database_exists:
+    create_connections_db()
+    print('[NOTICE] Created roadwarrior connections database {}'.format(database_path))
+else:
+    # ensure connections table exists
+    conn = sqlite3.connect(database_path)
+    c = conn.cursor()
+    output = c.execute(
+        '''SELECT name FROM sqlite_master WHERE type="table" AND name="connections"''')
+    table_exists = False
+    output = output.fetchone()
+
+    if output and output[0] == 'connections':
+        table_exists = True
+
+    if not table_exists:
+        create_connections_db()
+        print('[NOTICE] Created roadwarrior connections database {}'.format(database_path))

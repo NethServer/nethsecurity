@@ -1,0 +1,28 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import os
+import sys
+import sqlite3
+
+try:
+    conn = sqlite3.connect(f'/var/openvpn/{sys.argv[1]}/connections.db')
+    c = conn.cursor()
+
+    env = os.environ
+    common_name = env['common_name']
+    virtual_ip_addr = env['ifconfig_pool_remote_ip']
+    remote_ip_addr = env['untrusted_ip']
+    start_time = int(env['time_unix'])
+
+    c.execute("INSERT INTO connections (common_name, virtual_ip_addr, remote_ip_addr, start_time) VALUES (?, ?, ?, ?)", (common_name, virtual_ip_addr, remote_ip_addr, start_time))
+
+    conn.commit()
+    conn.close()
+finally:
+    # this script shouldn't prevent VPN connection, so a potential error code is never returned
+    exit(0)

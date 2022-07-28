@@ -1,0 +1,21 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+ret=0
+
+# Execute all disconnection scripts
+for f in $(find /usr/libexec/ns-openvpn/disconnect-scripts/ -type f)
+do
+    if [ -x "$f" ]; then
+        "$f" "$@"
+
+   	# sum all exit codes
+	ret=$(expr $ret + $?)
+    fi
+done
+
+exit $ret
