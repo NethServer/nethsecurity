@@ -10,6 +10,7 @@ import pwd
 import grp
 import os.path
 import fwutils
+from nextsec import firewall
 
 def save_cert(path, data):
     # setup rw permissions on ly for nobody user
@@ -57,30 +58,11 @@ for user in data["users"]:
     save_cert(os.path.join(cert_dir, f'{sname}.key'), user['key'])
     save_cert(os.path.join(cert_dir, f'{sname}.crt'), user['crt'])
 
-# Add interface to wan
-for section in u.get("firewall"):
-    s_type = u.get("firewall", section)
-    if s_type == "zone":
-        zname = u.get("firewall", section, "name")
-        if zname == "lan":
-            try:
-                devices = u.get_all("firewall", section, "device")
-            except:
-                devices = []
-            if not data['rw']['options']['dev'] in devices:
-                fwutils.vprint(f"Adding OpenVPN device to lan zone")
-                devices.append(data['rw']['options']['dev'])
-                u.set("firewall", section, "device", devices)
-
+# Add interface to LAN
+firewall.add_to_lan(u, data['rw']['options']['dev'])
 # Open OpenVPN port
-rname="allow_openvpn_rw"
-u.set("firewall", rname, "rule")
-u.set("firewall", rname, "name", "Allow-OpenVPN-RW")
-u.set("firewall", rname, "src", "wan")
-u.set("firewall", rname, "dest_port", data['rw']['options']['port'])
-u.set("firewall", rname, "proto", data['rw']['options']['proto'])
-u.set("firewall", rname, "target", "ACCEPT")
+firewall.allow_service(u, 'openvpn_rw', data['rw']['options']['port'], data['rw']['options']['proto'])
 
 # Save configuration
 u.commit("openvpn")
-u.commit("firewall")
+firewall.apply(u)
