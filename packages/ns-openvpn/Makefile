@@ -22,7 +22,7 @@ define Package/ns-openvpn
 	CATEGORY:=NextSecurity
 	TITLE:=Threat shield block list
 	URL:=https://github.com/NethServer/nextsecurity/
-	DEPENDS:=+openvpn +python3-sqlite3
+	DEPENDS:=+openvpn +python3-sqlite3 +python3-nextsec
 	PKGARCH:=all
 endef
  
@@ -35,9 +35,11 @@ define Build/Compile
 endef
 
 define Package/ns-openvpn/install
+	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_DIR) $(1)/usr/libexec/ns-openvpn/connect-scripts
 	$(INSTALL_DIR) $(1)/usr/libexec/ns-openvpn/disconnect-scripts
 
+	$(INSTALL_BIN) ./files/ns-openvpnrw-setup $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/openvpn-connect $(1)/usr/libexec/ns-openvpn/
 	$(INSTALL_BIN) ./files/openvpn-disconnect $(1)/usr/libexec/ns-openvpn/
 	$(INSTALL_BIN) ./files/init-connections-db $(1)/usr/libexec/ns-openvpn/
@@ -51,6 +53,7 @@ define Package/ns-openvpn/postinst
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
   grep '/usr/libexec/ns-openvpn/init-connections-db' /etc/openvpn.user || echo "/usr/libexec/ns-openvpn/init-connections-db" >> /etc/openvpn.user
+  /usr/sbin/ns-openvpnrw-setup
 fi
 exit 0
 endef
