@@ -56,10 +56,15 @@ if [ "$(podman ps -a --format '{{.Names}}')" == "nextsec-builder" ]; then
     podman rm nextsec-builder
 fi
 
-# Run podman with at least the following dirs mounted:
+# Run podman with at least the following mounted directories:
 # - /config: store custom config used by 'made defconfig'
 # - uci-defaults: uci scripts copied inside the final image
 podman run -ti --name nextsec-builder -v ./config:/config:z -v ./files:/files:z -v ./packages:/nspackages:z $opts $image "$@"
+# When executed inside CI, do not execute next setps on error
+ret=$?
+if [[ $ret -gt 0 && -n "${CI}" ]]; then
+    exit $ret
+fi
 podman cp nextsec-builder:/home/build/openwrt/bin/ $workdir/
 if [ $? -eq 0 ]; then
     podman rm nextsec-builder
