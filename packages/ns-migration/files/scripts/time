@@ -5,18 +5,18 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-import fwutils
+import nsmigration
 
-(u, data) = fwutils.init("time.json")
+(u, data) = nsmigration.init("time.json")
 
 # Set global options
 for option in data['ntp']:
-    fwutils.vprint(f"Setting NTP option {option}")
+    nsmigration.vprint(f"Setting NTP option {option}")
     u.set("system", "ntp", option, data['ntp'][option])
 
 for section in u.get("system"):
     if  u.get("system", section) == "timezone":
-        fwutils.vprint(f"Setting timezone")
+        nsmigration.vprint(f"Setting timezone")
         u.set("system", section, "timezone", data['timezone'])
 
 # Save configuration

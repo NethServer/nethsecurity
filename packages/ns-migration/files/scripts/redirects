@@ -5,23 +5,23 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-import fwutils
+import nsmigration
 
-(u, data) = fwutils.init("redirects.json")
+(u, data) = nsmigration.init("redirects.json")
 
 for pf in data['redirects']:
     name = pf.pop("key")
     sname = f"{name}_ipset"
     desc = pf.pop("description")
     # create ipset
-    fwutils.vprint(f'Creating ipset {sname} for port forward {name}')
+    nsmigration.vprint(f'Creating ipset {sname} for port forward {name}')
     u.set("firewall", sname, "ipset")
     u.set("firewall", sname, "name", sname)
     u.set("firewall", sname, "match", "src_net")
     u.set("firewall", sname, "enabled", "1")
     u.set("firewall", sname, "entry", pf.pop("src_ip"))
     # create port forward 
-    fwutils.vprint(f'Creating port forward {name}')
+    nsmigration.vprint(f'Creating port forward {name}')
     u.set("firewall", name, "redirect")
     u.set("firewall", name, "name", desc)
     u.set("firewall", name, "src", 'wan')

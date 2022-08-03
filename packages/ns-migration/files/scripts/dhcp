@@ -5,9 +5,11 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-import fwutils
+from nextsec import firewall
+from nextsec import utils
+import nsmigration
 
-(u, data) = fwutils.init("dhcp.json")
+(u, data) = nsmigration.init("dhcp.json")
 
 # Set global options
 for section in u.get("dhcp"):
@@ -17,9 +19,9 @@ for section in u.get("dhcp"):
 # Setup DHCP ranges
 rcounter = len(data['servers'])
 for s in data['servers']:
-    iname = fwutils.get_interface_name(u, s["hwaddr"])
+    iname = firewall.get_interface_name(u, s["hwaddr"])
     sname = f'dhcp{rcounter}'
-    fwutils.vprint(f'Creating DHCP server {sname} on {iname}')
+    nsmigration.vprint(f'Creating DHCP server {sname} on {iname}')
     u.set("dhcp", sname, "dhcp") # create named record
     u.set("dhcp", sname, "interface", iname)
     u.set("dhcp", sname, "leasetime", s["leasetime"])
@@ -45,11 +47,11 @@ def already_reserved(ip):
 for r in data['reservations']:
     # DHCP will refuse to start if there are multiple static leases with the same IP address
     if already_reserved(r['ip']):
-        fwutils.vprint(f'Skipping duplicate lease {r["name"]}')
+        nsmigration.vprint(f'Skipping duplicate lease {r["name"]}')
         continue
 
-    rname = fwutils.sanitize(r["name"])
-    fwutils.vprint(f'Creating static lease {rname}')
+    rname = utils.get_id(r["name"])
+    nsmigration.vprint(f'Creating static lease {rname}')
     u.set("dhcp", rname, "host") # create named record
     u.set("dhcp", rname, "name", r["name"])
     u.set("dhcp", rname, "mac", r['mac'])

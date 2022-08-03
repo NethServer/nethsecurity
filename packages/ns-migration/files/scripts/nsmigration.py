@@ -5,38 +5,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-import re
-import sys
 import json
 import argparse
-import subprocess
-from glob import glob
 from euci import EUci
-
-# Retrieve the physical device name given the MAC address
-def get_device_name(hwaddr):
-    interfaces = json.loads(subprocess.run(["/sbin/ip", "--json", "address", "show"], check=True, capture_output=True).stdout)
-    for interface in interfaces:
-        if interface["address"] == hwaddr:
-            return interface["ifname"]
-
-    return None
-
-# Retrieve the logical UCI interface name given the MAC address
-def get_interface_name(uci, hwaddr):
-    name = get_device_name(hwaddr)
-    for section in uci.get("network"):
-        if  uci.get("network", section) == "interface" and (uci.get("network", section, "device") == name):
-            return section
-
-    return None
-
-# Replace illegal chars with _
-# UCI identifiers and config file names may contain only the characters a-z, 0-9 and _
-def sanitize(name):
-    name = re.sub(r'[^\x00-\x7F]+','_', name)
-    name = re.sub('[^0-9a-zA-Z]', '_', name)
-    return name
 
 # Global print function
 vprint = print

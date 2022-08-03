@@ -21,7 +21,7 @@ define Package/ns-migration
 	CATEGORY:=NextSecurity
 	TITLE:=NS7 2 NextSecurity migration
 	URL:=https://github.com/NethServer/nextsecurity/tree/master/packages/ns-migration
-	DEPENDS:=+python3-uci
+	DEPENDS:=+python3-nextsec
 	PKGARCH:=all
 endef
  
@@ -44,7 +44,7 @@ define Package/ns-migration/install
 	$(INSTALL_BIN) ./files/scripts/time $(1)/usr/share/ns-migration/
 	$(INSTALL_BIN) ./files/scripts/ssh $(1)/usr/share/ns-migration/
 	$(INSTALL_BIN) ./files/scripts/subscription $(1)/usr/share/ns-migration/
-	$(INSTALL_DATA) ./files/scripts/fwutils.py $(1)/usr/share/ns-migration/
+	$(INSTALL_DATA) ./files/scripts/nsmigration.py $(1)/usr/share/ns-migration/
 endef
  
 $(eval $(call BuildPackage,ns-migration))

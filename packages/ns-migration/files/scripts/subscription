@@ -5,9 +5,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-import fwutils
+import nsmigration
 
-(u, data) = fwutils.init("subscription.json")
+(u, data) = nsmigration.init("subscription.json")
 
 if data['subscription']['system_id']:
     u.set('ns-plug', 'config', 'system_id', data['subscription']['system_id'])

@@ -5,9 +5,10 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-import fwutils
+import nsmigration
+from nextsec import firewall, utils
 
-(u, data) = fwutils.init("network.json")
+(u, data) = nsmigration.init("network.json")
 
 # Cleanup default firewall zones
 for section in u.get("firewall"):
@@ -15,24 +16,24 @@ for section in u.get("firewall"):
     if s_type == "zone":
         zname = u.get("firewall", section, "name")
         if zname == "wan" or zname == "wan6" or zname == "lan":
-            fwutils.vprint(f"Deleting zone {section} ({zname})")
+            nsmigration.vprint(f"Deleting zone {section} ({zname})")
             u.delete("firewall", section)
 
 # Cleanup default network configuration
 for section in u.get("network"):
     s_type = u.get("network", section)
     if s_type == "interface" and (section == "wan" or section == "wan6" or section == "lan"):
-        fwutils.vprint(f"Deleting interface {section}")
+        nsmigration.vprint(f"Deleting interface {section}")
         u.delete("network", section)
     if s_type == "device":
         ts = u.get_all("network", section)
         if ts['name'] == 'br-lan':
-            fwutils.vprint(f"Deleting interface {section}")
+            nsmigration.vprint(f"Deleting interface {section}")
             u.delete("network", section)
 
 # Create vlan devices
 for v in data['vlans']:
-    iname = fwutils.get_device_name(v["hwaddr"])
+    iname = firewall.get_device_name(v["hwaddr"])
     vname = f'vlan{v["vid"]}'
     u.set("network", vname, "device") # create named record
     u.set("network", vname, "type", v["type"])
@@ -42,11 +43,11 @@ for v in data['vlans']:
 
 # Create interfaces
 for i in data['interfaces']:
-    iname = fwutils.sanitize(i["interface"])
-    fwutils.vprint(f'Creating interface {iname}')
+    iname = utils.sanitize(i["interface"])
+    nsmigration.vprint(f'Creating interface {iname}')
     u.set("network", iname, "interface") # create named record
     u.set("network", iname, "proto", i["proto"])
-    u.set("network", iname, "device", fwutils.get_device_name(i["hwaddr"]))
+    u.set("network", iname, "device", firewall.get_device_name(i["hwaddr"]))
     if i["ipaddr"]:
         u.set("network", iname, "ipaddr", i["ipaddr"])
         u.set("network", iname, "netmask", i["netmask"])
@@ -56,11 +57,10 @@ for i in data['interfaces']:
 # Create aliases
 acount = len(data['aliases'])
 for a in data['aliases']:
-    aname = fwutils.sanitize(a["device"])+str(acount)
-    fwutils.vprint(f'Creating alias {aname}')
+    aname = utils.sanitize(a["device"])+str(acount)
+    nsmigration.vprint(f'Creating alias {aname}')
     u.set("network", aname, "interface") # create named record
-    #u.set("network", aname, "device", u.get("network", fwutils.sanitize(a["device"]), "device"))
-    u.set("network", aname, "device", f'@{fwutils.sanitize(a["device"])}')
+    u.set("network", aname, "device", f'@{utils.sanitize(a["device"])}')
     u.set("network", aname, "ipaddr", a["ipaddr"])
     u.set("network", aname, "netmask", a["netmask"])
     u.set("network", aname, "proto", a["proto"])
@@ -70,13 +70,13 @@ for a in data['aliases']:
 
 # Create firewall zones
 for z in data['zones']:
-    fwutils.vprint(f'Creating zone {z["name"]}')
+    nsmigration.vprint(f'Creating zone {z["name"]}')
     u.set("firewall", z["name"], "zone") # create named record
     u.set("firewall", z["name"], "name", z["name"])
     u.set("firewall", z["name"], "output", z["output"])
     u.set("firewall", z["name"], "input", z["input"])
     u.set("firewall", z["name"], "forward", z["forward"])
-    u.set("firewall", z["name"], "network", [fwutils.sanitize(n) for n in z["network"]])
+    u.set("firewall", z["name"], "network", [utils.sanitize(n) for n in z["network"]])
     if z["name"].startswith("wan"): # setup masquerading for wans
         u.set("firewall", z["name"], "masq", '1')
         u.set("firewall", z["name"], "mtu_fix", '1')
@@ -84,15 +84,15 @@ for z in data['zones']:
 # Create firewall forwardings
 for f in data['forwardings']:
     fname = f'{f["src"]}2{f["dest"]}'
-    fwutils.vprint(f'Creating forwarding {fname}')
+    nsmigration.vprint(f'Creating forwarding {fname}')
     u.set("firewall", fname, "forwarding") # create named record
     u.set("firewall", fname, "src", f["src"])
     u.set("firewall", fname, "dest", f["dest"])
 
 # Create snat rules
 for s in data['snats']:
-    fwutils.vprint(f'Creating SNAT {s["name"]}')
-    sname = fwutils.sanitize(s["name"])
+    nsmigration.vprint(f'Creating SNAT {s["name"]}')
+    sname = utils.sanitize(s["name"])
     u.set("firewall", sname, "nat") # create named record
     u.set("firewall", sname, "name", s["name"])
     u.set("firewall", sname, "target", s["target"])

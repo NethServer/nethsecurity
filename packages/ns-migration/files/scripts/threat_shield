@@ -5,9 +5,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-import fwutils
+import nsmigration
 
-(u, data) = fwutils.init("threat_shield.json")
+(u, data) = nsmigration.init("threat_shield.json")
 
 for o in data['ts-ip']:
     u.set('threat_shield', 'config', o, data['ts-ip'][o])
