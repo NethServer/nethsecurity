@@ -10,6 +10,7 @@ import pwd
 import grp
 import os.path
 import nsmigration
+import subprocess
 from nextsec import firewall, utils
 
 def save_cert(path, data):
@@ -24,9 +25,8 @@ def save_cert(path, data):
 
 
 iname="roadwarrior"
-cert_dir=f"/etc/openvpn/{iname}/certs"
-os.makedirs(cert_dir, exist_ok=True)
-
+cert_dir=f"/etc/openvpn/{iname}/pki/"
+subprocess.run(["/usr/sbin/ns-openvpnrw-init-pki", iname], check=True)
 (u, data) = nsmigration.init("openvpn.json")
 
 # Setup global option
@@ -36,13 +36,20 @@ for option in data['rw']['options']:
     u.set("openvpn", iname, option, data['rw']['options'][option])
 
 # Setup server certificates
-for cert in data['rw']['ca']:
-    save_cert(os.path.join(cert_dir, cert), data['rw']['ca'][cert])
+save_cert(os.path.join(cert_dir, 'ca.crt'), data['rw']['ca']['ca.crt'])
+save_cert(os.path.join(cert_dir, 'index'), data['rw']['ca']['certindex'])
+save_cert(os.path.join(cert_dir, 'index.attr'), data['rw']['ca']['certindex.attr'])
+save_cert(os.path.join(cert_dir, 'crl.pem'), data['rw']['ca']['crl.pem'])
+save_cert(os.path.join(cert_dir, 'serial'), data['rw']['ca']['serial'])
+save_cert(os.path.join(cert_dir, 'issued/server.crt'), data['rw']['ca']['srv.crt'])
+save_cert(os.path.join(cert_dir, 'private/server.key'), data['rw']['ca']['srv.key'])
+save_cert(os.path.join(cert_dir, 'private/ca.key'), data['rw']['ca']['srv.key'])
 u.set("openvpn", iname, 'dh', os.path.join(cert_dir, 'dh.pem'))
 u.set("openvpn", iname, 'ca', os.path.join(cert_dir, 'ca.crt'))
-u.set("openvpn", iname, 'cert', os.path.join(cert_dir, 'srv.crt'))
-u.set("openvpn", iname, 'key', os.path.join(cert_dir, 'srv.key'))
-u.set("openvpn", iname, 'crl-verify', os.path.join(cert_dir, 'crl.pem'))
+u.set("openvpn", iname, 'cert', os.path.join(cert_dir, 'issued/server.crt'))
+u.set("openvpn", iname, 'key', os.path.join(cert_dir, 'private/server.key'))
+u.set("openvpn", iname, 'key', os.path.join(cert_dir, 'private/ca.key'))
+u.set("openvpn", iname, 'crl_verify', os.path.join(cert_dir, 'crl.pem'))
 
 u.set("openvpn", iname, 'client_connect', f'"/usr/libexec/ns-openvpn/openvpn-connect {iname}"')
 u.set("openvpn", iname, 'client_disconnect', f'"/usr/libexec/ns-openvpn/openvpn-disconnect {iname}"')
@@ -55,8 +62,8 @@ for user in data["users"]:
     u.set("openvpn", sname, "instance", iname)
     u.set("openvpn", sname, "ipaddr", user["ipaddr"])
     u.set("openvpn", sname, "enabled", user["enabled"])
-    save_cert(os.path.join(cert_dir, f'{sname}.key'), user['key'])
-    save_cert(os.path.join(cert_dir, f'{sname}.crt'), user['crt'])
+    save_cert(os.path.join(cert_dir, f'private/{sname}.key'), user['key'])
+    save_cert(os.path.join(cert_dir, f'issued/{sname}.crt'), user['crt'])
 
 # Add interface to LAN
 firewall.add_to_lan(u, data['rw']['options']['dev'])
