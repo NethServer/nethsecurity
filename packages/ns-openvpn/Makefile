@@ -22,7 +22,7 @@ define Package/ns-openvpn
 	CATEGORY:=NextSecurity
 	TITLE:=Threat shield block list
 	URL:=https://github.com/NethServer/nextsecurity/
-	DEPENDS:=+openvpn +python3-sqlite3 +python3-nextsec
+	DEPENDS:=+openvpn +openvpn-easy-rsa +python3-sqlite3 +python3-nextsec
 	PKGARCH:=all
 endef
  
@@ -40,6 +40,10 @@ define Package/ns-openvpn/install
 	$(INSTALL_DIR) $(1)/usr/libexec/ns-openvpn/disconnect-scripts
 
 	$(INSTALL_BIN) ./files/ns-openvpnrw-setup $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/ns-openvpnrw-add $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/ns-openvpnrw-init-pki $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/ns-openvpnrw-print-client $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/ns-openvpnrw-revoke  $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/openvpn-connect $(1)/usr/libexec/ns-openvpn/
 	$(INSTALL_BIN) ./files/openvpn-disconnect $(1)/usr/libexec/ns-openvpn/
 	$(INSTALL_BIN) ./files/init-connections-db $(1)/usr/libexec/ns-openvpn/

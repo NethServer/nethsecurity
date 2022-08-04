@@ -1,0 +1,23 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Revoke a user certificate and delete user from UCI
+instance=$1
+user=$2
+if [ -z "$instance" ] || [ -z "$user" ]; then
+    exit 1
+fi
+
+# Revoke only if the user belongs to given instance
+if [ "$(uci -q get openvpn.$user.instance)" == $instance ]; then
+    cd /etc/openvpn/$instance
+    EASYRSA_BATCH=1 /usr/bin/easyrsa revoke "$user"
+    uci delete openvpn."$user"
+    uci commit
+else
+    exit 2
+fi
