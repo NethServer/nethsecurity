@@ -10,5 +10,7 @@ from nextsec import firewall
 
 u = EUci()
 firewall.add_to_lan(u, 'tunrw')
-firewall.add_service(u, 'openvpn_rw', '1194', 'udp')
+ovpn_interface = firewall.add_vpn_interface(u, 'openvpnrw', 'tunrw')
+ovpn_zone = firewall.add_trusted_zone(u, "openvpnrw", [ovpn_interface])
+firewall.add_service(u, 'openvpnrw', '1194', 'udp')
 firewall.apply(u)
