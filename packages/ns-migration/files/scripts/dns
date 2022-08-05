@@ -34,7 +34,7 @@ for section in u.get("dhcp"):
 
 # Create hosts entries
 for host in data["hosts"]:
-    hname = utils.sanitize(host["name"])
+    hname = utils.get_id(host["name"])
     nsmigration.vprint(f'Creating host {hname}')
     u.set("dhcp", hname, "domain") # create named record
     for o in host:
@@ -43,7 +43,7 @@ for host in data["hosts"]:
 # Create wildcard hosts
 addresses = []
 for address in data["addresses"]:
-    aname = utils.sanitize(address["name"])
+    aname = utils.get_id(address["name"])
     nsmigration.vprint(f'Creating wildcard record {aname}')
     addresses.append(f'/{address["name"]}/{address["ip"]}')
 u.set("dhcp", dnsmasq_section, "address", addresses)

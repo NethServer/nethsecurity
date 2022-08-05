@@ -5,8 +5,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-from nextsec import firewall
-from nextsec import utils
+from nextsec import firewall, utils
 import nsmigration
 
 (u, data) = nsmigration.init("dhcp.json")
@@ -15,12 +14,14 @@ import nsmigration
 for section in u.get("dhcp"):
     if  u.get("dhcp", section) == "dnsmasq":
         u.set("dhcp", section, "dhcpleasemax", data['general']["dhcpleasemax"])
+        # add ns_ prefix to the section
+        u.rename("dhcp", section, utils.get_id("dnsmasq"))
 
 # Setup DHCP ranges
 rcounter = len(data['servers'])
 for s in data['servers']:
     iname = firewall.get_interface_name(u, s["hwaddr"])
-    sname = f'dhcp{rcounter}'
+    sname = utils.get_id(f'dhcp{rcounter}')
     nsmigration.vprint(f'Creating DHCP server {sname} on {iname}')
     u.set("dhcp", sname, "dhcp") # create named record
     u.set("dhcp", sname, "interface", iname)
