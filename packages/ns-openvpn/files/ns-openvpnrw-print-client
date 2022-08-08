@@ -1,0 +1,53 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import os
+import socket
+import sys
+from euci import EUci
+
+def slurp(path):
+    with open(path) as fp:
+        return fp.read()
+
+instance=sys.argv[1]
+user=sys.argv[2]
+
+cert_dir=f"/etc/openvpn/{instance}/pki"
+u = EUci()
+
+if u.get("openvpn", instance, "dev").startswith("tun"):
+    print("dev tun")
+else:
+    print("dev tap")
+
+if u.get("openvpn", instance, "proto") == "udp":
+    print("proto udp")
+    print("explicit-exit-notify 1")
+else:
+    print("proto tcp-client")
+
+print(f"port {u.get('openvpn', instance, 'port')}")
+print(f"remote {socket.getfqdn()}")
+
+print(f'<ca>{slurp(os.path.join(cert_dir, "ca.crt"))}</ca>')
+print(f'<cert>{slurp(os.path.join(cert_dir, f"issued/{user}.crt"))}</cert>')
+print(f'<key>{slurp(os.path.join(cert_dir, f"private/{user}.key"))}</key>')
+
+for option in ["auth", "digest"]:
+    try:
+        print(f'{option} {u.get("openvpn", instance, option)}')
+    except:
+        pass
+
+print("client")
+print("float")
+print("verb 3")
+print("persist-key")
+print("persist-tun")
+print("nobind")
+print("passtos")

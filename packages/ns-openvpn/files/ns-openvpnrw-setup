@@ -1,0 +1,46 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import subprocess
+from euci import EUci
+from nextsec import firewall, utils
+
+u = EUci()
+firewall.add_to_lan(u, 'tunrw')
+ovpn_interface = firewall.add_vpn_interface(u, 'openvpnrw', 'tunrw')
+ovpn_zone = firewall.add_trusted_zone(u, "openvpnrw", [ovpn_interface])
+firewall.add_service(u, 'openvpnrw', '1194', 'udp')
+firewall.apply(u)
+
+instance = utils.get_id('roadwarrior')
+try:
+    u.get('openvpn', instance)
+except:
+    # create default instance if not exists
+    u.set('openvpn', instance, 'openvpn')
+    u.set('openvpn', instance, 'proto', 'udp')
+    u.set('openvpn', instance, 'port', '1194')
+    u.set('openvpn', instance, 'dev', 'tunrw')
+    u.set('openvpn', instance, 'topology', 'subnet')
+    u.set('openvpn', instance, 'float', '1')
+    u.set('openvpn', instance, 'passtos', '1')
+    u.set('openvpn', instance, 'multihome', '1')
+    u.set('openvpn', instance, 'verb', '3')
+    u.set('openvpn', instance, 'enabled', '0')
+    u.set('openvpn', instance, 'keepalive', '20 120')
+    u.set('openvpn', instance, 'server', '10.42.66.0 255.255.255.0')
+    u.set('openvpn', instance, 'client_connect', f'"/usr/libexec/ns-openvpn/openvpn-connect {instance}"')
+    u.set('openvpn', instance, 'client_disconnect', f'"/usr/libexec/ns-openvpn/openvpn-disconnect {instance}"')
+    u.set('openvpn', instance, 'dh', f'/etc/openvpn/{instance}/pki/dh.pem')
+    u.set('openvpn', instance, 'ca', f'/etc/openvpn/{instance}/pki/ca.crt')
+    u.set('openvpn', instance, 'cert', f'/etc/openvpn/{instance}/pki/issued/server.crt')
+    u.set('openvpn', instance, 'crl_verify', f'/etc/openvpn/{instance}/pki/crl.pem')
+    u.set('openvpn', instance, 'key', f'/etc/openvpn/{instance}/pki/private/server.key')
+    u.commit('openvpn')
+
+    # initialize firewall rules
+    subprocess.run(["/usr/sbin/ns-openvpnrw-init-pki", instance])
