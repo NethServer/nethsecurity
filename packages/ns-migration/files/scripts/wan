@@ -1,0 +1,66 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import nsmigration
+from nextsec import firewall, utils
+
+(u, data) = nsmigration.init("wan.json")
+
+def by_weight(e):
+    return e["weight"]
+
+# Cleanup default configuration
+u.delete("mwan3", "https")
+for section in u.get("mwan3"):
+    s_type = u.get("mwan3", section)
+    if s_type == "interface" or s_type == "member" or s_type == "policy":
+        u.delete("mwan3", section)
+    if s_type == "rule" and not section.startswith("ns_"):
+        u.rename("mwan3", section, f"ns_{section}")
+
+# Sort providers to setup metric
+# lower metric => higher priority
+data['providers'].sort(key=by_weight, reverse=True)
+
+# Create interfaces and members
+metric = 10
+for p in data['providers']:
+    iname = firewall.get_interface_name(u, p["device"])
+    nsmigration.vprint(f"Creating mwan interface {iname}")
+    u.set("mwan3", iname, "interface")
+    u.set("mwan3", iname, "enabled", "1")
+    u.set("mwan3", iname, "family", "ipv4")
+    u.set("mwan3", iname, "track_ip", data['general']['track_ip'])
+    u.set("mwan3", iname, "reliability", data['general']['reliability'])
+
+    nsmigration.vprint(f"Setting mwan metric for {iname}")
+    u.set("network", iname, 'metric', metric)
+
+    nsmigration.vprint(f"Setting mwan member for {iname}")
+    mname = utils.get_id(f"{iname}_m{metric}_w{p['weight']}")
+    u.set("mwan3", mname, "member")
+    u.set("mwan3", mname, "interface", iname)
+    u.set("mwan3", mname, "weight", p["weight"])
+
+    if data["general"]["mode"] == "balance":
+        # same metric => same priority
+        u.set("mwan3", mname, "metric", "50")
+    else:
+        u.set("mwan3", mname, "metric", metric)
+
+    metric = metric + 10
+
+# Setup policy
+    pname = utils.get_id("ns7balance")
+else:
+    pname = utils.get_id("ns7backup")
+u.set("mwan3", pname, "policy")
+u.set("mwan3", pname, "use_member", list(utils.get_all_by_type(u, "mwan3", "member").keys()))
+    
+# Save configuration
+u.commit("mwan3")
+u.commit("network")
