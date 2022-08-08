@@ -6,14 +6,14 @@
 #
 
 import nsmigration
-from nextsec import firewall
+from nextsec import firewall, utils
 
 (u, data) = nsmigration.init("routes.json")
 
 counter = len(data['routes'])
 
 for route in data['routes']:
-    rname = f'route{counter}'
+    rname = utils.get_id(f'route{counter}')
     nsmigration.vprint(f'Creating route {rname}')
     route['interface'] = firewall.get_interface_name(u, route['interface'])
     u.set("network", rname, "route")

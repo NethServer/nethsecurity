@@ -34,7 +34,7 @@ for section in u.get("network"):
 # Create vlan devices
 for v in data['vlans']:
     iname = firewall.get_device_name(v["hwaddr"])
-    vname = f'vlan{v["vid"]}'
+    vname = utils.sanitize(f'vlan{v["vid"]}')
     u.set("network", vname, "device") # create named record
     u.set("network", vname, "type", v["type"])
     u.set("network", vname, "vid", v["vid"])
@@ -71,19 +71,20 @@ for a in data['aliases']:
 # Create firewall zones
 for z in data['zones']:
     nsmigration.vprint(f'Creating zone {z["name"]}')
-    u.set("firewall", z["name"], "zone") # create named record
-    u.set("firewall", z["name"], "name", z["name"])
-    u.set("firewall", z["name"], "output", z["output"])
-    u.set("firewall", z["name"], "input", z["input"])
-    u.set("firewall", z["name"], "forward", z["forward"])
-    u.set("firewall", z["name"], "network", [utils.sanitize(n) for n in z["network"]])
+    zname = utils.get_id(z["name"])
+    u.set("firewall", zname, "zone") # create named record
+    u.set("firewall", zname, "name", z["name"])
+    u.set("firewall", zname, "output", z["output"])
+    u.set("firewall", zname, "input", z["input"])
+    u.set("firewall", zname, "forward", z["forward"])
+    u.set("firewall", zname, "network", [utils.sanitize(n) for n in z["network"]])
     if z["name"].startswith("wan"): # setup masquerading for wans
-        u.set("firewall", z["name"], "masq", '1')
-        u.set("firewall", z["name"], "mtu_fix", '1')
+        u.set("firewall", zname, "masq", '1')
+        u.set("firewall", zname, "mtu_fix", '1')
 
 # Create firewall forwardings
 for f in data['forwardings']:
-    fname = f'{f["src"]}2{f["dest"]}'
+    fname = utils.get_id(f'{f["src"]}2{f["dest"]}')
     nsmigration.vprint(f'Creating forwarding {fname}')
     u.set("firewall", fname, "forwarding") # create named record
     u.set("firewall", fname, "src", f["src"])
@@ -92,7 +93,7 @@ for f in data['forwardings']:
 # Create snat rules
 for s in data['snats']:
     nsmigration.vprint(f'Creating SNAT {s["name"]}')
-    sname = utils.sanitize(s["name"])
+    sname = utils.get_id(s["name"])
     u.set("firewall", sname, "nat") # create named record
     u.set("firewall", sname, "name", s["name"])
     u.set("firewall", sname, "target", s["target"])
