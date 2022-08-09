@@ -5,16 +5,26 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-function usage {
+usage() {
     echo "$0 <exported_archive>"
     exit 1
 }
+
+try_restart() {
+    service=$1
+    if service "$service" running; then
+        echo "service $service restart"
+    else
+        echo "service $service start"
+    fi
+}
+
 
 if [ -z "$1" ]; then
     usage    
 fi
 
-if [ ! -f $1 ]; then
+if [ ! -f "$1" ]; then
     echo "No such file or directory: '$1'"
     exit 1
 fi
@@ -44,13 +54,13 @@ rm -rf $tmp_dir
 # Restart services
 service network restart
 service firewall restart
-service dnsmasq restart
-service dropbear restart
 service system restart
-service cron restart
-service sysntpd restart
-service ns-plug restart
-service ts-dns restart
 service ts-ip restart
-service openvpn restart
-service mwan3 restart
+try_restart dnsmasq
+try_restart dropbear
+try_restart cron
+try_restart sysntpd
+try_restart ns-plug
+try_restart ts-dns
+try_restart openvpn
+try_restart mwan3
