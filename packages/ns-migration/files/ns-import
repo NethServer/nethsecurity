@@ -53,3 +53,4 @@ service ns-plug restart
 service ts-dns restart
 service ts-ip restart
 service openvpn restart
+service mwan3 restart
