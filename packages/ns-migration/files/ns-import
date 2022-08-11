@@ -6,7 +6,7 @@
 #
 
 usage() {
-    echo "$0 <exported_archive>"
+    echo "$0 [-q] [-m oldmac=newmac] <exported_archive> "
     exit 1
 }
 
@@ -19,15 +19,30 @@ try_restart() {
     fi
 }
 
+maps=''
+quiet=""
 
-if [ -z "$1" ]; then
+while getopts "qm:" opt
+do
+    case $opt in
+        m) maps="$maps --map ${OPTARG}"  ;;
+        q) quiet="--quiet"  ;;
+        *) exit 1;;   # DEFAULT
+    esac
+done
+
+shift $(($OPTIND - 1))
+archive=$1
+
+if [ -z "$archive" ]; then
     usage    
 fi
 
-if [ ! -f "$1" ]; then
+if [ ! -f "$archive" ]; then
     echo "No such file or directory: '$1'"
     exit 1
 fi
+
 
 # Prepare target directories and explode archive
 tmp_dir=$(mktemp -d)
@@ -45,7 +60,7 @@ cd $work_dir
 for f in $(find /usr/share/ns-migration/ -type f)
 do
     if [ -x "$f" ]; then
-        "$f" "$tmp_dir/export"
+        "$f" $quiet $maps "$tmp_dir/export"
     fi
 done
 

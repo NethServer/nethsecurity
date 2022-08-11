@@ -27,7 +27,8 @@ def save_cert(path, data):
 iname="ns_roadwarrior"
 cert_dir=f"/etc/openvpn/{iname}/pki/"
 subprocess.run(["/usr/sbin/ns-openvpnrw-init-pki", iname], check=True)
-(u, data) = nsmigration.init("openvpn.json")
+
+(u, data, nmap) = nsmigration.init("openvpn.json")
 
 # Setup global option
 u.set("openvpn", iname, "openvpn")

@@ -8,7 +8,7 @@
 import nsmigration
 from nextsec import firewall, utils
 
-(u, data) = nsmigration.init("rules.json")
+(u, data, nmap) = nsmigration.init("rules.json")
 
 def by_position(e):
     return e["position"]

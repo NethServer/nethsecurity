@@ -8,7 +8,7 @@
 import nsmigration
 from nextsec import firewall
 
-(u, data) = nsmigration.init("ssh.json")
+(u, data, nmap) = nsmigration.init("ssh.json")
 
 # Set global options
 for section in u.get("dropbear"):

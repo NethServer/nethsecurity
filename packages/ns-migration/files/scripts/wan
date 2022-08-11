@@ -8,7 +8,7 @@
 import nsmigration
 from nextsec import firewall, utils
 
-(u, data) = nsmigration.init("wan.json")
+(u, data, nmap) = nsmigration.init("wan.json")
 
 def by_weight(e):
     return e["weight"]
@@ -33,7 +33,10 @@ divert_policies = dict()
 # Create interfaces and members
 metric = 10
 for p in data['providers']:
-    iname = firewall.get_interface_name(u, p["device"])
+    iname = firewall.get_interface_name(u, nsmigration.remap(p["device"], nmap))
+    if iname is None:
+        nsmigration.vprint(f"Skipping mwan interface {p['device']}")
+        continue
     nsmigration.vprint(f"Creating mwan interface {iname}")
     u.set("mwan3", iname, "interface")
     u.set("mwan3", iname, "enabled", "1")

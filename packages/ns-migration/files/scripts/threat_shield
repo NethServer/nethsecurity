@@ -7,7 +7,7 @@
 
 import nsmigration
 
-(u, data) = nsmigration.init("threat_shield.json")
+(u, data, nmap) = nsmigration.init("threat_shield.json")
 
 for o in data['ts-ip']:
     u.set('threat_shield', 'config', o, data['ts-ip'][o])

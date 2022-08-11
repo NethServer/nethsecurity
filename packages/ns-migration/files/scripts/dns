@@ -8,7 +8,7 @@
 from nextsec import utils
 import nsmigration
 
-(u, data) = nsmigration.init("dns.json")
+(u, data, nmap) = nsmigration.init("dns.json")
 
 # Setup hostname
 fqdn = f'{data["general"]["hostname"]}.{data["general"]["domain"]}'

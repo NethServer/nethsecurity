@@ -7,7 +7,7 @@
 
 import nsmigration
 
-(u, data) = nsmigration.init("subscription.json")
+(u, data, nmap) = nsmigration.init("subscription.json")
 
 if data['subscription']['system_id']:
     nsmigration.vprint(f"Setting subscription system_id")

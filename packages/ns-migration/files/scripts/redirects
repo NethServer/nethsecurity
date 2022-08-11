@@ -8,7 +8,7 @@
 import nsmigration
 from nextsec import utils
 
-(u, data) = nsmigration.init("redirects.json")
+(u, data, nmap) = nsmigration.init("redirects.json")
 
 for pf in data['redirects']:
     name = pf.pop("key")

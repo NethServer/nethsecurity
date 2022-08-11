@@ -8,7 +8,7 @@
 from nextsec import firewall, utils
 import nsmigration
 
-(u, data) = nsmigration.init("dhcp.json")
+(u, data, nmap) = nsmigration.init("dhcp.json")
 
 # Set global options
 for section in u.get("dhcp"):
@@ -20,7 +20,7 @@ for section in u.get("dhcp"):
 # Setup DHCP ranges
 rcounter = len(data['servers'])
 for s in data['servers']:
-    iname = firewall.get_interface_name(u, s["hwaddr"])
+    iname = firewall.get_interface_name(u, nsmigration.remap(s["hwaddr"], nmap))
     sname = utils.get_id(f'dhcp{rcounter}')
     nsmigration.vprint(f'Creating DHCP server {sname} on {iname}')
     u.set("dhcp", sname, "dhcp") # create named record

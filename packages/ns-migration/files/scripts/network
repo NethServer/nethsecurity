@@ -8,7 +8,7 @@
 import nsmigration
 from nextsec import firewall, utils
 
-(u, data) = nsmigration.init("network.json")
+(u, data, nmap) = nsmigration.init("network.json")
 
 # Cleanup default firewall zones
 for section in u.get("firewall"):
@@ -33,8 +33,9 @@ for section in u.get("network"):
 
 # Create vlan devices
 for v in data['vlans']:
-    iname = firewall.get_device_name(v["hwaddr"])
+    iname = firewall.get_device_name(nsmigration.remap(v["hwaddr"], nmap))
     vname = utils.sanitize(f'vlan{v["vid"]}')
+    nsmigration.vprint(f"Creating vlan {iname}")
     u.set("network", vname, "device") # create named record
     u.set("network", vname, "type", v["type"])
     u.set("network", vname, "vid", v["vid"])
@@ -47,7 +48,7 @@ for i in data['interfaces']:
     nsmigration.vprint(f'Creating interface {iname}')
     u.set("network", iname, "interface") # create named record
     u.set("network", iname, "proto", i["proto"])
-    u.set("network", iname, "device", firewall.get_device_name(i["hwaddr"]))
+    u.set("network", iname, "device", firewall.get_device_name(nsmigration.remap(v['hwaddr'], nmap)))
     if i["ipaddr"]:
         u.set("network", iname, "ipaddr", i["ipaddr"])
         u.set("network", iname, "netmask", i["netmask"])
