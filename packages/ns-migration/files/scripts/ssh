@@ -1,0 +1,31 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import nsmigration
+from nextsec import firewall
+
+(u, data, nmap) = nsmigration.init("ssh.json")
+
+# Set global options
+for section in u.get("dropbear"):
+    if  u.get("dropbear", section) == "dropbear":
+        for option in data['ssh']:
+            nsmigration.vprint(f"Setting SSH option {option}")
+            u.set("dropbear", section, option, data['ssh'][option])
+
+if data['authorized_keys']:
+    nsmigration.vprint(f"Setting SSH authorized_keys")
+    with open('/etc/dropbear/authorized_keys', 'w') as f:
+        f.write(data['authorized_keys'])
+
+if data['ssh_from_wan']:
+    nsmigration.vprint(f"Allowing SSH access from WAN")
+    firewall.add_service(u, 'ssh', data['ssh']['Port'], 'tcp')
+    u.commit("firewall")
+
+# Save configuration
+u.commit("dropbear")

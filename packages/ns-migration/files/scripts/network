@@ -1,0 +1,108 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import nsmigration
+from nextsec import firewall, utils
+
+(u, data, nmap) = nsmigration.init("network.json")
+
+# Cleanup default firewall zones
+for section in u.get("firewall"):
+    s_type = u.get("firewall", section)
+    if s_type == "zone":
+        zname = u.get("firewall", section, "name")
+        if zname == "wan" or zname == "wan6" or zname == "lan":
+            nsmigration.vprint(f"Deleting zone {section} ({zname})")
+            u.delete("firewall", section)
+
+# Cleanup default network configuration
+for section in u.get("network"):
+    s_type = u.get("network", section)
+    if s_type == "interface" and (section == "wan" or section == "wan6" or section == "lan"):
+        nsmigration.vprint(f"Deleting interface {section}")
+        u.delete("network", section)
+    if s_type == "device":
+        ts = u.get_all("network", section)
+        if ts['name'] == 'br-lan':
+            nsmigration.vprint(f"Deleting interface {section}")
+            u.delete("network", section)
+
+# Create vlan devices
+for v in data['vlans']:
+    iname = firewall.get_device_name(nsmigration.remap(v["hwaddr"], nmap))
+    vname = utils.sanitize(f'vlan{v["vid"]}')
+    nsmigration.vprint(f"Creating vlan {iname}")
+    u.set("network", vname, "device") # create named record
+    u.set("network", vname, "type", v["type"])
+    u.set("network", vname, "vid", v["vid"])
+    u.set("network", vname, "ifname", iname)
+    u.set("network", vname, "name", f'{iname}.{v["vid"]}')
+
+# Create interfaces
+for i in data['interfaces']:
+    iname = utils.sanitize(i["interface"])
+    nsmigration.vprint(f'Creating interface {iname}')
+    u.set("network", iname, "interface") # create named record
+    u.set("network", iname, "proto", i["proto"])
+    u.set("network", iname, "device", firewall.get_device_name(nsmigration.remap(v['hwaddr'], nmap)))
+    if i["ipaddr"]:
+        u.set("network", iname, "ipaddr", i["ipaddr"])
+        u.set("network", iname, "netmask", i["netmask"])
+    if i["gateway"]:
+        u.set("network", iname, "gateway", i["gateway"])
+
+# Create aliases
+acount = len(data['aliases'])
+for a in data['aliases']:
+    aname = utils.sanitize(a["device"])+str(acount)
+    nsmigration.vprint(f'Creating alias {aname}')
+    u.set("network", aname, "interface") # create named record
+    u.set("network", aname, "device", f'@{utils.sanitize(a["device"])}')
+    u.set("network", aname, "ipaddr", a["ipaddr"])
+    u.set("network", aname, "netmask", a["netmask"])
+    u.set("network", aname, "proto", a["proto"])
+    if a["gateway"]:
+        u.set("network", aname, "gateway", a["gateway"])
+    acount = acount - 1
+
+# Create firewall zones
+for z in data['zones']:
+    nsmigration.vprint(f'Creating zone {z["name"]}')
+    zname = utils.get_id(z["name"])
+    u.set("firewall", zname, "zone") # create named record
+    u.set("firewall", zname, "name", z["name"])
+    u.set("firewall", zname, "output", z["output"])
+    u.set("firewall", zname, "input", z["input"])
+    u.set("firewall", zname, "forward", z["forward"])
+    u.set("firewall", zname, "network", [utils.sanitize(n) for n in z["network"]])
+    if z["name"].startswith("wan"): # setup masquerading for wans
+        u.set("firewall", zname, "masq", '1')
+        u.set("firewall", zname, "mtu_fix", '1')
+
+# Create firewall forwardings
+for f in data['forwardings']:
+    fname = utils.get_id(f'{f["src"]}2{f["dest"]}')
+    nsmigration.vprint(f'Creating forwarding {fname}')
+    u.set("firewall", fname, "forwarding") # create named record
+    u.set("firewall", fname, "src", f["src"])
+    u.set("firewall", fname, "dest", f["dest"])
+
+# Create snat rules
+for s in data['snats']:
+    nsmigration.vprint(f'Creating SNAT {s["name"]}')
+    sname = utils.get_id(s["name"])
+    u.set("firewall", sname, "nat") # create named record
+    u.set("firewall", sname, "name", s["name"])
+    u.set("firewall", sname, "target", s["target"])
+    u.set("firewall", sname, "proto", [s["proto"]])
+    u.set("firewall", sname, "snat_ip", s["snat_ip"])
+    u.set("firewall", sname, "src_ip", s["src_ip"])
+    u.set("firewall", sname, "src", "wan")
+
+# Save configuration
+u.commit("network")
+u.commit("firewall")

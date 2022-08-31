@@ -1,0 +1,77 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import os
+import pwd
+import grp
+import os.path
+import nsmigration
+import subprocess
+from nextsec import firewall, utils
+
+def save_cert(path, data):
+    # setup rw permissions on ly for nobody user
+    os.umask(0o077)
+    with open(path, 'w') as f:
+        f.write(data)
+    
+    uid = pwd.getpwnam("nobody").pw_uid
+    gid = grp.getgrnam("nogroup").gr_gid
+    os.chown(path, uid, gid)
+
+
+iname="ns_roadwarrior"
+cert_dir=f"/etc/openvpn/{iname}/pki/"
+subprocess.run(["/usr/sbin/ns-openvpnrw-init-pki", iname], check=True)
+
+(u, data, nmap) = nsmigration.init("openvpn.json")
+
+# Setup global option
+u.set("openvpn", iname, "openvpn")
+for option in data['rw']['options']:
+    nsmigration.vprint(f"Setting OpenVPN roadwarrior option {option}")
+    u.set("openvpn", iname, option, data['rw']['options'][option])
+
+# Setup server certificates
+save_cert(os.path.join(cert_dir, 'ca.crt'), data['rw']['ca']['ca.crt'])
+save_cert(os.path.join(cert_dir, 'index'), data['rw']['ca']['certindex'])
+save_cert(os.path.join(cert_dir, 'index.attr'), data['rw']['ca']['certindex.attr'])
+save_cert(os.path.join(cert_dir, 'crl.pem'), data['rw']['ca']['crl.pem'])
+save_cert(os.path.join(cert_dir, 'serial'), data['rw']['ca']['serial'])
+save_cert(os.path.join(cert_dir, 'issued/server.crt'), data['rw']['ca']['srv.crt'])
+save_cert(os.path.join(cert_dir, 'private/server.key'), data['rw']['ca']['srv.key'])
+save_cert(os.path.join(cert_dir, 'private/ca.key'), data['rw']['ca']['srv.key'])
+u.set("openvpn", iname, 'dh', os.path.join(cert_dir, 'dh.pem'))
+u.set("openvpn", iname, 'ca', os.path.join(cert_dir, 'ca.crt'))
+u.set("openvpn", iname, 'cert', os.path.join(cert_dir, 'issued/server.crt'))
+u.set("openvpn", iname, 'key', os.path.join(cert_dir, 'private/server.key'))
+u.set("openvpn", iname, 'key', os.path.join(cert_dir, 'private/ca.key'))
+u.set("openvpn", iname, 'crl_verify', os.path.join(cert_dir, 'crl.pem'))
+
+u.set("openvpn", iname, 'client_connect', f'"/usr/libexec/ns-openvpn/openvpn-connect {iname}"')
+u.set("openvpn", iname, 'client_disconnect', f'"/usr/libexec/ns-openvpn/openvpn-disconnect {iname}"')
+
+# Create user entries
+for user in data["users"]:
+    sname = utils.sanitize(user["name"])
+    nsmigration.vprint(f"Creating OpenVPN roadwarrior user {sname}")
+    u.set("openvpn", sname, "user")
+    u.set("openvpn", sname, "instance", iname)
+    u.set("openvpn", sname, "ipaddr", user["ipaddr"])
+    u.set("openvpn", sname, "enabled", user["enabled"])
+    save_cert(os.path.join(cert_dir, f'private/{sname}.key'), user['key'])
+    save_cert(os.path.join(cert_dir, f'issued/{sname}.crt'), user['crt'])
+
+# Add interface to LAN
+ovpn_interface = firewall.add_vpn_interface(u, 'openvpnrw', data['rw']['options']['dev'])
+ovpn_zone = firewall.add_trusted_zone(u, "openvpnrw", [ovpn_interface])
+# Open OpenVPN port
+firewall.add_service(u, 'openvpnrw', data['rw']['options']['port'], data['rw']['options']['proto'])
+
+# Save configuration
+u.commit("openvpn")
+firewall.apply(u)

@@ -1,0 +1,21 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import nsmigration
+
+(u, data, nmap) = nsmigration.init("threat_shield.json")
+
+for o in data['ts-ip']:
+    u.set('threat_shield', 'config', o, data['ts-ip'][o])
+u.set('threat_shield', 'config', 'log_blocked', '1')
+
+for o in data['ts-dns']:
+    u.set('adblock', 'global', o, data['ts-dns'][o])
+
+# Save configuration
+u.commit("adblock")
+u.commit("threat_shield")

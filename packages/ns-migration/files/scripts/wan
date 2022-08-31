@@ -1,0 +1,105 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import nsmigration
+from nextsec import firewall, utils
+
+(u, data, nmap) = nsmigration.init("wan.json")
+
+def by_weight(e):
+    return e["weight"]
+
+def by_position(e):
+    return e["position"]
+
+# Cleanup default configuration
+u.delete("mwan3", "https")
+for section in u.get("mwan3"):
+    s_type = u.get("mwan3", section)
+    if s_type != "globals":
+        u.delete("mwan3", section)
+
+# Sort providers to setup metric
+# lower metric => higher priority
+data['providers'].sort(key=by_weight, reverse=True)
+
+# map NS7 provider name to mwan polices
+divert_policies = dict()
+
+# Create interfaces and members
+metric = 10
+for p in data['providers']:
+    iname = firewall.get_interface_name(u, nsmigration.remap(p["device"], nmap))
+    if iname is None:
+        nsmigration.vprint(f"Skipping mwan interface {p['device']}")
+        continue
+    nsmigration.vprint(f"Creating mwan interface {iname}")
+    u.set("mwan3", iname, "interface")
+    u.set("mwan3", iname, "enabled", "1")
+    u.set("mwan3", iname, "family", "ipv4")
+    u.set("mwan3", iname, "track_ip", data['general']['track_ip'])
+    u.set("mwan3", iname, "reliability", data['general']['reliability'])
+
+    nsmigration.vprint(f"Setting mwan metric for {iname}")
+    u.set("network", iname, 'metric', metric)
+
+    nsmigration.vprint(f"Setting mwan member for {iname}")
+    mname = utils.get_id(f"{iname}_m{metric}_w{p['weight']}")
+    u.set("mwan3", mname, "member")
+    u.set("mwan3", mname, "interface", iname)
+    u.set("mwan3", mname, "weight", p["weight"])
+
+    if data["general"]["mode"] == "balance":
+        # same metric => same priority
+        u.set("mwan3", mname, "metric", "50")
+    else:
+        u.set("mwan3", mname, "metric", metric)
+
+    # Setup policy with only this interface
+    # The policy will be used for divert rules
+    ponly = utils.get_id(f'{iname}', length = 15)
+    u.set("mwan3", ponly, "policy")
+    u.set("mwan3", ponly, "use_member", mname)
+    divert_policies[p["name"]] = ponly
+
+    metric = metric + 10
+
+# Setup default policy
+    pname = utils.get_id("ns7balance", length = 15)
+else:
+    pname = utils.get_id("ns7backup", length = 15)
+u.set("mwan3", pname, "policy")
+u.set("mwan3", pname, "use_member", list(utils.get_all_by_type(u, "mwan3", "member").keys()))
+
+# Sort rules in reverse order
+# On NS7 last match wins
+data['rules'].sort(key=by_position, reverse=True)
+
+for rule in data['rules']:
+    rname = utils.get_id(rule.pop('name'))
+    rule["use_policy"]  = divert_policies[rule["use_policy"]]
+    nsmigration.vprint(f"Setting mwan rule {rname}")
+    u.set("mwan3", rname, 'rule')
+    u.set("mwan3", rname, 'family', 'ipv4')
+    for o in rule:
+        u.set("mwan3", rname, o, rule[o])
+
+def_v4 = utils.get_id('default_v4', length = 15)
+u.set("mwan3", def_v4, 'rule')
+u.set("mwan3", def_v4, 'dest_ip', '0.0.0.0/0')
+u.set("mwan3", def_v4, 'use_policy', pname)
+u.set("mwan3", def_v4, 'family', 'ipv4')
+
+def_v6 = utils.get_id('default_v6', length = 15)
+u.set("mwan3", def_v6, 'rule')
+u.set("mwan3", def_v6, 'dest_ip', '::/0')
+u.set("mwan3", def_v6, 'use_policy', pname)
+u.set("mwan3", def_v6, 'family', 'ipv6')
+
+# Save configuration
+u.commit("mwan3")
+u.commit("network")
