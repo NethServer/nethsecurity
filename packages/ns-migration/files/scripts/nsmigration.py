@@ -42,9 +42,10 @@ def init(data_file):
 
     # Prepare network map
     nmap = dict()
-    for m in args.map:
-        (old, new) = m.split("=")
-        nmap[old]=new
+    if args.map:
+        for m in args.map:
+            (old, new) = m.lower().split("=")
+            nmap[old]=new
 
     return (u, data, nmap)
 
