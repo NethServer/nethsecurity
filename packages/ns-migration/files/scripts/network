@@ -48,12 +48,10 @@ for i in data['interfaces']:
     nsmigration.vprint(f'Creating interface {iname}')
     u.set("network", iname, "interface") # create named record
     u.set("network", iname, "proto", i["proto"])
-    u.set("network", iname, "device", firewall.get_device_name(nsmigration.remap(v['hwaddr'], nmap)))
-    if i["ipaddr"]:
-        u.set("network", iname, "ipaddr", i["ipaddr"])
-        u.set("network", iname, "netmask", i["netmask"])
-    if i["gateway"]:
-        u.set("network", iname, "gateway", i["gateway"])
+    u.set("network", iname, "device", firewall.get_device_name(nsmigration.remap(i['hwaddr'], nmap)))
+    for opt in ('ipaddr', 'netmask', 'gateway', 'ipv6', 'username', 'password', 'keepalive'):
+        if opt in i and str(i[opt]) != "":
+            u.set("network", iname, opt, i[opt])
 
 # Create aliases
 acount = len(data['aliases'])

@@ -55,7 +55,7 @@ Reference: https://poundcomment.wordpress.com/2011/03/30/pppoe-server-on-ubuntu/
 
 ## Setup OpenWrt PPPoE client
 
-You can setup everything from the UI, but make sure to set an high value (eg. 1000)
+You can setup everything from the UI, but make sure to set an high value (eg. 100)
 for `LCP echo failure threshold` field.
 
 If you prefer the command line: 
@@ -64,7 +64,7 @@ uci set network.wan.proto='pppoe'
 uci set network.wan.username='test'
 uci set network.wan.password='password'
 uci set network.wan.ipv6=0
-uci set network.wan.keepalive="1000 5"
+uci set network.wan.keepalive="100 5"
 uci commit network
 service network restart
 ```
