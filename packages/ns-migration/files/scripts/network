@@ -82,6 +82,26 @@ for i in data['interfaces']:
         else:
             u.set("network", iname, "device", ndevice)
 
+# Create bridges
+for b in data['bridges']:
+    bname = utils.sanitize(b["name"])
+    nsmigration.vprint(f"Creating bridge {b['name']}")
+    u.set("network", bname, "device") # create named record
+    u.set("network", bname, 'name', b['name'])
+    u.set("network", bname, "type", "bridge")
+    u.set("network", bname, "ipv6", "0")
+    ports = list()
+    for p in b["ports"]:
+        if p['type'] == 'ethernet':
+            bdevice = firewall.get_device_name(nsmigration.remap(p['hwaddr'], nmap))
+        elif p['type'] == 'vlan':
+            bdevice = vlans[f"{p['hwaddr']}.{p['vid']}"]
+        else:
+            continue
+        if bdevice:
+            ports.append(bdevice)
+    u.set("network", bname, 'ports', ports)
+
 # Create aliases
 acount = len(data['aliases'])
 for a in data['aliases']:
