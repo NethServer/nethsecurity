@@ -36,6 +36,14 @@ During the start-up, the container will:
 - generate the diffconfig
 - generate a random public key to sign packages
 
+### Upstream version change
+
+After changing the the upstream release, containers volumes should be wiped out otherwise the build will fail.
+To clean up existing volumes:
+```
+podman volume rm nextsecurity-build_dir nextsecurity-staging_dir
+```
+
 ## Image configuration
 
 All files with `.conf` extension inside the `config` directory will be merged to create the diffconfig.
