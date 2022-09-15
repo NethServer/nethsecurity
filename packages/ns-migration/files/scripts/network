@@ -82,6 +82,25 @@ for i in data['interfaces']:
         else:
             u.set("network", iname, "device", ndevice)
 
+# Create bonds
+for b in data['bonds']:
+    bname = utils.sanitize(b["name"])
+    nsmigration.vprint(f"Creating bond {b['name']}")
+    u.set("network", bname, "interface") # create named record
+    u.set("network", bname, "proto", "bonding")
+    u.set("network", bname, "bonding_policy", b["bonding_policy"])
+    slaves = list()
+    for s in b["slaves"]:
+        slaves.append(firewall.get_device_name(nsmigration.remap(s, nmap)))
+    u.set("network", bname, "slaves", slaves)
+    # setup mii monitoring as NS7
+    if b["bonding_policy"] != "802.3ad":
+        u.set("network", bname, "link_monitoring", "mii")
+        u.set("network", bname, "miimon", "100")
+    for opt in ('ipaddr', 'netmask', 'gateway'):
+        if opt in b and str(b[opt]) != "":
+            u.set("network", bname, opt, b[opt])
+
 # Create bridges
 for b in data['bridges']:
     bname = utils.sanitize(b["name"])
