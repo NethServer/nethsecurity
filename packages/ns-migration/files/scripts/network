@@ -11,6 +11,7 @@ from nextsec import firewall, utils
 from euci import UciExceptionNotFound
 
 (u, data, nmap) = nsmigration.init("network.json")
+vlans = dict()
 
 def exists(key):
     try:
@@ -19,7 +20,17 @@ def exists(key):
     except UciExceptionNotFound:
         return False
 
-vlans = dict()
+def get_interface_from_device(device):
+    for section in u.get("network"):
+        s_type = u.get("network", section)
+        if s_type == "interface":
+            proto = u.get("network", section, 'proto')
+            if proto == 'bonding' and section == device:
+                return section
+            elif proto != 'bonding' and device == u.get("network", section, 'device'):
+                return section
+
+    return None
 
 # Cleanup default firewall zones
 for section in u.get("firewall"):
@@ -77,7 +88,6 @@ for i in data['interfaces']:
     else:
         ndevice = firewall.get_device_name(nsmigration.remap(i['hwaddr'], nmap))
         if 'vid' in i:
-            # this is a pppoe attached to a vlan
             u.set("network", iname, "device", f'{ndevice}.{i["vid"]}')
         else:
             u.set("network", iname, "device", ndevice)
@@ -91,7 +101,9 @@ for b in data['bonds']:
     u.set("network", bname, "bonding_policy", b["bonding_policy"])
     slaves = list()
     for s in b["slaves"]:
-        slaves.append(firewall.get_device_name(nsmigration.remap(s, nmap)))
+        slave = firewall.get_device_name(nsmigration.remap(s, nmap))
+        if slave:
+            slaves.append(firewall.get_device_name(nsmigration.remap(s, nmap)))
     u.set("network", bname, "slaves", slaves)
     # setup mii monitoring as NS7
     if b["bonding_policy"] != "802.3ad":
@@ -124,17 +136,38 @@ for b in data['bridges']:
 # Create aliases
 acount = len(data['aliases'])
 for a in data['aliases']:
-    # alias over vlan
-    if not 'device' in a:
-        vlan = vlans.get(f'{a["hwaddr"]}.{a["vid"]}', None)
-        if vlan is None:
-            nsmigration.vprint(f'Skipping alias for non-exiting vlan {a["vid"]} on {a["hwaddr"]}')
-            continue
-        a['device'] = vlan 
-    aname = utils.sanitize(a["device"])+str(acount)
+    device = ''
+    aname = ''
+    if 'hwaddr' in a:
+        # alias over vlan
+        if 'vid' in a:
+            vlan = vlans.get(f'{a["hwaddr"]}.{a["vid"]}', None)
+            if vlan is None:
+                nsmigration.vprint(f'Skipping alias for non-exiting vlan {a["vid"]} on {a["hwaddr"]}')
+                continue
+            aname = utils.sanitize(vlan)+str(acount)
+            i = get_interface_from_device(vlan)
+            device = f'@{i}'
+        # alias over ethernet interface
+        else:
+            tmp = firewall.get_device_name(nsmigration.remap(a['hwaddr'], nmap))
+            # normal interfaces do not require the @ prefix
+            device = get_interface_from_device(tmp)
+            aname = utils.sanitize(device)+str(acount)
+    # alias over logical interface
+    else:
+        aname = utils.sanitize(a["device"])+str(acount)
+        # add @ prefix for bridges and bonds
+        if a["device"].startswith("br") or  a["device"].startswith("bond"):
+            device = f'@{get_interface_from_device(a["device"])}'
+        else:
+            device = get_interface_from_device(a["device"])
+    if device is None:
+        nsmigration.vprint(f'Skipping alias {aname}')
+        continue
     nsmigration.vprint(f'Creating alias {aname}')
     u.set("network", aname, "interface") # create named record
-    u.set("network", aname, "device", f'@{utils.sanitize(a["device"])}')
+    u.set("network", aname, "device", device)
     u.set("network", aname, "ipaddr", a["ipaddr"])
     u.set("network", aname, "netmask", a["netmask"])
     u.set("network", aname, "proto", a["proto"])
