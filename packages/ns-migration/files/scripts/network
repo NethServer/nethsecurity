@@ -123,7 +123,8 @@ for b in data['bridges']:
         elif p['type'] == 'vlan':
             bdevice = vlans[f"{p['hwaddr']}.{p['vid']}"]
         else:
-            continue
+            # virtual device like bonds
+            bdevice = p['device']
         if bdevice:
             ports.append(bdevice)
     u.set("network", bname, 'ports', ports)
