@@ -51,6 +51,8 @@ It will import:
 
 - Ethernet interfaces
 - VLAN devices
+- Bridges
+- Bonds
 - Aliases
 - Firewall roles using firewall zones and forwarding
 - Source NAT rules
@@ -61,13 +63,8 @@ Differences since NS7:
   this configuration can be changed by setting `src` option to `*` and adding `device` option set to the WAN physical ethernet interface
 - `green` zone has been renamed to `lan`
 - `red` zone has been renamed to `wan`
+- bridges over bonds are not supported since UCI requires to setup an IP address on bond devices
 
-The following configuration are still not imported:
-
-- bridges
-- bonds
-- PPPoE
- 
 ## Date and time
 
 The `time` script will import:
@@ -170,7 +167,7 @@ After the migration you should tune tracking options for each wan interface.
 
 Not implemented yet.
 
-## OpenVPN
+## OpenVPN roadwarrior
 
 The `openvpn` script will import:
 
@@ -179,7 +176,6 @@ The `openvpn` script will import:
 - user names with enabled/disabled status
 
 The following NS7 features are still not migrated:
-- OpenVPN tunnels
 - authentication based user and password
 - authentication certificate and password
 - authentication certificate and One Time password (OTP)
@@ -188,6 +184,10 @@ The following NS7 features are still not migrated:
 Existing data from connection database are not imported.
 
 See also [ns-openvpn](../ns-openvpn).
+
+## OpenVPN tunnels
+
+Not implemented yet.
 
 ## IPSec
 
