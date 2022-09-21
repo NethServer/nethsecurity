@@ -49,6 +49,7 @@ define Package/ns-migration/install
 	$(INSTALL_BIN) ./files/scripts/rules $(1)/usr/share/ns-migration/
 	$(INSTALL_BIN) ./files/scripts/threat_shield $(1)/usr/share/ns-migration/
 	$(INSTALL_BIN) ./files/scripts/wan $(1)/usr/share/ns-migration/
+	$(INSTALL_BIN) ./files/scripts/ipsec $(1)/usr/share/ns-migration/
 	$(INSTALL_DATA) ./files/scripts/nsmigration.py $(1)/usr/share/ns-migration/
 endef
  
