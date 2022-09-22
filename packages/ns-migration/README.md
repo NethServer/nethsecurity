@@ -191,7 +191,19 @@ Not implemented yet.
 
 ## IPSec
 
-Not implemented yet.
+The `ipsec` script will import:
+
+- IPSec tunnels with PSK authentication
+
+Differences since NS7:
+
+- IPSec tunnels uses `xfrm` interfaces;
+  if the original WAN was an ethernet interface, the `xfrm` inteface will be bound to it,
+  otherwise the `xfrm` interface will be bound to the first available WAN
+
+The following NS7 features will not be migrated:
+
+- `Custom_` properties
 
 ## Threat shield
 
