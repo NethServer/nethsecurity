@@ -90,7 +90,7 @@ for i in data['interfaces']:
     # Attach the interface to the physical wan, if present
     hwaddr = i.pop('hwaddr')
     if hwaddr:
-        wan = firewall.get_device_name(nsmigration.remap(hwaddr, nmap))
+        wan = utils.get_device_name(nsmigration.remap(hwaddr, nmap))
         u.set("network", iname, "tunlink",  get_interface_from_device(wan))
     else:
         u.set("network", iname, "tunlink",  find_first_wan())

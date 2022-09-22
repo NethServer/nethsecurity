@@ -33,7 +33,7 @@ divert_policies = dict()
 # Create interfaces and members
 metric = 10
 for p in data['providers']:
-    iname = firewall.get_interface_name(u, nsmigration.remap(p["device"], nmap))
+    iname = utils.get_interface_name(u, nsmigration.remap(p["device"], nmap))
     if iname is None:
         nsmigration.vprint(f"Skipping mwan interface {p['device']}")
         continue
