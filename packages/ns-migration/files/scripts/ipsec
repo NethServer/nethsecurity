@@ -1,0 +1,103 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import nsmigration
+from nextsec import firewall, utils
+import os
+
+(u, data, nmap) = nsmigration.init("ipsec.json")
+
+def get_interface_from_device(device):
+    for section in u.get("network"):
+        s_type = u.get("network", section)
+        if s_type == "interface":
+            proto = u.get("network", section, 'proto')
+            if proto == 'bonding' and section == device:
+                return section
+            elif proto != 'bonding' and device == u.get("network", section, 'device'):
+                return section
+
+    return None
+
+def find_first_wan():
+    for section in u.get("firewall"):
+        s_type = u.get("firewall", section)
+        if s_type == "zone":
+            if u.get("firewall", section, "name") == "wan":
+                networks = u.get_all("firewall", section, "network")
+                return networks[0]
+    return None
+
+# Create config files if not exists
+if not os.path.isfile('/etc/config/ipsec'):
+    with open('/etc/config/ipsec', 'a'):
+        pass
+
+# Setup global options
+gsettings = utils.get_id("ipsec_global")
+nsmigration.vprint(f'Settings IPSec {gsettings}')
+u.set("ipsec", gsettings, "ipsec")
+u.set("ipsec", gsettings, "rtinstall_enabled", '0')
+u.set("ipsec", gsettings, "debug", '1')
+u.set("ipsec", gsettings, "zone", 'ipsectun')
+
+for p in data['proposals']:
+    name = p.pop('name')
+    pname = utils.get_id(name)
+    nsmigration.vprint(f'Creating crypto proposal {pname}')
+    u.set("ipsec", pname, "crypto_proposal")
+    for option in p:
+        u.set("ipsec", pname, option, p[option])
+
+for t in data['tunnels']:
+    name = t.pop('name')
+    tname = utils.get_id(name)
+    nsmigration.vprint(f'Creating tunnel {tname}')
+    u.set("ipsec", tname, "tunnel")
+    for option in t:
+        if option == 'crypto_proposal':
+            t[option] = [utils.get_id(t[option])]
+        u.set("ipsec", tname, option, t[option])
+ 
+for r in data['remotes']:
+    name = r.pop('name')
+    rname = utils.get_id(name)
+    nsmigration.vprint(f'Creating remote {rname}')
+    u.set("ipsec", rname, "remote")
+    for option in r:
+        if option == 'crypto_proposal' or option == 'tunnel':
+            r[option] = [utils.get_id(r[option])]
+        u.set("ipsec", rname, option, r[option])
+ 
+for r in data['routes']:
+    rname = utils.get_id(f"route_{r['interface']}")
+    nsmigration.vprint(f'Creating route {rname}')
+    u.set("network", rname, "route")
+    for option in r:
+        u.set("network", rname, option, r[option])
+
+for i in data['interfaces']:
+    iname = i.pop('name')
+    nsmigration.vprint(f'Creating interface {iname}')
+    u.set("network", iname, "interface")
+    for option in i:
+        u.set("network", iname, option, i[option])
+
+    # Attach the interface to the physical wan, if present
+    hwaddr = i.pop('hwaddr')
+    if hwaddr:
+        wan = firewall.get_device_name(nsmigration.remap(hwaddr, nmap))
+        u.set("network", iname, "tunlink",  get_interface_from_device(wan))
+    else:
+        u.set("network", iname, "tunlink",  find_first_wan())
+    # Add interface to LAN
+    ivpn_zone = firewall.add_trusted_zone(u, i['zone'], [iname])
+
+# Save configuration
+u.commit("ipsec")
+u.commit("network")
+firewall.apply(u)
