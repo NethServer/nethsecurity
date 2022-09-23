@@ -71,7 +71,7 @@ for r in data['routes']:
 for i in data['interfaces']:
     iname = i.pop('name')
     nsmigration.vprint(f'Creating interface {iname}')
-    hwaddr = i.pop('hwaddr')
+    hwaddr = i.pop('hwaddr', None)
     u.set("network", iname, "interface")
     for option in i:
         u.set("network", iname, option, i[option])
