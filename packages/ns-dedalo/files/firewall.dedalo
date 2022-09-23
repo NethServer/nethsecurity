@@ -1,0 +1,10 @@
+. /lib/functions/network.sh
+
+network_get_device wan wan
+
+iptables -I INPUT -i br-hotspot -j DROP
+iptables -I OUTPUT -o br-hotspot -j DROP
+iptables -I FORWARD -i br-hotspot -j DROP
+iptables -I FORWARD -o br-hotspot -j DROP
+
+iptables -I FORWARD -i tun-dedalo \! -o $wan -j DROP
