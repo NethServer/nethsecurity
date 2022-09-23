@@ -11,18 +11,6 @@ import os
 
 (u, data, nmap) = nsmigration.init("ipsec.json")
 
-def get_interface_from_device(device):
-    for section in u.get("network"):
-        s_type = u.get("network", section)
-        if s_type == "interface":
-            proto = u.get("network", section, 'proto')
-            if proto == 'bonding' and section == device:
-                return section
-            elif proto != 'bonding' and device == u.get("network", section, 'device'):
-                return section
-
-    return None
-
 def find_first_wan():
     for section in u.get("firewall"):
         s_type = u.get("firewall", section)
@@ -83,15 +71,14 @@ for r in data['routes']:
 for i in data['interfaces']:
     iname = i.pop('name')
     nsmigration.vprint(f'Creating interface {iname}')
+    hwaddr = i.pop('hwaddr', None)
     u.set("network", iname, "interface")
     for option in i:
         u.set("network", iname, option, i[option])
 
     # Attach the interface to the physical wan, if present
-    hwaddr = i.pop('hwaddr')
     if hwaddr:
-        wan = firewall.get_device_name(nsmigration.remap(hwaddr, nmap))
-        u.set("network", iname, "tunlink",  get_interface_from_device(wan))
+        u.set("network", iname, "tunlink",  utils.get_interface_from_mac(u, nsmigration.remap(hwaddr, nmap)))
     else:
         u.set("network", iname, "tunlink",  find_first_wan())
     # Add interface to LAN

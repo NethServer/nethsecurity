@@ -14,11 +14,25 @@ counter = len(data['routes'])
 
 for route in data['routes']:
     rname = utils.get_id(f'route{counter}')
+    itype = route.pop("type")
+    if itype == "ethernet":
+        route['interface'] = utils.get_interface_from_mac(u, nsmigration.remap(route.pop("hwaddr"), nmap))
+    elif itype == "vlan":
+        device = utils.get_device_name(nsmigration.remap(route.pop("hwaddr"), nmap))
+        route['interface'] = utils.get_interface_from_device(u, f'{device}.{route.pop("vid")}')
+    else:
+        route['interface'] = utils.get_interface_from_device(u, route.pop("device"))
+
+    if not route['interface']:
+        nsmigration.vprint(f'Skipping route {rname}')
+        continue
+
     nsmigration.vprint(f'Creating route {rname}')
-    route['interface'] = firewall.get_interface_name(u, nsmigration.remap(route['interface'], nmap))
     u.set("network", rname, "route")
     for option in route:
         u.set("network", rname, option, route[option])
+
+    counter = counter - 1
 
 # Save configuration
 u.commit("network")

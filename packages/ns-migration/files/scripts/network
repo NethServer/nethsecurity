@@ -21,21 +21,9 @@ def exists(key):
     except UciExceptionNotFound:
         return False
 
-def get_interface_from_device(device):
-    for section in u.get("network"):
-        s_type = u.get("network", section)
-        if s_type == "interface":
-            proto = u.get("network", section, 'proto')
-            if proto == 'bonding' and section == device:
-                return section
-            elif proto != 'bonding' and device == u.get("network", section, 'device'):
-                return section
-
-    return None
-
 def create_vlan(v):
     if 'hwaddr' in v:
-        iname = firewall.get_device_name(nsmigration.remap(v["hwaddr"], nmap))
+        iname = utils.get_device_name(nsmigration.remap(v["hwaddr"], nmap))
     else:
         if v['device'].startswith('bond'):
             # uci adds 'bond-' prefix to bonding interfaces
@@ -100,9 +88,9 @@ for b in data['bonds']:
     u.set("network", bname, "bonding_policy", b["bonding_policy"])
     slaves = list()
     for s in b["slaves"]:
-        slave = firewall.get_device_name(nsmigration.remap(s, nmap))
+        slave = utils.get_device_name(nsmigration.remap(s, nmap))
         if slave:
-            slaves.append(firewall.get_device_name(nsmigration.remap(s, nmap)))
+            slaves.append(utils.get_device_name(nsmigration.remap(s, nmap)))
     u.set("network", bname, "slaves", slaves)
     # setup mii monitoring as NS7
     if b["bonding_policy"] != "802.3ad":
@@ -123,7 +111,7 @@ for b in data['bridges']:
     ports = list()
     for p in b["ports"]:
         if p['type'] == 'ethernet':
-            bdevice = firewall.get_device_name(nsmigration.remap(p['hwaddr'], nmap))
+            bdevice = utils.get_device_name(nsmigration.remap(p['hwaddr'], nmap))
         elif p['type'] == 'vlan':
             bdevice = vlans[f"{p['hwaddr']}.{p['vid']}"]
         else:
@@ -150,13 +138,13 @@ for a in data['aliases']:
                 nsmigration.vprint(f'Skipping alias for non-exiting vlan {a["vid"]} on {a["hwaddr"]}')
                 continue
             aname = utils.sanitize(vlan)+str(acount)
-            i = get_interface_from_device(vlan)
+            i = utils.get_interface_from_device(u, vlan)
             device = f'@{i}'
         # alias over ethernet interface
         else:
-            tmp = firewall.get_device_name(nsmigration.remap(a['hwaddr'], nmap))
+            tmp = utils.get_device_name(nsmigration.remap(a['hwaddr'], nmap))
             # normal interfaces do not require the @ prefix
-            device = get_interface_from_device(tmp)
+            device = utils.get_interface_from_device(u, tmp)
             if not device:
                 print(f"Skipping alias for device {tmp}")
                 continue
@@ -166,9 +154,9 @@ for a in data['aliases']:
         aname = utils.sanitize(a["device"])+str(acount)
         # add @ prefix for bridges and bonds
         if a["device"].startswith("br") or  a["device"].startswith("bond"):
-            device = f'@{get_interface_from_device(a["device"])}'
+            device = f'@{utils.get_interface_from_device(u, a["device"])}'
         else:
-            device = get_interface_from_device(a["device"])
+            device = utils.get_interface_from_device(u, a["device"])
     if device is None:
         nsmigration.vprint(f'Skipping alias {aname}')
         continue
@@ -201,7 +189,7 @@ for i in data['interfaces']:
         else:
             u.set("network", iname, "device", i["device"])
     else:
-        ndevice = firewall.get_device_name(nsmigration.remap(i['hwaddr'], nmap))
+        ndevice = utils.get_device_name(nsmigration.remap(i['hwaddr'], nmap))
         if 'vid' in i:
             u.set("network", iname, "device", f'{ndevice}.{i["vid"]}')
         else:
