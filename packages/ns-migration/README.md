@@ -83,6 +83,10 @@ The `dhcp` script will import:
 - DHCP servers
 - DHCP static leases (reservations)
 
+Differences since NS7
+
+- DHCP on non static interfaces like bonds, is [not supported](https://github.com/openwrt/openwrt/blob/openwrt-22.03/package/network/services/dnsmasq/files/dnsmasq.init#L538)
+
 ## DNS 
 
 The `dns` script will import:

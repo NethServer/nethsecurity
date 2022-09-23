@@ -20,7 +20,19 @@ for section in u.get("dhcp"):
 # Setup DHCP ranges
 rcounter = len(data['servers'])
 for s in data['servers']:
-    iname = utils.get_interface_name(u, nsmigration.remap(s["hwaddr"], nmap))
+    iname = None
+    if s["type"] == "ethernet":
+        iname = utils.get_interface_name(u, nsmigration.remap(s["hwaddr"], nmap))
+    elif s["type"] == "vlan":
+        device = utils.get_device_name(nsmigration.remap(s["hwaddr"], nmap))
+        iname = utils.get_interface_from_device(u, f'{device}.{s["vid"]}')
+    else:
+        iname = utils.get_interface_from_device(u, s["device"])
+
+    if iname is None:
+        nsmigration.vprint(f'Skipping DHCP server {s["start"]}')
+        continue
+
     sname = utils.get_id(f'dhcp{rcounter}')
     nsmigration.vprint(f'Creating DHCP server {sname} on {iname}')
     u.set("dhcp", sname, "dhcp") # create named record
