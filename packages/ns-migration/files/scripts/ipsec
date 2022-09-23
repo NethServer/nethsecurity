@@ -78,7 +78,7 @@ for i in data['interfaces']:
 
     # Attach the interface to the physical wan, if present
     if hwaddr:
-        u.set("network", iname, "tunlink",  utils.get_interface_name(u, nsmigration.remap(hwaddr, nmap)))
+        u.set("network", iname, "tunlink",  utils.get_interface_from_mac(u, nsmigration.remap(hwaddr, nmap)))
     else:
         u.set("network", iname, "tunlink",  find_first_wan())
     # Add interface to LAN

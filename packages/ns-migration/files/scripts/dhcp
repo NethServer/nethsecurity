@@ -22,7 +22,7 @@ rcounter = len(data['servers'])
 for s in data['servers']:
     iname = None
     if s["type"] == "ethernet":
-        iname = utils.get_interface_name(u, nsmigration.remap(s["hwaddr"], nmap))
+        iname = utils.get_interface_from_mac(u, nsmigration.remap(s["hwaddr"], nmap))
     elif s["type"] == "vlan":
         device = utils.get_device_name(nsmigration.remap(s["hwaddr"], nmap))
         iname = utils.get_interface_from_device(u, f'{device}.{s["vid"]}')

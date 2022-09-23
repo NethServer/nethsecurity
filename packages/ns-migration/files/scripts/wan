@@ -35,7 +35,7 @@ metric = 10
 for p in data['providers']:
     iname = None
     if p["type"] == "ethernet":
-        iname = utils.get_interface_name(u, nsmigration.remap(p["hwaddr"], nmap))
+        iname = utils.get_interface_from_mac(u, nsmigration.remap(p["hwaddr"], nmap))
     elif p["type"] == "vlan":
         device = utils.get_device_name(nsmigration.remap(p["hwaddr"], nmap))
         iname = utils.get_interface_from_device(u, f'{device}.{p["vid"]}')
