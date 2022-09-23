@@ -21,18 +21,6 @@ def exists(key):
     except UciExceptionNotFound:
         return False
 
-def get_interface_from_device(device):
-    for section in u.get("network"):
-        s_type = u.get("network", section)
-        if s_type == "interface":
-            proto = u.get("network", section, 'proto')
-            if proto == 'bonding' and section == device:
-                return section
-            elif proto != 'bonding' and device == u.get("network", section, 'device'):
-                return section
-
-    return None
-
 def create_vlan(v):
     if 'hwaddr' in v:
         iname = utils.get_device_name(nsmigration.remap(v["hwaddr"], nmap))
@@ -150,13 +138,13 @@ for a in data['aliases']:
                 nsmigration.vprint(f'Skipping alias for non-exiting vlan {a["vid"]} on {a["hwaddr"]}')
                 continue
             aname = utils.sanitize(vlan)+str(acount)
-            i = get_interface_from_device(vlan)
+            i = utils.get_interface_from_device(u, vlan)
             device = f'@{i}'
         # alias over ethernet interface
         else:
             tmp = utils.get_device_name(nsmigration.remap(a['hwaddr'], nmap))
             # normal interfaces do not require the @ prefix
-            device = get_interface_from_device(tmp)
+            device = utils.get_interface_from_device(u, tmp)
             if not device:
                 print(f"Skipping alias for device {tmp}")
                 continue
@@ -166,9 +154,9 @@ for a in data['aliases']:
         aname = utils.sanitize(a["device"])+str(acount)
         # add @ prefix for bridges and bonds
         if a["device"].startswith("br") or  a["device"].startswith("bond"):
-            device = f'@{get_interface_from_device(a["device"])}'
+            device = f'@{utils.get_interface_from_device(u, a["device"])}'
         else:
-            device = get_interface_from_device(a["device"])
+            device = utils.get_interface_from_device(u, a["device"])
     if device is None:
         nsmigration.vprint(f'Skipping alias {aname}')
         continue
