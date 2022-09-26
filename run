@@ -45,7 +45,7 @@ fi
 
 # Setup cache volumes
 if [ $cache -ge 1 ]; then
-    opts=" -v nextsecurity-build_dir:/home/build/openwrt/build_dir:z -v nextsecurity-staging_dir:/home/build/openwrt/staging_dir:z -v nextsecurity-ccache:/home/build/openwrt/.ccache "
+    opts=" -v nextsecurity-build_dir:/home/build/openwrt/build_dir:z -v nextsecurity-staging_dir:/home/build/openwrt/staging_dir:z -v nextsecurity-ccache:/home/build/openwrt/.ccache -v nextsecurity-download:/home/build/openwrt/download"
 fi
 
 # Download latest image

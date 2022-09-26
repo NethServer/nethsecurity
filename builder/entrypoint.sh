@@ -15,6 +15,9 @@ sudo cp -r /files/* /home/build/openwrt/files/
 sudo cp -r /nspackages /home/build/openwrt/
 sudo cp -r /patches /home/build/openwrt/
 
+echo "Creating download cache dir"
+mkdir -p /home/build/openwrt/download
+
 echo "src-link nextsecurity /home/build/openwrt/nspackages" >> feeds.conf.default
 ./scripts/feeds update nextsecurity
 ./scripts/feeds install -a -p nextsecurity
