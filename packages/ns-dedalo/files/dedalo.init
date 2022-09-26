@@ -64,9 +64,6 @@ dedalo_option_cb() {
 		secret)
 			echo "HS_SECRET=\"$2\"" >> "/opt/icaro/dedalo/config"
 			;;
-		allow_origin)
-			echo "HS_ALLOW_ORIGINS=\"$2\"" >> "/opt/icaro/dedalo/config"
-			;;
 		use_scripts)
 			local use_scripts
 			config_get_bool use_scripts "$CONFIG_SECTION" "$1" 0
