@@ -157,10 +157,11 @@ define Package/ns-dedalo/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/dedalo/template/engine $(1)/opt/icaro/dedalo/template/engine
 	$(INSTALL_CONF) $(PKG_BUILD_DIR)/dedalo/template/chilli.conf.tpl $(1)/opt/icaro/dedalo/template/chilli.conf.tpl
 
-	$(INSTALL_DIR) $(1)/opt/icaro/dedalo/walled_gardens
+	$(INSTALL_DIR) $(1)/opt/icaro/dedalo/walled_gardens/integrations
 	$(INSTALL_CONF) $(PKG_BUILD_DIR)/dedalo/walled_gardens/facebook.conf $(1)/opt/icaro/dedalo/walled_gardens/facebook.conf
 	$(INSTALL_CONF) $(PKG_BUILD_DIR)/dedalo/walled_gardens/linkedin.conf $(1)/opt/icaro/dedalo/walled_gardens/linkedin.conf
 	$(INSTALL_CONF) $(PKG_BUILD_DIR)/dedalo/walled_gardens/instagram.conf $(1)/opt/icaro/dedalo/walled_gardens/instagram.conf
+	$(INSTALL_CONF) $(PKG_BUILD_DIR)/dedalo/walled_gardens/wifi4eu.conf $(1)/opt/icaro/dedalo/walled_gardens/wifi4eu.conf
 
 	$(INSTALL_DIR) $(1)/opt/icaro/dedalo/www
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/dedalo/www/temporary.chi $(1)/opt/icaro/dedalo/www/temporary.chi
