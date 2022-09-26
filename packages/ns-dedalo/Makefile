@@ -151,6 +151,7 @@ define Package/ns-dedalo/install
 	$(INSTALL_CONF) $(PKG_BUILD_DIR)/dedalo/config $(1)/opt/icaro/dedalo/config
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/dedalo/up.sh $(1)/opt/icaro/dedalo/
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/dedalo/down.sh $(1)/opt/icaro/dedalo/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/dedalo/dedalo_users_auth.sh $(1)/opt/icaro/dedalo/
 
 	$(INSTALL_DIR) $(1)/opt/icaro/dedalo/template
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/dedalo/template/engine $(1)/opt/icaro/dedalo/template/engine
@@ -169,6 +170,7 @@ define Package/ns-dedalo/install
 
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) files/dedalo.init $(1)/etc/init.d/dedalo
+	$(INSTALL_BIN) files/dedalo_users_auth.init $(1)/etc/init.d/dedalo_users_auth
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DATA) files/dedalo.config $(1)/etc/config/dedalo
 	$(INSTALL_DIR) $(1)/etc/
