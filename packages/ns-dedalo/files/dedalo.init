@@ -23,7 +23,6 @@ dedalo_config_cb() {
 	if [ "$dedalo_inst" != "" ]; then
 		if [ -e "/opt/icaro/dedalo/config" ]; then
 			rm /opt/icaro/dedalo/config
-                        echo "HS_INTERFACE=\"br-hotspot\"" > "/opt/icaro/dedalo/config"
 		fi
 	fi
 }
@@ -64,6 +63,9 @@ dedalo_option_cb() {
 		secret)
 			echo "HS_SECRET=\"$2\"" >> "/opt/icaro/dedalo/config"
 			;;
+		interface)
+			echo "HS_INTERFACE=\"$2\"" >> "/opt/icaro/dedalo/config"
+            ;;
 		use_scripts)
 			local use_scripts
 			config_get_bool use_scripts "$CONFIG_SECTION" "$1" 0

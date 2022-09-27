@@ -47,7 +47,6 @@ define Package/ns-dedalo/networks_config
 
 set network.hotspot=interface
 set network.hotspot.proto='none'
-set network.hotspot.type=bridge
 set network.hotspot.ipv6=0
 
 set network.dedalo=interface
