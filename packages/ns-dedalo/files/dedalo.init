@@ -55,6 +55,7 @@ dedalo_option_cb() {
 			echo "HS_UNIT_NAME=\"$2\"" >> "/opt/icaro/dedalo/config"
 			;;
 		unit_description)
+			shift
 			echo "HS_UNIT_DESC=\"$@\"" >> "/opt/icaro/dedalo/config"
 			;;
 		unit_uuid)
