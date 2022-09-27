@@ -51,7 +51,7 @@ set network.hotspot.ipv6=0
 
 set network.dedalo=interface
 set network.dedalo.proto='none'
-set network.dedalo.ifname='tun-dedalo'
+set network.dedalo.device='tun-dedalo'
 set network.dedalo.ipv6=0
 
 commit
@@ -97,7 +97,7 @@ set firewall.ns_hs_dhcp_broadcast.dest_port='67:68'
 set firewall.ns_hs_dhcp_broadcast.target='ACCEPT'
 
 set firewall.ns_hs_dhcp=rule
-set firewall.ns_hs_dhcp_broadcast.name='Allow-HotSpot-DHCP'
+set firewall.ns_hs_dhcp.name='Allow-HotSpot-DHCP'
 set firewall.ns_hs_dhcp.src='dedalo'
 set firewall.ns_hs_dhcp.proto='udp'
 set firewall.ns_hs_dhcp.dest_port='67:68'
