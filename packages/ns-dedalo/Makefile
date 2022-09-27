@@ -61,61 +61,61 @@ endef
 
 define Package/ns-dedalo/firewall_config
 
-set firewall.hotspot=zone
-set firewall.hotspot.name='hotspot'
-set firewall.hotspot.network='hotspot'
-set firewall.hotspot.mtu_fix=1
-set firewall.hotspot.forward='DROP'
-set firewall.hotspot.input='DROP'
-set firewall.hotspot.output='ACCEPT'
+set firewall.ns_hotspot=zone
+set firewall.ns_hotspot.name='hotspot'
+set firewall.ns_hotspot.network='hotspot'
+set firewall.ns_hotspot.mtu_fix=1
+set firewall.ns_hotspot.forward='DROP'
+set firewall.ns_hotspot.input='DROP'
+set firewall.ns_hotspot.output='ACCEPT'
 
-set firewall.dedalo=zone
-set firewall.dedalo.name='dedalo'
-set firewall.dedalo.network='dedalo'
-set firewall.dedalo.mtu_fix=1
-set firewall.dedalo.forward='DROP'
-set firewall.dedalo.input='DROP'
-set firewall.dedalo.output='ACCEPT'
+set firewall.ns_dedalo=zone
+set firewall.ns_dedalo.name='dedalo'
+set firewall.ns_dedalo.network='dedalo'
+set firewall.ns_dedalo.mtu_fix=1
+set firewall.ns_dedalo.forward='DROP'
+set firewall.ns_dedalo.input='DROP'
+set firewall.ns_dedalo.output='ACCEPT'
 
-set firewall forwarding
-set firewall.@forwarding[-1].src='dedalo'
-set firewall.@forwarding[-1].dest='wan'
+set firewall.ns_dedalo_to_wan=forwarding
+set firewall.ns_dedalo_to_wan.src='dedalo'
+set firewall.ns_dedalo_to_wan.dest='wan'
 
-set firewall.hs_uamport=rule
-set firewall.hs_uamport.name='hs_uamport'
-set firewall.hs_uamport.src='dedalo'
-set firewall.hs_uamport.proto='tcp'
-set firewall.hs_uamport.dest_port='3990'
-set firewall.hs_uamport.target='ACCEPT'
+set firewall.ns_hs_uamport=rule
+set firewall.ns_hs_uamport.name='Allow-HotSpot-UAM'
+set firewall.ns_hs_uamport.src='dedalo'
+set firewall.ns_hs_uamport.proto='tcp'
+set firewall.ns_hs_uamport.dest_port='3990'
+set firewall.ns_hs_uamport.target='ACCEPT'
 
-set firewall.hs_dhcp_broadcast=rule
-set firewall.hs_dhcp_broadcast.name='hs_dhcp_broadcast'
-set firewall.hs_dhcp_broadcast.family='ipv4'
-set firewall.hs_dhcp_broadcast.src='dedalo'
-set firewall.hs_dhcp_broadcast.proto='udp'
-set firewall.hs_dhcp_broadcast.dest_ip='255.255.255.255'
-set firewall.hs_dhcp_broadcast.dest_port='67:68'
-set firewall.hs_dhcp_broadcast.target='ACCEPT'
+set firewall.ns_hs_dhcp_broadcast=rule
+set firewall.ns_hs_dhcp_broadcast.name='Allow-HotSpot-DHCP-Broadcast'
+set firewall.ns_hs_dhcp_broadcast.family='ipv4'
+set firewall.ns_hs_dhcp_broadcast.src='dedalo'
+set firewall.ns_hs_dhcp_broadcast.proto='udp'
+set firewall.ns_hs_dhcp_broadcast.dest_ip='255.255.255.255'
+set firewall.ns_hs_dhcp_broadcast.dest_port='67:68'
+set firewall.ns_hs_dhcp_broadcast.target='ACCEPT'
 
-set firewall.hs_dhcp=rule
-set firewall.hs_dhcp.name='hs_dhcp'
-set firewall.hs_dhcp.src='dedalo'
-set firewall.hs_dhcp.proto='udp'
-set firewall.hs_dhcp.dest_port='67:68'
-set firewall.hs_dhcp.target='ACCEPT'
+set firewall.ns_hs_dhcp=rule
+set firewall.ns_hs_dhcp_broadcast.name='Allow-HotSpot-DHCP'
+set firewall.ns_hs_dhcp.src='dedalo'
+set firewall.ns_hs_dhcp.proto='udp'
+set firewall.ns_hs_dhcp.dest_port='67:68'
+set firewall.ns_hs_dhcp.target='ACCEPT'
 
-set firewall.hs_dns=rule
-set firewall.hs_dns.name='hs_dns'
-set firewall.hs_dns.src='dedalo'
-set firewall.hs_dns.proto='udp'
-set firewall.hs_dns.dest_port='53'
-set firewall.hs_dns.target='ACCEPT'
+set firewall.ns_hs_dns=rule
+set firewall.ns_hs_dns.name='Allow-HotSpot-DNS'
+set firewall.ns_hs_dns.src='dedalo'
+set firewall.ns_hs_dns.proto='udp'
+set firewall.ns_hs_dns.dest_port='53'
+set firewall.ns_hs_dns.target='ACCEPT'
 
-set firewall.hs_icmp=rule
-set firewall.hs_icmp.name='hs_icmp'
-set firewall.hs_icmp.src='dedalo'
-set firewall.hs_icmp.proto='icmp'
-set firewall.hs_icmp.target='ACCEPT'
+set firewall.ns_hs_icmp=rule
+set firewall.ns_hs_icmp.name='Allow-HotSpot-ICMP'
+set firewall.ns_hs_icmp.src='dedalo'
+set firewall.ns_hs_icmp.proto='icmp'
+set firewall.ns_hs_icmp.target='ACCEPT'
 
 set firewall.host_include=include
 set firewall.host_include.path='/etc/firewall.dedalo'
