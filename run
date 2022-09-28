@@ -56,10 +56,8 @@ if [ "$(podman ps -a --format '{{.Names}}')" == "nextsec-builder" ]; then
     podman rm nextsec-builder
 fi
 
-# Run podman with at least the following mounted directories:
-# - /config: store custom config used by 'made defconfig'
-# - uci-defaults: uci scripts copied inside the final image
-podman run -ti --name nextsec-builder -v ./config:/config:z -v ./files:/files:z -v ./packages:/nspackages:z $opts $image "$@"
+# Run podman with local mounted dirs
+podman run -ti --name nextsec-builder -v ./config:/config:z -v ./files:/files:z -v ./packages:/nspackages:z -v ./patches:/patches:z $opts $image "$@"
 # When executed inside CI, do not execute next setps on error
 ret=$?
 if [[ $ret -gt 0 && -n "${CI}" ]]; then
