@@ -98,9 +98,6 @@ set firewall.ns_hs_dns.proto='udp'
 set firewall.ns_hs_dns.dest_port='53'
 set firewall.ns_hs_dns.target='ACCEPT'
 
-set firewall.ns_dedalo_include=include
-set firewall.ns_dedalo_include.path='/usr/share/ns-dedalo/firewall.dedalo'
-
 commit
 
 endef
@@ -155,8 +152,6 @@ define Package/ns-dedalo/install
 	$(INSTALL_BIN) files/dedalo_users_auth.init $(1)/etc/init.d/dedalo_users_auth
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DATA) files/dedalo.config $(1)/etc/config/dedalo
-	$(INSTALL_DIR) $(1)/usr/share/ns-dedalo
-	$(INSTALL_BIN) files/firewall.dedalo $(1)/usr/share/ns-dedalo/firewall.dedalo
 endef
  
 $(eval $(call BuildPackage,ns-dedalo))
