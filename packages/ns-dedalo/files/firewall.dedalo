@@ -1,11 +1,44 @@
-. /lib/functions/network.sh
+#!/bin/sh
 
-network_get_device wan wan
-network_get_device hotspot hotspot
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
 
-iptables -I INPUT -i $hotspot -j DROP
-iptables -I OUTPUT -o $hotspot -j DROP
-iptables -I FORWARD -i $hotspot -j DROP
-iptables -I FORWARD -o $hotspot -j DROP
+#
+# Dedalo hotspot: prevent traffic leakage
+#
 
-iptables -I FORWARD -i tun-dedalo \! -o $wan -j DROP
+# Cleanup existing table
+if nft list tables inet | grep -q 'table inet hotspot'; then
+    nft delete table inet hotspot
+fi
+
+# Exit if dedalo is disabled
+if [ "$(uci get dedalo.@dedalo[0].disabled)" = "1" ]; then
+    exit 0
+fi
+
+# Search for all wan devices
+devices=""
+for zone in $(uci show firewall | awk -F. '{print $2}' | grep '=zone$' | awk -F= '{print $1}'); do
+    if [ "$(uci get firewall.$zone.name)" = "wan" ]; then
+        for interface in $(uci get firewall.$zone.network); do
+            devices="$devices\n"$(uci get network.$interface.device)
+        done
+    fi
+done
+
+# remove duplicates
+devices=$(echo -e $devices | sort | uniq)
+oifname=$(echo $devices | tr ' ' ',')
+
+if [ -z "$devices" ]; then
+    exit 0
+fi
+
+(
+    echo add table inet hotspot
+    echo add chain inet hotspot block '{ type filter hook input priority -1; policy accept; }'
+    echo add rule inet hotspot block iifname tun-dedalo oifname != {$oifname} counter reject
+) | nft -f -

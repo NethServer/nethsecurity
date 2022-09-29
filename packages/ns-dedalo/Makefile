@@ -104,8 +104,8 @@ set firewall.ns_hs_icmp.src='dedalo'
 set firewall.ns_hs_icmp.proto='icmp'
 set firewall.ns_hs_icmp.target='ACCEPT'
 
-set firewall.host_include=include
-set firewall.host_include.path='/etc/firewall.dedalo'
+set firewall.ns_dedalo_include=include
+set firewall.ns_dedalo_include.path='/usr/share/ns-dedalo/firewall.dedalo'
 
 commit
 
@@ -161,8 +161,8 @@ define Package/ns-dedalo/install
 	$(INSTALL_BIN) files/dedalo_users_auth.init $(1)/etc/init.d/dedalo_users_auth
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DATA) files/dedalo.config $(1)/etc/config/dedalo
-	$(INSTALL_DIR) $(1)/etc/
-	$(INSTALL_DATA) files/firewall.dedalo $(1)/etc/firewall.dedalo
+	$(INSTALL_DIR) $(1)/usr/share/ns-dedalo
+	$(INSTALL_BIN) files/firewall.dedalo $(1)/usr/share/ns-dedalo/firewall.dedalo
 endef
  
 $(eval $(call BuildPackage,ns-dedalo))
