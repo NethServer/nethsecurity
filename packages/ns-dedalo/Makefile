@@ -81,14 +81,14 @@ set firewall.ns_hs_dhcp_broadcast.family='ipv4'
 set firewall.ns_hs_dhcp_broadcast.src='dedalo'
 set firewall.ns_hs_dhcp_broadcast.proto='udp'
 set firewall.ns_hs_dhcp_broadcast.dest_ip='255.255.255.255'
-set firewall.ns_hs_dhcp_broadcast.dest_port='67:68'
+set firewall.ns_hs_dhcp_broadcast.dest_port='67-68'
 set firewall.ns_hs_dhcp_broadcast.target='ACCEPT'
 
 set firewall.ns_hs_dhcp=rule
 set firewall.ns_hs_dhcp.name='Allow-HotSpot-DHCP'
 set firewall.ns_hs_dhcp.src='dedalo'
 set firewall.ns_hs_dhcp.proto='udp'
-set firewall.ns_hs_dhcp.dest_port='67:68'
+set firewall.ns_hs_dhcp.dest_port='67-68'
 set firewall.ns_hs_dhcp.target='ACCEPT'
 
 set firewall.ns_hs_dns=rule
