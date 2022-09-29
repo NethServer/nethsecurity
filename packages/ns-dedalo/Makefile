@@ -58,7 +58,7 @@ define Package/ns-dedalo/firewall_config
 
 set firewall.ns_dedalo=zone
 set firewall.ns_dedalo.name='dedalo'
-set firewall.ns_dedalo.network='dedalo'
+add_list firewall.ns_dedalo.network='dedalo'
 set firewall.ns_dedalo.mtu_fix=1
 set firewall.ns_dedalo.forward='DROP'
 set firewall.ns_dedalo.input='DROP'
