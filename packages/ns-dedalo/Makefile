@@ -98,12 +98,6 @@ set firewall.ns_hs_dns.proto='udp'
 set firewall.ns_hs_dns.dest_port='53'
 set firewall.ns_hs_dns.target='ACCEPT'
 
-set firewall.ns_hs_icmp=rule
-set firewall.ns_hs_icmp.name='Allow-HotSpot-ICMP'
-set firewall.ns_hs_icmp.src='dedalo'
-set firewall.ns_hs_icmp.proto='icmp'
-set firewall.ns_hs_icmp.target='ACCEPT'
-
 set firewall.ns_dedalo_include=include
 set firewall.ns_dedalo_include.path='/usr/share/ns-dedalo/firewall.dedalo'
 
