@@ -2,24 +2,30 @@ Index: ns-dedalo-0.0.1/dedalo/dedalo
 ===================================================================
 --- ns-dedalo-0.0.1.orig/dedalo/dedalo
 +++ ns-dedalo-0.0.1/dedalo/dedalo
-@@ -101,16 +101,16 @@ case "$OPT" in
+@@ -101,16 +101,22 @@ case "$OPT" in
          fi
      ;;
      start)
 -        systemctl start dedalo
-+	/etc/init.d/dedalo start
++        /etc/init.d/dedalo start
++        /etc/init.d/dedalo_users_auth start
      ;;
      restart)
 -        systemctl restart dedalo
-+	/etc/init.d/dedalo restart
++        /etc/init.d/dedalo restart
++        /etc/init.d/dedalo_users_auth restart
      ;;
      stop)
 -        systemctl stop dedalo
-+	/etc/init.d/dedalo stop
++        /etc/init.d/dedalo stop
++        /etc/init.d/dedalo_users_auth stop
      ;;
      status)
 -        systemctl status dedalo
-+	/etc/init.d/chilli status
++        echo -n "dedalo: "
++        /etc/init.d/dedalo status
++        echo -n "dedalo_users_auth: "
++        /etc/init.d/dedalo_users_auth status
      ;;
      info)
          echo "Dedalo: Network Access Controller"
