@@ -31,14 +31,20 @@ done
 
 # remove duplicates
 devices=$(echo -e $devices | sort | uniq)
-oifname=$(echo $devices | tr ' ' ',')
 
 if [ -z "$devices" ]; then
     exit 0
 fi
 
+oifname=$(echo $devices | tr ' ' ',')
+
+interface=$(uci get dedalo.@dedalo[0].interface)
+if [ -z "$interface" ]; then
+    exit 1
+fi
+
 (
     echo add table inet hotspot
     echo add chain inet hotspot block '{ type filter hook input priority -1; policy accept; }'
-    echo add rule inet hotspot block iifname tun-dedalo oifname != {$oifname} counter reject
+    echo add rule inet hotspot block iifname {tun-dedalo, $interface} oifname != {$oifname} counter reject
 ) | nft -f -
