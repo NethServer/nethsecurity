@@ -45,10 +45,6 @@ endef
 
 define Package/ns-dedalo/networks_config
 
-set network.hotspot=interface
-set network.hotspot.proto='none'
-set network.hotspot.ipv6=0
-
 set network.dedalo=interface
 set network.dedalo.proto='none'
 set network.dedalo.device='tun-dedalo'
@@ -59,14 +55,6 @@ commit
 endef
 
 define Package/ns-dedalo/firewall_config
-
-set firewall.ns_hotspot=zone
-set firewall.ns_hotspot.name='hotspot'
-set firewall.ns_hotspot.network='hotspot'
-set firewall.ns_hotspot.mtu_fix=1
-set firewall.ns_hotspot.forward='DROP'
-set firewall.ns_hotspot.input='DROP'
-set firewall.ns_hotspot.output='ACCEPT'
 
 set firewall.ns_dedalo=zone
 set firewall.ns_dedalo.name='dedalo'
