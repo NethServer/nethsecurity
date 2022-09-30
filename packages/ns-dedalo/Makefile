@@ -127,8 +127,6 @@ define Package/ns-dedalo/install
 
 	$(INSTALL_DIR) $(1)/opt/icaro/dedalo
 	$(INSTALL_CONF) $(PKG_BUILD_DIR)/dedalo/config $(1)/opt/icaro/dedalo/config
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/dedalo/up.sh $(1)/opt/icaro/dedalo/
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/dedalo/down.sh $(1)/opt/icaro/dedalo/
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/dedalo/dedalo_users_auth.sh $(1)/opt/icaro/dedalo/
 
 	$(INSTALL_DIR) $(1)/opt/icaro/dedalo/template
