@@ -5,6 +5,8 @@ STOP=89
 USE_PROCD=1
 
 RUN_DIR=/var/run/dedalo
+DEDALO_CONFIG=/var/dedalo/config
+CHILLI_CONFIG=/var/dedalo/chilli.conf
 
 export start_dedalo=1
 export interface=
@@ -16,8 +18,8 @@ start_dedalo() {
     fi
 	procd_open_instance "dedalo"
 	procd_set_param command /usr/sbin/chilli
-	procd_set_param file "/opt/icaro/dedalo/chilli.conf"
-	procd_append_param command -c /opt/icaro/dedalo/chilli.conf --fg
+	procd_set_param file "$CHILLI_CONFIG"
+	procd_append_param command -c $CHILLI_CONFIG --fg
 	procd_set_param respawn
 	procd_set_param stdout 1
 	procd_set_param stderr 1
@@ -27,8 +29,8 @@ start_dedalo() {
 dedalo_config_cb() {
 	local dedalo_inst="$2"
 	if [ "$dedalo_inst" != "" ]; then
-		if [ -e "/opt/icaro/dedalo/config" ]; then
-			rm /opt/icaro/dedalo/config
+		if [ -e "$DEDALO_CONFIG" ]; then
+			rm $DEDALO_CONFIG
 		fi
 	fi
 }
@@ -43,48 +45,49 @@ dedalo_option_cb() {
 			fi
 			;;
 		network)
-			echo "HS_NETWORK=\"$2\"" >> "/opt/icaro/dedalo/config"
+			echo "HS_NETWORK=\"$2\"" >> "$DEDALO_CONFIG"
 			;;
 		splash_page)
-			echo "HS_SPLASH_PAGE_URL=\"$2\"" >> "/opt/icaro/dedalo/config"
+			echo "HS_SPLASH_PAGE_URL=\"$2\"" >> "$DEDALO_CONFIG"
 			;;
 		aaa_url)
-			echo "HS_AAA_URL=\"$2\"" >> "/opt/icaro/dedalo/config"
+			echo "HS_AAA_URL=\"$2\"" >> "$DEDALO_CONFIG"
 			;;
 		api_url)
-			echo "HS_API_URL=\"$2\"" >> "/opt/icaro/dedalo/config"
+			echo "HS_API_URL=\"$2\"" >> "$DEDALO_CONFIG"
 			;;
 		hotspot_id)
-			echo "HS_ID=\"$2\"" >> "/opt/icaro/dedalo/config"
+			echo "HS_ID=\"$2\"" >> "$DEDALO_CONFIG"
 			;;
 		unit_name)
-			echo "HS_UNIT_NAME=\"$2\"" >> "/opt/icaro/dedalo/config"
+			echo "HS_UNIT_NAME=\"$2\"" >> "$DEDALO_CONFIG"
 			;;
 		unit_description)
 			shift
-			echo "HS_UNIT_DESC=\"$@\"" >> "/opt/icaro/dedalo/config"
+			echo "HS_UNIT_DESC=\"$@\"" >> "$DEDALO_CONFIG"
 			;;
 		unit_uuid)
-			echo "HS_UUID=\"$2\"" >> "/opt/icaro/dedalo/config"
+			echo "HS_UUID=\"$2\"" >> "$DEDALO_CONFIG"
 			;;
 		secret)
-			echo "HS_SECRET=\"$2\"" >> "/opt/icaro/dedalo/config"
+			echo "HS_SECRET=\"$2\"" >> "$DEDALO_CONFIG"
 			;;
 		interface)
             interface=$2
-			echo "HS_INTERFACE=\"$2\"" >> "/opt/icaro/dedalo/config"
+			echo "HS_INTERFACE=\"$2\"" >> "$DEDALO_CONFIG"
             ;;
 		use_scripts)
 			local use_scripts
 			config_get_bool use_scripts "$CONFIG_SECTION" "$1" 0
 			if [ "$use_scripts" -eq "1" ]; then
-				echo "USE_UPDOWN_SCRIPTS=true" >> "/opt/icaro/dedalo/config"
+				echo "USE_UPDOWN_SCRIPTS=true" >> "$DEDALO_CONFIG"
 			fi
 			;;
 	esac
 }
 
 generate_config() {
+	mkdir -p $(dirname $DEDALO_CONFIG)
 	config_cb() { dedalo_config_cb $1 $2; }
 	option_cb() { dedalo_option_cb $1 $2; }
 
@@ -109,6 +112,9 @@ stop_service() {
 	if [ -d "$RUN_DIR" ]; then
 		rm -rf "$RUN_DIR"
 	fi
+    if [ -d $(dirname $DEDALO_CONFIG) ]; then
+        rm -rf $(dirname $DEDALO_CONFIG)
+    fi
     if [ -n "$interface" ]; then
         ifconfig "$interface" down
     fi
