@@ -4,11 +4,13 @@ START=90
 STOP=89
 USE_PROCD=1
 
+RUN_DIR=/var/run/dedalo
+
 export start_dedalo=1
 export interface=
 
 start_dedalo() {
-	mkdir -p /run/dedalo/
+	mkdir -p "$RUN_DIR"
     if [ -n "$interface" ]; then
         ifconfig "$interface" up
     fi
@@ -104,8 +106,8 @@ start_service() {
 }
 
 stop_service() {
-	if [ -d "/run/dedalo/" ]; then
-		rm -rf /run/dedalo/
+	if [ -d "$RUN_DIR" ]; then
+		rm -rf "$RUN_DIR"
 	fi
     if [ -n "$interface" ]; then
         ifconfig "$interface" down
