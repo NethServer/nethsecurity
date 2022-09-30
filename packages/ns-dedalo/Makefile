@@ -150,6 +150,9 @@ define Package/ns-dedalo/install
 	$(INSTALL_BIN) files/dedalo_users_auth.init $(1)/etc/init.d/dedalo_users_auth
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DATA) files/dedalo.config $(1)/etc/config/dedalo
+
+	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
+	$(INSTALL_CONF) files/dedalo.keep $(1)/lib/upgrade/keep.d/dedalo
 endef
  
 $(eval $(call BuildPackage,ns-dedalo))
