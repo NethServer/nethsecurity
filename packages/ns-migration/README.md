@@ -227,13 +227,33 @@ The `subscription` script will import:
 - system identifier
 - system secret
 
+## Hotspot (Dedalo)
+
+The `hotspot` script will import:
+
+- all configuration options
+
+Differences since NS7:
+
+- the hotspot will work only on ethernet and vlan interfaces
+
+If the migration has been executed on a new hardware, the hotspot interface will change
+MAC address. In this case, the unit must be manually registered to the remote Icaro server:
+
+1. access Icaro portal and delete the new unit
+2. register the new one:
+   ```
+   /etc/init.d/dedalo reload
+   dedalo register -u <your reseller username> -p <your reseller password>
+   dedalo restart
+   ```
+
 ## Other features
 
 The following features will be migrated in the upcoming months:
 
 - Hotspot (Dedalo)
 - Cloud DNS filter (Flashstart)
-- IPSec tunnels
 
 The following features are not migrated to NextSecurity:
 
