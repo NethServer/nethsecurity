@@ -80,6 +80,15 @@ dedalo_option_cb() {
 		secret)
 			echo "HS_SECRET=\"$2\"" >> "$DEDALO_CONFIG"
 			;;
+		max_clients)
+			echo "HS_MAXCLIENTS=\"$2\"" >> "$DEDALO_CONFIG"
+			;;
+		dhcp_start)
+			echo "HS_DHCPSTART=\"$2\"" >> "$DEDALO_CONFIG"
+			;;
+		dhcp_end)
+			echo "HS_DHCPEND=\"$2\"" >> "$DEDALO_CONFIG"
+			;;
 		interface)
             interface=$2
 			echo "HS_INTERFACE=\"$2\"" >> "$DEDALO_CONFIG"
