@@ -124,6 +124,7 @@ endef
 define Package/ns-dedalo/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/dedalo/dedalo $(1)/usr/bin/
+	$(INSTALL_BIN) files/unregister_dedalo $(1)/usr/bin/
 
 	$(INSTALL_DIR) $(1)/opt/icaro/dedalo
 	$(INSTALL_CONF) $(PKG_BUILD_DIR)/dedalo/config $(1)/opt/icaro/dedalo/config

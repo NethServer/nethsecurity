@@ -48,6 +48,13 @@ Available options:
    dedalo restart
    ```
 
-## Notes
+## Unregister
 
+To disable dedalo and unregister the unit from Icaro server, execute:
+```
+unregister_dedalo <your reseller username> <your reseller password>
+```
+
+## Notes
+ 
 - Dedalo requires `coova-chilli` built-in with curl support otherwise `chilly_proxy` will hang
