@@ -24,13 +24,13 @@ Available options:
    The `hotspot_id` van be found inside the Icaro portal.
    The `interface` should be a free physical interface (`eth2` in this example).
    ```shell
-   uci set dedalo.@dedalo[0].unit_name=$(uci get system.@system[0].hostname)
-   uci set dedalo.@dedalo[0].unit_uuid=$(uuidgen)
-   uci set dedalo.@dedalo[0].secret=$(uuidgen | md5sum | awk '{print $1}')
-   uci set dedalo.@dedalo[0].unit_description='My Dedalo hotspot'
-   uci set dedalo.@dedalo[0].hotspot_id=1550
-   uci set dedalo.@dedalo[0].interface=eth2
-   uci set dedalo.@dedalo[0].disabled=0
+   uci set dedalo.config.unit_name=$(uci get system.@system[0].hostname)
+   uci set dedalo.config.unit_uuid=$(uuidgen)
+   uci set dedalo.config.secret=$(uuidgen | md5sum | awk '{print $1}')
+   uci set dedalo.config.unit_description='My Dedalo hotspot'
+   uci set dedalo.config.hotspot_id=1550
+   uci set dedalo.config.interface=eth2
+   uci set dedalo.config.disabled=0
    uci commit dedalo
    ```
  
