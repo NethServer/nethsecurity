@@ -1,0 +1,27 @@
+Index: ns-dedalo-0.0.1/dedalo/dedalo
+===================================================================
+--- ns-dedalo-0.0.1.orig/dedalo/dedalo
++++ ns-dedalo-0.0.1/dedalo/dedalo
+@@ -27,7 +27,7 @@ MAC_ADDRESS=$(cat /sys/class/net/$HS_INT
+ 
+ case "$OPT" in
+     query)
+-        /usr/sbin/chilli_query -s /run/dedalo/chilli.sock "$@"
++        /usr/sbin/chilli_query -s /var/run/dedalo/chilli.sock "$@"
+     ;;
+     config)
+         /opt/icaro/dedalo/template/engine /opt/icaro/dedalo/template/chilli.conf.tpl
+Index: ns-dedalo-0.0.1/dedalo/template/chilli.conf.tpl
+===================================================================
+--- ns-dedalo-0.0.1.orig/dedalo/template/chilli.conf.tpl
++++ ns-dedalo-0.0.1/dedalo/template/chilli.conf.tpl
+@@ -1,6 +1,6 @@
+-cmdsocket       /run/dedalo/chilli.sock
+-unixipc         /run/dedalo/chilli.ipc
+-pidfile         /run/dedalo/chilli.pid
++cmdsocket       /var/run/dedalo/chilli.sock
++unixipc         /var/run/dedalo/chilli.ipc
++pidfile         /var/run/dedalo/chilli.pid
+ 
+ wwwdir          /opt/icaro/dedalo/www
+ wwwbin          /etc/chilli/wwwsh

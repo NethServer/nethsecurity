@@ -1,0 +1,338 @@
+diff --git a/net/coova-chilli/Makefile b/net/coova-chilli/Makefile
+index ece113869..bc3d79a5a 100644
+--- a/net/coova-chilli/Makefile
++++ b/net/coova-chilli/Makefile
+@@ -43,7 +43,7 @@ define Package/coova-chilli
+   SUBMENU:=Captive Portals
+   SECTION:=net
+   CATEGORY:=Network
+-  DEPENDS:=+kmod-tun +librt +COOVACHILLI_MINIPORTAL:haserl \
++  DEPENDS:=+kmod-tun +librt +libcurl +zlib +COOVACHILLI_MINIPORTAL:haserl \
+   +COOVACHILLI_WOLFSSL:libwolfssl +COOVACHILLI_OPENSSL:libopenssl \
+   +COOVACHILLI_JSONINTERFACE:libjson-c
+   TITLE:=Wireless LAN HotSpot controller (Coova Chilli Version)
+@@ -118,6 +118,7 @@ define Build/Configure
+ 	$(if $(CONFIG_COOVACHILLI_WOLFSSL),--with,--without)-cyassl \
+ 	$(if $(CONFIG_COOVACHILLI_OPENSSL),--with,--without)-openssl \
+ 	$(if $(CONFIG_PACKAGE_kmod-ipt-coova),--with-nfcoova) \
++	--with-curl="$(STAGING_DIR)/usr/" \
+ 	)
+ endef
+ 
+diff --git a/net/coova-chilli/patches/040-add-libcurl.patch b/net/coova-chilli/patches/040-add-libcurl.patch
+new file mode 100644
+index 000000000..1fe94a13c
+--- /dev/null
++++ b/net/coova-chilli/patches/040-add-libcurl.patch
+@@ -0,0 +1,55 @@
++Index: coova-chilli-1.6/configure.ac
++===================================================================
++--- coova-chilli-1.6.orig/configure.ac
+++++ coova-chilli-1.6/configure.ac
++@@ -509,15 +509,8 @@ AM_CONDITIONAL(WITH_PCAP, [test x"$with_
++ AC_ARG_WITH([curl],
++  [AS_HELP_STRING([--with-curl], [enable support for curl])],[],[with_curl=no])
++ 
++-AS_IF([test x"$with_curl" != xno],
++-  [AC_CHECK_LIB([curl], [curl_global_init],
++-              [AC_SUBST([LIBCURL], ["-lcurl -lz -lssl -lcrypto -lcares"])
++-               AC_DEFINE([USING_CURL], [1],
++-                         [Define if you have curl enabled])
++-              ],
++-              [AC_MSG_FAILURE(
++-                 [--with-curl was given, but test for curl failed])],
++-              [-lz -lssl -lcrypto -lcares])])
+++AC_SUBST([LIBCURL], ["-lcurl -lz"])
+++AC_DEFINE([USING_CURL], [1], [Define if you have curl enabled])
++ 
++ AM_CONDITIONAL(WITH_CURL, [test x"$with_curl" != xno])
++ 
++Index: coova-chilli-1.6/src/main-proxy.c
++===================================================================
++--- coova-chilli-1.6.orig/src/main-proxy.c
+++++ coova-chilli-1.6/src/main-proxy.c
++@@ -447,12 +447,10 @@ static int http_aaa_setup(struct radius_
++ 
++   char *user = 0;
++   char *pwd = 0;
++-#ifdef HAVE_OPENSSL
++   char *ca = 0;
++   char *cert = 0;
++   char *key = 0;
++   char *keypwd = 0;
++-#endif
++ 
++   req->radius = radius;
++ 
++@@ -465,7 +463,6 @@ static int http_aaa_setup(struct radius_
++     if (user && pwd) {
++     }
++ 
++-#ifdef HAVE_OPENSSL
++ 
++     if (cert && strlen(cert)) {
++ #if(_debug_)
++@@ -516,7 +513,6 @@ static int http_aaa_setup(struct radius_
++ 
++     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0);
++     curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_DEFAULT);
++-#endif
++ 
++     curl_easy_setopt(curl, CURLOPT_VERBOSE, /*debug ? 1 :*/ 0);
++ 
+diff --git a/net/coova-chilli/patches/060-remove-debug.patch b/net/coova-chilli/patches/060-remove-debug.patch
+new file mode 100644
+index 000000000..f698df353
+--- /dev/null
++++ b/net/coova-chilli/patches/060-remove-debug.patch
+@@ -0,0 +1,250 @@
++Index: coova-chilli-1.6/src/main-proxy.c
++===================================================================
++--- coova-chilli-1.6.orig/src/main-proxy.c
+++++ coova-chilli-1.6/src/main-proxy.c
++@@ -132,10 +132,6 @@ static proxy_request * get_request() {
++     num_requests_free--;
++   }
++ 
++-#if(_debug_)
++-  syslog(LOG_DEBUG, "connections free %d", num_requests_free);
++-#endif
++-
++   if (!req) {
++     /* problem */
++     syslog(LOG_ERR, "out of connections");
++@@ -143,7 +139,6 @@ static proxy_request * get_request() {
++     return 0;
++   }
++ 
++-  syslog(LOG_DEBUG, "request index %d", req->index);
++   req->lasttime = time(NULL);
++   req->next = req->prev = 0;
++   req->inuse = 1;
++@@ -172,8 +167,6 @@ static void bunhex(bstring src, bstring
++ 
++ static void close_request(proxy_request *req) {
++ 
++-  syslog(LOG_DEBUG, "%s", __FUNCTION__);
++-
++   if (req->url)  bdestroy(req->url);
++   if (req->data) bdestroy(req->data);
++   if (req->post) bdestroy(req->post);
++@@ -197,9 +190,6 @@ static void close_request(proxy_request
++   requests_free = req;
++   num_requests_free++;
++ 
++-#if(_debug_)
++-  syslog(LOG_DEBUG, "connections free %d", num_requests_free);
++-#endif
++ }
++ 
++ static int http_aaa_finish(proxy_request *req) {
++@@ -207,12 +197,7 @@ static int http_aaa_finish(proxy_request
++   struct radius_t *radius = req->radius;
++ 
++ #ifdef USING_CURL
++-#if(_debug_)
++-  syslog(LOG_DEBUG, "calling curl_easy_cleanup()");
++-#endif
++   if (req->curl) {
++-    if (req->error_buffer[0])
++-      syslog(LOG_DEBUG, "curl error %s", req->error_buffer);
++     curl_multi_remove_handle(curl_multi, req->curl);
++     curl_easy_cleanup(req->curl);
++     req->curl = 0;
++@@ -223,9 +208,6 @@ static int http_aaa_finish(proxy_request
++ #endif
++ 
++   if (req->data && req->data->slen) {
++-#if(_debug_)
++-    syslog(LOG_DEBUG, "Received: %s\n",req->data->data);
++-#endif
++     req->authorized = !memcmp(req->data->data, "Auth: 1", 7);
++     req->challenge = !memcmp(req->data->data, "Auth: 2", 7);
++   }
++@@ -233,17 +215,10 @@ static int http_aaa_finish(proxy_request
++   /* initialize response packet */
++   switch(req->radius_req.code) {
++     case RADIUS_CODE_ACCOUNTING_REQUEST:
++-#if(_debug_)
++-      syslog(LOG_DEBUG, "Accounting-Response");
++-#endif
++       radius_default_pack(radius, &req->radius_res, RADIUS_CODE_ACCOUNTING_RESPONSE);
++       break;
++ 
++     case RADIUS_CODE_ACCESS_REQUEST:
++-#if(_debug_)
++-      syslog(LOG_DEBUG, "Access-%s", req->authorized ? "Accept" :
++-             req->challenge ? "Challenge" : "Reject");
++-#endif
++       radius_default_pack(radius, &req->radius_res,
++                           req->authorized ? RADIUS_CODE_ACCESS_ACCEPT :
++                           req->challenge ? RADIUS_CODE_ACCESS_CHALLENGE :
++@@ -328,9 +303,6 @@ static int http_aaa_finish(proxy_request
++                   uint32_t v = (uint32_t) atoi(ptr+strlen(attrs[i].n));
++                   if (v > 0) {
++                     radius_addattr(radius, &req->radius_res, attrs[i].a, attrs[i].v, attrs[i].va, v, NULL, 0);
++-#if(_debug_)
++-                    syslog(LOG_DEBUG, "Setting %s = %d", attrs[i].n, v);
++-#endif
++                   }
++                 }
++                 break;
++@@ -338,9 +310,6 @@ static int http_aaa_finish(proxy_request
++                 {
++                   radius_addattr(radius, &req->radius_res, attrs[i].a, attrs[i].v, attrs[i].va, 0,
++                                  (uint8_t *)ptr+strlen(attrs[i].n), strlen(ptr)-strlen(attrs[i].n));
++-#if(_debug_)
++-                  syslog(LOG_DEBUG, "Setting %s = %s", attrs[i].n, ptr+strlen(attrs[i].n));
++-#endif
++                 }
++                 break;
++               case 2: /*binary*/
++@@ -376,9 +345,6 @@ static int http_aaa_finish(proxy_request
++                     offset += eaplen;
++                   }
++ 
++-#if(_debug_)
++-                  syslog(LOG_DEBUG, "Setting %s = %s", attrs[i].n, ptr+strlen(attrs[i].n));
++-#endif
++                   bdestroy(tmp);
++                   bdestroy(tmp2);
++                 }
++@@ -435,7 +401,6 @@ static int bstring_data(void *ptr, size_
++   if (size > 0 && nmemb > 0) {
++     int rsize = size * nmemb;
++     bcatblk(s,ptr,rsize);
++-    syslog(LOG_DEBUG, "read %d", rsize);
++     return rsize;
++   }
++   return 0;
++@@ -465,23 +430,14 @@ static int http_aaa_setup(struct radius_
++ 
++ 
++     if (cert && strlen(cert)) {
++-#if(_debug_)
++-      syslog(LOG_DEBUG, "using cert [%s]",cert);
++-#endif
++       curl_easy_setopt(curl, CURLOPT_SSLCERT, cert);
++       curl_easy_setopt(curl, CURLOPT_SSLCERTTYPE, "PEM");
++     }
++ 
++     if (key && strlen(key)) {
++-#if(_debug_)
++-      syslog(LOG_DEBUG, "using key [%s]",key);
++-#endif
++       curl_easy_setopt(curl, CURLOPT_SSLKEY, key);
++       curl_easy_setopt(curl, CURLOPT_SSLKEYTYPE, "PEM");
++       if (keypwd && strlen(keypwd)) {
++-#if(_debug_)
++-	syslog(LOG_DEBUG, "using key pwd [%s]",keypwd);
++-#endif
++ #ifdef CURLOPT_SSLCERTPASSWD
++ 	curl_easy_setopt(curl, CURLOPT_SSLCERTPASSWD, keypwd);
++ #else
++@@ -498,9 +454,6 @@ static int http_aaa_setup(struct radius_
++ 
++     if (ca && strlen(ca)) {
++ #ifdef CURLOPT_ISSUERCERT
++-#if(_debug_)
++-      syslog(LOG_DEBUG, "using ca [%s]",ca);
++-#endif
++       curl_easy_setopt(curl, CURLOPT_ISSUERCERT, ca);
++       curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1);
++ #else
++@@ -613,9 +566,6 @@ static int http_aaa(struct radius_t *rad
++     while(CURLM_CALL_MULTI_PERFORM ==
++ 	  curl_multi_perform(curl_multi, &still_running));
++ 
++-#if(_debug_ > 1)
++-    syslog(LOG_DEBUG, "curl still running %d", still_running);
++-#endif
++ #endif
++ 
++     return 0;
++@@ -691,18 +641,10 @@ static void http_aaa_register(int argc,
++ 
++   if (http_aaa_setup(0, &req) == 0) {
++ 
++-#if(_debug_ > 1)
++-    syslog(LOG_DEBUG, "==> %s\npost:%s", req.url->data, req.post->data);
++-#endif
++-
++ #ifdef USING_CURL
++     curl_easy_perform(req.curl);
++ #endif
++ 
++-#if(_debug_ > 1)
++-    syslog(LOG_DEBUG, "<== %s", req.data->data);
++-#endif
++-
++ #ifdef USING_CURL
++     curl_easy_cleanup(req.curl);
++ #endif
++@@ -1027,9 +969,6 @@ static void process_radius(struct radius
++     if (_options.uamsecret && _options.uamsecret[0])
++       redir_md_param(req->url, _options.uamsecret, "&");
++ 
++-#if(_debug_ > 1)
++-    syslog(LOG_DEBUG, "==> %s", req->url->data);
++-#endif
++     if (http_aaa(radius, req) < 0)
++       close_request(req);
++ 
++@@ -1164,7 +1103,6 @@ int main(int argc, char **argv) {
++     for (idx=0; idx < max_requests; idx++) {
++       if (requests[idx].inuse &&
++ 	  requests[idx].lasttime < expired_time) {
++-	syslog(LOG_DEBUG, "remove expired index %d", idx);
++ 	http_aaa_finish(&requests[idx]);
++       }
++     }
++@@ -1205,9 +1143,6 @@ int main(int argc, char **argv) {
++           if (FD_ISSET(selfpipe, &fdread)) {
++             int signo = chilli_handle_signal(0, 0);
++             if (signo) {
++-#if(_debug_)
++-              syslog(LOG_DEBUG, "main-proxy signal %d", signo);
++-#endif
++               switch(signo) {
++                 case SIGUSR2: print_requests(); break;
++                 default: break;
++@@ -1236,10 +1171,6 @@ int main(int argc, char **argv) {
++              *    ---> Accounting
++              */
++ 
++-#if(_debug_)
++-            syslog(LOG_DEBUG, "received accounting");
++-#endif
++-
++             if ((status = recvfrom(radius_acct->fd,
++                                    &radius_pack, sizeof(radius_pack), 0,
++                                    (struct sockaddr *) &addr, &fromlen)) <= 0) {
++@@ -1255,16 +1186,8 @@ int main(int argc, char **argv) {
++         while(CURLM_CALL_MULTI_PERFORM ==
++               curl_multi_perform(curl_multi, &still_running));
++ 
++-#if(_debug_ > 1)
++-        syslog(LOG_DEBUG, "curl still running %d", still_running);
++-#endif
++-
++         while ((msg = curl_multi_info_read(curl_multi, &msgs_left))) {
++ 
++-#if(_debug_ > 1)
++-          syslog(LOG_DEBUG, "curl messages left %d", msgs_left);
++-#endif
++-
++           if (msg->msg == CURLMSG_DONE) {
++ 
++             int found = 0;
++@@ -1275,9 +1198,6 @@ int main(int argc, char **argv) {
++ 
++             if (found) {
++               --idx;
++-#if(_debug_)
++-              syslog(LOG_DEBUG, "HTTP completed with status %d\n", msg->data.result);
++-#endif
++               http_aaa_finish(&requests[idx]);
++             } else {
++               syslog(LOG_ERR, "%s: Could not find request in queue", strerror(errno));

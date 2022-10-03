@@ -1,0 +1,12 @@
+Index: ns-dedalo-0.0.1/dedalo/template/chilli.conf.tpl
+===================================================================
+--- ns-dedalo-0.0.1.orig/dedalo/template/chilli.conf.tpl
+--- ns-dedalo-0.0.1/dedalo/template/chilli.conf.tpl
+@@ -17,7 +17,6 @@ uamaaaurl       "${HS_AAA_URL}/?digest=${HS_DIGEST}&uuid=${HS_UUID}&timezone=${H
+ radiusserver1   "localhost"
+ uamserver       "${HS_SPLASH_PAGE_URL}/?digest=${HS_DIGEST}&uuid=${HS_UUID}&timezone=${HS_TIMEZONE}"
+ radiusnasid     "${HS_ID}"
+-alloworigin     "${HS_ALLOW_ORIGINS}"
+ ${HS_DHCPSTART:+"dhcpstart  $HS_DHCPSTART"}
+ ${HS_DHCPEND:+"dhcpend  $HS_DHCPEND"}
+ macauth

@@ -1,0 +1,34 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import sys
+import nsmigration
+from nextsec import firewall, utils
+
+(u, data, nmap) = nsmigration.init("hotspot.json")
+
+itype = data['config'].pop('type')
+
+if itype == 'ethernet':
+    data['config']['interface'] = utils.get_device_name(nsmigration.remap(data["config"].pop("hwaddr"), nmap))
+elif itype == 'vlan':
+    device = utils.get_device_name(nsmigration.remap(data['config'].pop("hwaddr"), nmap))
+    data['config']['interface'] = f'{device}.{data["config"].pop("vid")}'
+else:
+    # Other logical devices are not supported
+    nsmigration.vprint(f"Skipping hotspot import")
+    sys.exit(0)
+
+nsmigration.vprint(f"Configuring dedalo hotspot on {itype}")
+for o in data['config']:
+    u.set('dedalo', 'config', o, data['config'][o])
+
+u.set('firewall', 'ns_dedalo', 'device', [data['config']['interface']])
+
+# Save configuration
+u.commit("dedalo")
+firewall.apply(u)

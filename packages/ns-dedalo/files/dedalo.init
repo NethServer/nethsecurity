@@ -1,0 +1,151 @@
+#!/bin/sh /etc/rc.common
+
+START=90
+STOP=89
+USE_PROCD=1
+
+RUN_DIR=/var/run/dedalo
+DEDALO_CONFIG=/var/dedalo/config
+CHILLI_CONFIG=/var/dedalo/chilli.conf
+
+export start_dedalo=1
+export interface=
+
+start_dedalo() {
+	mkdir -p "$RUN_DIR"
+    if [ -n "$interface" ]; then
+        vid=$(echo "$interface" | awk -F. '{print $2}')
+        if [ -n "$vid" ]; then
+            # setting up vlan device
+            device=$(echo "$interface" | awk -F. '{print $1}')
+            /sbin/ip link add link "$device" name "$interface" type vlan id "$vid"
+            # bring lower device up
+            /usr/sbin/ethtool -K "$device" gso off gro off tso off
+            ifconfig "$device" up
+        else
+            /usr/sbin/ethtool -K "$interface" gso off gro off tso off
+        fi
+        ifconfig "$interface" up
+    fi
+	procd_open_instance "dedalo"
+	procd_set_param command /usr/sbin/chilli
+	procd_set_param file "$CHILLI_CONFIG"
+	procd_append_param command -c $CHILLI_CONFIG --fg
+	procd_set_param respawn
+	procd_set_param stdout 1
+	procd_set_param stderr 1
+	procd_close_instance
+}
+
+dedalo_config_cb() {
+	local dedalo_inst="$2"
+	if [ "$dedalo_inst" != "" ]; then
+		if [ -e "$DEDALO_CONFIG" ]; then
+			rm $DEDALO_CONFIG
+		fi
+	fi
+}
+
+dedalo_option_cb() {
+	case "$1" in
+		disabled)
+			local dedalo_disabled
+			config_get_bool dedalo_disabled "$CONFIG_SECTION" "$1" 0
+			if [ "$dedalo_disabled" -eq "1" ]; then
+				start_dedalo=0
+			fi
+			;;
+		network)
+			echo "HS_NETWORK=\"$2\"" >> "$DEDALO_CONFIG"
+			;;
+		splash_page)
+			echo "HS_SPLASH_PAGE_URL=\"$2\"" >> "$DEDALO_CONFIG"
+			;;
+		aaa_url)
+			echo "HS_AAA_URL=\"$2\"" >> "$DEDALO_CONFIG"
+			;;
+		api_url)
+			echo "HS_API_URL=\"$2\"" >> "$DEDALO_CONFIG"
+			;;
+		hotspot_id)
+			echo "HS_ID=\"$2\"" >> "$DEDALO_CONFIG"
+			;;
+		unit_name)
+			echo "HS_UNIT_NAME=\"$2\"" >> "$DEDALO_CONFIG"
+			;;
+		unit_description)
+			shift
+			echo "HS_UNIT_DESC=\"$@\"" >> "$DEDALO_CONFIG"
+			;;
+		unit_uuid)
+			echo "HS_UUID=\"$2\"" >> "$DEDALO_CONFIG"
+			;;
+		secret)
+			echo "HS_SECRET=\"$2\"" >> "$DEDALO_CONFIG"
+			;;
+		max_clients)
+			echo "HS_MAXCLIENTS=\"$2\"" >> "$DEDALO_CONFIG"
+			;;
+		dhcp_start)
+			echo "HS_DHCPSTART=\"$2\"" >> "$DEDALO_CONFIG"
+			;;
+		dhcp_end)
+			echo "HS_DHCPEND=\"$2\"" >> "$DEDALO_CONFIG"
+			;;
+		interface)
+            interface=$2
+			echo "HS_INTERFACE=\"$2\"" >> "$DEDALO_CONFIG"
+            ;;
+		use_scripts)
+			local use_scripts
+			config_get_bool use_scripts "$CONFIG_SECTION" "$1" 0
+			if [ "$use_scripts" -eq "1" ]; then
+				echo "USE_UPDOWN_SCRIPTS=true" >> "$DEDALO_CONFIG"
+			fi
+			;;
+	esac
+}
+
+generate_config() {
+	mkdir -p $(dirname $DEDALO_CONFIG)
+	config_cb() { dedalo_config_cb $1 $2; }
+	option_cb() { dedalo_option_cb $1 $2; }
+
+	config_load dedalo
+}
+
+
+service_triggers() {
+        procd_add_reload_trigger "dedalo"
+}
+
+start_service() {
+	generate_config
+
+	if [ "$start_dedalo" -eq "1" ]; then
+		dedalo config
+		start_dedalo
+	fi
+}
+
+stop_service() {
+	if [ -d "$RUN_DIR" ]; then
+		rm -rf "$RUN_DIR"
+	fi
+    if [ -d $(dirname $DEDALO_CONFIG) ]; then
+        rm -rf $(dirname $DEDALO_CONFIG)
+    fi
+    interface=$(/sbin/uci get dedalo.config.interface)
+    if [ -n "$interface" ]; then
+        ifconfig "$interface" down
+        vid=$(echo "$interface" | awk -F. '{print $2}')
+        if [ -n "$vid" ]; then
+            # setting down vlan device
+            /sbin/ip link del "$interface"
+        fi
+    fi
+}
+
+reload_service() {
+	generate_config
+}

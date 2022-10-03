@@ -1,0 +1,30 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Unregister dedalo unit
+# Usage example: unregister_dedalo <reseller_user> <reseller_password>
+
+username=$1
+password=$2
+
+api_url=$(uci get dedalo.config.api_url)
+
+token=$(curl -s --request POST --url "$api_url/login" --header 'Content-Type: ap/loginplication/json' --data-binary '{"username": "'$username'", "password": "'$password'"}' | jq -r .token)
+
+/sbin/uci set dedalo.config.disabled=1
+
+# Disable dedalo services
+/etc/init.d/dedalo stop
+/etc/init.d/dedalo_users_auth stop
+
+# retrieve internal unit ID
+uuid=$(/sbin/uci get dedalo.config.unit_uuid)
+unit_id=$(curl -X GET --url "$api_url/units?q=$uuid" --header "Token: $token" --header "Content-Type: application/json" -s | jq -r ".data | .[0].id")
+
+# Delete the unit from remote server
+curl -X DELETE --url "$api_url/units/$unit_id" --header "Token: $token" --header "Content-Type: application/json" -s
+

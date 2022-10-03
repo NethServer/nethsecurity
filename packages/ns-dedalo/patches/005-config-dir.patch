@@ -1,0 +1,58 @@
+Index: ns-dedalo-0.0.1/dedalo/dedalo
+===================================================================
+--- ns-dedalo-0.0.1.orig/dedalo/dedalo
++++ ns-dedalo-0.0.1/dedalo/dedalo
+@@ -21,7 +21,7 @@
+ 
+ OPT=$1
+ shift
+-source /opt/icaro/dedalo/config
++source /var/dedalo/config
+ 
+ MAC_ADDRESS=$(cat /sys/class/net/$HS_INTERFACE/address 2>/dev/null| tr ':' '-' | awk '{print toupper($0)}')
+ 
+Index: ns-dedalo-0.0.1/dedalo/template/engine
+===================================================================
+--- ns-dedalo-0.0.1.orig/dedalo/template/engine
++++ ns-dedalo-0.0.1/dedalo/template/engine
+@@ -19,7 +19,7 @@
+ # along with Icaro.  If not, see COPYING.
+ #
+ 
+-source /opt/icaro/dedalo/config
++source /var/dedalo/config
+ HS_DIGEST=$(echo -n "$HS_SECRET$HS_UUID" | md5sum | awk '{print $1}')
+ HS_AAA_HOST=$(echo "$HS_AAA_URL" | sed -e 's|https\?://\([^/:]\+\)\(.*\)|\1|')
+ HS_TIMEZONE=$(/sbin/uci get system.@system[0].timezone)
+@@ -27,4 +27,4 @@ HS_WALLED_GARDEN_INTEGRATIONS=$(find /op
+ 
+ eval "cat <<EOF
+ $(cat "$1")
+-EOF" > /opt/icaro/dedalo/chilli.conf
++EOF" > /var/dedalo/chilli.conf
+Index: ns-dedalo-0.0.1/dedalo/www/temporary.chi
+===================================================================
+--- ns-dedalo-0.0.1.orig/dedalo/www/temporary.chi
++++ ns-dedalo-0.0.1/dedalo/www/temporary.chi
+@@ -19,7 +19,7 @@
+ # along with Icaro.  If not, see COPYING.
+ #
+ 
+-. /opt/icaro/dedalo/config
++. /var/dedalo/config
+ 
+ http_header ()
+ {
+Index: ns-dedalo-0.0.1/dedalo/dedalo_users_auth.sh
+===================================================================
+--- ns-dedalo-0.0.1.orig/dedalo/dedalo_users_auth.sh
++++ ns-dedalo-0.0.1/dedalo/dedalo_users_auth.sh
+@@ -67,7 +67,7 @@ do
+ 
+ 	if [ $? -eq 0 ]; then
+ 
+-		. /opt/icaro/dedalo/config
++		. /var/dedalo/config
+ 		HS_DIGEST=$(echo -n "$HS_SECRET$HS_UUID" | md5sum | awk '{print $1}')
+ 
+ 		auth_session_list_json=$(curl -L -f -s "${HS_AAA_URL}/auth?digest=${HS_DIGEST}&uuid=${HS_UUID}&secret=${HS_SECRET}")
