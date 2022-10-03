@@ -14,6 +14,14 @@ export interface=
 start_dedalo() {
 	mkdir -p "$RUN_DIR"
     if [ -n "$interface" ]; then
+        vid=$(echo "$interface" | awk -F. '{print $2}')
+        if [ -n "$vid" ]; then
+            # setting up vlan device
+            device=$(echo "$interface" | awk -F. '{print $1}')
+            /sbin/ip link add link "$device" name "$interface" type vlan id "$vid"
+            # bring lower device up
+            ifconfig "$device" up
+        fi
         ifconfig "$interface" up
     fi
 	procd_open_instance "dedalo"
@@ -115,8 +123,14 @@ stop_service() {
     if [ -d $(dirname $DEDALO_CONFIG) ]; then
         rm -rf $(dirname $DEDALO_CONFIG)
     fi
+    interface=$(/sbin/uci get dedalo.config.interface)
     if [ -n "$interface" ]; then
         ifconfig "$interface" down
+        vid=$(echo "$interface" | awk -F. '{print $2}')
+        if [ -n "$vid" ]; then
+            # setting down vlan device
+            /sbin/ip link del "$interface"
+        fi
     fi
 }
 
