@@ -26,7 +26,7 @@ define Package/ns-dedalo
 	CATEGORY:=NextSecurity
 	TITLE:=Dedalo Network Access Controller, runs on the firewall and intercepts all guest connections
 	URL:=https://github.com/nethesis/icaro
-	DEPENDS:=+curl +grep +ca-bundle +haserl +uuidgen +coova-chilli
+	DEPENDS:=+curl +grep +ca-bundle +haserl +uuidgen +coova-chilli +ethtool
 	PKGARCH:=all
 endef
  

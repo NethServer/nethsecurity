@@ -20,7 +20,10 @@ start_dedalo() {
             device=$(echo "$interface" | awk -F. '{print $1}')
             /sbin/ip link add link "$device" name "$interface" type vlan id "$vid"
             # bring lower device up
+            /usr/sbin/ethtool -K "$device" gso off gro off tso off
             ifconfig "$device" up
+        else
+            /usr/sbin/ethtool -K "$interface" gso off gro off tso off
         fi
         ifconfig "$interface" up
     fi
