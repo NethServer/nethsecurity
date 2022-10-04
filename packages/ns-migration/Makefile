@@ -45,6 +45,7 @@ define Package/ns-migration/install
 	$(INSTALL_BIN) ./files/scripts/ssh $(1)/usr/share/ns-migration/
 	$(INSTALL_BIN) ./files/scripts/subscription $(1)/usr/share/ns-migration/
 	$(INSTALL_BIN) ./files/scripts/openvpn $(1)/usr/share/ns-migration/
+	$(INSTALL_BIN) ./files/scripts/openvpn_tunnels $(1)/usr/share/ns-migration/
 	$(INSTALL_BIN) ./files/scripts/redirects $(1)/usr/share/ns-migration/
 	$(INSTALL_BIN) ./files/scripts/rules $(1)/usr/share/ns-migration/
 	$(INSTALL_BIN) ./files/scripts/threat_shield $(1)/usr/share/ns-migration/
