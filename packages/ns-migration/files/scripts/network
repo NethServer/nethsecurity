@@ -70,6 +70,11 @@ for section in u.get("network"):
             nsmigration.vprint(f"Deleting interface {section}")
             u.delete("network", section)
 
+# Cleanup default qosify interfaces and devices
+for section in u.get("qosify"):
+    if u.get("qosify", section) == "device" or u.get("qosify", section) == "interface":
+        u.delete("qosify", section)
+
 # Create vlan devices
 for v in data['vlans']:
     if not 'hwaddr' in v:
@@ -195,6 +200,15 @@ for i in data['interfaces']:
         else:
             u.set("network", iname, "device", ndevice)
 
+    if i["zone"] == "wan":
+        if i["bandwidth_up"] and i["bandwidth_down"]:
+            u.set("qosify", iname, "interface")
+            u.set("qosify", iname, "name", iname)
+            u.set("qosify", iname, "disabled", "0")
+            u.set("qosify", iname, "bandwidth_down", i["bandwidth_down"])
+            u.set("qosify", iname, "bandwidth_up", i["bandwidth_up"])
+            u.set("qosify", iname, "overhead_type", "none")
+
 # Create firewall zones
 for z in data['zones']:
     nsmigration.vprint(f'Creating zone {z["name"]}')
@@ -232,3 +246,4 @@ for s in data['snats']:
 # Save configuration
 u.commit("network")
 u.commit("firewall")
+u.commit("qosify")
