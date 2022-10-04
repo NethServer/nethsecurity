@@ -104,8 +104,6 @@ The `routes` script will import:
 
 - all static routes
 
-Only static routes associated to physical interfaces will be imported.
-
 ## Port forwarding
 
 The `redirect` script will import:
