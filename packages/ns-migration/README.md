@@ -169,7 +169,14 @@ After the migration you should tune tracking options for each wan interface.
 
 ## QoS
 
-Not implemented yet.
+The `network` script will also import:
+
+- download and upload bandwidth of wan interfaces
+
+The following NS7 features will not be migrated:
+
+- QoS classes with reserved bandwidth
+- QoS rules
 
 ## OpenVPN roadwarrior
 
@@ -252,7 +259,6 @@ MAC address. In this case, the unit must be manually registered to the remote Ic
 
 The following features will be migrated in the upcoming months:
 
-- Hotspot (Dedalo)
 - Cloud DNS filter (Flashstart)
 
 The following features are not migrated to NextSecurity:
