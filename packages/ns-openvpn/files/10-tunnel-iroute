@@ -21,4 +21,8 @@ handle_route() {
 }
 
 config_load openvpn
+config_get lport "$instance" lport
+if [ -z "$lport" ]; then
+    exit 0
+fi
 config_list_foreach "$instance" route handle_route
