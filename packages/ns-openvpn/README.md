@@ -15,7 +15,7 @@ Not supported:
 - authentication based on password
 - mail notification about connect/disconnect events
 
-## OpenVPN configuration
+## OpenVPN Road Warrior configuration
 
 Upon installation, the `ns-openvpnrw-setup`:
 
@@ -51,7 +51,7 @@ uci commit openvpn
 service openvpn start
 ```
 
-## Manage users
+## Manage Road Warrior users
 
 Certificates are saved inside
 
@@ -106,7 +106,7 @@ Example:
 ns-openvpnrw-revoke ns_roadwarrior giacomo
 ```
 
-## Client configuration
+## Roadwarrior client configuration
 
 The `ns-openvpnrw-print-client` can generate a valid `.ovpn` file with embedded certificates.
 The generated configuratio can be copied to any compatibile client.
@@ -127,3 +127,19 @@ Every client connection is tracked inside a SQLite database saved inside `/var/o
 The databse is initialized as soon as the `instance` is up using the `init-connections-db` script.
 
 As default, all logs are sent to `/var/log/messages`.
+
+## Tunnels
+
+Tunnels are normal `openvpn` sections inside `/etc/config/openvpn`.
+All tunnels are addedd the `openvpntun` trusted zone.
+
+### Servers
+
+Each tunnel server requires to configure an iroute for every local network which should be exposed to tunnel client.
+The iroute is configured upon client connection using `/usr/libexec/ns-openvpn/connect-scripts/10-tunnel-iroute` script.
+
+Each tunnel server must have the following configuration options:
+```
+option client_connect '"/usr/libexec/ns-openvpn/openvpn-connect <tunnel_name>"'
+option client_disconnect '"/usr/libexec/ns-openvpn/openvpn-disconnect <tunnel_name>"'
+```

@@ -1,0 +1,71 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import os
+import pwd
+import grp
+import os.path
+import nsmigration
+import subprocess
+from nextsec import firewall, utils
+
+def save_cert(path, data):
+    # setup rw permissions only for nobody user
+    os.umask(0o077)
+    with open(path, 'w') as f:
+        f.write(data)
+    
+    uid = pwd.getpwnam("nobody").pw_uid
+    gid = grp.getgrnam("nogroup").gr_gid
+    os.chown(path, uid, gid)
+
+def import_tunnel(u, tunnel, ttype):
+    name = tunnel.pop('name')
+    iname = utils.get_id(name)
+    cert_dir=f"/etc/openvpn/{iname}/pki/"
+    os.makedirs(cert_dir, exist_ok=True)
+
+    nsmigration.vprint(f"Creating OpenVPN tunnel {ttype} {name}")
+
+    u.set("openvpn", iname, "openvpn")
+    # Setup auth files
+    for option in ['dh', 'ca' , 'cert', 'key', 'secret']:
+        if option in tunnel:
+            value = tunnel.pop(option)
+            save_cert(os.path.join(cert_dir, f'{option}.pem'), value)
+            u.set("openvpn", iname, option, os.path.join(cert_dir, f'{option}.pem'))
+
+    # Setup general options
+    for option in tunnel:
+        u.set("openvpn", iname, option, tunnel[option])
+
+    if ttype == 'server':
+        # Setup dynamic config for iroute:
+        # OpenVPN on NextSec requires an iroute directive for the remote network
+        u.set("openvpn", iname, 'client_connect', f'"/usr/libexec/ns-openvpn/openvpn-connect {iname}"')
+        u.set("openvpn", iname, 'client_disconnect', f'"/usr/libexec/ns-openvpn/openvpn-disconnect {iname}"')
+
+        # Open OpenVPN port
+        proto = tunnel['proto'].removesuffix('-server')
+        firewall.add_service(u, f'ovpn{name}', tunnel['lport'], proto)
+
+    # Add interface to LAN
+    ovpn_interface = firewall.add_vpn_interface(u, 'openvpntun', tunnel['dev'])
+    ovpn_zone = firewall.add_trusted_zone(u, "openvpntun", [ovpn_interface])
+
+
+(u, data, nmap) = nsmigration.init("openvpn_tunnels.json")
+
+for server in data['servers']:
+    import_tunnel(u, server, 'server')
+
+for client in data['clients']:
+    import_tunnel(u, client, 'client')
+
+# Save configuration
+u.commit("openvpn")
+firewall.apply(u)

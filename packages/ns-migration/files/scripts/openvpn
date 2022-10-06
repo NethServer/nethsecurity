@@ -14,7 +14,7 @@ import subprocess
 from nextsec import firewall, utils
 
 def save_cert(path, data):
-    # setup rw permissions on ly for nobody user
+    # setup rw permissions only for nobody user
     os.umask(0o077)
     with open(path, 'w') as f:
         f.write(data)

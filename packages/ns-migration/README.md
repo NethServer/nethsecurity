@@ -196,7 +196,15 @@ See also [ns-openvpn](../ns-openvpn).
 
 ## OpenVPN tunnels
 
-Not implemented yet.
+The `openvpn_tunnels` script will import
+
+- all OpenVPN tunnel servers
+- all OpenVPN tunnel clients
+
+The following NS7 features will not be migrated:
+
+- `WanPriorities` option of  tunnel client
+- bridged mode of tunnel clients
 
 ## IPSec
 
