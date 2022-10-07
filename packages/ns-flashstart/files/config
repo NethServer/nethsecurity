@@ -1,0 +1,4 @@
+config main 'global'
+    option user ''
+    option password ''
+    option enabled '0'
