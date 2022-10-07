@@ -41,7 +41,7 @@ define Package/ns-flashstart/install
 	$(INSTALL_DIR) $(1)/usr/share/ns-flashstart
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_BIN) ./files/flashstart $(1)/usr/sbin/flashstart
+	$(INSTALL_BIN) ./files/flashstart-apply $(1)/usr/sbin/flashstart-apply
 	$(INSTALL_BIN) ./files/flashstart-auth $(1)/usr/share/ns-flashstart/flashstart-auth
 	$(INSTALL_CONF) ./files/config $(1)/etc/config/flashstart
 endef

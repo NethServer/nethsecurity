@@ -4,6 +4,6 @@ if [ -s "$conf" ]; then
 fi
 
 mkdir -p "$conf.d"
-echo "controlSocket('127.0.0.1:5199')" > $conf
-echo "makeKey()" | dnsdist  -l 127.0.0.1:5199  | grep setKey >> $conf
+echo "makeKey()" | dnsdist -l 127.0.0.1:5099  | grep setKey > $conf
+echo "controlSocket('127.0.0.1:5199')" >> $conf
 echo "includeDirectory('$conf.d')" >> $conf
