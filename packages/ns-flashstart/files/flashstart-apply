@@ -1,0 +1,44 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+#
+# Apply Flashstart configuration
+#
+
+conf=/etc/dnsdist.conf.d/flashstart.conf
+
+dnsdist=$(/sbin/uci get dnsdist.general.enabled)
+enabled=$(/sbin/uci get flashstart.global.enabled)
+
+if [ "$enabled" = "1" ]; then
+    echo "addLocal('0.0.0.0:5300', { reusePort=true })" > "$conf"
+    echo "newServer({address='185.236.104.104', name='flashstart1'})" >> "$conf"
+    echo "newServer({address='185.236.104.105', name='flashstart1'})" >> "$conf"
+
+    if [ "$dnsdist" = 0 ]; then
+        /sbin/uci set dnsdist.general.enabled=1
+        /etc/init.d/dnsdist start
+    else
+        /etc/init.d/dnsdist restart
+    fi
+    /usr/share/ns-flashstart/flashstart-auth
+    crontab -l | grep -q '/usr/share/ns-flashstart/flashstart-auth' || echo '*/30 * * * * sleep $$(( RANDOM % 60 )); /usr/share/ns-flashstart/flashstart-auth' >> /etc/crontabs/root
+else
+    crontab -l | grep -v '/usr/share/ns-flashstart/flashstart-auth' | sort | uniq | crontab -
+    rm -f "$conf"
+    # stop dnsdist only if there are no other instances
+    instances=$(find /etc/dnsdist.conf.d/ -type f | wc -l)
+    if [ "$instances" = "0" ]; then
+        /sbin/uci set dnsdist.general.enabled=0
+        /etc/init.d/dnsdist stop
+    else
+        if [ "$dnsdist" = "1" ]; then
+            /etc/init.d/dnsdist restart
+        fi
+    fi
+fi
+/usr/share/ns-flashstart/flashstart-firewall-setup

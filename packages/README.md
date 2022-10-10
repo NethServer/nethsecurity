@@ -36,7 +36,7 @@ make package/feeds/nextsecurity/ns-myapp/{download,compile} V=sc
 
 Or, using a one-liner:
 ```
-./run bash -- -c "make package/feeds/nextsecurity/ns-myapp{download,compile} V=sc"
+./run bash -- -c "make package/feeds/nextsecurity/ns-myapp/{download,compile} V=sc"
 ```
 
 The package will be availale inside `bin/packages/x86_64/nextsecurity/ns-myapp_<version>_all.ipk`.

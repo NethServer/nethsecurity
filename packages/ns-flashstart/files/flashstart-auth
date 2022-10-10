@@ -1,0 +1,32 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+#
+# Register IP to Flashstart server
+#
+
+from euci import EUci
+from nextsec import utils
+import subprocess
+
+u = EUci()
+
+if not u.get("flashstart", "global", "enabled", default=False):
+    sys.exit('0')
+
+user = u.get("flashstart", "global", "user", default="")
+password = u.get("flashstart", "global", "password", default="")
+counter = 0
+for wan in utils.get_all_wan_devices(u):
+    if counter > 0:
+        id = f"{user}-{counter}"
+    else:
+        id = user
+    url = f"https://ddns.flashstart.com/nic/update?hostname=&myip=&wildcard=NOCHG&username={id}&password={password}"
+    cmd = ["curl", "-s", "-o", "/dev/null", "--interface", wan, url]
+    subprocess.run(cmd)
+    counter = counter + 1

@@ -1,0 +1,47 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import sys
+from euci import EUci
+from nextsec import firewall
+
+u = EUci()
+
+zones = u.get("flashstart", "global", "zones", default=[], list=True)
+bypass = u.get("flashstart", "global", "bypass", default=[], list=True)
+enabled = u.get("flashstart", "global", "enabled", default="0")
+
+# Cleanup existing rules
+for section in u.get("firewall"):
+    if section.startswith('ns_flashstart'):
+        u.delete("firewall", section)
+
+if enabled == "0":
+    firewall.apply(u)
+    sys.exit(0)
+
+for z in zones:
+    # Create bypass ipset
+    bname = f'ns_flashstart_bypass_{z}'
+    u.set('firewall', bname, 'ipset')
+    u.set('firewall', bname, 'name', bname)
+    u.set('firewall', bname, 'enabled', 1)
+    u.set('firewall', bname, 'family', 'inet')
+    u.set('firewall', bname, 'match', 'net')
+    u.set('firewall', bname, 'entry', bypass)
+    # Create rule
+    zname = f'ns_flashstart_{z}'
+    u.set('firewall', zname, 'redirect')
+    u.set('firewall', zname, 'name', f'Flashstart-intercept-DNS-from-{z}')
+    u.set('firewall', zname, 'src', z)
+    u.set('firewall', zname, 'src_port', 53)
+    u.set('firewall', zname, 'dest_port', 5300)
+    u.set('firewall', zname, 'proto', "tcp udp")
+    u.set('firewall', zname, 'target', 'DNAT')
+    u.set('firewall', zname, 'ipset', bname)
+
+firewall.apply(u)

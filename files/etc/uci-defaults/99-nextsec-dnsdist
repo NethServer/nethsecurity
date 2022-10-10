@@ -1,0 +1,9 @@
+conf="/etc/dnsdist.conf"
+if [ -s "$conf" ]; then
+    exit 0
+fi
+
+mkdir -p "$conf.d"
+echo "makeKey()" | dnsdist -l 127.0.0.1:5099  | grep setKey > $conf
+echo "controlSocket('127.0.0.1:5199')" >> $conf
+echo "includeDirectory('$conf.d')" >> $conf
