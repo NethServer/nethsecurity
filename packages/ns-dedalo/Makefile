@@ -15,9 +15,9 @@ PKG_BUILD_DIR:=$(BUILD_DIR)/ns-dedalo-$(PKG_VERSION)
 PKG_MAINTAINER:=Giacomo Sanchietti <giacomo.sanchietti@nethesis.it>
 PKG_LICENSE:=GPL-3.0-only
 
+PKG_SOURCE_PROTO:=git
+PKG_SOURCE_URL:=https://github.com/nethesis/icaro.git
 PKG_SOURCE_VERSION:=v85
-PKG_SOURCE_URL:=https://github.com/nethesis/icaro/archive/refs/tags/${PKG_SOURCE_VERSION}.tar.gz
-PKG_HASH:=skip
 
 include $(INCLUDE_DIR)/package.mk
  
