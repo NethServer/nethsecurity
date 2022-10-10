@@ -1,0 +1,4 @@
+uci -q batch << EOI
+set system.@system[0].ttylogin="1"
+commit system
+EOI
