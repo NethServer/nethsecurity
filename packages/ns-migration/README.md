@@ -261,11 +261,21 @@ MAC address. In this case, the unit must be manually registered to the remote Ic
    dedalo restart
    ```
 
+## Cloud DNS filter (Flashstart)
+
+The `flashstart` script will import:
+
+- filter configuration and credentials
+
+The following NS7 options will not be migrated:
+
+- `PortalUrl`
+- `UpdateInterval`
+
 ## Other features
 
 The following features will be migrated in the upcoming months:
 
-- Cloud DNS filter (Flashstart)
 
 The following features are not migrated to NextSecurity:
 
