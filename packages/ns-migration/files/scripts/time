@@ -15,7 +15,7 @@ for option in data['ntp']:
     u.set("system", "ntp", option, data['ntp'][option])
 
 for section in u.get("system"):
-    if  u.get("system", section) == "timezone":
+    if  u.get("system", section) == "system":
         nsmigration.vprint(f"Setting timezone")
         u.set("system", section, "timezone", data['timezone'])
 
