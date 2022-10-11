@@ -41,4 +41,4 @@ else
         fi
     fi
 fi
-/usr/share/ns-flashstart/flashstart-firewall-setup
+/usr/share/ns-flashstart/flashstart-setup-firewall
