@@ -1,3 +1,9 @@
+---
+layout: default
+title: Advanced DNS
+nav_order: 20
+---
+
 # dnsdist
 
 [dnsdist](https://dnsdist.org/) can be used:
