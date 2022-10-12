@@ -20,5 +20,5 @@ bundle install --path vendor
 
 Build and serve the site locally:
 ```
-bundle exec jekyll serve
+./prepare.sh && bundle exec jekyll serve
 ```
