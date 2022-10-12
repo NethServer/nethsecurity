@@ -147,13 +147,12 @@ for a in data['aliases']:
             device = f'@{i}'
         # alias over ethernet interface
         else:
-            tmp = utils.get_device_name(nsmigration.remap(a['hwaddr'], nmap))
             # normal interfaces do not require the @ prefix
-            device = utils.get_interface_from_device(u, tmp)
+            device = utils.get_device_name(nsmigration.remap(a['hwaddr'], nmap))
             if not device:
-                print(f"Skipping alias for device {tmp}")
+                print(f"Skipping alias for device {device}")
                 continue
-            aname = utils.sanitize(device)+str(acount)
+            aname = utils.sanitize(device)+"_"+str(acount)
     # alias over logical interface
     else:
         aname = utils.sanitize(a["device"])+str(acount)
