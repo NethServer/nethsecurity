@@ -36,7 +36,9 @@ endef
 define Package/ns-migration/install
 	$(INSTALL_DIR) $(1)/usr/share/ns-migration
 	$(INSTALL_DIR) $(1)/usr/sbin
+	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) ./files/ns-import $(1)/usr/sbin/ns-import
+	$(INSTALL_BIN) ./files/zonename2timezone $(1)/usr/bin/zonename2timezone
 	$(INSTALL_BIN) ./files/scripts/time $(1)/usr/share/ns-migration/10time
 	$(INSTALL_BIN) ./files/scripts/network $(1)/usr/share/ns-migration/20network
 	$(INSTALL_BIN) ./files/scripts/routes $(1)/usr/share/ns-migration/20routes

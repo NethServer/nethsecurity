@@ -1,0 +1,22 @@
+#!/usr/bin/lua
+
+--
+-- Copyright (C) 2022 Nethesis S.r.l.
+-- SPDX-License-Identifier: GPL-2.0-only
+--
+
+-- Print zonename given a timezone
+
+local m = require "luci.sys.zoneinfo.tzdata"
+
+local zonename = arg[1]
+
+if zonename == nil or zonename == '' then
+    do return end
+end
+
+for k, v in pairs(m.TZ) do
+    if v[1] == zonename then
+        print(v[2])
+    end
+end
