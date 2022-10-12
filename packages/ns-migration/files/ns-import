@@ -13,9 +13,9 @@ usage() {
 try_restart() {
     service=$1
     if service "$service" running; then
-        echo "service $service restart"
+        service $service restart
     else
-        echo "service $service start"
+        service $service start
     fi
 }
 

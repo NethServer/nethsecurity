@@ -6,6 +6,7 @@
 #
 
 import nsmigration
+import subprocess
 
 (u, data, nmap) = nsmigration.init("time.json")
 
@@ -15,9 +16,12 @@ for option in data['ntp']:
     u.set("system", "ntp", option, data['ntp'][option])
 
 for section in u.get("system"):
-    if  u.get("system", section) == "timezone":
+    if  u.get("system", section) == "system":
         nsmigration.vprint(f"Setting timezone")
-        u.set("system", section, "timezone", data['timezone'])
+        u.set("system", section, "zonename", data['timezone'])
+        tz = subprocess.run(["/usr/bin/zonename2timezone", data['timezone']], capture_output=True, text=True).stdout.rstrip()
+        if tz != '':
+            u.set("system", section, "timezone", tz)
 
 # Save configuration
 u.commit("system")
