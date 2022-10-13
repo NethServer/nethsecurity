@@ -1,6 +1,13 @@
-# Setup PPPoE server
+---
+layout: default
+title: PPPoE server
+nav_order: 30
+---
 
-Tested on Debian 11.
+# Setup PPPoE testing server
+
+This guide will describe how to setup a PPPoE testing server using
+Debian 11.
 
 Setup a clean Debian server 11 installation with at least one
 ethernet interface and with Internet access.

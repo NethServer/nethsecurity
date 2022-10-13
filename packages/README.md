@@ -29,7 +29,7 @@ define Package/ns-myapp
 endef
 ```
 
-To compile only the package, lunch the shell inside the container then use:
+To compile only the package, launch the shell inside the container then use:
 ```
 make package/feeds/nextsecurity/ns-myapp/{download,compile} V=sc
 ```

@@ -1,4 +1,4 @@
-# Dedalo hotstpot
+# ns-dedalo
 
 This is the client part of [Icaro hotspot](https://github.com/nethesis/icaro).
 
