@@ -40,6 +40,10 @@ jobs:
         with:
           name: ext4-x86_64-image
           path: bin/targets/x86/64/nextsecurity-*-x86-64-generic-ext4-combined-efi.img.gz
+      - uses: actions/upload-artifact@v3
+        with:
+          name: x86_64-image-builder
+          path: bin/targets/x86/64/nextsecurity-imagebuilder-*-x86-64.Linux-x86_64.tar.xz
       - uses: BetaHuhn/do-spaces-action@v2
         if: ${{ github.ref == 'refs/heads/master' }}
         with:
