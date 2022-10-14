@@ -5,10 +5,14 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
+import sys
 import nsmigration
 import subprocess
 
 (u, data, nmap) = nsmigration.init("flashstart.json")
+
+if 'config' not in data:
+    sys.exit(0)
 
 for o in data['config']:
     u.set('flashstart', 'global', o, data['config'][o])
