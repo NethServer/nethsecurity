@@ -36,9 +36,12 @@ def init(data_file):
     u = EUci()
 
     # Read NS7 network configurations
-    f = open(f'{args.export_dir[0]}/{data_file}')
-    data = json.load(f)
-    f.close()
+    try:
+        f = open(f'{args.export_dir[0]}/{data_file}')
+        data = json.load(f)
+        f.close()
+    except:
+        data = dict()
 
     # Prepare network map
     nmap = dict()
