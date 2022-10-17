@@ -21,26 +21,9 @@ Minimum requirements:
 
 ## Download
 
-Download your preferred image from the below links.
+Download the [x86_64 image]({{site.download_url}}/targets/x86/64/nextsecurity-{site.version}-x86-64-generic-ext4-combined-efi.img.gz).
 
-Image types:
-
-- `squashfs`: all system is loaded in RAM with a read-only filesystem, configuration changes are saved to a special persisten partition;
-  this image supports the factory default and is more resilient to power outages
-- `ext4`: all systemd is loaded in a more convention read-write filesystem; this image is easier for newbie uses to traditional Linux distributions
-
-Standard BIOS images:
-
-- [squashfs]({{site.download_url}}/targets/x86/64/nextsecurity-22.03.0-x86-64-generic-squashfs-combined.img.gz)
-- [ext4]({{site.download_url}}/targets/x86/64/nextsecurity-22.03.0-x86-64-generic-ext4-combined.img.gz)
-
-EFI BIOS images:
-
-- [squashfs]({{site.download_url}}/targets/x86/64/nextsecurity-22.03.0-x86-64-generic-squashfs-combined-efi.img.gz)
-- [ext4]({{site.download_url}}/targets/x86/64/nextsecurity-22.03.0-x86-64-generic-ext4-combined-efi.img.gz)
-
-Not sure what to choose? Go with [standard BIOS squashfs]({{site.download_url}}/targets/x86/64/nextsecurity-22.03.0-x86-64-generic-squashfs-combined.img.gz)
-which should work on most x86 machines.
+The image should work both on machines with legacy and EFI BIOS.
 
 ## Install
 
@@ -48,22 +31,47 @@ To install the system, you must write the downloaded image directly to the disk.
 
 ### Virtual machines
 
-1. Extract the downloaded image:
+You can use the downloaded image as a virtual machine disk:
+
+1. extract the downloaded image:
    ```
    gunzip nextsecurity-22.03.0-x86-64-generic-squashfs-combined.img.gz
    ```
-2. Create a new virtual machine and select the uncompressed image as disk
-3. Boot the virtual machine
+2. create a new virtual machine and select the uncompressed image as disk
+3. boot the virtual machine
 
 ### Physical machines
 
-1. Attach the disk to your desktop Linux machine, let's assume the device is named `sdd`
-2. Write the image to the device (you must be root):
+#### USB stick
+
+NextSecurity can be run directly from a USB stick:
+
+1. plug the USB stick into your desktop Linux machine
+2. find the USB stick device name, in this example the device is named `/dev/sdd`
+3. as `root` user, write the downloaded image to the device:
    ```
-   zcat nextsecurity-22.03.0-x86-64-generic-squashfs-combined.img.gz | dd of=/dev/sdd bs=1M
+   zcat nextsecurity-22.03.0-x86-64-generic-squashfs-combined.img.gz | dd of=/dev/sdd bs=1M iflag=fullblock status=progress oflag=direct
    ```
-3. Attach the disk to the server
-4. Boot the server
+4. unplug the USB stick from the desktop and plug it into the server
+5. boot the server, make sure to select the USB stick from boot menu
+
+If you're running a desktop Windows machine, you will need extra software for point 2.
+First, make sure to format the USB drive then unmount it.
+Use one of the following tools to write the USB stick:
+
+* [Etcher](https://etcher.io/ )
+* [Win32 Disk Imager](http://sourceforge.net/projects/win32diskimager/)
+* [Rawrite32](http://www.netbsd.org/~martin/rawrite32/)
+* [dd for Windows](http://www.chrysocome.net/dd)
+
+#### Hard drive
+
+To install NextSecurity directly into the server hard-drive, follow these steps:
+
+1. attach the server disk to your desktop Linux machine, let's assume the device is named `sdd`
+2. write the image to the device (see the command on the section above)
+3. attach the disk to the server
+4. boot the server
 
 ## Access
 
