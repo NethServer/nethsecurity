@@ -2,7 +2,14 @@
 
 ns-migration imports the configuration from NethServer 7 (NS7).
 
-Before proceed, make sure to export NS7 configuration using [nethserver-firwall-migration](https://github.com/NethServer/nethserver-firewall-migration/) package. 
+Before proceed, make sure to export NS7 configuration using [nethserver-firewall-migration](https://github.com/NethServer/nethserver-firewall-migration/) package:
+
+- access the NS7 machine as root
+- execute:
+  ```
+  firewall-export
+  ```
+- copy `/var/lib/nethserver/firewall-migration/export.tar.gz` inside NextSecurity installation using SSH
 
 ## Usage
 
