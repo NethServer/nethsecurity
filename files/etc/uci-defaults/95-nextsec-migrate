@@ -1,0 +1,8 @@
+archive="/usr/share/migration/export.tar.gz"
+if [ -f "${archive}" ]; then
+    /usr/sbin/ns-import $archive | tee /dev/kmsg
+
+    if [ $? -eq 0 ]; then
+        mv "${archive}" "${archive}.done"
+    fi
+fi
