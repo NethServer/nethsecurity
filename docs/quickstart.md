@@ -128,3 +128,13 @@ If the machine has a VGA/DVI/HDMI video port, connect a monitor to it.
 Then will be able to login to the console using default credentials above.
 
 Please note that the system is configured with `US` keyboard layout.
+
+To change current keyboard layout to Italian, execute:
+```
+loadkmap </usr/share/keymaps/it.map.bin
+```
+
+Other keymaps can be generated from a CentOS machine with the following command:
+```
+loadkeys -b it.map.gz -u -q >it.map.bin
+```
