@@ -6,6 +6,9 @@ nav_order: 20
 
 # Build images
 
+* TOC
+{:toc}
+
 NextSecurity uses [OpenWrt](https://openwrt.org/) build system.
 
 Automatic builds run inside [GitHub actions](https://github.com/NethServer/nextsecurity/actions)
@@ -47,11 +50,20 @@ During the start-up, the container will:
 
 ### Upstream version change
 
-After changing the the upstream release, containers volumes should be wiped out otherwise the build will fail.
-To clean up existing volumes:
-```
-podman volume rm nextsecurity-build_dir nextsecurity-staging_dir
-```
+Change the version inside the following files:
+
+- `builder/build-builder`
+- `config/branding.conf`
+- `docs/_config.yml`
+
+After changing the the upstream release:
+
+- rebuild the builder container locally or push the changes and the CI pipeline will do it for you
+- wipe podman volumes  otherwise the build will fail:
+  ```
+  podman volume rm nextsecurity-build_dir nextsecurity-staging_dir
+  ```
+- rebuild the image using latest builder container image
 
 ## Image configuration
 
