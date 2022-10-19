@@ -1,0 +1,2 @@
+/etc/init.d/adblock disable
+/etc/init.d/ts-dns enable

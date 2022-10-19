@@ -58,6 +58,7 @@ if [ -z "$${IPKG_INSTROOT}" ]; then
   crontab -l | grep -q '/etc/init.d/ts-dns' || echo '1 */12 * * * sleep $$(( RANDOM % 3600 )); /etc/init.d/ts-dns reload' >> /etc/crontabs/root
   /etc/init.d/cron restart
   /etc/init.d/ts-ip enable
+  /etc/init.d/ts-dns enable
 fi
 exit 0
 endef

@@ -9,6 +9,7 @@
 # Threat shield DNS: add Nethesis categories to adblock
 #
 
+START=30
 DEST_DIR=/var/ts-dns/
 NETHESIS_SOURCES=/usr/share/threat_shield/nethesis-dns.sources.gz
 ADBLOCK_SOURCES=/etc/adblock/adblock.sources.gz
