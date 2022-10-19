@@ -11,7 +11,14 @@ from nextsec import firewall, utils
 
 (u, data, nmap) = nsmigration.init("hotspot.json")
 
-itype = data['config'].pop('type')
+if not data:
+    sys.exit(0)
+
+# Skip incomplete export
+try:
+    itype = data['config'].pop('type')
+except:
+    sys.exit(0)
 
 if itype == 'ethernet':
     data['config']['interface'] = utils.get_device_name(nsmigration.remap(data["config"].pop("hwaddr"), nmap))

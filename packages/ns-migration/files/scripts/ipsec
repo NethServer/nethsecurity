@@ -8,8 +8,12 @@
 import nsmigration
 from nextsec import firewall, utils
 import os
+import sys
 
 (u, data, nmap) = nsmigration.init("ipsec.json")
+
+if not data:
+    sys.exit(0)
 
 def find_first_wan():
     for section in u.get("firewall"):

@@ -8,6 +8,7 @@
 import os
 import pwd
 import grp
+import sys
 import os.path
 import nsmigration
 import subprocess
@@ -29,6 +30,9 @@ cert_dir=f"/etc/openvpn/{iname}/pki/"
 subprocess.run(["/usr/sbin/ns-openvpnrw-init-pki", iname], check=True)
 
 (u, data, nmap) = nsmigration.init("openvpn.json")
+
+if not data:
+    sys.exit(0)
 
 # Setup global option
 u.set("openvpn", iname, "openvpn")

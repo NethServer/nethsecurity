@@ -8,6 +8,7 @@
 import os
 import pwd
 import grp
+import sys
 import os.path
 import nsmigration
 import subprocess
@@ -59,6 +60,9 @@ def import_tunnel(u, tunnel, ttype):
 
 
 (u, data, nmap) = nsmigration.init("openvpn_tunnels.json")
+
+if not data:
+    sys.exit(0)
 
 for server in data['servers']:
     import_tunnel(u, server, 'server')
