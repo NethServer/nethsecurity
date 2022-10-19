@@ -14,7 +14,7 @@ DEST_DIR=/var/ts-dns/
 NETHESIS_SOURCES=/usr/share/threat_shield/nethesis-dns.sources.gz
 ADBLOCK_SOURCES=/etc/adblock/adblock.sources.gz
 
-STATUS=$(uci -q get adblock.global.adb_enabled)
+STATUS=$(uci -q get adblock.global.adb_enabled 2>/dev/null)
 
 if [ "$STATUS" != '1' ]; then
     exit 0
