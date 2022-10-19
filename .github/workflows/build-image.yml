@@ -22,12 +22,17 @@ jobs:
     runs-on: self-hosted
     env:
       IMAGETAG: ${{ github.ref_name }}
+      DO_SPACE_NAME: 'distfeed.nextsecurity'
+      DO_SPACE_REGION: 'fra1'
+      CDN_NAME: 'distfeed.nextsecurity.nethserver.org'
     steps:
       - uses: actions/checkout@v2
       - id: build
         run: |
           # Build the image
           ./run
+          # Setup OWRT_VERSION env variable for release action
+          grep '^OWRT_VERSION' builder/build-builder | tr -d '"' >> $GITHUB_ENV
       - uses: actions/upload-artifact@v3
         with:
           name: core_packages
@@ -41,20 +46,22 @@ jobs:
           name: ext4-x86_64-image
           path: bin/targets/x86/64/nextsecurity-*-x86-64-generic-ext4-combined-efi.img.gz
       - uses: BetaHuhn/do-spaces-action@v2
-        if: ${{ github.ref == 'refs/heads/master' }}
+        #if: ${{ github.ref == 'refs/heads/master' }}
         with:
-          access_key: ${{ secrets.ACCESS_KEY }}
-          secret_key: ${{ secrets.SECRET_KEY }}
-          space_name: ${{ secrets.SPACE_NAME }}
-          space_region: ${{ secrets.SPACE_REGION }}
+          access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
+          secret_key: ${{ env.DO_SPACE_SECRET_KEY }}
+          space_name: ${{ env.DO_SPACE_NAME }}
+          space_region: ${{ env.DO_SPACE_REGION }}
+          cdn_domain: ${{ env.CDN_DOMAIN }}
           source: bin/packages
-          out_dir: packages
+          out_dir: ${{ env.OWRT_VERSION }}/packages
       - uses: BetaHuhn/do-spaces-action@v2
-        if: ${{ github.ref == 'refs/heads/master' }}
+        #if: ${{ github.ref == 'refs/heads/master' }}
         with:
-          access_key: ${{ secrets.ACCESS_KEY }}
-          secret_key: ${{ secrets.SECRET_KEY }}
-          space_name: ${{ secrets.SPACE_NAME }}
-          space_region: ${{ secrets.SPACE_REGION }}
+          access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
+          secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
+          space_name: ${{ env.DO_SPACE_NAME }}
+          space_region: ${{ env.DO_SPACE_REGION }}
+          cdn_domain: ${{ env.CDN_DOMAIN }}
           source: bin/targets
-          out_dir: targets
+          out_dir: ${{ env.OWRT_VERSION }}/targets
