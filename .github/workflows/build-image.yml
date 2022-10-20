@@ -49,7 +49,7 @@ jobs:
         if: ${{ github.ref == 'refs/heads/master' }}
         with:
           access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
-          secret_key: ${{ env.DO_SPACE_SECRET_KEY }}
+          secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
           space_name: ${{ env.DO_SPACE_NAME }}
           space_region: ${{ env.DO_SPACE_REGION }}
           cdn_domain: ${{ env.CDN_DOMAIN }}
