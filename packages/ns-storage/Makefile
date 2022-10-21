@@ -21,7 +21,7 @@ define Package/ns-storage
 	CATEGORY:=NextSecurity
 	TITLE:=NextSecurity storage manager
 	URL:=https://github.com/NethServer/nextsecurity/
-	DEPENDS:=+parted +block-mount
+	DEPENDS:=+parted +block-mount +logrotate
 	PKGARCH:=all
 endef
  
@@ -35,7 +35,11 @@ endef
 
 define Package/ns-storage/install
 	$(INSTALL_DIR) $(1)/usr/sbin
+	$(INSTALL_DIR) $(1)/etc/uci-defaults
+	$(INSTALL_DIR) $(1)/etc/logrotate.d
 	$(INSTALL_BIN) ./files/add-persistent-storage $(1)/usr/sbin
+	$(INSTALL_CONF) ./files/20_ns-storage $(1)/etc/uci-defaults
+	$(INSTALL_CONF) ./files/extra.conf $(1)/etc/logrotate.d
 endef
  
 $(eval $(call BuildPackage,ns-storage))

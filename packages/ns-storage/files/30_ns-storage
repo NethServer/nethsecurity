@@ -1,0 +1,21 @@
+#!/bin/sh
+
+[ "$(uci -q get ns_rsyslog.memory)" == "selector" ] && exit 0
+
+echo '# Rotate in-memory log if size is bigger than 50MB' >> /etc/rsyslog.conf
+echo '$outchannel log_rotation,/var/log/messages, 52428800, /usr/sbin/rotate-messages' >> /etc/rsyslog.conf
+
+uci -q import rsyslog << EOI
+config syslog 'syslog'
+	option tcp_input_port '514'
+	option udp_input '1'
+	option tcp_input '0'
+	option udp_input_port '514'
+	option default_template 'RSYSLOG_TraditionalFileFormat'
+	list modules 'imuxsock'
+	list modules 'imklog'
+
+config selector ns_memory
+	option source '*.*'
+	option destination ':omfile:$log_rotation'
+EOI
