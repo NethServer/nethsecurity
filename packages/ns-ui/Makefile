@@ -10,7 +10,7 @@ PKG_VERSION:=0.0.1
 PKG_RELEASE:=$(AUTORELEASE)
 
 PKG_SOURCE:=ui.tar.gz
-PKG_SOURCE_URL:=https://nextsec-testing.fra1.digitaloceanspaces.com
+PKG_SOURCE_URL:=https://distfeed.nethserver.org
 PKG_HASH:=skip
 
 PKG_MAINTAINER:=Giacomo Sanchietti <giacomo.sanchietti@nethesis.it>
