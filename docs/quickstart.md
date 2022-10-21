@@ -21,7 +21,7 @@ Minimum requirements:
 
 ## Download
 
-Download the [x86_64 image]({{site.download_url}}/targets/x86/64/nextsecurity-{{site.version}}-x86-64-generic-ext4-combined-efi.img.gz).
+Download the [x86_64 image]({{site.download_url}}/{{site.version}}/targets/x86/64/nextsecurity-{{site.version}}-x86-64-generic-ext4-combined-efi.img.gz).
 
 The image should work both on machines with legacy and EFI BIOS.
 

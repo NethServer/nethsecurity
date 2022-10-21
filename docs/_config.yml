@@ -41,7 +41,7 @@ aux_links:
     - "//github.com/nethserver/nextsecurity"
 
 # Download base URL
-download_url: https://nextsec-testing.fra1.digitaloceanspaces.com
+download_url: https://distfeed.nethserver.org
 
 # Footer content appears at the bottom of every page's main content
 footer_content: ""
