@@ -7,7 +7,7 @@
 
 include $(TOPDIR)/rules.mk
 
-PKG_NAME:=ns-rsyslog
+PKG_NAME:=rsyslog
 PKG_VERSION:=8.2110.0
 PKG_RELEASE:=1
 
@@ -27,7 +27,7 @@ PKG_BUILD_PARALLEL:=1
 
 include $(INCLUDE_DIR)/package.mk
 
-define Package/ns-rsyslog
+define Package/rsyslog
   SECTION:=admin
   CATEGORY:=Administration
   TITLE:=Enhanced system logging and kernel message trapping daemons
@@ -41,7 +41,7 @@ define Package/ns-rsyslog
   MENU:=1
 endef
 
-define Package/ns-rsyslog/conffiles
+define Package/rsyslog/conffiles
 /etc/rsyslog.conf
 endef
 
@@ -63,7 +63,7 @@ CONFIGURE_ARGS+= \
 	$(if $(CONFIG_RSYSLOG_mmdblookup),--enable-mmdblookup) \
 	$(if $(CONFIG_RSYSLOG_imfile),--enable-imfile)
 
-define Package/ns-rsyslog/install
+define Package/rsyslog/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(CP) $(PKG_INSTALL_DIR)/usr/sbin/rsyslogd $(1)/usr/sbin/
 	$(INSTALL_DIR) $(1)/usr/lib/rsyslog
@@ -76,8 +76,8 @@ define Package/ns-rsyslog/install
 	$(INSTALL_CONF) ./files/20_rsyslog $(1)/etc/uci-defaults
 endef
 
-define Package/ns-rsyslog/config
+define Package/rsyslog/config
   source "$(SOURCE)/Config.in"
 endef
 
-$(eval $(call BuildPackage,ns-rsyslog))
+$(eval $(call BuildPackage,rsyslog))
