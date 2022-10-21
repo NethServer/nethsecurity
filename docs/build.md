@@ -118,6 +118,15 @@ Finally, copy the patch outside the container and run the build.
 
 Note: before submitting a patch using this method, please try to open a pull request to the upstream repository!
 
+## Override upstream packages
+
+It is possible to replace upstream packages with local ones.
+This is usefull when you want to use a more recent version then the one already
+released by OpenWrt.
+
+To replace an upstream package just create a new package with the same
+name inside the `packages` directory.
+
 ## Package signing
 
 All packages are signed with the following public key generated with [OpenBSD signify](nextsecurity-pub.key).
@@ -141,6 +150,7 @@ USIGN_PUB_KEY=$(cat nextsecurity-pub.key) USIGN_PRIV_KEY=$(cat nextsecurity-priv
 
 If the above environemnt variables are not set, the build system will generate a local temporary signing key.
 Builds executed inside CI will sign the packages with correct key.
+
 
 ## Builder image
 

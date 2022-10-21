@@ -22,6 +22,18 @@ echo "src-link nextsecurity /home/build/openwrt/nspackages" >> feeds.conf.defaul
 ./scripts/feeds update nextsecurity
 ./scripts/feeds install -a -p nextsecurity
 
+# Replace upstream packages
+for d in $(find /home/build/openwrt/nspackages/ -maxdepth 1 -type d)
+do
+    package=$(basename $d)
+    [ "$package" = "nspackages" ] && continue
+    if [ -e "package/feeds/packages/$package" ]; then
+        echo "Replacing upstream package: $package"
+	    rm -f "package/feeds/packages/$package"
+	    ln -s "../../../feeds/nextsecurity/$package" "/home/build/openwrt/package/feeds/packages/$package"
+    fi
+done
+
 # Fix permissions
 sudo chown -R build:build /config-tmp /home/build/openwrt/{files,nspackages,patches} >/dev/null
 
