@@ -22,7 +22,7 @@ jobs:
     runs-on: self-hosted
     env:
       IMAGETAG: ${{ github.ref_name }}
-      DO_SPACE_NAME: 'distfeed.nextsecurity'
+      DO_SPACE_NAME: 'distfeed-nextsecurity'
       DO_SPACE_REGION: 'fra1'
       CDN_NAME: 'distfeed.nextsecurity.nethserver.org'
     steps:
