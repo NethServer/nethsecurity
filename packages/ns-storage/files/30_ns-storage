@@ -17,5 +17,5 @@ config syslog 'syslog'
 
 config selector ns_memory
 	option source '*.*'
-	option destination ':omfile:$log_rotation'
+	option destination ':omfile:\$log_rotation'
 EOI
