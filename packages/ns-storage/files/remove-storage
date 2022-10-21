@@ -1,0 +1,15 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+uci delete fstab.ns_extra
+uci commit fstab
+
+uci delete rsyslog.ns_extra
+/etc/init.d/rsyslog restart
+
+umount -f /mnt/extra
+rmdir /mnt/extra

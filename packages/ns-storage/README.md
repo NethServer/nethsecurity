@@ -29,4 +29,7 @@ Then, the system will be reconfigure as follow:
 
 ## Remove the extra storage
 
-TODO
+To remove the extra storage and restore only in-memory log retention, execute:
+```
+remove-storage
+```
