@@ -1,0 +1,40 @@
+#!/bin/sh
+
+eerror()
+{
+    echo "ERROR: $1"
+    exit 1
+}
+
+device=$1
+mdir=/mnt/extra
+
+[ -z "$device" ] && eerror "Device '$device' not found"
+[ ! -e "/sys/class/block/$(basename "$device")" ] && eerror "Device '$device' is not a block device"
+mount | grep -q "$device" && eerror "Device '$device' is already mounted"
+
+# cleanup partitions
+dd if=/dev/zero of="$device" bs=512 count=1 conv=notrunc 2>/dev/null
+# create a single ext4 partition
+parted -s -a optimal "$device" mklabel gpt -- mkpart primary  1 -1
+mkfs.ext4 -O ^has_journal -F "$device"1
+
+# mount the device
+mkdir -p "$mdir"
+mount "$device"1 "$mdir"
+
+# find uuid and create automount config
+eval $(block info | grep "$device" | awk '{print $2}')
+uci set fstab.ns_extra=mount
+uci set fstab.ns_extra.target="$mdir"
+uci set fstab.ns_extra.uuid="$UUID"
+uci set fstab.ns_extra.enabled=1
+uci commit fstab
+
+# setup rsyslog to write log into the device
+mkdir -p "$mdir/log"
+uci set rsyslog.ns_extra=selector
+uci set rsyslog.ns_extra.source='*.*'
+uci set rsyslog.ns_extra.destination="$mdir/log/messages"
+uci commit rsyslog
+/etc/init.d/ns-rsyslog restart
