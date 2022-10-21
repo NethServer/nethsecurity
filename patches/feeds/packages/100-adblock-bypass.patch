@@ -1,30 +1,22 @@
 diff --git a/net/adblock/files/README.md b/net/adblock/files/README.md
-index ef1532fe3..5bd91e050 100644
+index 7e62306ad..b16ebe461 100644
 --- a/net/adblock/files/README.md
 +++ b/net/adblock/files/README.md
-@@ -155,6 +155,7 @@ Available commands:
+@@ -156,6 +156,7 @@ Available commands:
  | adb_debug          | 0, disabled                        | set to 1 to enable the debug output                                                            |
  | adb_nice           | 0, standard prio.                  | valid nice level range 0-19 of the adblock processes                                           |
  | adb_forcedns       | 0, disabled                        | set to 1 to force DNS requests to the local resolver                                           |
 +| adb_bypass         | -, not set                         | list of IP addresses excluded from `adb_forcedns` option                                       |
- | adb_maxqueue       | 4                                  | size of the download queue to handle downloads & list processing in parallel                   |
  | adb_dnsdir         | -, auto-detected                   | path for the generated blocklist file 'adb_list.overall'                                       |
  | adb_dnstimeout     | 10                                 | timeout in seconds to wait for a successful DNS backend restart                                |
+ | adb_dnsinstance    | 0, first instance                  | set to the relevant dns backend instance used by adblock (dnsmasq only)                        |
 diff --git a/net/adblock/files/adblock.sh b/net/adblock/files/adblock.sh
-index 0c6efc648..a84b38e9b 100755
+index 94b7b62b0..3039cebbc 100755
 --- a/net/adblock/files/adblock.sh
 +++ b/net/adblock/files/adblock.sh
-@@ -15,6 +15,7 @@ adb_ver="4.1.3"
- adb_enabled=0
- adb_debug=0
- adb_forcedns=0
-+adb_bypass=""
- adb_maxqueue=4
- adb_dnsflush=0
- adb_dnstimeout=20
-@@ -238,6 +239,9 @@ f_conf()
- 			elif [ "${option}" = "adb_portlist" ]
- 			then
+@@ -197,6 +197,9 @@ f_conf() {
+ 				eval "${option}=\"$(printf "%s" "${adb_zonelist}") ${value}\""
+ 			elif [ "${option}" = "adb_portlist" ]; then
  				eval "${option}=\"$(printf "%s" "${adb_portlist}") ${value}\""
 +			elif [ "${option}" = "adb_bypass" ]
 +			then
@@ -32,10 +24,10 @@ index 0c6efc648..a84b38e9b 100755
  			fi
  		}
  	}
-@@ -722,6 +726,16 @@ f_extconf()
- 	if [ "${adb_enabled}" = "1" ] && [ "${adb_forcedns}" = "1" ] && \
- 		[ "$(/etc/init.d/firewall enabled; printf "%u" ${?})" = "0" ]
- 	then
+@@ -555,6 +558,16 @@ f_extconf() {
+ 	fwcfg="$(uci -qNX show "${config}" | "${adb_awk}" 'BEGIN{FS="[.=]"};/adblock_/{if(zone==$2){next}else{ORS=" ";zone=$2;print zone}}')"
+ 	if [ "${adb_enabled}" = "1" ] && [ "${adb_forcedns}" = "1" ] &&
+ 		/etc/init.d/firewall enabled; then
 +		uci -q batch <<-EOC
 +			set firewall."adblock_bypass"="ipset"
 +			set firewall."adblock_bypass".name="adblock_bypass"
@@ -46,10 +38,10 @@ index 0c6efc648..a84b38e9b 100755
 +		do
 +			uci -q add_list firewall.adblock_bypass.entry="${src}"
 +		done
- 		for zone in ${adb_zonelist}
- 		do
- 			for port in ${adb_portlist}
-@@ -736,6 +750,7 @@ f_extconf()
+ 		for zone in ${adb_zonelist}; do
+ 			for port in ${adb_portlist}; do
+ 				if ! printf "%s" "${fwcfg}" | grep -q "adblock_${zone}${port}[ |\$]"; then
+@@ -566,6 +579,7 @@ f_extconf() {
  						set firewall."adblock_${zone}${port}".src_dport="${port}"
  						set firewall."adblock_${zone}${port}".dest_port="${port}"
  						set firewall."adblock_${zone}${port}".target="DNAT"
@@ -57,8 +49,8 @@ index 0c6efc648..a84b38e9b 100755
  					EOC
  				fi
  				fwcfg="${fwcfg/adblock_${zone}${port}[ |\$]/}"
-@@ -750,6 +765,7 @@ f_extconf()
- 		do
+@@ -578,6 +592,7 @@ f_extconf() {
+ 		for section in ${fwcfg}; do
  			uci_remove firewall "${section}"
  		done
 +		uci_remove firewall "adblock_bypass"
