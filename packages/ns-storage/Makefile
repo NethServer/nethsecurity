@@ -33,6 +33,24 @@ endef
 define Build/Compile
 endef
 
+define Package/ns-storage/postinst
+#!/bin/sh
+if [ -z "$${IPKG_INSTROOT}" ]; then
+  crontab -l | grep -q '/usr/sbin/logrotate' || echo '5 1 * * * /usr/sbin/logrotate' >> /etc/crontabs/root
+  /etc/init.d/cron restart
+fi
+exit 0
+endef
+
+define Package/ns-storage/prerm
+#!/bin/sh
+if [ -z "$${IPKG_INSTROOT}" ]; then
+	crontab -l | grep -v "/usr/sbin/logrotate" | sort | uniq | crontab -
+fi
+exit 0
+endef
+
+
 define Package/ns-storage/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
