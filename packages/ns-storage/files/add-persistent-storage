@@ -37,4 +37,4 @@ uci set rsyslog.ns_extra=selector
 uci set rsyslog.ns_extra.source='*.*'
 uci set rsyslog.ns_extra.destination="$mdir/log/messages"
 uci commit rsyslog
-/etc/init.d/ns-rsyslog restart
+/etc/init.d/rsyslog restart
