@@ -55,7 +55,7 @@ define Package/ns-storage/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_DIR) $(1)/etc/logrotate.d
-	$(INSTALL_BIN) ./files/add-persistent-storage $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/add-storage $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/remove-storage $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/rotate-messages $(1)/usr/sbin
 	$(INSTALL_CONF) ./files/30_ns-storage $(1)/etc/uci-defaults

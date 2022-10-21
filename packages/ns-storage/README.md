@@ -13,7 +13,7 @@ You can fine the attached device name inside `/var/log/messages`.
 
 To prepare the disk, execute:
 ```
-add-persistent-storage <device>
+add-storage <device>
 ```
 
 The script will prepare the device by:
