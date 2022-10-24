@@ -57,7 +57,11 @@ if [ "$(podman ps -a --format '{{.Names}}')" == "nextsec-builder" ]; then
 fi
 
 # Run podman with local mounted dirs
-podman run -ti --name nextsec-builder  --security-opt label=disable -v ./config:/config:z -v ./files:/files:z -v ./packages:/nspackages:z -v ./patches:/patches:z $opts $image "$@"
+podman run -ti --name nextsec-builder \
+    --security-opt label=disable \
+    --env=USIGN_PUB_KEY --env=USIGN_PRIV_KEY \
+    -v ./config:/config:z -v ./files:/files:z -v ./packages:/nspackages:z -v ./patches:/patches:z \
+    $opts $image "$@"
 # When executed inside CI, do not execute next setps on error
 ret=$?
 if [[ $ret -gt 0 && -n "${CI}" ]]; then

@@ -118,6 +118,30 @@ Finally, copy the patch outside the container and run the build.
 
 Note: before submitting a patch using this method, please try to open a pull request to the upstream repository!
 
+## Package signing
+
+All packages are signed with the following public key generated with [OpenBSD signify](nextsecurity-pub.key).
+
+Public key fingerprint: `7640d16662de3b89`
+
+Public key content:
+```
+untrusted comment: NextSecurity sign key
+RWR2QNFmYt47ieK7g/zEPwgk+MN8bHsA2vFnPThSpnLZ48L7sh6wxB/f
+```
+
+To sign the packages, just execute the `run` script with the following environemnt variables:
+- `USIGN_PUB_KEY`
+- `USIGN_PRIV_KEY`
+
+Usage example:
+```
+USIGN_PUB_KEY=$(cat nextsecurity-pub.key) USIGN_PRIV_KEY=$(cat nextsecurity-priv.key) ./run
+```
+
+If the above environemnt variables are not set, the build system will generate a local temporary signing key.
+Builds executed inside CI will sign the packages with correct key.
+
 ## Builder image
 
 The `nethserver/nextsecurity-builder` is a container image to build nextsecurity.

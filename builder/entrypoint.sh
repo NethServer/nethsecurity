@@ -45,7 +45,11 @@ done
 make defconfig
 
 # Generate local build key
-if [[ ! -f key-build.pub && -f ./staging_dir/host/bin/usign ]]; then
+
+if [[ -n "$USIGN_PUB_KEY" && -n "$USIGN_PRIV_KEY" ]]; then
+    echo "$USIGN_PUB_KEY" > ./key-build.pub
+    echo "$USIGN_PRIV_KEY" > ./key-build
+elif [[ ! -f key-build.pub && -f ./staging_dir/host/bin/usign ]]; then
     ./staging_dir/host/bin/usign -G -s ./key-build -p ./key-build.pub -c "Local build key"
 fi
 
