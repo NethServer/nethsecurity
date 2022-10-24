@@ -59,7 +59,7 @@ buildah run ${container} -- bash -c "echo 'build ALL=(ALL) NOPASSWD:ALL' > /etc/
 echo "Setup image"
 buildah add "${container}" entrypoint.sh /entrypoint.sh
 buildah add "${container}" make.sh /make.sh
-buildah add "${container}" install-nx.sh /usr/sbin/install.nx
+buildah add "${container}" install-nx.sh /usr/sbin/install-nx
 buildah add "${container}" ../config /config
 buildah add "${container}" ../packages /nspackages
 buildah add "${container}" ../patches /patches
