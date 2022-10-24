@@ -5,11 +5,11 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-uci delete fstab.ns_extra
+uci delete fstab.ns_data
 uci commit fstab
 
-uci delete rsyslog.ns_extra
+uci delete rsyslog.ns_data
 /etc/init.d/rsyslog restart
 
-umount -f /mnt/extra
-rmdir /mnt/extra
+umount -f /mnt/data
+rmdir /mnt/data

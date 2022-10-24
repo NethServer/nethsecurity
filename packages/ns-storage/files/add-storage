@@ -7,7 +7,7 @@ eerror()
 }
 
 device=$1
-mdir=/mnt/extra
+mdir=/mnt/data
 
 [ -z "$device" ] && eerror "Device '$device' not found"
 [ ! -e "/sys/class/block/$(basename "$device")" ] && eerror "Device '$device' is not a block device"
@@ -25,16 +25,16 @@ mount "$device"1 "$mdir"
 
 # find uuid and create automount config
 eval $(block info | grep "$device" | awk '{print $2}')
-uci set fstab.ns_extra=mount
-uci set fstab.ns_extra.target="$mdir"
-uci set fstab.ns_extra.uuid="$UUID"
-uci set fstab.ns_extra.enabled=1
+uci set fstab.ns_data=mount
+uci set fstab.ns_data.target="$mdir"
+uci set fstab.ns_data.uuid="$UUID"
+uci set fstab.ns_data.enabled=1
 uci commit fstab
 
 # setup rsyslog to write log into the device
 mkdir -p "$mdir/log"
-uci set rsyslog.ns_extra=selector
-uci set rsyslog.ns_extra.source='*.*'
-uci set rsyslog.ns_extra.destination="$mdir/log/messages"
+uci set rsyslog.ns_data=selector
+uci set rsyslog.ns_data.source='*.*'
+uci set rsyslog.ns_data.destination="$mdir/log/messages"
 uci commit rsyslog
 /etc/init.d/rsyslog restart

@@ -26,7 +26,7 @@ define Package/ns-storage
 endef
  
 define Package/ns-storage/description
-	Manage extra storage
+	Manage data storage
 endef
 
 # this is required, otherwise compile will fail
@@ -59,7 +59,7 @@ define Package/ns-storage/install
 	$(INSTALL_BIN) ./files/remove-storage $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/rotate-messages $(1)/usr/sbin
 	$(INSTALL_CONF) ./files/30_ns-storage $(1)/etc/uci-defaults
-	$(INSTALL_CONF) ./files/extra.conf $(1)/etc/logrotate.d
+	$(INSTALL_CONF) ./files/data.conf $(1)/etc/logrotate.d
 endef
  
 $(eval $(call BuildPackage,ns-storage))
