@@ -19,3 +19,5 @@ config selector ns_memory
 	option source '*.*'
 	option destination ':omfile:\$log_rotation'
 EOI
+
+crontab -l | grep -q '/usr/sbin/logrotate' || echo '5 1 * * * /usr/sbin/logrotate' >> /etc/crontabs/root
