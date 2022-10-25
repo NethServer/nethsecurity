@@ -1,4 +1,10 @@
 #!/bin/sh
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+set -e
 
 eerror()
 {
@@ -15,26 +21,34 @@ mount | grep -q "$device" && eerror "Device '$device' is already mounted"
 
 # cleanup partitions
 dd if=/dev/zero of="$device" bs=512 count=1 conv=notrunc 2>/dev/null
+echo -n "Initializing storage..."
 # create a single ext4 partition
-parted -s -a optimal "$device" mklabel gpt -- mkpart primary  1 -1
-mkfs.ext4 -O ^has_journal -F "$device"1
+parted -s -a optimal "$device" mklabel gpt -- mkpart primary  1 -1 >/dev/null
+mkfs.ext4 -q -O ^has_journal -F "$device"1 >/dev/null
+echo "ok"
 
 # mount the device
+echo -n "Mounting the device..."
 mkdir -p "$mdir"
 mount "$device"1 "$mdir"
+echo "ok"
 
 # find uuid and create automount config
+echo -n "Configuring device auto-mount..."
 eval $(block info | grep "$device" | awk '{print $2}')
 uci set fstab.ns_data=mount
 uci set fstab.ns_data.target="$mdir"
 uci set fstab.ns_data.uuid="$UUID"
 uci set fstab.ns_data.enabled=1
 uci commit fstab
+echo "ok"
 
 # setup rsyslog to write log into the device
+echo -n "Configuring rsyslog..."
 mkdir -p "$mdir/log"
 uci set rsyslog.ns_data=selector
 uci set rsyslog.ns_data.source='*.*'
 uci set rsyslog.ns_data.destination="$mdir/log/messages"
 uci commit rsyslog
 /etc/init.d/rsyslog restart
+echo "ok"

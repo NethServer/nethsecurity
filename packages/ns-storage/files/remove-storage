@@ -5,11 +5,19 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
+set -e
+
+echo -n "Removing auto-mount..."
 uci delete fstab.ns_data
 uci commit fstab
+echo "ok"
 
+echo -n "Configuring rsyslog..."
 uci delete rsyslog.ns_data
 /etc/init.d/rsyslog restart
+echo "ok"
 
+echo -n "Umounting data device..."
 umount -f /mnt/data
 rmdir /mnt/data
+echo "ok"
