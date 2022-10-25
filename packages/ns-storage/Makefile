@@ -21,7 +21,7 @@ define Package/ns-storage
 	CATEGORY:=NextSecurity
 	TITLE:=NextSecurity storage manager
 	URL:=https://github.com/NethServer/nextsecurity/
-	DEPENDS:=+parted +block-mount +logrotate
+	DEPENDS:=+parted +block-mount +logrotate +rsync
 	PKGARCH:=all
 endef
  
