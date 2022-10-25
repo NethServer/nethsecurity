@@ -55,11 +55,12 @@ define Package/ns-storage/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_DIR) $(1)/etc/logrotate.d
-	$(INSTALL_DIR) $(1)/usr/libexec/sync-data/
+	$(INSTALL_DIR) $(1)/usr/libexec/sync-data
 	$(INSTALL_BIN) ./files/add-storage $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/remove-storage $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/rotate-messages $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/sync-data $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/openvpn $(1)/usr/libexec/sync-data
 	$(INSTALL_CONF) ./files/30_ns-storage $(1)/etc/uci-defaults
 	$(INSTALL_CONF) ./files/data.conf $(1)/etc/logrotate.d
 endef
