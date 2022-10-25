@@ -52,3 +52,8 @@ uci set rsyslog.ns_data.destination="$mdir/log/messages"
 uci commit rsyslog
 /etc/init.d/rsyslog restart
 echo "ok"
+
+echo -n "Add sync-data cron job..."
+crontab -l | grep -q '/usr/sbin/sync-data' || echo '40 1 * * * /usr/sbin/sync-data' >> /etc/crontabs/root
+/etc/init.d/cron restart
+echo "ok"

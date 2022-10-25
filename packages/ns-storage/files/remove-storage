@@ -17,6 +17,11 @@ uci delete rsyslog.ns_data
 /etc/init.d/rsyslog restart
 echo "ok"
 
+echo -n "Removing sync-data cron job..."
+crontab -l | grep -v "/usr/sbin/sync-data" | sort | uniq | crontab -
+/etc/init.d/cron restart
+echo ok
+
 echo -n "Umounting data device..."
 umount -f /mnt/data
 rmdir /mnt/data
