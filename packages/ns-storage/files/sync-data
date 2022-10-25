@@ -1,0 +1,18 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Execute all sync scripts
+exit_code=0
+for f in $(find /usr/libexec/sync-data/ -type f)
+do
+    if [ -x "$f" ]; then
+        "$f" "$@"
+        exit_code=$(($exit_code + $?))
+    fi
+done
+
+exit $ext_code
