@@ -1,6 +1,6 @@
 # ns-storage
 
-As default, logs only are written inside a voltatile in-memory directory to prevent errors
+As default, logs are written inside a volatile in-memory directory to prevent errors
 on the root file system in case of failure.
 
 The `ns-storage` package configures the system to save a copy of the logs inside an extra data local storage,
