@@ -5,9 +5,13 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
+import sys
 import nsmigration
 
 (u, data, nmap) = nsmigration.init("threat_shield.json")
+
+if not data:
+    sys.exit(0)
 
 for o in data['ts-ip']:
     u.set('threat_shield', 'config', o, data['ts-ip'][o])

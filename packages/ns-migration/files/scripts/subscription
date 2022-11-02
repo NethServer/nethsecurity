@@ -5,9 +5,13 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
+import sys
 import nsmigration
 
 (u, data, nmap) = nsmigration.init("subscription.json")
+
+if not data:
+    sys.exit(0)
 
 if data['subscription']['system_id']:
     nsmigration.vprint(f"Setting subscription system_id")
