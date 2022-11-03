@@ -27,6 +27,5 @@ EOF
 /home/build/openwrt/staging_dir/host/bin/mcopy -i "store.part" ${IMG} ::nextsecurity.img.gz
 OFFSET=$(echo "$(fdisk -l extended.img| grep img3)" | cut -c 15-22)
 dd if="store.part" of="extended.img" bs=512 seek="$OFFSET" conv=notrunc
-gzip "extended.img"
-cp extended.img.gz ${IMG}
+gzip "extended.img" -c >  ${IMG}
 rm "store.part"
