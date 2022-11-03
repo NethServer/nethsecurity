@@ -1,11 +1,12 @@
 #!/bin/bash
 if [ $# -eq 0 ]; then
-    echo -e "No arguments supplied, target device for installation needed\n$0 -t /dev/sdX"    
+    echo -e "No arguments supplied, target device for installation needed\n$0 -t /dev/sdX [-s source]"    
     exit 1
 fi
 while getopts "ft::" opt; do
             case $opt in
             (f) F=1 ;;
+            (s) S=${OPTARG} ;;
             (t) T=${OPTARG} ;;
             (*) printf "Illegal option '-%s'\n" "$opt" && exit 1 ;;
             esac
@@ -21,14 +22,15 @@ if [ -b $T ]; then
         if [ $N -eq 1 ] && [ $M -eq 0 ]; then
            mkdir mymount
            mount -t vfat $S mymount
-           IMG=$(find mymount -name nextsecurity\*-x86-64-generic-ext4-combined-efi.img.gz| tail -n 1);
+           IMG=$(find mymount -name nextsecurity.img.gz| tail -n 1);
+           if [ -z ${S+x} ]; then IMG=$S fi
            if [ ! -f $IMG ]; then
               echo "Firmware not found"
               umount mymount
               rmdir mymount
               exit 1
            else
-              echo "zcat $IMG| dd of=$T conv=notrunk"
+              zcat $IMG| dd of=$T conv=notrunc
            fi
            umount mymount
            rmdir mymount
