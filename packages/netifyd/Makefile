@@ -58,7 +58,6 @@ TARGET_LDFLAGS+=-Wl,--gc-sections
 
 CONFIGURE_ARGS+= \
 	--sharedstatedir=/var/run \
-	--enable-lean-and-mean \
 	--disable-libtcmalloc \
 	--disable-jemalloc \
 	--without-systemdsystemunitdir \
