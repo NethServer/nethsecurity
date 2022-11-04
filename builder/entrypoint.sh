@@ -53,6 +53,24 @@ do
     patch -d $dname -F 2 -p 1 < $p
 done
 
+if [[ -n "$NETIFYD_ACCESS_TOKEN" ]]; then
+    pushd /home/build/openwrt
+    git clone https://oauth2:$NETIFYD_ACCESS_TOKEN@gitlab.com/netify.ai/private/nethesis/netify-flow-actions.git
+    git clone https://oauth2:$NETIFYD_ACCESS_TOKEN@gitlab.com/netify.ai/private/nethesis/netify-agent-stats-plugin.git
+
+    cat <<EOF >>$OUTPUT
+CONFIG_PACKAGE_netify-flow-actions=y
+CONFIG_NETIFY_FLOW_ACTIONS_TARGET_LOG=y
+CONFIG_NETIFY_FLOW_ACTIONS_TARGET_CTLABEL=y
+CONFIG_NETIFY_FLOW_ACTIONS_TARGET_NFTSET=y
+EOF
+
+    cat <<EOF >>$OUTPUT
+CONFIG_PACKAGE_netify-plugin-stats=y
+EOF
+    popd
+fi
+
 # Apply the configuration
 make defconfig
 
