@@ -121,7 +121,7 @@ Note: before submitting a patch using this method, please try to open a pull req
 ## Override upstream packages
 
 It is possible to replace upstream packages with local ones.
-This is usefull when you want to use a more recent version then the one already
+This is useful when you want to use a more recent version then the one already
 released by OpenWrt.
 
 To replace an upstream package just create a new package with the same
@@ -139,7 +139,7 @@ untrusted comment: NextSecurity sign key
 RWR2QNFmYt47ieK7g/zEPwgk+MN8bHsA2vFnPThSpnLZ48L7sh6wxB/f
 ```
 
-To sign the packages, just execute the `run` script with the following environemnt variables:
+To sign the packages, just execute the `run` script with the following environment variables:
 - `USIGN_PUB_KEY`
 - `USIGN_PRIV_KEY`
 
@@ -148,7 +148,7 @@ Usage example:
 USIGN_PUB_KEY=$(cat nextsecurity-pub.key) USIGN_PRIV_KEY=$(cat nextsecurity-priv.key) ./run
 ```
 
-If the above environemnt variables are not set, the build system will generate a local temporary signing key.
+If the above environment variables are not set, the build system will generate a local temporary signing key.
 Builds executed inside CI will sign the packages with correct key.
 
 
@@ -173,4 +173,92 @@ Publish the image:
 ```
 buildah login ghcr.io
 buildah push ghcr.io/nethserver/nextsecurity-builder docker://ghcr.io/nethserver/nextsecurity-builder
+```
+
+## Netifyd plugins
+
+NextSecurity uses two [netifyd](https://gitlab.com/netify.ai/public/netify-agent) proprietaries plugins from [Netify](https://www.netify.ai/):
+
+- Netify Flow Actions Plugin (netify-flow-actions)
+- Netify Agent Stats Plugin (netify-plugin-stats)
+
+The plugins should be used with the latest netifyd stable version (4.2.2 at time of writing).
+To create the files for the build, follow the below steps. Such steps should be needed only after a netifyd/plugin version change.
+
+Both plugins source code is hosted on a private repository at [GitLab](https://gitlab.com).
+To access it, you must set `_PERSONAL_ACCESS_TOKEN_` from GitLab.
+During build time, if `_PERSONAL_ACCESS_TOKEN_` is not set, the final image
+will not contain any of these plugins.
+
+Prepare the environment:
+```
+sudo apt install -y  libcurl4-openssl-dev libmnl-dev libnetfilter-conntrack-dev libpcap-dev zlib1g-dev pkg-config bison flex uuid-runtime libnftables-dev
+git clone --recursive https://gitlab.com/netify.ai/public/netify-agent.git
+```
+
+Setup netifyd version:
+```
+export NETIFY_ROOT=$(pwd)/netify-root
+cd netify-agent
+git checkout v4.2.2 -b latest
+./autogen.sh && ./configure --prefix=/usr --libdir=/usr/lib
+make DESTDIR=${NETIFY_ROOT} -j $(nproc) install
+cd ..
+```
+
+Setup netify-flow-actions plugin:
+```
+git clone https://oauth2:_PERSONAL_ACCESS_TOKEN_@gitlab.com/netify.ai/private/nethesis/netify-flow-actions.git
+cd netify-flow-actions
+export PKG_CONFIG_PATH=${NETIFY_ROOT}/usr/lib/x86_64-linux-gnu/pkgconfig:${NETIFY_ROOT}/usr/lib/pkgconfig:/usr/lib/pkgconfig
+ export CPPFLAGS=$(pkg-config --define-variable=includedir=${NETIFYD_PREFIX}/usr/include --define-variable=libdir=${NETIFYD_PREFIX}/usr/lib libnetifyd --cflags)
+export LDFLAGS=$(pkg-config --define-variable=includedir=${NETIFYD_PREFIX}/usr/include --define-variable=libdir=${NETIFYD_PREFIX}/usr/lib libnetifyd --libs-only-L)
+./autogen.sh && ./configure --prefix=/usr --libdir=/usr/lib
+unset PKG_CONFIG_PATH
+unset CPPFLAGS
+unset LDFLAGS
+cd ..
+```
+
+Setup netify-plugin-stats plugin:
+```
+git clone https://oauth2:_PERSONAL_ACCESS_TOKEN_@gitlab.com/netify.ai/private/nethesis/netify-agent-stats-plugin.git
+cd netify-agent-stats-plugin
+export PKG_CONFIG_PATH=${NETIFY_ROOT}/usr/lib/x86_64-linux-gnu/pkgconfig:${NETIFY_ROOT}/usr/lib/pkgconfig:/usr/lib/pkgconfig
+ export CPPFLAGS=$(pkg-config --define-variable=includedir=${NETIFYD_PREFIX}/usr/include --define-variable=libdir=${NETIFYD_PREFIX}/usr/lib libnetifyd --cflags)
+export LDFLAGS=$(pkg-config --define-variable=includedir=${NETIFYD_PREFIX}/usr/include --define-variable=libdir=${NETIFYD_PREFIX}/usr/lib libnetifyd --libs-only-L)
+./autogen.sh && ./configure --prefix=/usr --libdir=/usr/lib
+unset PKG_CONFIG_PATH
+unset CPPFLAGS
+unset LDFLAGS
+cd ..
+```
+
+Copy files to the package directories:
+```
+mkdir -vp packages/net/netifyd/files
+cp netify-agent/deploy/openwrt/Makefile packages/net/netifyd/
+shopt -s extglob
+cp netify-agent/deploy/openwrt/files/!(*.in) packages/net/netifyd/files/
+
+mkdir -p nspackages/netify-flow-actions/
+cp netify-flow-actions/deploy/openwrt/Makefile nspackages/netify-flow-actions/
+cp netify-flow-actions/deploy/openwrt/Config.in nspackages/netify-flow-actions/
+
+mkdir -p nspackages/netify-plugin-stats/files
+cp netify-agent-stats-plugin/deploy/openwrt/Makefile nspackages/netify-plugin-stats/
+cp netify-agent-stats-plugin/deploy/netify-plugin-stats.json nspackages/netify-plugin-stats/files/
+```
+
+Setup Makefile to use a local copy of private repositories:
+```
+sed -i 's/PKG_SOURCE_URL.*$/PKG_SOURCE_URL:=file:\/\/\/home\/build\/openwrt\/netify-flow-actions/' nspackages/netify-flow-actions/Makefile
+sed -i 's/PKG_SOURCE_URL.*$/PKG_SOURCE_URL:=file:\/\/\/home\/build\/openwrt\/netify-agent-stats-plugin/' nspackages/netify-plugin-stats/Makefile
+```
+
+To manually build the stack, use:
+```
+make -j $(nproc) package/feeds/packages/netifyd/{download,compile} V=sc
+make -j $(nproc) package/feeds/nextsecurity/netify-plugin-stats/{download,compile} V=sc
+make -j $(nproc) package/feeds/nextsecurity/netify-flow-actions/{download,compile} V=sc
 ```
