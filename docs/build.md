@@ -177,13 +177,13 @@ buildah push ghcr.io/nethserver/nextsecurity-builder docker://ghcr.io/nethserver
 
 ## Netifyd plugins
 
-NextSecurity uses two [netifyd](https://gitlab.com/netify.ai/public/netify-agent) proprietaries plugins from [Netify](https://www.netify.ai/):
+NextSecurity uses two [netifyd](https://gitlab.com/netify.ai/public/netify-agent) proprietary plugins from [Netify](https://www.netify.ai/):
 
 - Netify Flow Actions Plugin (netify-flow-actions)
 - Netify Agent Stats Plugin (netify-plugin-stats)
 
-The plugins should be used with the latest netifyd stable version (4.2.2 at time of writing).
-To create the files for the build, follow the below steps. Such steps should be needed only after a netifyd/plugin version change.
+The plugins should be used with the latest netifyd stable version (4.2.2 at the time of writing).
+To create the files for the build, follow the steps below. Such steps should be needed only after a netifyd/plugin version change.
 
 Both plugins source code is hosted on a private repository at [GitLab](https://gitlab.com).
 To access it, you must set `_PERSONAL_ACCESS_TOKEN_` from GitLab.
