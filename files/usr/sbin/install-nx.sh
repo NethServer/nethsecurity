@@ -20,34 +20,39 @@ if [ -b $T ]; then
         M=$(mount | grep $T| wc -l)
         P=$(df -t vfat /boot | tail -n 1| cut -d " " -f 1| tr "1" "3")
         if [ $N -eq 1 ] && [ $M -eq 0 ]; then
-           mkdir firmware
-           mount -t vfat $P firmware
-           I=$(find firmware -name nextsecurity\*img.gz| wc -l);
+           mkdir /tmp/firmware
+           mount -t vfat $P /tmp/firmware
+           I=$(find /tmp/firmware -name nextsecurity\*img.gz| wc -l);
            if [ "$I" -eq 1 ]; then
-              IMG=$(find firmware -name nextsecurity\*img.gz| tail -n 1);
-           else if [ -z ${S+x} ]; then 
-              IMG=$S 
+              IMG="$(find /tmp/firmware -name nextsecurity\*img.gz| tail -n 1)"
+           elif [ ! -z ${S+x} ]; then 
+              IMG="$S" 
            else
               let A=1; B=("");
               echo "Choose one of the detected images to install to device:"
-              for I in $(ls -1f firmware/nextsecurity*img.gz); do 
-                 echo "$A. $I"; ((A+=1));B+=($I); 
+              for I in $(ls -1f /tmp/firmware/nextsecurity*img.gz); do 
+                 echo "$A. ${I:14}"; ((A+=1));B+=($I); 
               done;
-              read -r $IMG
+              echo -n "Your choice: "
+              read -r IMG
               IMG=${B[$IMG]}
            fi
            if [ ! -f $IMG ]; then
               echo "Firmware not found"
-              umount firmware
-              rmdir firmware
+              umount /tmp/firmware
+              rmdir /tmp/firmware
               exit 1
            else
               zcat $IMG| dd of=$T conv=notrunc
            fi
-           umount mymount
-           rmdir mymount
+           umount /tmp/firmware
+           rmdir /tmp/firmware
         else
-           echo -e "Multiple partitions find on target device, check it or use -f to force overwrite"
+           if [ $M -eq 0 ]; then
+              echo -e "Multiple partitions find on target device, check it or use -f to force overwrite"
+           else
+              echo -e "Target partition in use, umount it first"
+           fi
         fi
 else
         echo -e "Target device not found"
