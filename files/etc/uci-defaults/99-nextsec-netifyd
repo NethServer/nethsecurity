@@ -1,7 +1,7 @@
-if [ -f /usr/lib/libnetify-flow-actions.so.0.0.0 ] && ! grep -q np-nfa /etc/netifyd.conf; then
+if [ -f /usr/lib/libnetify-flow-actions.so.0 ] && ! grep -q np-nfa /etc/netifyd.conf; then
     (
         echo
         echo "[plugin_detections]"
-        echo "np-nfa = /usr/lib/libnetify-flow-actions.so.0.0.0"
+        echo "np-nfa = /usr/lib/libnetify-flow-actions.so.0"
     ) >> /etc/netifyd.conf
 fi
