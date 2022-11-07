@@ -1,0 +1,28 @@
+menu "Configuration"
+	depends on PACKAGE_netify-flow-actions
+
+config NETIFY_FLOW_ACTIONS_TARGET_LOG
+	bool "Log Target Support"
+	default y
+	help
+		This enables the log target.
+
+config NETIFY_FLOW_ACTIONS_TARGET_CTLABEL
+	bool "Conntrack Labels (ctlabel) Target Support"
+	default n
+	help
+		This enables the ctlabel target.
+
+config NETIFY_FLOW_ACTIONS_TARGET_IPSET
+	bool "IP Sets Target Support"
+	default n
+	help
+		This enables the IP Sets target.
+
+config NETIFY_FLOW_ACTIONS_TARGET_NFTSET
+	bool "nftables Sets Target Support"
+	default n
+	help
+		This enables the nftables Sets target.
+
+endmenu

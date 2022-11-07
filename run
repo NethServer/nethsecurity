@@ -60,6 +60,7 @@ fi
 podman run -ti --name nextsec-builder \
     --security-opt label=disable \
     --env=USIGN_PUB_KEY --env=USIGN_PRIV_KEY \
+    --env=NETIFYD_ACCESS_TOKEN \
     -v ./config:/config:z -v ./files:/files:z -v ./packages:/nspackages:z -v ./patches:/patches:z \
     $opts $image "$@"
 # When executed inside CI, do not execute next setps on error
