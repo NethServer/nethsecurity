@@ -22,15 +22,16 @@ if [ -b $T ]; then
         if [ $N -eq 1 ] && [ $M -eq 0 ]; then
            mkdir /tmp/firmware
            mount -t vfat $P /tmp/firmware
-           I=$(find /tmp/firmware -name nextsecurity\*img.gz| wc -l);
-           if [ "$I" -eq 1 ]; then
-              IMG="$(find /tmp/firmware -name nextsecurity\*img.gz| tail -n 1)"
+           FW=( $(find /tmp/firmware -name nextsecurity\*img.gz| tr " " "$")) ;
+           if [ "${#FW[@]}" -eq 1 ]; then
+              IMG=${FW//$/ };
            elif [ ! -z ${S+x} ]; then 
               IMG="$S" 
            else
               let A=1; B=("");
               echo "Choose one of the detected images to install to device:"
-              for I in $(ls -1f /tmp/firmware/nextsecurity*img.gz); do 
+              for I in ${FW[@]}; do
+                 I=${I//$/ };
                  echo "$A. ${I:14}"; ((A+=1));B+=($I); 
               done;
               echo -n "Your choice: "
