@@ -4,14 +4,14 @@
 # Copyright (C) 2022 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
-set -e
+
 # Start parallel build
 make -j $(nproc) V=sc world
 
 for IMG in $(find /home/build/openwrt/bin -name nextsecurity\*generic-ext4-combined-efi.img.gz); do
-gunzip -c ${IMG} > extended.img
-dd if=/dev/zero bs=1M count=257 >> extended.img
-sed -e 's/\s*\([\+0-9a-zA-Z]*\).*/\1/' << EOF | fdisk extended.img
+   gunzip -c ${IMG} > extended.img
+   dd if=/dev/zero bs=1M count=257 >> extended.img
+   sed -e 's/\s*\([\+0-9a-zA-Z]*\).*/\1/' << EOF | fdisk extended.img
   n # new partition
   p # primary
   3 # partition number 3
@@ -23,10 +23,10 @@ sed -e 's/\s*\([\+0-9a-zA-Z]*\).*/\1/' << EOF | fdisk extended.img
   w # write the partition table
   q # and we're done
 EOF
-/home/build/openwrt/staging_dir/host/bin/mkfs.fat --invariant -n store -C "store.part" -S 512 262144
-/home/build/openwrt/staging_dir/host/bin/mcopy -i "store.part" ${IMG} ::nextsecurity.img.gz
-OFFSET=$(echo "$(fdisk -l extended.img| grep img3)" | cut -c 15-22)
-dd if="store.part" of="extended.img" bs=512 seek="$OFFSET" conv=notrunc
-gzip "extended.img" -c >  ${IMG}
-rm "store.part"
+   /home/build/openwrt/staging_dir/host/bin/mkfs.fat --invariant -n store -C "store.part" -S 512 262144
+   /home/build/openwrt/staging_dir/host/bin/mcopy -i "store.part" ${IMG} ::nextsecurity.img.gz
+   OFFSET=$(echo "$(fdisk -l extended.img| grep img3)" | cut -c 15-22)
+   dd if="store.part" of="extended.img" bs=512 seek="$OFFSET" conv=notrunc
+   gzip "extended.img" -c >  ${IMG}
+   rm "store.part"
 done
