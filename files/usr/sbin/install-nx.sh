@@ -62,4 +62,5 @@ if [ -b $T ]; then
         fi
 else
         echo -e "Target device not found"
+        exit 1
 fi
