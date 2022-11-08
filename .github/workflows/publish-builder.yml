@@ -11,18 +11,20 @@ permissions:
 
 jobs:
   publish_images:
-    name: 'Publish module images'
+    name: 'Build podman builder image'
     runs-on: ubuntu-latest
     env:
       IMAGETAG: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v2
       - id: build
+        name: Build podman image
         run: |
           # Build the module images
           cd builder/
           bash build-builder
       - id: publish
+        name: Publish podman image to GH registry
         run: |
           # Publish the branch
           trap 'buildah logout ghcr.io' EXIT
