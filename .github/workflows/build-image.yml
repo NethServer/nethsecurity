@@ -29,8 +29,8 @@ jobs:
       USIGN_PRIV_KEY: ${{ secrets.USIGN_PRIV_KEY }}
     steps:
       - uses: actions/checkout@v2
-      - name: Build the image
       - id: build
+        name: Build the image
         run: |
           # Build the image
           ./run
