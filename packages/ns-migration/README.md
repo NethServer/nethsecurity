@@ -268,6 +268,19 @@ MAC address. In this case, the unit must be manually registered to the remote Ic
    dedalo restart
    ```
 
+## Let's Encrypt certificate
+
+The `acme` script will import:
+
+- Let's Encrypt account mail
+- certificate domains list
+
+Let's Encrypt certificates will not be migrated, but regenerated at the end of import process.
+
+The following NS7 options will not be migrated:
+
+- `LetsEncryptChallenge`, it's fixed to `http`
+
 ## Cloud DNS filter (Flashstart)
 
 The `flashstart` script will import:

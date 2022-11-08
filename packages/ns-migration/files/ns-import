@@ -82,3 +82,4 @@ try_restart mwan3
 try_restart swanctl
 try_restart dedalo
 try_restart qosify
+service acme start

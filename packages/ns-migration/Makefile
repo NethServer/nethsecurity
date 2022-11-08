@@ -55,6 +55,7 @@ define Package/ns-migration/install
 	$(INSTALL_BIN) ./files/scripts/redirects $(1)/usr/share/ns-migration/50redirects
 	$(INSTALL_BIN) ./files/scripts/threat_shield $(1)/usr/share/ns-migration/70threat_shield
 	$(INSTALL_BIN) ./files/scripts/flashstart $(1)/usr/share/ns-migration/70flashstart
+	$(INSTALL_BIN) ./files/scripts/acme $(1)/usr/share/ns-migration/80acme
 	$(INSTALL_DATA) ./files/scripts/nsmigration.py $(1)/usr/share/ns-migration/
 endef
  
