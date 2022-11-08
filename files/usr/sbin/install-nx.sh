@@ -44,7 +44,7 @@ if [ -b $T ]; then
               rmdir /tmp/firmware
               exit 1
            else
-              zcat $IMG| dd of=$T conv=notrunc
+              zcat $IMG| dd of=$T  bs=64K iflag=fullblock conv=notrunc
            fi
            umount /tmp/firmware
            rmdir /tmp/firmware
