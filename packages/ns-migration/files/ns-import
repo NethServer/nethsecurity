@@ -83,3 +83,5 @@ try_restart swanctl
 try_restart dedalo
 try_restart qosify
 service acme start
+nginx-proxy
+try_restart nginx

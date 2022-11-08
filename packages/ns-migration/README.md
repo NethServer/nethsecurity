@@ -281,6 +281,21 @@ The following NS7 options will not be migrated:
 
 - `LetsEncryptChallenge`, it's fixed to `http`
 
+## Reverse proxy (proxy pass)
+
+The `reverse_proxy` script will import:
+
+- all path based rules
+- all host based rules
+
+The following NS7 options will not be migrated:
+
+- `HTTP` and `HTTPS`
+
+Differences since NS7:
+
+- redirection from HTTP to HTTPS is always enabled
+
 ## Cloud DNS filter (Flashstart)
 
 The `flashstart` script will import:
