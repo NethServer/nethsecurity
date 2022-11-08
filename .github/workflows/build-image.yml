@@ -37,14 +37,6 @@ jobs:
           grep '^OWRT_VERSION' builder/build-builder | tr -d '"' >> $GITHUB_ENV
       - uses: actions/upload-artifact@v3
         with:
-          name: core_packages
-          path: bin/targets/**/packages/**
-      - uses: actions/upload-artifact@v3
-        with:
-          name: packages
-          path: bin/packages/**/**
-      - uses: actions/upload-artifact@v3
-        with:
           name: ext4-x86_64-image
           path: bin/targets/x86/64/nextsecurity-*-x86-64-generic-ext4-combined-efi.img.gz
       - uses: BetaHuhn/do-spaces-action@v2
