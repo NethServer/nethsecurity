@@ -8,7 +8,7 @@
 # Start parallel build
 make -j $(nproc) V=sc world
 
-IMG=$(find /home/build/openwrt/bin -name nextsecurity\*-x86-64-generic-ext4-combined-efi.img.gz);
+IMG=$(find /home/build/openwrt/bin -name nextsecurity\*generic-ext4-combined-efi.img.gz);
 gunzip -c ${IMG} > extended.img
 dd if=/dev/zero bs=1M count=257 >> extended.img
 sed -e 's/\s*\([\+0-9a-zA-Z]*\).*/\1/' << EOF | fdisk extended.img
