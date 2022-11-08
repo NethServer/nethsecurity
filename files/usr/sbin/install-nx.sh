@@ -1,4 +1,8 @@
 #!/bin/bash
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
 if [ $# -eq 0 ]; then
     echo -e "No arguments supplied, target device for installation needed\n$0 -t /dev/sdX [-s source]"    
     exit 1
