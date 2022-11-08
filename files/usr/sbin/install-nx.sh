@@ -58,6 +58,7 @@ if [ -b $T ]; then
            else
               echo -e "Target partition in use, umount it first"
            fi
+           exit 1
         fi
 else
         echo -e "Target device not found"
