@@ -1,0 +1,37 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Used env variables:
+# - username
+# - password
+# - config
+
+. /lib/functions.sh
+config_load 'openvpn'
+
+cur_instance=$(echo $config | sed -e 's/openvpn\-//' -e 's/\.conf//')
+
+config_get enabled "$username" enabled 0
+config_get hash "$username" password ''
+config_get instance "$username" instance ''
+
+if [ "$cur_instance" != "$instance" ]; then
+    exit 2
+fi
+
+if [ "$enabled" = "0" ]; then
+    exit 3
+fi
+
+salt=$(echo $hash | cut -d'$' -f3)
+given=$(echo -e "$password"| mkpasswd -m sha512 -S "$salt")
+
+if [ "$given" = "$hash" ]; then
+    exit 0
+else
+    exit 1
+fi

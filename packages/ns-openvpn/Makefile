@@ -46,6 +46,7 @@ define Package/ns-openvpn/install
 	$(INSTALL_BIN) ./files/openvpn-connect $(1)/usr/libexec/ns-openvpn/
 	$(INSTALL_BIN) ./files/openvpn-disconnect $(1)/usr/libexec/ns-openvpn/
 	$(INSTALL_BIN) ./files/init-connections-db $(1)/usr/libexec/ns-openvpn/
+	$(INSTALL_BIN) ./files/openvpn-local-auth $(1)/usr/libexec/ns-openvpn/
 	$(INSTALL_BIN) ./files/01-check-status $(1)/usr/libexec/ns-openvpn/connect-scripts
 	$(INSTALL_BIN) ./files/10-static-lease $(1)/usr/libexec/ns-openvpn/connect-scripts
 	$(INSTALL_BIN) ./files/10-tunnel-iroute $(1)/usr/libexec/ns-openvpn/connect-scripts
