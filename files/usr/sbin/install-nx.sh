@@ -7,6 +7,7 @@ if [ $# -eq 0 ]; then
     echo -e "No arguments supplied, target device for installation needed\n$0 -t /dev/sdX [-s source]"    
     exit 1
 fi
+F=0
 while getopts "ft::s::" opt; do
             case $opt in
             (f) F=1 ;; #Force write
