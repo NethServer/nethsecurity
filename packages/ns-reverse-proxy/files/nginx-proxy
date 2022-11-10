@@ -1,0 +1,53 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import os
+import sys
+from glob import glob
+from euci import EUci
+
+u = EUci()
+
+def write_locations(locations, fpath):
+    with open(fpath, 'w') as fp:
+        for location in locations:
+            path = location.pop('location')
+            desc = location.pop('description', '')
+            if desc:
+                fp.write('# %s\n' % desc)
+            fp.write('location %s {\n' % path)
+            for o in location:
+                # check if option is an array
+                if hasattr(location[o], '__len__') and (not isinstance(location[o], str)):
+                    for i in location[o]:
+                        fp.write('  %s %s;\n' % (o, i))
+                else:
+                    fp.write('  %s %s;\n' % (o, location[o]))
+                if o == 'allow':
+                    fp.write('  deny all;\n')
+
+            fp.write('}\n')
+
+# cleanup existing configuration
+for pfile in glob('/etc/nginx/conf.d/*.proxy'):
+    os.unlink(pfile)
+
+servers = dict()
+
+# generate ns_locations files
+for section in u.get_all('nginx'):
+    if u.get('nginx', section) != 'location':
+        continue
+
+    location = u.get_all('nginx', section)
+    server = location.pop('uci_server')
+    if server not in servers:
+        servers[server] = list()
+    servers[server].append(location)
+
+for server in servers:
+    write_locations(servers[server], f'/etc/nginx/conf.d/{server}.proxy')

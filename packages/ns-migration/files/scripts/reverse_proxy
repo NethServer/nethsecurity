@@ -1,0 +1,69 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import sys
+import nsmigration
+from nextsec import utils
+
+(u, data, nmap) = nsmigration.init("reverse_proxy.json")
+
+if 'server' not in data and 'locations' not in data:
+    sys.exit(0)
+
+# handle reverse proxy paths for main virtual host
+lcount = len(data['locations'])
+if lcount > 0:
+    # enable reverse proxy for default _lan server
+    includes = list(u.get('nginx', '_lan', 'include', list=True, default=list()))
+    if 'conf.d/_lan.proxy' not in includes:
+        includes.append('conf.d/_lan.proxy')
+    u.set('nginx', '_lan', 'include', includes)
+for location in data['locations']:
+    loc = utils.get_id(f'location{lcount}')
+    nsmigration.vprint(f'Setting reverse proxy location {loc}') 
+    u.set('nginx', loc, 'location')
+    u.set('nginx', loc, 'uci_server', '_lan')
+    for o in location:
+        u.set('nginx', loc, o, location[o])
+    lcount = lcount-1
+
+# handle host-bases reverse proxy
+scount = len(data['servers'])
+for server in data['servers']:
+    s = utils.get_id(f'server{scount}')
+    u.set('nginx', s, 'server')
+    locations = server.pop('locations')
+    crt = server.pop('ssl_certificate')
+    with open(f'/etc/nginx/conf.d/{s}.crt', 'w') as fp:
+        fp.write(crt)
+    u.set('nginx', s, 'ssl_certificate', f'/etc/nginx/conf.d/{s}.crt')
+    key = server.pop('ssl_certificate_key')
+    with open(f'/etc/nginx/conf.d/{s}.key', 'w') as fp:
+        fp.write(key)
+    u.set('nginx', s, 'ssl_certificate_key', f'/etc/nginx/conf.d/{s}.key')
+    nsmigration.vprint(f'Setting reverse proxy host {s}')
+    u.set('nginx', s, 'uci_description', server.pop('description'))
+    for o in server:
+        u.set('nginx', s, o, server[o])
+
+    lcount = len(locations)
+    if lcount > 0:
+        # enable reverse proxy for the server
+        u.set('nginx', s, 'include', [f'conf.d/{s}.proxy'])
+    for location in locations:
+        loc = utils.get_id(f'server{scount}_location{lcount}')
+        u.set('nginx', loc, 'location')
+        u.set('nginx', loc, 'uci_server', s)
+        for o in location:
+            u.set('nginx', loc, o, location[o])
+
+        lcount = lcount-1
+
+    scount = scount-1
+
+# Save configuration
+u.commit('nginx')
