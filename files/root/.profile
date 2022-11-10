@@ -5,7 +5,7 @@
 #
 
 function loadkmap_it() {
-    loadlmap < /usr/share/keymaps/it.map.bin
+    loadkmap < /usr/share/keymaps/it.map.bin
     echo "Done"
 }
 
