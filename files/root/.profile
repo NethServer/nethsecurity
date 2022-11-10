@@ -37,14 +37,12 @@ function all_checks() {
 }
 
 function install_NextSecurity() {
-    disk=$(find /dev/sd[a-z] | grep -v $(df -t vfat /boot | tail -n 1| cut -d " " -f 1| tr -d "1") | head -n 1)
-    msg=(install-nx.sh -t $disk)
+    msg=$(install-nx.sh -t $1)
     echo -e "Install: \n$msg"
 }
 
 function force_install_NextSecurity() {
-    disk=$(find /dev/sd[a-z] | grep -v $(df -t vfat /boot | tail -n 1| cut -d " " -f 1| tr -d "1") | head -n 1)
-    msg=$(install-nx.sh -f -t $disk)
+    msg=$(install-nx.sh -f -t $1)
     echo -e "Install: \n$msg"
 }
 
@@ -97,8 +95,8 @@ $(ColorWhite 'Choose an option:') "
 	        4) kernel_check ; menu ;;
 	        5) all_checks ; menu ;;
 	        6) loadkmap_it ; menu ;;
-	        7) install_NextSecurity; menu;;
-	        8) force_install_NextSecurity; menu;;
+	        7) install_NextSecurity $disk; menu;;
+	        8) force_install_NextSecurity $disk; menu;;
 	        9) reboot; menu;;
 		0) exit 0 ;;
 		s) kill -INT $$ ;;
