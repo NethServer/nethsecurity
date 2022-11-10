@@ -55,7 +55,7 @@ if [ -b $T ]; then
            rmdir /tmp/firmware
         else
            if [ $M -eq 0 ]; then
-              echo -e "Multiple partitions find on target device, check it or use -f to force overwrite"
+              echo -e "Multiple partitions found on target device, check it or use -f to force overwrite"
            else
               echo -e "Target partition in use, umount it first"
            fi
