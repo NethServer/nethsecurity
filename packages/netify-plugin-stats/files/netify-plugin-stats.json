@@ -1,7 +1,8 @@
 {
     "privacy_mode": false,
     "log_path": "/tmp",
-    "log_prefix": "netify-plugin-stats-",
+    "log_prefix": "netify-plugin-stats",
     "log_suffix": ".json",
-    "log_interval": 60
+    "log_interval": 60,
+    "overwrite": true
 }
