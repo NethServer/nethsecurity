@@ -48,7 +48,21 @@ During the start-up, the container will:
 - generate the diffconfig
 - generate a random public key to sign packages
 
-### Upstream version change
+### Environment variables
+
+The `run` script behavior can be changed using the following environment variables:
+
+- `IMAGE_TAG`: specify the image tag of the builder, if not set default is `latest`
+- `USIGN_PUB_KEY` and `USIGN_PRIV_KEY`: see [package signing section](#package-signing)
+   with the given keys
+- `NETIFYD_ACCESS_TOKEN`: GitLab private access token; if set, download and compile netifyd closed
+   source plugins
+
+The `USIGN_PUB_KEY`, `USIGN_PRIV_KEY` and `NETIFYD_ACCESS_TOKEN` variables are always set as secrets
+inside the CI pipeline, but for [security reasons](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#accessing-secrets)
+they are not accessible when building pull requests.
+
+## Upstream version change
 
 Change the version inside the following files:
 
