@@ -62,6 +62,19 @@ The `USIGN_PUB_KEY`, `USIGN_PRIV_KEY` and `NETIFYD_ACCESS_TOKEN` variables are a
 inside the CI pipeline, but for [security reasons](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#accessing-secrets)
 they are not accessible when building pull requests.
 
+### Using an alternate builder
+
+If you need to use a modified version of the builder image, edit the files inside the `builder` 
+directory.
+Then build the image and use it with the `run` script:
+```
+./builder/build-builder
+declare IMAGE_TAG="mybranch"
+TAG=$(podman images --quiet ghcr.io/nethserver/nextsecurity-builder:latest)
+podman tag $TAG ghcr.io/nethserver/nextsecurity-builder:$IMAGE_TAG
+./run
+```
+
 ## Upstream version change
 
 Change the version inside the following files:
