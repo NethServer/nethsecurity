@@ -8,11 +8,15 @@ Changes since NS7:
 - support for multiple server instances
 - SQLite connection database is volatile
 
+Supported authentications:
+
+- certificate only
+- username and password
+- username, password and certificate
+
 Not supported:
 
 - authentication based on certificate + otp
-- authentication based on password + certificate
-- authentication based on password
 - mail notification about connect/disconnect events
 
 ## OpenVPN Road Warrior configuration
@@ -53,7 +57,7 @@ service openvpn start
 
 ## Manage Road Warrior users
 
-Certificates are saved inside
+Certificates are saved inside `/etc/openvpn/<instance>/pki/` directory.
 
 ### Add user
 
@@ -72,6 +76,25 @@ ns-openvpnrw-add <instance> <user>
 Example:
 ```
 ns-openvpnrw-add ns_roadwarrior giacomo
+```
+
+### Set user password
+
+User passwords are saved inside UCI in passwd format `$<hash_method>$<salt>$<hash>`:
+- `hash_method` is always set to `6`, which is `sha512`
+- `salt` is a random ASCII string of 16 characters
+- `hash` is a 86 characters hash calcultated using `mkpasswd` command
+
+Generate the user password:
+```
+salt=$(uuidgen | md5sum | cut -c 0-15)
+echo -e '<password>' | mkpasswd -m sha512 -S "$salt"
+```
+
+Example: set password `nethesis` for user `test`:
+```
+uci set openvpn.test.password=$(echo -e 'nethesis' | mkpasswd -m sha512 -S "$(uuidgen | md5sum | cut -c 0-15)")
+uci commit openvpn
 ```
 
 ### IP static lease
