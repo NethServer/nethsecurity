@@ -17,4 +17,4 @@ EASYRSA_BATCH=1 /usr/bin/easyrsa build-client-full "$user" nopass
 uci set openvpn."$user"=user
 uci set openvpn."$user".enabled=1
 uci set openvpn."$user".instance=$instance
-uci commit
+uci commit openvpn
