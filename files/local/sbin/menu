@@ -1,0 +1,77 @@
+#!/bin/bash
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+function load_kmap() {
+    for keymap in $(find /usr/share/keymaps/ -type f -name \*.bin); do
+        echo "${A:-0}. ${keymap:19}"; ((A+=1));B+=($keymap); 
+    done;
+    read -p "Your choice: " keymap
+    loadkmap < ${B[$keymap]}
+}
+
+function install_nextsec() {
+    if [ $(grep "${1##*/}" /proc/partitions | wc -l) -gt 1 ]; then
+        echo -e "Multiple partitions found on $(color_white $1), proceed forcing install ?\n[All content on device will be deleted]"
+        read -rp "Do you want to proceed? (y/n) " force
+        case $force in
+	    [yY] ) msg=$(install-nx.sh -f -t $1);;
+	    * ) msg="Aborted";;
+        esac
+    else
+       msg=$(install-nx.sh -t $1)
+    fi
+    echo -e "Install: \n$msg"
+}
+
+function perhaps_install_nextsec() {
+    for disk in $(find /dev/ -name sd[a-z] -o -name nvme[0-9] -o -name hd[a-z] -o -name nvme[0-9] -o -name vd[0-9] -o -name xvd[0-9] -o -name mmcblk[0-9] | grep -v $1); do
+        echo -n "${A:-0}. $(color_white ${disk:5})"; ((A+=1));B+=($disk); 
+        dmesg| grep "${disk:5}" | head -n 1| cut -d "]" -f 3-
+    done
+    read -rp "Your choice: " disk 
+    if [ ! -z $disk ]; then 
+	install_nextsec ${B[$disk]};
+    fi
+}
+
+color_green(){
+	echo -ne '\e[32m'$1'\e[0m'
+}
+color_white(){
+	echo -ne '\e[97m'$1$clear'\e[0m'
+}
+wrong_command(){
+        echo -e '\e[31m'"Wrong option."'\e[0m';
+        }
+
+menu(){
+   my_disk=$(df -t vfat /boot | tail -n 1| cut -d " " -f 1| tr -d "1")
+   disk=$(find /dev/ -name sd[a-z] -o -name nvme[0-9] -o -name hd[a-z] -o -name vd[0-9] -o -name xvd[0-9] -o -name mmcblk[0-9] | grep -v $my_disk | tail -n 1)
+   echo -ne "
+Quick options:
+$(color_green '1)') Load alternate keyboard maps
+$(color_green '2)') Install NextSecurity on $(color_white ${disk:5})
+$(color_green '3)') Install NextSecurity on other storage
+$(color_green 'r)') Reboot	
+$(color_green 's)') Shell
+$(color_green 'x)') Exit
+$(color_white 'Choose an option:') "
+   read choice
+   case $choice in
+	1) load_kmap; menu ;;
+	2) install_nextsec $disk; menu;;
+	3) perhaps_install_nextsec ${my_disk:5}; menu;;
+	r) reboot; menu;;
+	s) bash ;;
+	x) exit 0 ;;
+	*) wrong_command; menu ;;
+        esac
+}
+
+# Call the menu function
+/usr/bin/clear
+/bin/cat /etc/banner
+menu
