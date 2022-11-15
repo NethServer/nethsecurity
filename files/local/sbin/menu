@@ -38,13 +38,13 @@ function perhaps_install_nextsec() {
 }
 
 function color_green(){
-	echo -ne '\e[32m'$1'\e[0m'
+    echo -ne '\e[32m'$1'\e[0m'
 }
 function color_white(){
-	echo -ne '\e[97m'$1$clear'\e[0m'
+    echo -ne '\e[97m'$1$clear'\e[0m'
 }
 function wrong_command(){
-        echo -e '\e[31m'"Wrong option."'\e[0m';
+    echo -e '\e[31m'"Wrong option."'\e[0m';
 }
 
 function menu(){
