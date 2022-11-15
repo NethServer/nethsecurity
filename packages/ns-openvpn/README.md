@@ -183,6 +183,7 @@ options:
 - `base_dn`: LDAP base DN
 - `user_dn`: LDAP user DN; if not present, default is equal as `base_dn`
 - `user_attr`: user attribute to identify the user; usually is `cn` for Active Directory and `uid` for OpenLDAP
+- `starttls`: can be `0` or `1`, if set to `1` enable StartTLS
 - `instance`: the name of OpenVPN instance associated to this configuration
 
 Setup the connection to a remote NS7 LDAP and associate it to `ns_roadwarrior` instance:

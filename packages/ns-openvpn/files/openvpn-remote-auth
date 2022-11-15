@@ -17,6 +17,7 @@ base_dn=""
 tls_reqcert=""
 user_dn=""
 user_attr=""
+starttls=0
 
 function read_config
 {
@@ -30,6 +31,7 @@ function read_config
         config_get user_dn "$section" user_dn $base_dn
         config_get user_attr "$section" user_attr "uid"
         config_get tls_reqcert "$section" tls_reqcert "never"
+        config_get starttls "$section" starttls "0"
     fi
 }
 
@@ -51,4 +53,10 @@ if [ -z "$uri" ] || [ -z "$base_dn" ]; then
     exit 4
 fi
 
-LDAPTLS_REQCERT="$tls_reqcert" ldapsearch -H "$uri" -b "$base_dn" -D "$user_attr=$username,$user_dn" -w"$password" "$user_attr=$username" >/dev/null
+if [ "$starttls" = "1" ]; then
+    starttls_opt="-Z"
+else
+    starttls_opt=""
+fi
+
+LDAPTLS_REQCERT="$tls_reqcert" ldapsearch $starttls_opt -H "$uri" -b "$base_dn" -D "$user_attr=$username,$user_dn" -w"$password" "$user_attr=$username" >/dev/null
