@@ -21,12 +21,6 @@ for rule in data['rules']:
     del rule['position']
     nsmigration.vprint(f"Creating firewall rule {rname}")
     u.set("firewall", rname, "rule")
-    try:
-        u.get("firewall", utils.get_id(rule['dest']))
-        u.get("firewall", utils.get_id(rule['src']))
-    except:
-        nsmigration.vprint(f"Disabling firewall rule {rname}")
-        rule["enabled"] = 0
 
     for o in rule:
         u.set("firewall", rname, o, rule[o])
