@@ -27,6 +27,7 @@ def save_cert(path, data):
 
 iname="ns_roadwarrior"
 cert_dir=f"/etc/openvpn/{iname}/pki/"
+auth_script = '/usr/libexec/ns-openvpn/openvpn-local-auth'
 subprocess.run(["/usr/sbin/ns-openvpnrw-init-pki", iname], check=True)
 
 (u, data, nmap) = nsmigration.init("openvpn.json")
@@ -65,13 +66,20 @@ u.set("openvpn", iname, 'crl_verify', os.path.join(cert_dir, 'crl.pem'))
 u.set("openvpn", iname, 'client_connect', f'"/usr/libexec/ns-openvpn/openvpn-connect {iname}"')
 u.set("openvpn", iname, 'client_disconnect', f'"/usr/libexec/ns-openvpn/openvpn-disconnect {iname}"')
 
+if data['rw']['ldap']:
+    auth_script = '/usr/libexec/ns-openvpn/openvpn-remote-auth'
+    u.set("openvpn", "ns_ldap1", "ldap")
+    u.set("openvpn", "ns_ldap1", "instance", iname)
+    for o in data['rw']['ldap']:
+        u.set("openvpn", "ns_ldap1", o,  data['rw']['ldap'][o])
+
 if data['rw']['auth'] == 'password':
-    u.set("openvpn", iname, 'auth_user_pass_verify', '/usr/libexec/ns-openvpn/openvpn-local-auth via-env')
+    u.set("openvpn", iname, 'auth_user_pass_verify', f'{auth_script} via-env')
     u.set("openvpn", iname, 'verify_client_cert', 'none')
     u.set("openvpn", iname, 'username_as_common_name', '1')
     u.set("openvpn", iname, 'script_security', '3')
 elif data['rw']['auth'] == 'password-certificate':
-    u.set("openvpn", iname, 'auth_user_pass_verify', '/usr/libexec/ns-openvpn/openvpn-local-auth via-env')
+    u.set("openvpn", iname, 'auth_user_pass_verify', f'{auth_script} via-env')
     u.set("openvpn", iname, 'script_security', '3')
 
 # Create user entries
