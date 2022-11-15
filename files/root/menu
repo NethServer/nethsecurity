@@ -1,0 +1,97 @@
+#!/bin/bash
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+function load_kmap() {
+    for keymap in $(find /usr/share/keymaps/ -type f -name \*.bin); do
+        echo "${A:-0}. ${keymap:19}"; ((A+=1));B+=($keymap); 
+    done;
+    read -p "Your choice: " keymap
+    loadkmap < ${B[$keymap]}
+}
+
+function install_NextSec() {
+    if [ $(grep "${1##*/}" /proc/partitions | wc -l) -gt 1 ]; then
+       echo -e "Multiple partitions foundi on $1, proceed forcing install ?\n[All content on device wil be deleted]"
+       read -rp "Do you want to proceed? (y/n) " force
+       case $force in
+	    [yY] ) msg=$(install-nx.sh -f -t $1);;
+	    * ) msg="Aborted";;
+       esac
+    else
+       msg=$(install-nx.sh -t $1)
+    fi
+    echo -e "Install: \n$msg"
+}
+
+function perhaps_install_NextSec() {
+    for disk in $(find /dev/sd[a-z] | grep -v $(df -t vfat /boot | tail -n 1| cut -d " " -f 1| tr -d "1")); do
+        echo -n "${A:-0}. $(ColorWhite ${disk:5})"; ((A+=1));B+=($disk); 
+        dmesg| grep "${disk:5}" | head -n 1| cut -d "]" -f 3-
+done
+    read -rp "Your choice: " disk 
+    if [ ! -z $disk ]; then 
+	    install_NextSec ${B[$disk]};
+    fi
+}
+
+
+##
+# Color  Variables
+##
+red='\e[31m'
+green='\e[32m'
+blue='\e[34m'
+white='\e[97m'
+clear='\e[0m'
+
+##
+# Color Functions
+##
+
+ColorRed(){
+	echo -ne $red$1$clear
+}
+ColorGreen(){
+	echo -ne $green$1$clear
+}
+ColorBlue(){
+	echo -ne $blue$1$clear
+}
+ColorWhite(){
+	echo -ne $white$1$clear
+}
+
+WrongCommand(){
+        echo -e $red"Wrong option."$clear;
+        }
+
+menu(){
+disk=$(find /dev/sd[a-z] | grep -v $(df -t vfat /boot | tail -n 1| cut -d " " -f 1| tr -d "1")|	tail -n 1)
+echo -ne "
+Quick options:
+$(ColorGreen '1)') load alternate kmaps
+$(ColorGreen '2)') install NextSecurity	on $(ColorWhite ${disk:5})
+$(ColorGreen '3)') install NextSecurity on other storage
+$(ColorGreen 'r)') Reboot	
+$(ColorGreen 's)') Shell
+$(ColorGreen 'x)') Exit
+$(ColorWhite 'Choose an option:') "
+        read choice
+        case $choice in
+	        1) load_kmap; menu ;;
+	        2) install_NextSec $disk; menu;;
+	        3) perhaps_install_NextSec $disk; menu;;
+	        r) reboot; menu;;
+		s) bash ;;
+		x) exit 0 ;;
+		*) WrongCommand; menu ;;
+        esac
+}
+
+# Call the menu function
+/usr/bin/clear
+/bin/cat /etc/banner
+menu
