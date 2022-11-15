@@ -1,4 +1,4 @@
-name: "Build nextsec image"
+name: "Build NextSecurity image"
 
 on:
   workflow_dispatch:
@@ -27,6 +27,7 @@ jobs:
       CDN_NAME: 'distfeed.nextsecurity.nethserver.org'
       USIGN_PUB_KEY: ${{ secrets.USIGN_PUB_KEY }}
       USIGN_PRIV_KEY: ${{ secrets.USIGN_PRIV_KEY }}
+      NETIFYD_ACCESS_TOKEN: ${{ secrets.NETIFYD_ACCESS_TOKEN }}
     steps:
       - uses: actions/checkout@v2
       - id: build
