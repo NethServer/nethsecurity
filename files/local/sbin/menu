@@ -49,7 +49,7 @@ function wrong_command(){
 
 function menu(){
    my_disk=$(df -t vfat /boot | tail -n 1| cut -d " " -f 1| tr -d "1")
-   disk=$(find /dev/ -name sd[a-z] -o -name nvme[0-9] -o -name hd[a-z] -o -name vd[0-9] -o -name xvd[0-9] -o -name mmcblk[0-9] | grep -v $my_disk | tail -n 1)
+   disk=$(find /dev/ -name sd[a-z] -o -name nvme[0-9] -o -name hd[a-z] -o -name vd[a-z] -o -name xvd[a-z] -o -name mmcblk[0-9] | grep -v $my_disk | tail -n 1)
    echo -ne "
 Quick options:
 $(color_green '1)') Load alternate keyboard maps
