@@ -27,7 +27,7 @@ function install_nextsec() {
 }
 
 function perhaps_install_nextsec() {
-    for disk in $(find /dev/ -name 'sd[a-z]' -o -name 'nvme[0-9]' -o -name 'hd[a-z]' -o -name 'vd[a-z]' -o -name 'xvd[a-z]' -o -name 'mmcblk[0-9]' | grep -v $1); do
+    for disk in $(find /dev/ -name sd[a-z] -o -name nvme[0-9] -o -name hd[a-z] -o -name vd[a-z] -o -name xvd[a-z] -o -name mmcblk[0-9] | grep -v $1); do
         echo -n "${A:-0}. $(color_white ${disk:5})"; ((A+=1));B+=($disk); 
         dmesg| grep "${disk:5}" | head -n 1| cut -d "]" -f 3-
     done
@@ -49,13 +49,18 @@ function wrong_command(){
 
 function menu(){
    my_disk=$(df -t vfat /boot | tail -n 1| cut -d " " -f 1| tr -d "1")
-   disk=$(find /dev/ -name 'sd[a-z]' -o -name 'nvme[0-9]' -o -name 'hd[a-z]' -o -name 'vd[a-z]' -o -name 'xvd[a-z]' -o -name 'mmcblk[0-9]' | grep -v $my_disk | tail -n 1)
+   disk=$(find /dev/ -name sd[a-z] -o -name nvme[0-9] -o -name hd[a-z] -o -name vd[a-z] -o -name xvd[a-z] -o -name mmcblk[0-9] | grep -v $my_disk | tail -n 1)
    echo -ne "
 Quick options:
-$(color_green '1)') Load alternate keyboard maps
+$(color_green '1)') Load alternate keyboard maps" 
+   L=($(block info "$mydisk"3)); 
+   if [[ "${L[2]}" == LABEL="store" ]]; then 
+   echo -ne "
 $(color_green '2)') Install NextSecurity on $(color_white ${disk:5})
 $(color_green '3)') Install NextSecurity on other storage
-$(color_green 'l)') Login
+"
+   fi
+   echo -ne "$(color_green 'l)') Login
 $(color_green 'r)') Reboot	
 $(color_green 'x)') Exit
 $(color_white 'Choose an option:') "
@@ -65,7 +70,7 @@ $(color_white 'Choose an option:') "
 	2) install_nextsec $disk; menu;;
 	3) perhaps_install_nextsec ${my_disk:5}; menu;;
 	r) /sbin/reboot ;;
-	l) exec /bin/login ;;
+	l) /bin/login ;;
 	x) exit 0 ;;
 	*) wrong_command; menu ;;
         esac
