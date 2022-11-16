@@ -70,7 +70,7 @@ $(color_white 'Choose an option:') "
 	2) install_nextsec $disk; menu;;
 	3) perhaps_install_nextsec ${my_disk:5}; menu;;
 	r) /sbin/reboot ;;
-	l) /bin/login ;;
+	l) exec /bin/login ;;
 	x) exit 0 ;;
 	*) wrong_command; menu ;;
         esac
