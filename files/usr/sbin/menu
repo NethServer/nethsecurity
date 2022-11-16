@@ -52,7 +52,8 @@ function menu(){
    disk=$(find /dev/ -name sd[a-z] -o -name nvme[0-9] -o -name hd[a-z] -o -name vd[a-z] -o -name xvd[a-z] -o -name mmcblk[0-9] | grep -v $my_disk | tail -n 1)
    echo -ne "
 Quick options:
-$(color_green '1)') Load alternate keyboard maps" 
+$(color_green '1)') Load alternate keyboard maps
+" 
    L=($(block info "$mydisk"3)); 
    if [[ "${L[2]}" == LABEL="store" ]]; then 
    echo -ne "
@@ -60,7 +61,8 @@ $(color_green '2)') Install NextSecurity on $(color_white ${disk:5})
 $(color_green '3)') Install NextSecurity on other storage
 "
    fi
-   echo -ne "$(color_green 'l)') Login
+   echo -ne "
+$(color_green 'l)') Login
 $(color_green 'r)') Reboot	
 $(color_green 'x)') Exit
 $(color_white 'Choose an option:') "
