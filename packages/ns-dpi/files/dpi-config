@@ -1,0 +1,54 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+from euci import EUci
+import json
+
+cfg_file = "/etc/netify.d/netify-flow-actions.json"
+config = {
+    "version": 1,
+    "targets": {},
+    "target_defaults": {},
+    "target_globals": {
+        "ctlabel": {
+            "max_bits": 127,
+            "connlabel_conf": "/etc/xtables/connlabel.conf"
+            }
+        },
+    "actions": {},
+    "exemptions": []
+}
+
+u = EUci()
+for section in u.get_all('network'):
+    if u.get('network', section) == 'interface':
+        ip_addr = u.get('network', section, 'ipaddr', default=None)
+        if ip_addr:
+            config["exemptions"].append(ip_addr)
+
+rcount = 0
+valid_actions = ['bulk', 'block']
+for section in u.get_all('dpi'):
+    if u.get('dpi', section) != 'rule':
+        continue
+    rule = u.get_all('dpi', section)
+    if rule['action'] not in valid_actions:
+        continue
+    config["actions"][f"rule{rcount}"] = {
+        "enabled": True if rule['enabled'] else False,
+        "interface": "*",
+        "criteria": rule['criteria'].replace('"',"'"),
+        "targets": [rule['action']]
+    }
+    config["targets"][rule['action']] = {
+        "target_type": "ctlabel",
+        "labels": [rule['action']]
+    }
+    rcount = rcount + 1
+
+with open(cfg_file, 'w') as fp:
+    json.dump(config, fp)

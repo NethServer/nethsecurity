@@ -1,0 +1,9 @@
+#!/bin/sh
+
+[ "$(uci -q get dpi.config.status)" != "" ] && exit 0
+
+uci -q import dpi << EOI
+config main 'config'
+	option log_blocked '0'
+	option enabled '0'
+EOI

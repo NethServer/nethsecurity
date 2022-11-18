@@ -1,0 +1,17 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+#
+# DPI: generate NFT script
+#
+
+echo add table inet dpi
+echo add chain inet dpi block '{ type filter hook forward priority -1; policy accept; }'
+echo add rule inet dpi block ct label block counter reject
+
+echo add chain inet dpi bulk '{ type filter hook prerouting priority -1; }'
+echo add rule inet dpi bulk ct label bulk counter ip dscp set cs1 return
