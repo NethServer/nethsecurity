@@ -31,6 +31,7 @@ function install_nextsec() {
      echo -e "Install: done"
      if [ $error -eq 0 ]; then
 	  read -rp "$(color_white 'Remove install medium and press enter to reboot')" done;
+	  sync 
 	  sleep 1
 	  reboot
      else
