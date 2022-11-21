@@ -5,35 +5,50 @@
 #
 
 function load_kmap() {
+    A=0;declare -a B
     for keymap in $(find /usr/share/keymaps/ -type f -name \*.bin); do
-        echo "${A:-0}. ${keymap:19}"; ((A+=1));B+=($keymap); 
+        echo "$(color_green ${A} )) ${keymap:19}"; ((A+=1));B+=($keymap); 
     done;
-    read -p "Your choice: " keymap
-    loadkmap < ${B[$keymap]}
+    read -p "$(color_white 'Your choice: ')" keymap
+    if [ ${keymap:-999} -ge 0 ] && [ ${keymap:-999} -lt $A ]; then
+       loadkmap < ${B[$keymap]}
+    else
+       wrong_command;
+    fi
 }
 
 function install_nextsec() {
     if [ $(grep "${1##*/}" /proc/partitions | wc -l) -gt 1 ]; then
         echo -e "Multiple partitions found on $(color_white $1), proceed forcing install ?\n[All content on device will be deleted]"
-        read -rp "Do you want to proceed? (y/n) " force
+        read -rp "$(color_white 'Do you want to proceed? (y/n) ')" force
         case $force in
-	    [yY] ) msg=$(install-nx.sh -f -t $1);;
+	    [yY] ) msg=$(install-nx.sh -f -t $1); error=$?;;
 	    * ) msg="Aborted";;
         esac
-    else
-       msg=$(install-nx.sh -t $1)
-    fi
-    echo -e "Install: \n$msg"
+     else
+       msg=$(install-nx.sh -t $1); error=$?;
+     fi
+     echo -e "Install: done"
+     if [ $error -eq 0 ]; then
+	  read -rp "$(color_white 'Remove install medium and press enter to reboot')" done;
+	  sleep 1
+	  reboot
+     else
+          echo "Error: $msg"
+     fi
 }
 
 function perhaps_install_nextsec() {
-    for disk in $(find /dev/ -name sd[a-z] -o -name nvme[0-9] -o -name hd[a-z] -o -name vd[a-z] -o -name xvd[a-z] -o -name mmcblk[0-9] | grep -v $1); do
-        echo -n "${A:-0}. $(color_white ${disk:5})"; ((A+=1));B+=($disk); 
+    A=0;declare -a B
+    for disk in $(find /dev/ -name sd[a-z] -o -name nvme[0-9] -o -name hd[a-z] -o -name vd[a-z] -o -name xvd[a-z] -o -name mmcblk[0-9] | grep -v $1|sort|uniq); do
+        echo -n "$(color_green "${A})" ) $(color_white ${disk:5})"; ((A+=1));B+=($disk); 
         dmesg| grep "${disk:5}" | head -n 1| cut -d "]" -f 3-
     done
-    read -rp "Your choice: " disk 
-    if [ ! -z $disk ]; then 
+    read -rp "$(color_white 'Your choice: ')" disk 
+    if [ ${disk:-999} -ge 0 ] && [ ${disk:-999} -lt $A ] && [ -b ${B[$disk]} ]; then 
 	install_nextsec ${B[$disk]};
+    else
+	wrong_command;
     fi
 }
 
