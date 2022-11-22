@@ -20,7 +20,7 @@ function load_kmap() {
 function install_nextsec() {
     if [ $(grep "${1##*/}" /proc/partitions | wc -l) -gt 1 ]; then
         echo -e "Multiple partitions found on $(color_white $1), proceed forcing install ?\n[All content on device will be deleted]"
-        read -rp "$(color_white 'Do you want to proceed? (y/n) ')" force
+        read -rp "$(color_white 'Do you want to proceed? (y/N) ')" force
         case $force in
 	    [yY] ) msg=$(install-nx.sh -f -t $1; exit $?); error=$?;;
 	    * ) msg="Aborted"; error=1;;
@@ -81,7 +81,6 @@ $(color_green '3)') Install NextSecurity on other storage"
    fi
    echo -ne "
 $(color_green 'l)') Login
-$(color_green 'r)') Reboot	
 $(color_green 'x)') Exit
 $(color_white 'Choose an option:') "
    read choice
@@ -89,7 +88,6 @@ $(color_white 'Choose an option:') "
 	1) load_kmap; menu ;;
 	2) install_nextsec $disk; menu;;
 	3) perhaps_install_nextsec ${my_disk:5}; menu;;
-	r) /sbin/reboot ;;
 	l) exec /bin/login ;;
 	x) exit 0 ;;
 	*) wrong_command; menu ;;
