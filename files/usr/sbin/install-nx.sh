@@ -7,6 +7,7 @@ if [ $# -eq 0 ]; then
     echo -e "No arguments supplied, target device for installation needed\n$0 -t /dev/sdX [-s source]"    
     exit 1
 fi
+F=0
 while getopts "ft::s::" opt; do
             case $opt in
             (f) F=1 ;; #Force write
@@ -24,9 +25,11 @@ if [ -b $T ]; then
         M=$(mount | grep $T| wc -l)
         P=$(df -t vfat /boot | tail -n 1| cut -d " " -f 1| tr "1" "3")
         if [ $N -eq 1 ] && [ $M -eq 0 ]; then
-           mkdir /tmp/firmware
-           mount -t vfat $P /tmp/firmware
-           FW=( $(find /tmp/firmware -name nextsecurity\*img.gz| tr " " "$")) ;
+           temp="/tmp/firmware"
+           mkdir -p $temp
+           grep -q "$temp" /proc/mounts && umount "$temp"
+           mount -o ro -t vfat $P "$temp"
+           FW=( $(find "$temp" -name nextsecurity\*img.gz| tr " " "$")) ;
            if [ "${#FW[@]}" -eq 1 ]; then
               IMG=${FW//$/ };
            elif [ ! -z ${S+x} ]; then 
@@ -44,23 +47,22 @@ if [ -b $T ]; then
            fi
            if [ ! -f $IMG ]; then
               echo "Firmware not found"
-              umount /tmp/firmware
-              rmdir /tmp/firmware
-              exit 1
+              error=1
            else
               zcat $IMG| dd of=$T  bs=64K iflag=fullblock conv=notrunc
            fi
-           umount /tmp/firmware
-           rmdir /tmp/firmware
+           umount "$temp"
+           rmdir "$temp"
         else
            if [ $M -eq 0 ]; then
-              echo -e "Multiple partitions find on target device, check it or use -f to force overwrite"
+              echo -e "Multiple partitions found on target device, check it or use -f to force overwrite"
            else
               echo -e "Target partition in use, umount it first"
            fi
-           exit 1
+           error=1
         fi
 else
         echo -e "Target device not found"
-        exit 1
+        error=1
 fi
+exit ${error:-0}
