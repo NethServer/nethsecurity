@@ -22,20 +22,20 @@ function install_nextsec() {
         echo -e "Multiple partitions found on $(color_white $1), proceed forcing install ?\n[All content on device will be deleted]"
         read -rp "$(color_white 'Do you want to proceed? (y/n) ')" force
         case $force in
-	    [yY] ) msg=$(install-nx.sh -f -t $1); error=$?;;
-	    * ) msg="Aborted";;
+	    [yY] ) msg=$(install-nx.sh -f -t $1; exit $?); error=$?;;
+	    * ) msg="Aborted"; error=1;;
         esac
      else
-       msg=$(install-nx.sh -t $1); error=$?;
+       msg=$(install-nx.sh -t $1; exit $?); error=$?;
      fi
-     echo -e "Install: done"
      if [ $error -eq 0 ]; then
-	  read -rp "$(color_white 'Remove install medium and press enter to reboot')" done;
-	  sync 
-	  mount -o remount,ro /boot 
-	  mount -o remount,ro /
-	  sleep 1
-	  reboot
+          echo -e "Install: done"
+          read -rp "$(color_white 'Remove install medium and press enter to reboot')" done;
+          sync 
+          mount -o remount,ro /boot 
+          mount -o remount,ro /
+          sleep 1
+          reboot
      else
           echo "Error: $msg"
      fi
