@@ -1,0 +1,33 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import sys
+import nsmigration
+
+(u, data, nmap) = nsmigration.init("acme.json")
+
+if 'config' not in data:
+    sys.exit(0)
+
+u.delete('acme', 'example')
+u.delete('acme', 'example_wildcard')
+
+for section in u.get_all('acme'):
+    if u.get('acme', section) == 'acme':
+        nsmigration.vprint("Setting acme mail")
+        u.set('acme', section, 'account_email', data['config']['account_email'])
+
+u.set('acme', 'ns_default', 'cert')
+u.set('acme', 'ns_default', 'enabled', '1')
+u.set('acme', 'ns_default', 'use_staging', '0')
+u.set('acme', 'ns_default', 'keylength', '2048')
+u.set('acme', 'ns_default', 'update_nginx', '1')
+nsmigration.vprint("Setting acme domains")
+u.set('acme', 'ns_default', 'domains', data['config']['domains'])
+
+# Save configuration
+u.commit('acme')

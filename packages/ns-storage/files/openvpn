@@ -1,0 +1,9 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+[ ! -d /mnt/data ] && exit 0
+rsync -ar /var/openvpn /mnt/data/

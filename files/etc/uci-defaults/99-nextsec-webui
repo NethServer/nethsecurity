@@ -8,3 +8,8 @@ set firewall.@rule[-1].dest_port='443'
 set firewall.@rule[-1].target='ACCEPT'
 commit
 EOI
+
+uci batch <<EOI
+del_list nginx._lan.include=restrict_locally
+commit
+EOI
