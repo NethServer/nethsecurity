@@ -28,7 +28,7 @@ if [ -b $T ]; then
            temp="/tmp/firmware"
            mkdir -p $temp
            grep -q "$temp" /proc/mounts && umount "$temp"
-           mount -t vfat $P "$temp"
+           mount -o ro -t vfat $P "$temp"
            FW=( $(find "$temp" -name nextsecurity\*img.gz| tr " " "$")) ;
            if [ "${#FW[@]}" -eq 1 ]; then
               IMG=${FW//$/ };
