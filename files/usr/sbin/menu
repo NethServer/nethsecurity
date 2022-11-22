@@ -29,12 +29,12 @@ function install_nextsec() {
        msg=$(install-nx.sh -t $1; exit $?); error=$?;
      fi
      if [ $error -eq 0 ]; then
-          echo -e "Install: done"
-          read -rp "$(color_white 'Remove install medium and press enter to reboot')" done;
           sync 
           mount -o remount,ro /boot 
           mount -o remount,ro /
           sleep 1
+          echo -e "Install: done"
+          read -rp "$(color_white 'Remove install medium and press enter to reboot')" done;
           reboot
      else
           echo "Error: $msg"
