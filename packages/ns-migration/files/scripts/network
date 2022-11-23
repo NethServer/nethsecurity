@@ -13,6 +13,7 @@ from euci import UciExceptionNotFound
 (u, data, nmap) = nsmigration.init("network.json")
 vlans = dict()
 skipped_vlans = list()
+alias_zones = dict()
 
 def exists(key):
     try:
@@ -173,6 +174,9 @@ for a in data['aliases']:
     if a["gateway"]:
         u.set("network", aname, "gateway", a["gateway"])
     acount = acount - 1
+    if not a['zone'] in alias_zones:
+        alias_zones[a['zone']] = list()
+    alias_zones[a['zone']].append(aname)
 
 # Create interfaces
 for i in data['interfaces']:
@@ -221,6 +225,13 @@ for z in data['zones']:
     if z["name"].startswith("wan"): # setup masquerading for wans
         u.set("firewall", zname, "masq", '1')
         u.set("firewall", zname, "mtu_fix", '1')
+
+# Setup firewall zones for aliases
+for z in alias_zones:
+    zname = utils.get_id(z)
+    network = list(u.get("firewall", zname, 'network', default=list(), list=True))
+    network = network + alias_zones[z]
+    u.set("firewall", zname, "network", [utils.sanitize(n) for n in network])
 
 # Create firewall forwardings
 for f in data['forwardings']:
