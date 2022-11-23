@@ -51,6 +51,10 @@ ns-import -m 'ae:12:3b:19:0a:2a=0b:64:31:69:ae:8a' export.tar.gz
 The `-m` option will be used by migration scripts to move the configuration from the old network
 interface (`ae:12:3b:19:0a:2a`) to the new one (`0b:64:31:69:ae:8a`).
 
+## Root password
+
+The `passwd` script imports the root user password.
+
 ## Network
 
 The `network` script will reset default configuration by deleting all wan and lan devices with associated firewall zones.
