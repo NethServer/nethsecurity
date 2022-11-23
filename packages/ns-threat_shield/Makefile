@@ -39,7 +39,7 @@ define Package/ns-threat_shield/install
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/ts-ip.init $(1)/etc/init.d/ts-ip
-	$(INSTALL_BIN) ./files/ts-dns.init $(1)/etc/init.d/ts-dns
+	$(INSTALL_BIN) ./files/ts-dns $(1)/usr/sbin/ts-dns
 	$(INSTALL_BIN) ./files/ts-ip $(1)/usr/sbin/ts-ip
 	$(INSTALL_BIN) ./files/ts-ip-download $(1)/usr/sbin/ts-ip-download
 	$(INSTALL_BIN) ./files/ts-ip-nft $(1)/usr/sbin/ts-ip-nft
