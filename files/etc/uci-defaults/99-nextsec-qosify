@@ -1,0 +1,9 @@
+if [ "$(md5sum /etc/qosify/00-defaults.conf | awk '{print $1}')" = 'a06cb3dc12f395bf41068463bf36df28' ]; then
+    cat <<EOF > /etc/qosify/00-defaults.conf
+# DNS
+tcp:53		+voice
+tcp:5353	+voice
+udp:53		+voice
+udp:5353	+voice
+EOF
+fi
