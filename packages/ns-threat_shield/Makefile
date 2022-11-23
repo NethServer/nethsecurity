@@ -43,7 +43,7 @@ define Package/ns-threat_shield/install
 	$(INSTALL_BIN) ./files/ts-ip $(1)/usr/sbin/ts-ip
 	$(INSTALL_BIN) ./files/ts-ip-download $(1)/usr/sbin/ts-ip-download
 	$(INSTALL_BIN) ./files/ts-ip-nft $(1)/usr/sbin/ts-ip-nft
-	$(INSTALL_CONF) ./files/20_threat_shield $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/20_threat_shield $(1)/etc/uci-defaults
 	$(INSTALL_DIR) $(1)/usr/share/threat_shield
 	$(INSTALL_DATA) ./files/nethesis-ip.sources $(1)/usr/share/threat_shield
 	$(INSTALL_DATA) ./files/nethesis-dns.sources $(1)/usr/share/threat_shield
@@ -54,10 +54,9 @@ endef
 define Package/ns-threat_shield/postinst
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
-  crontab -l | grep -q '/usr/sbin/ts-ip' || echo '*/50 * * * * sleep $$(( RANDOM % 3500 )); /usr/sbin/ts-ip' >> /etc/crontabs/root
-  crontab -l | grep -q '/etc/init.d/ts-dns' || echo '1 */12 * * * sleep $$(( RANDOM % 3600 )); /etc/init.d/ts-dns reload' >> /etc/crontabs/root
+  (. /etc/uci-defaults/20_threat_shield)
+  rm -f /etc/uci-defaults/20_threat_shield
   /etc/init.d/cron restart
-  /etc/init.d/ts-ip enable
 fi
 exit 0
 endef
@@ -68,7 +67,7 @@ if [ -z "$${IPKG_INSTROOT}" ]; then
     uci set threat_shield.config.status=0
 	uci commit
 	/usr/sbin/ts-ip
-	crontab -l | grep -v "/usr/sbin/ts-ip" | sort | uniq | crontab -
+	crontab -l | grep -v "/etc/init.d/ts-ip" | sort | uniq | crontab -
 	crontab -l | grep -v "/etc/init.d/ts-dns" | sort | uniq | crontab -
 fi
 exit 0

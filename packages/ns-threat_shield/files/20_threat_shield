@@ -1,5 +1,8 @@
 #!/bin/sh
 
+crontab -l | grep -q '/etc/init.d/ts-ip' || echo '50 * * * * sleep $(( RANDOM % 3500 )); /etc/init.d/ts-ip reload' >> /etc/crontabs/root
+crontab -l | grep -q '/etc/init.d/ts-dns' || echo '1 */12 * * * sleep $(( RANDOM % 3600 )); /etc/init.d/ts-dns reload' >> /etc/crontabs/root
+
 [ "$(uci -q get threat_shield.config.status)" != "" ] && exit 0
 
 uci -q import threat_shield << EOI
