@@ -14,8 +14,8 @@ if nft list tables inet | grep -q 'table inet dpi'; then
     nft delete table inet dpi
 fi
 
-status=$(uci get dpi.config.enabled)
-if [ "$enabled" == "0" ]; then
+enabled=$(uci get dpi.config.enabled)
+if [ "$enabled" = "0" ]; then
     exit 0
 fi
 
