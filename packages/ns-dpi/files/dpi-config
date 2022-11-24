@@ -7,6 +7,23 @@
 
 from euci import EUci
 import json
+import subprocess
+
+def get_interface_ips(interface):
+    ret = list()
+    try:
+        proc = subprocess.run(['/sbin/ifstatus', section], check=True, capture_output=True)
+        info = json.loads(proc.stdout)
+    except:
+        return ret
+
+    for ip_type in ('ipv4-address', 'ipv6-address'):
+        if ip_type in info:
+            for addr in info[ip_type]:
+                if 'address' in addr:
+                    ret.append(addr['address'])
+
+    return ret
 
 cfg_file = "/etc/netify.d/netify-flow-actions.json"
 config = {
@@ -23,12 +40,14 @@ config = {
     "exemptions": []
 }
 
+# Add firewall IP address as global exemptions
 u = EUci()
-for section in u.get_all('network'):
-    if u.get('network', section) == 'interface':
-        ip_addr = u.get('network', section, 'ipaddr', default=None)
-        if ip_addr:
-            config["exemptions"].append(ip_addr)
+if u.get('dpi', 'config', 'firewall_exemption', default=0) == '1':
+    for section in u.get_all('network'):
+        if u.get('network', section) == 'interface':
+            ip_addrs = get_interface_ips(section)
+            if ip_addrs:
+                config["exemptions"] = config["exemptions"] + ip_addrs
 
 rcount = 0
 valid_actions = ['block', 'bulk', 'best_effort', 'video', 'voice']
