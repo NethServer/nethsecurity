@@ -55,10 +55,10 @@ for section in u.get_all('dpi'):
     if u.get('dpi', section) != 'rule':
         continue
     rule = u.get_all('dpi', section)
-    if rule['action'] not in valid_actions:
+    if rule['action'] not in valid_actions or not rule['enabled']:
         continue
     config["actions"][f"rule{rcount}"] = {
-        "enabled": True if rule['enabled'] else False,
+        "enabled": True,
         "interface": "*",
         "criteria": rule['criteria'].replace('"',"'"),
         "targets": [rule['action']]
