@@ -100,7 +100,7 @@ ts-ip
 
 ## ts-dns
 
-Threat shield DNS (`ts-dns`) is a wrapper around [adblock](https://github.com/openwrt/packages/tree/master/net/adblock).
+Threat shield DNS (`ts-dns`) is a special configuration for [adblock](https://github.com/openwrt/packages/tree/master/net/adblock).
 If `adblock` is enabled and the machine has a valid subscription, the following extra block categories will be available:
 
 - `yoroi_malware_level1`
@@ -108,14 +108,38 @@ If `adblock` is enabled and the machine has a valid subscription, the following 
 - `yoroi_susp_level1` (was `yoroi_suspicious_level1` on NS7)
 - `yoroi_susp_level2` (was `yoroi_suspicious_level2` on NS7)
 
+The package add a new option to `adblock`:
+
+- `ts_enabled`: if se to `1`, it enables the download of threat shield DNS categories
 
 Extra categories are loaded from `/usr/share/threat_shield/nethesis-dns.sources.gz` and require a valid entitlement.
-
-Usage example:
-```
-/etc/init.d/ts-dns start
-```
-
 DNS block categories will be automatically reloaded every 12 hours.
+
+Enable adblock with threat shield categories, example:
+```
+uci set adblock.global.ts_enabled=1
+uci set adblock.global.adb_enabled=1
+uci add_list adblock.global.adb_sources=yoroi_malware_level1
+uci add_list adblock.global.adb_sources=yoroi_malware_level2
+uci add_list adblock.global.adb_sources=yoroi_susp_level1
+uci add_list adblock.global.adb_sources=yoroi_susp_level2
+ts-dns
+/etc/init.d/adblock start
+```
+
+Keep adblock enabled but disable threat shield categories:
+```
+uci set adblock.global.ts_enabled=0
+ts-dns
+/etc/init.d/adblock reload
+```
+
+Allow bypass of DNS redirect for a specific source IP:
+```
+uci set adblock.global.adb_forcedns=1
+uci add_list adblock.global.adb_bypass=192.168.100.2
+uci commit adblock
+/etc/init.d/adblock restart
+```
 
 For more info see [adblock repository](https://github.com/openwrt/packages/tree/master/net/adblock).
