@@ -10,3 +10,9 @@ START=40
 start() {
     /usr/sbin/dpi-start
 }
+
+stop() {
+    if nft list tables inet | grep -q 'table inet dpi'; then
+        nft delete table inet dpi
+    fi
+}
