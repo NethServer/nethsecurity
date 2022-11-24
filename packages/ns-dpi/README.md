@@ -18,48 +18,49 @@ To enable traffic processing:
 
 Global options:
 
-- `enabled`
-- `log_blocked`
-- `firewall_exemption`
+- `enabled`: can be `0` or `1`, if set to `1` enable the service
+- `log_blocked`: can be `0` or `1`, if set to `1` blocked connections will be logged
+- `firewall_exemption`: can be `0` or `1`, if set to `1` all firewall IP addresses will be
+  added to global exemption list and will not match DPI rules
 
 Rule options:
 
+- `criteria`: DPI expression to match the traffic
+  - the criteria must terminate with `;` when using complex expressions
+  - use the `"` symbol to enclose strings, double-qoutes will be then translated to `'` inside the plugin configuration file (`/etc/netify.d/netify-flow-actions.json`)
 - `action`: valid actions are:
-  - `block`
-  - `bulk`
-  - `best_effort`
-  - `video`
-  - `voice`
-- `description`
-- `enabled`
+  - `block`: matching traffic will be blocked
+  - `bulk`: matching traffic will be moved to low priority QoS class named `Bulk`
+  - `best_effort`: matching traffic will be moved to average priority QoS class named `Best Effort`
+  - `video`: matching traffic will be moved to high priority QoS class named `Video`
+  - `voice`: matching traffic will be moved to very high priority QoS class named `Voice`
+- `description`: an optional rule description
+- `enabled`: can be `0` or `1`, if set to `1` the rule will be enabled
 
-
-All enabled rules are always evaluated by netifyd, order doesn't matter.
+All enabled rules are always evaluated by netifyd, the rule order doesn't matter.
 
 Example of `/etc/config/dpi`:
 ```
 config main 'config'
 	option log_blocked '1'
 	option enabled '1'
-
-config rule
-	option action 'bulk'
-	option criteria 'ai:netify.twitter'
-    option description 'Block Twitter for everyone'
-	option enabled 1
+	option firewall_exemption '1'
 
 config rule
 	option action 'block'
+	option criteria 'ai:netify.twitter'
+	option description 'Block Twitter for everyone'
+	option enabled 1
+
+config rule
+	option action 'bulk'
 	option criteria 'local_ip == 192.168.100.22 && application == "netify.facebook";'
+	option description 'Low priority for 192.168.100.22 when accessing Facebook'
 	option enabled 1
 ```
 
-Notes on `criteria` option syntax:
-- the criteria must terminate with `;` when using complex expressions
-- the `"` is translated to `'` inside the plugin configuration file (`/etc/netify.d/netify-flow-actions.json`)
-
-
-To enable the `bulk` rule, you must enable qosify and change its default config:
+QoS rules do not have any effect if qosify is not enabled.
+To enable qosify use:
 ```
 uci set qosify.wan.disabled=0
 uci commit qosify
