@@ -16,11 +16,36 @@ To enable traffic processing:
   service netifyd restart
   ```
 
+Global options:
+
+- `enabled`
+- `log_blocked`
+- `firewall_exemption`
+
+Rule options:
+
+- `action`: valid actions are:
+  - `block`
+  - `bulk`
+  - `best_effort`
+  - `video`
+  - `voice`
+- `description`
+- `enabled`
+
+
+All enabled rules are always evaluated by netifyd, order doesn't matter.
+
 Example of `/etc/config/dpi`:
 ```
+config main 'config'
+	option log_blocked '1'
+	option enabled '1'
+
 config rule
 	option action 'bulk'
 	option criteria 'ai:netify.twitter'
+    option description 'Block Twitter for everyone'
 	option enabled 1
 
 config rule
@@ -38,7 +63,6 @@ To enable the `bulk` rule, you must enable qosify and change its default config:
 ```
 uci set qosify.wan.disabled=0
 uci commit qosify
-sed -i '/besteffort/d' /etc/qosify/00-defaults.conf
 /etc/init.d/qosify restart
 ```
 
