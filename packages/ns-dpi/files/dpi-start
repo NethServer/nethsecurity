@@ -33,4 +33,4 @@ ln -sf /etc/xtables/connlabel.conf /etc
 /usr/sbin/dpi-config
 
 # Load the firewall configuration
-/usr/sbin/dpi-ip-nft | nft -f -
+/usr/sbin/dpi-nft | nft -f -
