@@ -31,7 +31,7 @@ for section in u.get_all('network'):
             config["exemptions"].append(ip_addr)
 
 rcount = 0
-valid_actions = ['bulk', 'block']
+valid_actions = ['block', 'bulk', 'best_effort', 'video', 'voice']
 for section in u.get_all('dpi'):
     if u.get('dpi', section) != 'rule':
         continue
