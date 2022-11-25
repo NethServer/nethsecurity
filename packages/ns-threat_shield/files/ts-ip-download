@@ -52,5 +52,18 @@ do
     if [ -z "url" ]; then
         continue
     fi
-    wget --compression=gzip --no-cache --no-cookies --max-redirect=0 --timeout=20 --quiet -O - $url | awk "$rule" > $DEST_DIR$cat
+    max_tries=3
+    while ! wget --compression=gzip --no-cache --no-cookies --max-redirect=0 --timeout=20 --quiet -O "/tmp/$cat.dl" $url; do
+        sleep 1
+        max_tries=$((max_tries-1))
+        if [ $max_tries -le 0 ]; then
+            >&2 echo "[ERROR] Download failed for '$cat'"
+            break
+        fi
+    done
+
+    if [ -s "/tmp/$cat.dl" ]; then
+        cat "/tmp/$cat.dl" | awk "$rule" > $DEST_DIR$cat
+    fi
+    rm -f "/tmp/$cat.dl"
 done
