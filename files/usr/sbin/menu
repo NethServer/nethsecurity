@@ -4,6 +4,15 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
+function list_free_disks()
+{
+    for device in $(find /dev/ -name 'sd[a-z]' -o -name 'nvme[0-9]' -o -name 'hd[a-z]' -o -name 'vd[a-z]' -o -name 'xvd[a-z]' -o -name 'mmcblk[0-9]'); do
+	if ! grep -q $device /proc/mounts; then
+            echo $device
+	fi
+    done
+}
+
 function load_kmap() {
     A=0;declare -a B
     for keymap in $(find /usr/share/keymaps/ -type f -name \*.bin); do
@@ -45,7 +54,7 @@ function install_nextsec() {
 
 function perhaps_install_nextsec() {
     A=0;declare -a B
-    for disk in $(find /dev/ -name sd[a-z] -o -name nvme[0-9] -o -name hd[a-z] -o -name vd[a-z] -o -name xvd[a-z] -o -name mmcblk[0-9] | grep -v $1|sort|uniq); do
+    for disk in $(list_free_disks |sort|uniq); do
         echo -n "$(color_green "${A})" ) $(color_white ${disk:5})"; ((A+=1));B+=($disk);
         dmesg| grep "${disk:5}" | head -n 1| cut -d "]" -f 3-
     done; sleep 1;
@@ -69,12 +78,12 @@ function wrong_command(){
 
 function menu(){
    my_disk=$(df -t vfat /boot | tail -n 1| cut -d " " -f 1| tr -d "1")
-   disk=$(find /dev/ -name sd[a-z] -o -name nvme[0-9] -o -name hd[a-z] -o -name vd[a-z] -o -name xvd[a-z] -o -name mmcblk[0-9] | grep -v $my_disk | tail -n 1)
+   disk=$(list_free_disks | tail -n 1)
    echo -ne "
 Quick options:
 $(color_green '1)') Load alternate keyboard maps"
    label=($(block info ${my_disk}3));
-   if [[ "${label[2]}" == "LABEL=\"store\"" ]]; then
+   if [[ "${label[2]}" == "LABEL=\"store\"" && "$disk" != "" ]]; then
    echo -ne "
 $(color_green '2)') Install NextSecurity on $(color_white ${disk:5})
 $(color_green '3)') Install NextSecurity on other storage"
@@ -87,7 +96,7 @@ $(color_white 'Choose an option:') "
    case $choice in
 	1) load_kmap; menu ;;
 	2) install_nextsec $disk; menu;;
-	3) perhaps_install_nextsec ${my_disk:5}; menu;;
+	3) perhaps_install_nextsec; menu;;
 	l) exec /bin/login ;;
 	x) exit 0 ;;
 	*) wrong_command; menu ;;
