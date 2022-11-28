@@ -108,9 +108,9 @@ If `adblock` is enabled and the machine has a valid subscription, the following 
 - `yoroi_susp_level1` (was `yoroi_suspicious_level1` on NS7)
 - `yoroi_susp_level2` (was `yoroi_suspicious_level2` on NS7)
 
-The package add a new option to `adblock`:
+The package adds a new option to `adblock`:
 
-- `ts_enabled`: if se to `1`, it enables the download of threat shield DNS categories
+- `ts_enabled`: if set to `1`, it enables the download of threat shield DNS categories
 
 Extra categories are loaded from `/usr/share/threat_shield/nethesis-dns.sources.gz` and require a valid entitlement.
 DNS block categories will be automatically reloaded every 12 hours.
