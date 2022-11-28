@@ -11,23 +11,27 @@ from nextsec import utils
 (u, data, nmap) = nsmigration.init("redirects.json")
 
 for pf in data['redirects']:
+    sname = ''
     name = pf.pop("key")
     pfname = utils.get_id(name)
-    sname = utils.get_id(f"{name}_ipset")
     desc = pf.pop("description")
-    # create ipset
-    nsmigration.vprint(f'Creating ipset {sname} for port forward {pfname}')
-    u.set("firewall", sname, "ipset")
-    u.set("firewall", sname, "name", sname)
-    u.set("firewall", sname, "match", "src_net")
-    u.set("firewall", sname, "enabled", "1")
-    u.set("firewall", sname, "entry", pf.pop("src_ip"))
+    # create ipset, if needed
+    if 'src_ip' in pf and pf['src_ip']:
+        sname = utils.get_id(f"{name}_ipset")
+        nsmigration.vprint(f'Creating ipset {sname} for port forward {pfname}')
+        u.set("firewall", sname, "ipset")
+        u.set("firewall", sname, "name", sname)
+        u.set("firewall", sname, "match", "src_net")
+        u.set("firewall", sname, "enabled", "1")
+        u.set("firewall", sname, "entry", pf.pop("src_ip"))
     # create port forward 
     nsmigration.vprint(f'Creating port forward {pfname}')
     u.set("firewall", pfname, "redirect")
     u.set("firewall", pfname, "name", desc)
     u.set("firewall", pfname, "src", 'wan')
-    u.set("firewall", pfname, "ipset", f"{sname}")
+    # limit pf access, if needed
+    if sname:
+        u.set("firewall", pfname, "ipset", f"{sname}")
     # this should be irrelevant for DNAT, but it prevents a warning
     u.set("firewall", pfname, "dest", "lan")
     for o in pf:
