@@ -38,6 +38,9 @@ tar xvzf export.tar.gz
 
 The `ns-import` script is verbose by default, use the `-q` option to suppress output to standard output.
 
+On first boot, if a file named `/usr/share/migration/export.tar.gz` is present, the system
+will automatically import the configuration. Migration output will be logged to `/var/log/migration.log`.
+
 ### Remapping interfaces
 
 When importing the configuration from an old machine to a new one, you need to remap
@@ -316,9 +319,6 @@ The following NS7 options will not be migrated:
 - `UpdateInterval`
 
 ## Other features
-
-The following features will be migrated in the upcoming months:
-
 
 The following features are not migrated to NextSecurity:
 
