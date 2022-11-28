@@ -1,0 +1,12 @@
+diff --git a/net/adblock/files/adblock.conf b/net/adblock/files/adblock.conf
+index aeceb500f..8b50b4211 100644
+--- a/net/adblock/files/adblock.conf
++++ b/net/adblock/files/adblock.conf
+@@ -1,6 +1,6 @@
+ 
+ config adblock 'global'
+-	option adb_enabled '1'
++	option adb_enabled '0'
+ 	option adb_debug '0'
+ 	option adb_forcedns '0'
+ 	option adb_safesearch '0'
