@@ -76,7 +76,8 @@ try_restart dropbear
 try_restart cron
 try_restart sysntpd
 try_restart ns-plug
-try_restart ts-dns
+ts-dns
+try_restart adblock
 try_restart openvpn
 try_restart mwan3
 try_restart swanctl

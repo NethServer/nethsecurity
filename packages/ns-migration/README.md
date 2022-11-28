@@ -242,6 +242,10 @@ The `threat_shield` script will import:
 
 If the categories comes from a community repositories, you should reconfigure after the import.
 
+Differences since NS7:
+
+- if enabled, DNS proxy is active for all zones
+
 See also [ns-threat_shield](../ns-threat_shield).
 
 ## Subscription
