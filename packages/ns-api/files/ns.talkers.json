@@ -1,0 +1,13 @@
+{
+  "talkers-reader": {
+    "description": "Read top talker statistics",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.talkers": [
+          "list"
+        ]
+      }
+    }
+  }
+}
