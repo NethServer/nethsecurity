@@ -197,10 +197,10 @@ The `openvpn` script will import:
 - CA, server and users certificates and keys
 - IP address reservation
 - user names with enabled/disabled status
+- password for users saved inside local OpenLDAP
+- LDAP configuration for remote authentication
 
 The following NS7 features are still not migrated:
-- authentication based user and password
-- authentication certificate and password
 - authentication certificate and One Time password (OTP)
 - mail notification
 

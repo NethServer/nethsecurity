@@ -1,0 +1,62 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Used env variables:
+# - username
+# - password
+# - config
+
+. /lib/functions.sh
+cur_instance=$(echo $config | sed -e 's/openvpn\-//' -e 's/\.conf//')
+uri=""
+base_dn=""
+tls_reqcert=""
+user_dn=""
+user_attr=""
+starttls=0
+
+function read_config
+{
+    local section="$1"
+    config_get instance "$section" instance
+
+    if [ "$instance" = "$cur_instance" ]; then
+        config_get uri "$section" uri
+        config_get base_dn "$section" base_dn
+        # default for user_dn is the base_dn
+        config_get user_dn "$section" user_dn $base_dn
+        config_get user_attr "$section" user_attr "uid"
+        config_get tls_reqcert "$section" tls_reqcert "never"
+        config_get starttls "$section" starttls "0"
+    fi
+}
+
+config_load 'openvpn'
+config_foreach read_config ldap
+
+config_get enabled "$username" enabled 0
+config_get user_instance "$username" instance ''
+
+if [ "$cur_instance" != "$user_instance" ]; then
+    exit 2
+fi
+
+if [ "$enabled" = "0" ]; then
+    exit 3
+fi
+
+if [ -z "$uri" ] || [ -z "$base_dn" ]; then
+    exit 4
+fi
+
+if [ "$starttls" = "1" ]; then
+    starttls_opt="-Z"
+else
+    starttls_opt=""
+fi
+
+LDAPTLS_REQCERT="$tls_reqcert" ldapsearch $starttls_opt -H "$uri" -b "$base_dn" -D "$user_attr=$username,$user_dn" -w"$password" "$user_attr=$username" >/dev/null
