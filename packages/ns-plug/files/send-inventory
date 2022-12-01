@@ -1,0 +1,36 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Send the inventory
+
+SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
+SYSTEM_SECRET=$(uci -q get ns-plug.config.secret)
+URL=$(uci -q get ns-plug.config.inventory_url)
+TYPE=$(uci -q get ns-plug.config.type)
+
+if [ -z "$SYSTEM_ID" ] || [ -z "$SYSTEM_SECRET" ]; then
+    # System ID and System secret not found, configure ns-plug to enable it
+    exit 0
+fi
+
+TMP=$(mktemp)
+trap "{ rm -f "$TMP"; }" SIGINT SIGTERM EXIT
+
+json=$(/usr/sbin/inventory)
+
+echo "{\"data\": {\"lk\": \"$SYSTEM_ID\", \"data\": $json}}" > $TMP
+
+/usr/bin/curl -m 180 --retry 3 -L -s \
+   --header "Authorization: token $SYSTEM_SECRET"  --header "Content-Type: application/json" --header "Accept: application/json"  \
+   --data-binary @$TMP "$URL" > /dev/null
+
+if [ "$TYPE" = "enterprise" ]; then
+    # Update registration date
+    /usr/bin/curl -m 180 --retry 3 -L -s \
+        --header "Content-Type: application/json" --header "Accept: application/json"  \
+        -d '{"secret":"'$SYSTEM_SECRET'"}' https://my.nethesis.it/api/systems/info >/dev/null
+fi

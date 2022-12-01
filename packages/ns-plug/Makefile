@@ -21,7 +21,7 @@ define Package/ns-plug
 	CATEGORY:=NextSecurity
 	TITLE:=NextSecurity controller client
 	URL:=https://github.com/NethServer/nextsecurity-controller/
-	DEPENDS:=+openvpn
+	DEPENDS:=+openvpn +lscpu +dmidecode +python3-nextsec
 	PKGARCH:=all
 endef
  
@@ -51,6 +51,8 @@ define Package/ns-plug/prerm
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
   crontab -l | grep -v "/usr/sbin/send-backup" | sort | uniq | crontab -
+  crontab -l | grep -v "/usr/sbin/send-inventory" | sort | uniq | crontab -
+  crontab -l | grep -v "/usr/sbin/send-heartbeat" | sort | uniq | crontab -
 fi
 exit 0
 endef
@@ -65,6 +67,11 @@ define Package/ns-plug/install
 	$(INSTALL_BIN) ./files/ns-plug $(1)/usr/sbin/ns-plug
 	$(INSTALL_BIN) ./files/remote-backup $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/send-backup $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/send-heartbeat $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/send-inventory $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/register $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/unregister $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/inventory $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/20_ns-plug $(1)/etc/uci-defaults
 	$(INSTALL_CONF) ./files/config $(1)/etc/config/ns-plug
 endef

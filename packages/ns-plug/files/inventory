@@ -1,0 +1,108 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import json
+import subprocess
+from euci import EUci
+from struct import pack
+from nextsec import utils
+from socket import inet_ntoa
+
+def _run(cmd):
+    try:
+        proc = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True)
+        return proc.stdout.rstrip().lstrip()
+    except:
+        return ''
+
+def _run_json(cmd):
+    try:
+        return json.loads(_run(cmd))
+    except:
+        return None
+
+def _get_cpu_field(field, cpu_info):
+    for f in cpu_info:
+        if f['field'].startswith(field):
+            return f['data']
+
+    return ''
+
+def _get_role(u, interface):
+    for zone in utils.get_all_by_type(u, 'firewall', 'zone'):
+        name = u.get('firewall', zone, 'name')
+        networks = u.get('firewall', zone, 'network', list=True, default=[])
+        if interface in networks:
+            if name == "lan":
+                return "green"
+            elif name == "wan": 
+                return "red"
+            else:
+                return name
+
+def _get_ip(interface):
+    info = _run_json(f"ifstatus {interface}")
+    try:
+        return info['ipv4-address'][0]['address']
+    except:
+        return ''
+
+def _get_mask(interface):
+    info = _run_json(f"ifstatus {interface}")
+    try:
+        m =  info['ipv4-address'][0]['mask']
+        bits = 0xffffffff ^ (1 << 32 - int(m)) - 1
+        mask = inet_ntoa(pack(">I", bits))
+        return mask
+    except:
+        return ''
+
+
+release = _run('grep VERSION= /etc/os-release | cut -d= -f 2 | tr -d \'"\'')
+cpu_info = _run_json('lscpu -J')['lscpu']
+board = _run("dmidecode -t 2 | grep 'Product Name' | awk -F: '{print $2}'")
+dns = _run("grep nameserver /tmp/resolv.conf.d/resolv.conf.auto | awk '{print $2}'")
+networks = {}
+u = EUci()
+devices = utils.get_all_by_type(u, 'network', 'device')
+for section in utils.get_all_by_type(u, 'network', 'interface'):
+    if section == "lan6" or section == "wan6": # skip IPv6 for now
+        continue
+    interface = u.get_all('network', section)
+    device = interface["device"]
+    if device == "lo" or device.startswith("ipsec") or device.startswith("tun"):
+        continue
+    network = {"type": "ethernet", "name": device, "props": { "role": _get_role(u, section), "ipaddr": _get_ip(section), "netmask": _get_mask(section)}}
+    if interface['device'].startswith('br'):
+        network["type"] = "bridge"
+        for d in devices:
+            if u.get('network', d, 'name') == device:
+                network['props']["bridge"] = u.get('network', d, 'ports')
+    networks[device] = network
+
+data = {
+    "arp_macs": _run('cat /proc/net/arp | grep -v IP | wc -l'),
+    "uuid": _run("cat /sys/class/dmi/id/product_uuid"),
+    "is_virtual": (_get_cpu_field("Hypervisor vendor", cpu_info) != ''),
+    "virtual": _get_cpu_field("Hypervisor vendor", cpu_info) if _get_cpu_field("Hypervisor vendor", cpu_info) else 'physical',
+    "kernel": _run('uname'),
+    "kernelrelease": _run('uname -r'),
+    "bios_version": _run("dmidecode -s bios-version"),
+    "bios_vendor": _run("dmidecode -s bios-vendor"),
+    "productname": _run("dmidecode -t 1 | grep 'Product Name' | awk -F: '{print $2}'"),
+    "boardproductname": board if board else '-',
+    "manufacturer": _run("dmidecode -t 1 | grep 'Manufacturer' | awk -F: '{print $2}'"),
+    "networking": { "fqdn": _run('uname -n'), "dns": dns },
+    "os": { "architecture": _get_cpu_field("Architecture", cpu_info), "name": "NextSec", "release": { "full": release }, "family": "OpenWRT" },
+    "processors": { "count": _run("grep processor /proc/cpuinfo  | wc -l") },
+    "processor0": _get_cpu_field("Model name", cpu_info),
+    "timezone": _run('uci get system.@system[0].zonename'),
+    "system_uptime": { "seconds": _run("cat /proc/uptime | awk -F. '{print $1}'") },
+    "esmithdb": { "networks": list(networks.values()) }
+}
+
+print(json.dumps(data))

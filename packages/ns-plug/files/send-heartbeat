@@ -1,0 +1,21 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Send the heartbeat
+
+SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
+SYSTEM_SECRET=$(uci -q get ns-plug.config.secret)
+URL=$(uci -q get ns-plug.config.alerts_url)"heartbeats/store"
+
+if [ -z "$SYSTEM_ID" ] || [ -z "$SYSTEM_SECRET" ]; then
+    # System ID or system secret not found, configure ns-plug
+    exit 0
+fi
+
+/usr/bin/curl -m 180 --retry 3 -L -s \
+   --header "Authorization: token $SYSTEM_SECRET"  --header "Content-Type: application/json" --header "Accept: application/json"  \
+   --data-raw '{"lk": "'$SYSTEM_ID'"}' "$URL" >/dev/null

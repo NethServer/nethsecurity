@@ -1,0 +1,32 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+#
+# Unregister the machine
+#
+
+SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
+SYSTEM_SECRET=$(uci -q get ns-plug.config.secret)
+URL=$(uci -q get ns-plug.config.api_url | sed 's/\/$//')
+
+if [ -z "$SYSTEM_ID" ] || [ -z "$SYSTEM_SECRET" ]; then
+    # System ID and System secret not found, configure ns-plug to enable it
+    exit 0
+fi
+
+curl -s -m 180 --retry 3 -L -H "Content-type: application/json" -H "Accept: application/json" -d "{\"lk\": \"$SYSTEM_ID\", \"secret\": \"$SYSTEM_SECRET\"}" "$URL/Utils/freekey" >/dev/null
+
+# Reset ns-plug configuration
+uci set ns-plug.config.type=""
+uci set ns-plug.config.alerts_url=""
+uci set ns-plug.config.api_url=""
+uci set ns-plug.config.inventory_url=""
+uci set ns-plug.config.system_id=""
+uci set ns-plug.config.secret=""
+
+# Save config
+uci commit ns-plug
