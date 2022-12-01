@@ -40,3 +40,15 @@ uci set ns-plug.config.system_id=''
 uci commit
 rm -f /usr/share/ns-plug/client.conf
 ```
+
+## Backup
+
+If the machine has been registered, every night a cron job
+will execute the backup and send it to a remote server.
+
+To manually manage remote backups use the `remote-backup` command.
+
+Restore the latest available remote backup:
+```
+remote-backup download $(remote-backup list | jq -r .[0].file) - | sysupgrade -r -
+```

@@ -37,13 +37,35 @@ endef
 define Build/Compile
 endef
 
+define Package/ns-plug/postinst
+#!/bin/sh
+if [ -z "$${IPKG_INSTROOT}" ]; then
+  (. /etc/uci-defaults/20_ns-plug)
+  rm -f /etc/uci-defaults/20_ns-plug
+  /etc/init.d/cron restart
+fi
+exit 0
+endef
+
+define Package/ns-plug/prerm
+#!/bin/sh
+if [ -z "$${IPKG_INSTROOT}" ]; then
+  crontab -l | grep -v "/usr/sbin/send-backup" | sort | uniq | crontab -
+fi
+exit 0
+endef
+
 define Package/ns-plug/install
 	$(INSTALL_DIR) $(1)/usr/share/ns-plug
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/etc/config
+	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/ns-plug.init $(1)/etc/init.d/ns-plug
 	$(INSTALL_BIN) ./files/ns-plug $(1)/usr/sbin/ns-plug
+	$(INSTALL_BIN) ./files/remote-backup $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/send-backup $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/20_ns-plug $(1)/etc/uci-defaults
 	$(INSTALL_CONF) ./files/config $(1)/etc/config/ns-plug
 endef
  
