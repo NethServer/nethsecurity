@@ -13,7 +13,7 @@ To enable traffic processing:
   uci set dpi.config.enabled=1
   uci commit dpi
   /etc/init.d/dpi restart
-  service netifyd restart
+  service netifyd reload
   ```
 
 Global options:
