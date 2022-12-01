@@ -68,7 +68,7 @@ if [ -z "$${IPKG_INSTROOT}" ]; then
 	uci commit
 	/usr/sbin/ts-ip
 	crontab -l | grep -v "/etc/init.d/ts-ip" | sort | uniq | crontab -
-	crontab -l | grep -v "/etc/init.d/ts-dns" | sort | uniq | crontab -
+	crontab -l | grep -v "//etc/init.d/adblock" | sort | uniq | crontab -
 fi
 exit 0
 endef
