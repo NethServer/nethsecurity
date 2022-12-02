@@ -83,7 +83,8 @@ function menu(){
 Quick options:
 $(color_green '1)') Load alternate keyboard maps"
    label=($(block info ${my_disk}3));
-   if [[ "${label[2]}" == "LABEL=\"store\"" && "$disk" != "" ]]; then
+   usb=$(lsusb -t)
+   if [[ "${label[2]}" == "LABEL=\"store\"" ]] && [[ $usb = *"usb-storage"* ]]; then 
    echo -ne "
 $(color_green '2)') Install NextSecurity on $(color_white ${disk:5})
 $(color_green '3)') Install NextSecurity on other storage"
