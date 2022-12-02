@@ -16,7 +16,7 @@ MD5="$WORK_DIR/md5"
 MD5_LAST="/etc/backup.md5"
 
 function send {
-    remote-backup send "$BACKUP"
+    remote-backup upload "$BACKUP"
     rm -f "$BACKUP"
     mv $MD5 $MD5_LAST
     exit $?
