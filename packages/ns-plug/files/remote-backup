@@ -30,7 +30,7 @@ if [ -z "$SYSTEM_ID" ] || [ -z "$SYSTEM_SECRET" ] || [ -z "$URL" ]; then
     exit_error "System ID, system secret or backup url not found. Please configure ns-plug."
 fi
 
-curl_args="--silent --user-agent NethBackup --location-trusted --url $URL --user $SYSTEM_ID:$SYSTEM_SECRET -X POST "
+curl_args="--silent --user-agent NethBackup --location-trusted --url $URL --user $SYSTEM_ID:$SYSTEM_SECRET -X POST"
 
 cmd=${1:-list}
 
