@@ -1,0 +1,61 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+#
+# Manage remote backup
+#
+
+function exit_error {
+    >&2 echo "[ERROR] $@"
+    exit 1
+}
+
+function help {
+    >&2 echo "Usage: $0 <list|download|upload>"
+    >&2 echo "Commands:"
+    >&2 echo " - list: retrieve the list of available backups from remote server"
+    >&2 echo " - download <file> [output]: download the given backup, if 'output' is empty downloaded file will be named as as 'file'"
+    >&2 echo " - upload <file>: upload the given backup"
+}
+
+SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
+SYSTEM_SECRET=$(uci -q get ns-plug.config.secret)
+URL=$(uci -q get ns-plug.config.backup_url)
+
+if [ -z "$SYSTEM_ID" ] || [ -z "$SYSTEM_SECRET" ] || [ -z "$URL" ]; then
+    exit_error "System ID, system secret or backup url not found. Please configure ns-plug."
+fi
+
+curl_args="--silent --user-agent NethBackup --location-trusted --url $URL --user $SYSTEM_ID:$SYSTEM_SECRET -X POST"
+
+cmd=${1:-list}
+
+case "$cmd" in
+    list)
+        curl $curl_args --header 'NethBackup-Action: backup-list' --header "NethBackup-Parameters: LK=$SYSTEM_ID" \
+            | jq -c -M --slurp --raw-input 'split("|") | map(split(";")) | map({"file": .[0], "name": .[1]})'
+        ;;
+    download)
+        file=$2
+        if [ -z "$file" ]; then
+           exit_error "No file specified"
+        fi
+        output=${3-$file}
+        curl $curl_args --header 'NethBackup-Action: backup-get' --header "NethBackup-Parameters: LK=$SYSTEM_ID&bakfile=$file" -o "$output"
+       ;;
+   upload)
+       file=$2
+       if [ -z "$file" ]; then
+           exit_error "No file specified"
+       fi
+       curl $curl_args --header 'NethBackup-Action: backup-send' --header "NethBackup-Parameters: LK=$SYSTEM_ID&fname=backup.tar.gz" --data-binary @$file -o /dev/null
+       ;;
+
+   *)
+       help
+      ;;
+esac

@@ -1,0 +1,3 @@
+#!/bin/sh
+
+crontab -l | grep -q '/usr/sbin/send-backup' || echo '02 2 * * * sleep $(( RANDOM % 1800 )); /usr/sbin/send-backup' >> /etc/crontabs/root

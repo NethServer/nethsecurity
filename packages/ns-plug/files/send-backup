@@ -1,0 +1,46 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Execute the backup.
+# If the backup has changes since last run, upload it to remote server
+
+set -e
+
+WORK_DIR="/var/backup"
+BACKUP="$WORK_DIR/backup.tar.gz"
+MD5="$WORK_DIR/md5"
+MD5_LAST="/etc/backup.md5"
+
+function send {
+    remote-backup upload "$BACKUP"
+    rm -f "$BACKUP"
+    mv $MD5 $MD5_LAST
+    exit $?
+}
+
+SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
+SYSTEM_SECRET=$(uci -q get ns-plug.config.secret)
+
+if [ -z "$SYSTEM_ID" ] || [ -z "$SYSTEM_SECRET" ]; then
+    # System ID and System secret not found, configure ns-plug to enable it
+    exit 0
+fi
+
+# Create the backup
+mkdir -p $WORK_DIR
+sysupgrade -b $BACKUP 2>/dev/null
+md5sum $BACKUP | awk '{print $1}' > $MD5
+
+# Send backup if there is no md5 saved
+if [ ! -f "$MD5_LAST" ]; then
+    send
+fi
+
+# Send backup if the md5 is changed
+if [ -f "$MD5_LAST" ] && [ "$(cat $MD5_LAST)" != "$(cat $MD5)" ]; then
+    send
+fi
