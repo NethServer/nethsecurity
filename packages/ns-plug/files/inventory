@@ -61,11 +61,19 @@ def _get_mask(interface):
     except:
         return ''
 
+def _get_gateway(interface):
+    info = _run_json(f"ifstatus {interface}")
+    try:
+        for r in info['route']:
+            if r['target'] == '0.0.0.0':
+                return r['nexthop']
+    except:
+        return ''
 
 release = _run('grep VERSION= /etc/os-release | cut -d= -f 2 | tr -d \'"\'')
 cpu_info = _run_json('lscpu -J')['lscpu']
 board = _run("dmidecode -t 2 | grep 'Product Name' | awk -F: '{print $2}'")
-dns = _run("grep nameserver /tmp/resolv.conf.d/resolv.conf.auto | awk '{print $2}'")
+dns = _run("grep nameserver /tmp/resolv.conf.d/resolv.conf.auto | awk '{print $2}' | tr '\n' ','")
 networks = {}
 u = EUci()
 devices = utils.get_all_by_type(u, 'network', 'device')
@@ -76,7 +84,7 @@ for section in utils.get_all_by_type(u, 'network', 'interface'):
     device = interface["device"]
     if device == "lo" or device.startswith("ipsec") or device.startswith("tun"):
         continue
-    network = {"type": "ethernet", "name": device, "props": { "role": _get_role(u, section), "ipaddr": _get_ip(section), "netmask": _get_mask(section)}}
+    network = {"type": "ethernet", "name": device, "props": { "role": _get_role(u, section), "ipaddr": _get_ip(section), "netmask": _get_mask(section), "gateway": _get_gateway(section)}}
     if interface['device'].startswith('br'):
         network["type"] = "bridge"
         for d in devices:
@@ -86,23 +94,36 @@ for section in utils.get_all_by_type(u, 'network', 'interface'):
 
 data = {
     "arp_macs": _run('cat /proc/net/arp | grep -v IP | wc -l'),
-    "uuid": _run("cat /sys/class/dmi/id/product_uuid"),
-    "is_virtual": (_get_cpu_field("Hypervisor vendor", cpu_info) != ''),
+    "dmi": { "product": { "name": _run("dmidecode -t 1 | grep 'Product Name' | awk -F: '{print $2}'"), "uuid": _run("cat /sys/class/dmi/id/product_uuid") }, "bios": { "version": _run("dmidecode -s bios-version"), "vendor": _run("dmidecode -s bios-vendor")}, "board": { "product": board if board else '-', "manufacturer": _run("dmidecode -t 1 | grep 'Manufacturer' | awk -F: '{print $2}'") }},
     "virtual": _get_cpu_field("Hypervisor vendor", cpu_info) if _get_cpu_field("Hypervisor vendor", cpu_info) else 'physical',
     "kernel": _run('uname'),
     "kernelrelease": _run('uname -r'),
-    "bios_version": _run("dmidecode -s bios-version"),
-    "bios_vendor": _run("dmidecode -s bios-vendor"),
     "productname": _run("dmidecode -t 1 | grep 'Product Name' | awk -F: '{print $2}'"),
-    "boardproductname": board if board else '-',
-    "manufacturer": _run("dmidecode -t 1 | grep 'Manufacturer' | awk -F: '{print $2}'"),
-    "networking": { "fqdn": _run('uname -n'), "dns": dns },
-    "os": { "architecture": _get_cpu_field("Architecture", cpu_info), "name": "NextSec", "release": { "full": release }, "family": "OpenWRT" },
-    "processors": { "count": _run("grep processor /proc/cpuinfo  | wc -l") },
-    "processor0": _get_cpu_field("Model name", cpu_info),
+    "networking": { "fqdn": _run('uname -n')},
+    "os": { "type": "nextsecurity", "name": "NextSec", "release": { "full": release, "major": 7 }, "family": "OpenWRT" },
+    "processors": { "count": _run("grep processor /proc/cpuinfo  | wc -l"), "models": [  _get_cpu_field("Model name", cpu_info) ], "isa": _get_cpu_field("Architecture", cpu_info)},
     "timezone": _run('uci get system.@system[0].zonename'),
     "system_uptime": { "seconds": _run("cat /proc/uptime | awk -F. '{print $1}'") },
-    "esmithdb": { "networks": list(networks.values()) }
+    "esmithdb": {
+        "networks": list(networks.values()),
+        "configuration" : [
+            { "name": "sysconfig", "type": "configuration", "props": {"Version": release} },
+            { "name": "dns", "type": "configuration", "props": {"NameServers": dns} },
+            { "name" : "SystemName", "type" : _run("uname -n | cut -d'.' -f1") },
+            { "name" : "DomainName", "type" : _run("uname -n | cut -d'.' -f2-") }
+        ]
+    },
+    "memory": {
+        "swap": { "used_bytes": _run("free | grep 'Swap': | awk '{print $3}'"), "available_bytes": _run("free | grep 'Swap': | awk '{print $7}'") },
+        "system": { "used_bytes": _run("free | grep 'Mem': | awk '{print $3}'"), "available_bytes": _run("free | grep 'Mem:' | awk '{print $7}'") }
+    },
+    "mountpoints": {
+        "/": {
+            "used_bytes": int(_run("df | sort | uniq | grep '/$' | awk '{print $3}'"))*1024,
+            "available_bytes": int(_run("df | sort | uniq | grep '/$' | awk '{print $4}'"))*1024
+        }
+    },
+    "rpms": {}
 }
 
 print(json.dumps(data))
