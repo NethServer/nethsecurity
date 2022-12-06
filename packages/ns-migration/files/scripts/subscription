@@ -6,6 +6,7 @@
 #
 
 import sys
+import subprocess
 import nsmigration
 
 (u, data, nmap) = nsmigration.init("subscription.json")
@@ -13,13 +14,5 @@ import nsmigration
 if not data:
     sys.exit(0)
 
-if data['subscription']['system_id']:
-    nsmigration.vprint(f"Setting subscription system_id")
-    u.set('ns-plug', 'config', 'system_id', data['subscription']['system_id'])
-
-if data['subscription']['secret']:
-    nsmigration.vprint(f"Setting subscription secret")
-    u.set('ns-plug', 'config', 'secret', data['subscription']['secret'])
-
-# Save configuration
-u.commit("ns-plug")
+nsmigration.vprint("Activating the subscription")
+subprocess.run(["/usr/sbin/register", data['subscription']['type'], data['subscription']['secret']], check=False)
