@@ -15,20 +15,19 @@ function exit_error {
 }
 
 function help {
-    >&2 echo "Usage: $0 <community|enterprise> <system_id> <system_secret>"
+    >&2 echo "Usage: $0 <community|enterprise> <system_secret>"
     exit 1
 }
 
 type="$1"
-system_id="$2"
-secret="$3"
+secret="$2"
 
 if [ -z "$1" ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
     help
 fi
 
-if [ -z "$system_id" ] || [ -z "$secret" ]; then
-    exit_error "Invalid system_id or secret"
+if [ -z "$secret" ]; then
+    exit_error "Invalid secret"
 fi
 
 # Setup URLs
@@ -49,6 +48,24 @@ case "$type" in
        exit_error "Invalid type '$type'"
       ;;
 esac
+
+url=$(uci -q get ns-plug.config.api_url | sed 's/\/$//')
+
+if [ "$type" = "enterprise" ]; then
+    system_id=$(curl -v -m 180 --retry 3 -L \
+        -H "Content-Type: application/json" -H "Accept: application/json" \
+        -d '{"secret": "'$secret'"}' "$url/systems/info" | jq -r ".uuid" 2>/dev/null)
+else
+    system_id=$(curl -v -m 180 --retry 3 -L \
+        -H "Content-Type: application/json" -H "Accept: application/json" \
+        -H "Authorization: token $secret" \
+        "$url/machine/info" | jq -r ".uuid" 2>/dev/null)
+fi
+
+if [ "$system_id" == "null" ] || [ -z "$system_id" ]; then
+    exit_error "System ID not found"
+fi
+
 
 # Save config
 uci set ns-plug.config.system_id="$system_id"
