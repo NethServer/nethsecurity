@@ -17,16 +17,10 @@ if [ -z "$SYSTEM_ID" ] || [ -z "$SYSTEM_SECRET" ]; then
     exit 0
 fi
 
-TMP=$(mktemp)
-trap "{ rm -f "$TMP"; }" SIGINT SIGTERM EXIT
-
-json=$(/usr/sbin/inventory)
-
-echo "{\"data\": {\"lk\": \"$SYSTEM_ID\", \"data\": $json}}" > $TMP
-
+echo "{\"data\": {\"lk\": \"$SYSTEM_ID\", \"data\": $(/usr/sbin/inventory) }}" | \
 /usr/bin/curl -m 180 --retry 3 -L -s \
    --header "Authorization: token $SYSTEM_SECRET"  --header "Content-Type: application/json" --header "Accept: application/json"  \
-   --data-binary @$TMP "$URL" > /dev/null
+   --data-binary @- "$URL" > /dev/null
 
 if [ "$TYPE" = "enterprise" ]; then
     # Update registration date
