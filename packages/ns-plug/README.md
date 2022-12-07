@@ -1,6 +1,12 @@
 # ns-plug
 
-ns-plug is the client connecting the firewall to a remote [NextSecurity controller](https://github.com/NethServer/nextsecurity-controller).
+ns-plug handles:
+- the connection to remote [NextSecurity controller](https://github.com/NethServer/nextsecurity-controller)
+- the machine registration to monitoring services like [my.nethserver.com](https://my.nethserver.com) (community subscription)
+  and [my.nethesis.it](https://my.nethesis.it) (enterprise subscription)
+- the remote backup for enterprise subscriptions
+
+## NextSecurity controller client
 
 The client is composed by 3 main parts:
 
@@ -41,9 +47,34 @@ uci commit
 rm -f /usr/share/ns-plug/client.conf
 ```
 
-## Backup
+## Machine registration
 
-If the machine has been registered, every night a cron job
+To register a machine:
+- access [my.nethserver.com](https://my.nethserver.com) or [my.nethesis.it](https://my.nethesis.it)
+  and create a new server
+- copy the generated secret token
+
+For enterprise subscription, execute:
+```
+register enterprise <secret>
+```
+For community subscription, execute:
+```
+register community <secret>
+```
+
+When the machine has been registered, the system will:
+- send an heartbeat every 10 minutes using `send-heartbeat` script
+- send the inventory every night using `send-inventory` script
+
+To deregister the machine, execute:
+```
+unregister
+```
+
+## Remote backup
+
+If the machine has a valid enterprise subscription, every night a cron job
 will execute the backup and send it to a remote server.
 
 To manually manage remote backups use the `remote-backup` command.
