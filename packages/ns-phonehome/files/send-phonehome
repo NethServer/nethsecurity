@@ -1,0 +1,19 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Send the phonehome data
+
+ENABLED=$(uci -q get phonehome.config.enabled)
+URL=$(uci -q get phonehome.config.url)
+
+if [ "$ENABLED" = "0" ] || [ -z "$URL" ]; then
+    exit 0
+fi
+
+/usr/sbin/phonehome | curl -m 180 --retry 3 -L -s \
+	-H "Content-type: application/json" -H "Accept: application/json" \
+	--data-binary @- "$URL" > /dev/null
