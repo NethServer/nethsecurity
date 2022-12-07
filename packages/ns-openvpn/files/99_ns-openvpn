@@ -1,0 +1,2 @@
+grep -q '/usr/libexec/ns-openvpn/init-connections-db' /etc/openvpn.user || echo "/usr/libexec/ns-openvpn/init-connections-db" >> /etc/openvpn.user
+/usr/sbin/ns-openvpnrw-setup
