@@ -52,11 +52,11 @@ esac
 url=$(uci -q get ns-plug.config.api_url | sed 's/\/$//')
 
 if [ "$type" = "enterprise" ]; then
-    system_id=$(curl -v -m 180 --retry 3 -L \
+    system_id=$(curl -s -m 180 --retry 3 -L \
         -H "Content-Type: application/json" -H "Accept: application/json" \
         -d '{"secret": "'$secret'"}' "$url/systems/info" | jq -r ".uuid" 2>/dev/null)
 else
-    system_id=$(curl -v -m 180 --retry 3 -L \
+    system_id=$(curl -s -m 180 --retry 3 -L \
         -H "Content-Type: application/json" -H "Accept: application/json" \
         -H "Authorization: token $secret" \
         "$url/machine/info" | jq -r ".uuid" 2>/dev/null)
