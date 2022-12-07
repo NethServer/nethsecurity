@@ -42,5 +42,5 @@ except:
     u.set('openvpn', instance, 'key', f'/etc/openvpn/{instance}/pki/private/server.key')
     u.commit('openvpn')
 
-    # initialize firewall rules
+    # initialize pki
     subprocess.run(["/usr/sbin/ns-openvpnrw-init-pki", instance])
