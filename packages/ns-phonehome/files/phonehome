@@ -1,0 +1,93 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import csv
+import json
+import uuid
+import subprocess
+from euci import EUci
+
+def _run(cmd):
+    try:
+        proc = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True)
+        return proc.stdout.rstrip().lstrip()
+    except:
+        return ''
+
+def _get_cpu_field(field, cpu_info):
+    for f in cpu_info:
+        if f['field'].startswith(field):
+            return f['data']
+
+    return ''
+
+cpu_info = json.loads(_run('lscpu -J'))['lscpu']
+
+# map kernel driver to device id
+drivers = {}
+for line in _run("find /sys | grep '.*/drivers/.*/0000:.*$' | cut -d'/' -f6,7").split('\n'):
+    try:
+        (driver,bus) = line.split("/0000:")
+        drivers[bus] = driver
+    except:
+        continue
+
+# lspci -n: 00:1b.0 0403: 8086:293e (rev 03)
+# fields:   bus class vendor:device revision
+pci = {}
+for line in _run("lspci -n").split("\n"):
+    revision = ''
+    fields = line.split(" ", maxsplit=4)
+    (vendor, device) = fields[2].split(":")
+    if len(fields) > 3:
+        revision = fields[4]
+    pci[fields[0]] = {"class_id": fields[1].rstrip(":"), "vendor_id": vendor, "device_id": device, "revision": revision.strip(')')}
+
+# lspci -mm: 00:00.0 "Host bridge" "Intel Corporation" "82G33/G31/P35/P31 Express DRAM Controller" -p00 "Red Hat, Inc." "QEMU Virtual Machine"
+for fields in csv.reader(_run("lspci -mm").split("\n"), delimiter=' ', quotechar='"'):
+    pci[fields[0]]['class_name'] = fields[1].strip('"')
+    pci[fields[0]]['vendor_name'] = fields[2]
+    pci[fields[0]]['device_name'] = fields[3]
+    pci[fields[0]]['driver'] =  drivers.get(fields[0], '')
+
+# use hardware uuid, if not present just generate one
+sid = _run("cat /sys/class/dmi/id/product_uuid")
+if not sid:
+    u = EUci()
+    sid = u.get('phonehome', 'config', 'uuid', default=None)
+    if not sid:
+        sid = str(uuid.uuid4())
+        u.set('phonehome', 'config', 'uuid', sid)
+        u.commit('phonehome')
+
+data = {
+    "uuid": sid,
+    "installation": "nextsecurity",
+    "facts": {
+        "distro": {
+            "name": "NextSecurity",
+            "version": _run('grep VERSION= /etc/os-release | cut -d= -f 2 | tr -d \'"\'')
+        },
+        "processors": { 
+            "count": _run("grep processor /proc/cpuinfo  | wc -l"), 
+            "model":  _get_cpu_field("Model name", cpu_info),
+            "architecture": _get_cpu_field("Architecture", cpu_info)
+        },
+        "product": {
+            "name": _run("dmidecode -t 2 | grep 'Product Name' | awk -F: '{print $2}'"),
+            "manufacturer":  _run("dmidecode -t 2 | grep 'Manufacturer' | awk -F: '{print $2}'")
+        },
+        "virtual": _get_cpu_field("Hypervisor vendor", cpu_info) if _get_cpu_field("Hypervisor vendor", cpu_info) else 'physical',
+        "memory": {
+            "swap": { "used_bytes": _run("free | grep 'Swap': | awk '{print $3}'"), "available_bytes": _run("free | grep 'Swap': | awk '{print $7}'") },
+            "system": { "used_bytes": _run("free | grep 'Mem': | awk '{print $3}'"), "available_bytes": _run("free | grep 'Mem:' | awk '{print $7}'") }
+        },
+        "pci": list(pci.values()),
+        "version": "1.0.0"
+    }
+}
+print(json.dumps(data))

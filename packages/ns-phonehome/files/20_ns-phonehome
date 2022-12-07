@@ -1,0 +1,3 @@
+#!/bin/sh
+
+crontab -l | grep -q '/usr/sbin/send-phonehome' || echo '10 4 * * * sleep $(( RANDOM % 1800 )); /usr/sbin/send-phonehome' >> /etc/crontabs/root
