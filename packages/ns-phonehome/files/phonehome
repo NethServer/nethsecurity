@@ -65,6 +65,7 @@ if not sid:
         u.commit('phonehome')
 
 data = {
+    "$schema": "https://schema.nethserver.org/facts/2022-12.json",
     "uuid": sid,
     "installation": "nextsecurity",
     "facts": {
