@@ -12,6 +12,6 @@ phonehome | jq
 
 To disable the phonehome:
 ```
-uci set phonehome.config.enabled=1
+uci set phonehome.config.enabled=0
 uci commit phonehome
 ```
