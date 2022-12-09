@@ -27,7 +27,10 @@ The image should work both on machines with legacy and EFI BIOS.
 
 ## Install
 
-To install the system, you must write the downloaded image directly to the disk.
+To install the system you can choose between 2 alternative methods:
+
+- write the downloaded image directly to the disk (recommended for virtual machines)
+- boot from an USB stick (recommended for physical machines)
 
 ### Virtual machines
 
@@ -42,8 +45,6 @@ You can use the downloaded image as a virtual machine disk:
 
 ### Physical machines
 
-#### USB stick
-
 NextSecurity can be run directly from a USB stick:
 
 1. plug the USB stick into your desktop Linux machine
@@ -54,6 +55,17 @@ NextSecurity can be run directly from a USB stick:
    ```
 4. unplug the USB stick from the desktop and plug it into the server
 5. boot the server, make sure to select the USB stick from boot menu
+6. connect to VGA or serial console and select option `2` from the menu
+
+   Menu example:
+   ```
+   Quick options:
+   1) Load alternate keyboard maps
+   2) Install NextSecurity on sda
+   3) Install NextSecurity on other storage
+   l) Login
+   x) Exit
+   ```
 
 If you're running a desktop Windows machine, you will need extra software for point 2.
 First, make sure to format the USB drive then unmount it.
@@ -64,14 +76,13 @@ Use one of the following tools to write the USB stick:
 * [Rawrite32](http://www.netbsd.org/~martin/rawrite32/)
 * [dd for Windows](http://www.chrysocome.net/dd)
 
-#### Hard drive
+You can also connect to the running machine using SSH and manually
+install the system to the disk using `install-nx.sh` command.
 
-To install NextSecurity directly into the server hard-drive, follow these steps:
-
-1. attach the server disk to your desktop Linux machine, let's assume the device is named `sdd`
-2. write the image to the device (see the command on the section above)
-3. attach the disk to the server
-4. boot the server
+Usage Example:
+```
+install-nx.sh -t /dev/vda
+```
 
 ## Default network configuration
 
@@ -145,10 +156,7 @@ Then will be able to login to the console using default credentials above.
 
 Please note that the system is configured with `US` keyboard layout.
 
-To change current keyboard layout to Italian, execute:
-```
-loadkmap </usr/share/keymaps/it.map.bin
-```
+To change current keyboard layout, execute the `menu` script and select option `1`.
 
 Other keymaps can be generated from a CentOS machine with the following command:
 ```
