@@ -10,11 +10,13 @@ on:
       - 'config/**'
       - 'files/**'
       - 'packages/**'
+      - 'patches/**'
   pull_request:
     paths:
       - 'config/**'
       - 'files/**'
       - 'packages/**'
+      - 'patches/**'
 
 jobs:
   publish_images:
