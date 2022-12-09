@@ -73,6 +73,22 @@ To install NextSecurity directly into the server hard-drive, follow these steps:
 3. attach the disk to the server
 4. boot the server
 
+## Default network configuration
+
+On first boot the system will try to configure
+the network interfaces.
+
+As the default the network configuration will be:
+
+- lan on first ethernet device with static address `192.168.1.1`
+- wan on second ethernet device with DHCP
+
+An exception are virtual machines running on KVM and on Digital Ocean cloud provider (droplet).
+In this case the network configuration will be:
+
+- lan on first ethernet device with DHCP
+- wan on second ethernet device with DHCP
+
 ## Access
 
 As default, only `root` user exists.
