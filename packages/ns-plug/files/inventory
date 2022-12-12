@@ -72,7 +72,7 @@ def _get_gateway(interface):
 
 release = _run('grep VERSION= /etc/os-release | cut -d= -f 2 | tr -d \'"\'')
 cpu_info = _run_json('lscpu -J')['lscpu']
-board = _run("dmidecode -t 2 | grep 'Product Name' | awk -F: '{print $2}'")
+board = _run("cat /sys/devices/virtual/dmi/id/board_name")
 dns = _run("grep nameserver /tmp/resolv.conf.d/resolv.conf.auto | awk '{print $2}' | tr '\n' ','")
 networks = {}
 u = EUci()
@@ -94,11 +94,10 @@ for section in utils.get_all_by_type(u, 'network', 'interface'):
 
 data = {
     "arp_macs": _run('cat /proc/net/arp | grep -v IP | wc -l'),
-    "dmi": { "product": { "name": _run("dmidecode -t 1 | grep 'Product Name' | awk -F: '{print $2}'"), "uuid": _run("cat /sys/class/dmi/id/product_uuid") }, "bios": { "version": _run("dmidecode -s bios-version"), "vendor": _run("dmidecode -s bios-vendor")}, "board": { "product": board if board else '-', "manufacturer": _run("dmidecode -t 1 | grep 'Manufacturer' | awk -F: '{print $2}'") }},
+    "dmi": { "product": { "name": _run("cat /sys/devices/virtual/dmi/id/product_name"), "uuid": _run("cat /sys/class/dmi/id/product_uuid") }, "bios": { "version": _run("cat /sys/devices/virtual/dmi/id/bios_version"), "vendor": _run("cat /sys/devices/virtual/dmi/id/bios_vendor")}, "board": { "product": board if board else '-', "manufacturer": _run("cat /sys/devices/virtual/dmi/id/sys_vendor") }},
     "virtual": _get_cpu_field("Hypervisor vendor", cpu_info) if _get_cpu_field("Hypervisor vendor", cpu_info) else 'physical',
     "kernel": _run('uname'),
     "kernelrelease": _run('uname -r'),
-    "productname": _run("dmidecode -t 1 | grep 'Product Name' | awk -F: '{print $2}'"),
     "networking": { "fqdn": _run('uname -n')},
     "os": { "type": "nextsecurity", "name": "NextSec", "release": { "full": release, "major": 7 }, "family": "OpenWRT" },
     "processors": { "count": _run("grep processor /proc/cpuinfo  | wc -l"), "models": [  _get_cpu_field("Model name", cpu_info) ], "isa": _get_cpu_field("Architecture", cpu_info)},

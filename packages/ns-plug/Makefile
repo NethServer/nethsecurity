@@ -21,7 +21,7 @@ define Package/ns-plug
 	CATEGORY:=NextSecurity
 	TITLE:=NextSecurity controller client
 	URL:=https://github.com/NethServer/nextsecurity-controller/
-	DEPENDS:=+openvpn +lscpu +dmidecode +python3-nextsec
+	DEPENDS:=+openvpn +lscpu +python3-nextsec
 	PKGARCH:=all
 endef
  
