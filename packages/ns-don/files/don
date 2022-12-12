@@ -1,0 +1,162 @@
+#!/bin/bash
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+guard=0
+timeout=60
+base_dir=/var/run/don
+vpn_conf="$base_dir/don.ovpn"
+vpn_pid="$base_dir/donvpn.pid"
+dropbear_pid="$base_dir/dropbear.pid"
+socket="$base_dir/management"
+credentials="$base_dir/credentials"
+user="nethsupport"
+password=""
+ca=$(uci -q get don.config.ca)
+server=$(uci -q get don.config.server)
+json_output=0
+
+if [ "$2" == "-j" ]; then
+    json_output=1
+fi
+
+function cleanup
+{
+    [ -f $dropbear_pid ] && kill $(cat $dropbear_pid)
+    [ -f $vpn_pid ] && kill $(cat $vpn_pid)
+    [ -d $base_dir ] && rm -rf $base_dir
+    uci -q delete rpcd.ns_don
+    /etc/init.d/rpcd reload
+    key_id=$(cat $(uci -q get don.config.ssh_key) | cut -d' ' -f3)
+    sed -i '/'$key_id'/d' /etc/dropbear/authorized_keys
+}
+
+function show_credentials
+{
+    if [ "$json_output" == 1 ]; then
+        echo "{\"server_id\": \"$(sed -n '1{p;q}' $credentials)\", \"session_id\": \"$(sed -n '2{p;q}' $credentials)\"}"
+    else
+        echo -n "Server ID:"
+        echo -e "\t"$(sed -n '1{p;q}' $credentials)
+        echo -n "Session ID:"
+        echo -e "\t"$(sed -n '2{p;q}' $credentials)
+    fi
+}
+
+# Make sure base system dir exists
+mkdir -p "$base_dir"
+
+case "$1" in
+start)
+    system_id=$(uci -q get don.config.system_id)
+    # fallback to ns-plug system ID
+    if [ -z "$system_id" ]; then
+        system_id=$(uci -q get ns-plug.config.system_id)
+    fi
+    if [ -z "$system_id" ]; then
+        exit 2
+    fi
+
+    cn=$(openssl x509 -noout -subject -in $ca | cut -d= -f 2- | sed 's/ = /=/g')
+    if [ -z "$cn" ]; then
+        exit 3
+    fi
+
+    cat << EOF > $vpn_conf
+daemon donvpn
+writepid $vpn_pid
+client
+server-poll-timeout 5
+nobind
+float
+dev tunDON
+persist-tun
+<connection>
+explicit-exit-notify 1
+remote $server 1194 udp
+</connection>
+<connection>
+remote $server 443 tcp
+</connection>
+tls-client
+auth-nocache
+ca $ca
+verify-x509-name "$cn"
+auth-user-pass $credentials
+auth-nocache
+verb 3
+persist-key
+compress lz4
+management $socket unix
+connect-timeout 10
+EOF
+
+    # Generate VPN credentials
+    password=$(/usr/bin/uuidgen)
+    echo "$system_id" > $credentials
+    echo "$password" >> $credentials
+
+    # Start the VPN
+    /usr/sbin/openvpn --cd $base_dir --config $vpn_conf
+    while [ ! -S $socket ]
+    do
+        sleep 1
+        guard=$((guard+1))
+        if [ $guard -gt $timeout ]; then
+            echo "[ERROR] don-openvpn connection failed: no socket found ($socket)"
+	    cleanup
+            exit 7
+        fi
+    done
+
+    # Wait for VPN
+    ipaddr=$(echo "state" | socat - UNIX-CONNECT:$socket | grep CONNECTED | cut -d',' -f4)
+    until [ "$ipaddr" != "" ]
+    do
+        sleep 1
+        guard=$((guard+1))
+        if [ $guard -gt $timeout ]; then
+            echo "[ERROR] don-openvpn connection failed: can't connect to remote server"
+	    cleanup
+            exit 8
+        fi
+        ipaddr=$(echo "state" | socat - UNIX-CONNECT:$socket | grep CONNECTED | cut -d',' -f4)
+    done
+
+    # Start SSH daemon and bind it to the VPN
+    /usr/sbin/dropbear -P $dropbear_pid -s -g -p $ipaddr:981 -K 300 -T 2
+    cat $(uci -q get don.config.ssh_key) >> /etc/dropbear/authorized_keys
+
+    # Enable UI access
+    uci set rpcd.ns_don=login
+    uci set rpcd.ns_don.username=$user
+    uci set rpcd.ns_don.password=$(echo $password | mkpasswd)
+    uci add_list rpcd.ns_don.read='*'
+    uci add_list rpcd.ns_don.write='*'
+    /etc/init.d/rpcd reload
+
+    show_credentials
+;;
+stop)
+    cleanup
+;;
+status)
+    if [ -f $credentials ]; then
+        show_credentials
+	exit 0
+    else
+        if [ "$json_output" == 1 ]; then
+            echo null
+        else
+            echo "don is not running"
+        fi
+	exit 1
+    fi
+;;
+*)
+    echo "Usage: $0 {start|stop|status} [-j]"
+    exit 2
+esac

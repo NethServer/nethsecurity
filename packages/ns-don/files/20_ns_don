@@ -1,0 +1,9 @@
+[ "$(uci -q get don.config.ca)" = "" ] || exit 0
+
+uci -q import don << EOI
+config main 'config'
+	option ca '/etc/don/nethesis.pem'
+	option server 'sos.nethesis.it'
+	option ssh_key '/etc/don/nethesis.pub'
+	option system_id ''
+EOI
