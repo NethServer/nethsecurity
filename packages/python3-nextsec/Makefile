@@ -25,6 +25,7 @@ define Package/python3-nextsec
 	TITLE:=NextSecurity python libraries
 	URL:=https://github.com/NethServer/nextsecurity-controller/
 	DEPENDS:=+python3-light +python3-uci
+	PKGARCH:=all
 endef
  
 define Package/python3-nextsec/description
