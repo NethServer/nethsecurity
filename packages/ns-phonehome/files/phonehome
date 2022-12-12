@@ -79,8 +79,8 @@ data = {
             "architecture": _get_cpu_field("Architecture", cpu_info)
         },
         "product": {
-            "name": _run("dmidecode -t 2 | grep 'Product Name' | awk -F: '{print $2}'"),
-            "manufacturer":  _run("dmidecode -t 2 | grep 'Manufacturer' | awk -F: '{print $2}'")
+            "name": _run("cat /sys/devices/virtual/dmi/id/product_name"),
+            "manufacturer": _run("cat /sys/devices/virtual/dmi/id/sys_vendor")
         },
         "virtual": _get_cpu_field("Hypervisor vendor", cpu_info) if _get_cpu_field("Hypervisor vendor", cpu_info) else 'physical',
         "memory": {

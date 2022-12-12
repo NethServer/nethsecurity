@@ -21,7 +21,7 @@ define Package/ns-phonehome
 	CATEGORY:=NextSecurity
 	TITLE:=NextSecurity controller client
 	URL:=https://github.com/NethServer/nextsecurity-controller/
-	DEPENDS:=+lscpu +dmidecode +pciutils +python3-uuid
+	DEPENDS:=+lscpu +pciutils +python3-uuid
 	PKGARCH:=all
 endef
  
