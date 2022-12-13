@@ -1,0 +1,13 @@
+{
+  "ovpntunnel-manager": {
+    "description": "Read and write OpenVPN tunnels",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.ovpntunnel": [
+          "*"
+        ]
+      }
+    }
+  }
+}
