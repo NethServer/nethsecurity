@@ -21,7 +21,7 @@ define Package/ns-don
 	CATEGORY:=NextSecurity
 	TITLE:=Windmill Don client
 	URL:=https://github.com/NethServer/nextsecurity/
-	DEPENDS:=+openvpn +dropbear
+	DEPENDS:=+openvpn +dropbearconvert +openssh-server
 	PKGARCH:=all
 endef
  
