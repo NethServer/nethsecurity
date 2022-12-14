@@ -21,7 +21,7 @@ define Package/ns-api
 	CATEGORY:=NextSecurity
 	TITLE:=NextSecurity REST API
 	URL:=https://github.com/NethServer/nextsecurity-controller/
-	DEPENDS:=+python3-nextsec
+	DEPENDS:=+python3-nextsec +python3-openssl +python3-urllib +python3-idna
 	PKGARCH:=all
 endef
  
