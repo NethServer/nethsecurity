@@ -37,7 +37,7 @@ define Package/ns-openvpn/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_DIR) $(1)/usr/libexec/ns-openvpn/connect-scripts
 	$(INSTALL_DIR) $(1)/usr/libexec/ns-openvpn/disconnect-scripts
-
+	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/ns-openvpnrw-setup $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-openvpnrw-add $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-openvpnrw-init-pki $(1)/usr/sbin
@@ -53,13 +53,14 @@ define Package/ns-openvpn/install
 	$(INSTALL_BIN) ./files/10-tunnel-iroute $(1)/usr/libexec/ns-openvpn/connect-scripts
 	$(INSTALL_BIN) ./files/80-save-connection $(1)/usr/libexec/ns-openvpn/connect-scripts
 	$(INSTALL_BIN) ./files/80-save-disconnection $(1)/usr/libexec/ns-openvpn/disconnect-scripts
+	$(INSTALL_BIN) ./files/99_ns-openvpn $(1)/etc/uci-defaults
 endef
 
 define Package/ns-openvpn/postinst
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
-  grep '/usr/libexec/ns-openvpn/init-connections-db' /etc/openvpn.user || echo "/usr/libexec/ns-openvpn/init-connections-db" >> /etc/openvpn.user
-  /usr/sbin/ns-openvpnrw-setup
+  (. /etc/uci-defaults/20_ns-openvpn)
+  rm -f /etc/uci-defaults/20_ns-openvpn
 fi
 exit 0
 endef
