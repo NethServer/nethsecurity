@@ -52,7 +52,7 @@ def import_client(tunnel):
         psk = f"{cert_dir}psk.key"
         save_cert(psk, tunnel['Psk'])
         u.set("openvpn", iname, "ifconfig", f"{tunnel['LocalPeer']} {tunnel['RemotePeer']}")
-        u.set("openvpn", iname, "sectet", psk)
+        u.set("openvpn", iname, "secret", psk)
     else:
         cert = f"{cert_dir}cert.pem"
         save_cert(cert, tunnel['Crt'])
@@ -207,15 +207,23 @@ def export_client(name):
 
     return client
 
+
 cmd = sys.argv[1]
-if cmd == 'import-client':
-    args = json.loads(sys.stdin.read())
-    print(json.dumps(import_client(args)))
-elif cmd == 'add-server':
-    args = json.loads(sys.stdin.read())
-    print(json.dumps(add_server(args)))
-elif cmd == 'export-client':
-    args = json.loads(sys.stdin.read())
-    print(json.dumps(export_client(args['name'])))
-else:
-    print(json.dumps({'success': True}))
+if cmd == 'list':
+    print(json.dumps({
+        "import-client": {},
+        "add-server": {},
+        "export-client": {}
+    }))
+elif cmd == 'call':
+    action =  sys.argv[2]
+
+    if action == 'import-client':
+        args = json.loads(sys.stdin.read())
+        print(json.dumps(import_client(args)))
+    elif action == 'add-server':
+        args = json.loads(sys.stdin.read())
+        print(json.dumps(add_server(args)))
+    elif action == 'export-client':
+        args = json.loads(sys.stdin.read())
+        print(json.dumps(export_client(args['name'])))
