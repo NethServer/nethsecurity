@@ -1,0 +1,229 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Manage OpenVPN tunnels
+
+import os
+import sys
+import pwd
+import grp
+import json
+import os.path
+import socket
+import struct
+import subprocess
+from euci import EUci
+from nextsec import utils, firewall
+
+def to_cidr(netmask):
+    return sum([bin(int(x)).count('1') for x in netmask.split('.')])
+
+def to_netmask(prefix):
+    return socket.inet_ntoa(struct.pack(">I", (0xffffffff << (32 - int(prefix))) & 0xffffffff))
+
+def save_cert(path, data):
+    # setup rw permissions only for nobody user
+    os.umask(0o077)
+    with open(path, 'w') as f:
+        f.write(data)
+
+    uid = pwd.getpwnam("nobody").pw_uid
+    gid = grp.getgrnam("nogroup").gr_gid
+    os.chown(path, uid, gid)
+
+def import_client(tunnel):
+    u = EUci()
+    name = tunnel.pop('name')
+    iname = utils.get_id(name)
+    tun = f'tun{name}'
+    cert_dir=f"/etc/openvpn/{iname}/pki/"
+    os.makedirs(cert_dir, exist_ok=True)
+
+    u.set("openvpn", iname, "openvpn")
+    u.set("openvpn", iname, "enabled", 1)
+    u.set("openvpn", iname, "nobind", "1")
+    u.set("openvpn", iname, "dev", tun)
+    
+    if tunnel['Topology'] == 'p2p':
+        psk = f"{cert_dir}psk.key"
+        save_cert(psk, tunnel['Psk'])
+        u.set("openvpn", iname, "ifconfig", f"{tunnel['LocalPeer']} {tunnel['RemotePeer']}")
+        u.set("openvpn", iname, "secret", psk)
+    else:
+        cert = f"{cert_dir}cert.pem"
+        save_cert(cert, tunnel['Crt'])
+        u.set("openvpn", iname, "client", "1")
+        u.set("openvpn", iname, "cert", cert)
+        u.set("openvpn", iname, "key", cert)
+        u.set("openvpn", iname, "ca", cert)
+    
+    u.set("openvpn", iname, "proto", tunnel['Protocol'])
+    u.set("openvpn", iname, "port", tunnel['RemotePort'])
+    routes = []
+    for route in tunnel['RemoteNetworks'].split(","):
+        if "/" in route:
+            (ip, prefix) = route.split("/")
+            routes.append(f"{ip} {to_netmask(prefix)}")
+    u.set("openvpn", iname, "route", routes)
+    u.set("openvpn", iname, "remote", tunnel['RemoteHost'].split(","))
+
+    if tunnel.get('Compression','disabled') != 'disabled':
+        u.set("openvpn", iname, "compress", tunnel['Compression'])
+
+    if tunnel.get('Digest',''):
+        u.set("openvpn", iname, "digest", tunnel['Digest'])
+
+    if tunnel.get('Cipher',''):
+        u.set("openvpn", iname, "digest", tunnel['Cipher'])
+
+    if tunnel.get('TlsVersionMin', ''):
+        u.set("openvpn", iname, "tls_version_min", tunnel['TlsVersionMin'])
+
+    u.commit('openvpn')
+    subprocess.run(['/etc/init.d/openvpn', 'reload'])
+    # Add interface to LAN
+    ovpn_interface = firewall.add_vpn_interface(u, 'openvpntun', tun)
+    ovpn_zone = firewall.add_trusted_zone(u, "openvpntun", [ovpn_interface])
+    firewall.apply(u)
+    return {"section": iname}
+
+def add_server(tunnel):
+    u = EUci()
+    name = tunnel.pop('name')
+    iname = utils.get_id(name)
+    cert_dir=f"/etc/openvpn/{iname}/pki/"
+    tun = f'tun{name}'
+
+    u.set("openvpn", iname, "openvpn")
+    u.set("openvpn", iname, "dev", tun)
+    u.set("openvpn", iname, "dev_type", "tun")
+    u.set("openvpn", iname, "enabled", 1)
+    u.set("openvpn", iname, "persist_tun", "1")
+    u.set("openvpn", iname, "float", "1")
+    u.set("openvpn", iname, "multihome", "1")
+    u.set("openvpn", iname, "passtos", "1")
+    u.set("openvpn", iname, "ping_timer_rem", "1")
+    u.set("openvpn", iname, "persist_key", "1")
+    u.set("openvpn", iname, "keepalive", "10 60")
+    u.set("openvpn", iname, "lport", tunnel['lport'])
+    u.set("openvpn", iname, "proto", tunnel['proto'])
+    u.set("openvpn", iname, "topology", tunnel['topology'])
+
+    if tunnel['topology'] == "subnet":
+        subprocess.run(["/usr/sbin/ns-openvpnrw-init-pki", iname])
+        subprocess.run(["/usr/sbin/ns-openvpntunnel-add-client", iname])
+        u.set("openvpn", iname, "dh", f"{cert_dir}dh.pem")
+        u.set("openvpn", iname, "ca", f"{cert_dir}ca.crt")
+        u.set("openvpn", iname, "cert", f"{cert_dir}issued/server.crt")
+        u.set("openvpn", iname, "key", f"{cert_dir}private/server.key")
+        (ip, prefix) = tunnel['server'].split("/")
+        u.set("openvpn", iname, "server", f"{ip} {to_netmask(prefix)}")
+    else:
+        os.makedirs(cert_dir, exist_ok=True)
+        subprocess.run(["/usr/sbin/openvpn", "--genkey", "secret", f"{cert_dir}client.psk"])
+        u.set("openvpn", iname, "ifconfig", tunnel["ifconfig"])
+        u.set("openvpn", iname, "secret", f"{cert_dir}client.psk")
+
+    push = [f"toplogy {tunnel['topology']}"]
+    for r in tunnel['locals']:
+        (ip, prefix) = r.split("/")
+        push.append(f"route {ip} {to_netmask(prefix)}")
+    u.set("openvpn", iname, "push", push)
+
+    routes = []
+    for r in tunnel['remotes']:
+        (ip, prefix) = r.split("/")
+        routes.append(f"{ip} {to_netmask(prefix)}")
+    u.set("openvpn", iname, "route", routes)
+
+    # custom properties not honored by openvpn config
+    u.set("openvpn", iname, "public_ip", tunnel['public_ip'])
+
+    u.commit('openvpn')
+    subprocess.run(['/etc/init.d/openvpn', 'reload'])
+
+    # Setup dynamic config for iroute:
+    # OpenVPN on NextSec requires an iroute directive for the remote network
+    u.set("openvpn", iname, 'client_connect', f'"/usr/libexec/ns-openvpn/openvpn-connect {iname}"')
+    u.set("openvpn", iname, 'client_disconnect', f'"/usr/libexec/ns-openvpn/openvpn-disconnect {iname}"')
+
+    # Open OpenVPN port
+    proto = tunnel['proto'].removesuffix('-server')
+    firewall.add_service(u, f'ovpn{name}', tunnel['lport'], proto)
+
+    # Add interface to LAN
+    ovpn_interface = firewall.add_vpn_interface(u, 'openvpntun', tun)
+    ovpn_zone = firewall.add_trusted_zone(u, "openvpntun", [ovpn_interface])
+    firewall.apply(u)
+    return {"section": iname}
+
+def export_client(name):
+    u = EUci()
+    cert_dir=f"/etc/openvpn/{name}/pki/"
+    proto = "udp"
+    if u.get("openvpn", name, "proto") == "tcp-server":
+        proto = "tcp-client"
+    client = {
+        "name": f"c{name}"[0:13],
+        "type": "tunnel",
+        "Mode": "routed",
+        "status": "enabled",
+        "Compression": u.get("openvpn", name, "compress", default=""),
+        "RemotePort": u.get("openvpn", name, "lport"),
+        "RemoteHost": u.get("openvpn", name, "public_ip"),
+        "Digest": u.get("openvpn", name, "digest", default=""),
+        "Cipher": u.get("openvpn", name, "cipher", default=""),
+        "Topology": u.get("openvpn", name, "topology"),
+        "Protocol": proto,
+    }
+    remotes = []
+    for r in u.get("openvpn", name, "route", default=[], list=True):
+        try:
+            (ip, mask) = r.split(" ")
+            remotes.append(f"{ip}/{to_cidr(mask)}")
+        except:
+            continue
+
+    client["RemoteNetworks"] = ",".join(remotes)
+    if u.get("openvpn", name, "topology") == "p2p":
+        client['AuthMode'] = 'psk'
+        with open(f"{cert_dir}client.psk", 'r') as fp:
+            client['Psk'] = fp.read()
+        (left, right) = u.get("openvpn", name, "ifconfig").split(" ")
+        client['LocalPeer'] = right # remote peer
+        client['RemotePeer'] = left #local peer
+    else:
+        client['AuthMode'] = 'certificate'
+        pem = ""
+        # certificate order matters!
+        for c in [f"{cert_dir}private/client.key",  f"{cert_dir}issued/client.crt", f"{cert_dir}ca.crt"]:
+            with open(c, 'r') as fp:
+                pem = pem + fp.read()
+        client['Crt'] = pem
+
+    return client
+
+
+cmd = sys.argv[1]
+if cmd == 'list':
+    print(json.dumps({
+        "import-client": {},
+        "add-server": {},
+        "export-client": {}
+    }))
+elif cmd == 'call':
+    action =  sys.argv[2]
+
+    if action == 'import-client':
+        args = json.loads(sys.stdin.read())
+        print(json.dumps(import_client(args)))
+    elif action == 'add-server':
+        args = json.loads(sys.stdin.read())
+        print(json.dumps(add_server(args)))
+    elif action == 'export-client':
+        args = json.loads(sys.stdin.read())
+        print(json.dumps(export_client(args['name'])))

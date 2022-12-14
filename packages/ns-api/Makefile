@@ -21,7 +21,7 @@ define Package/ns-api
 	CATEGORY:=NextSecurity
 	TITLE:=NextSecurity REST API
 	URL:=https://github.com/NethServer/nextsecurity-controller/
-	DEPENDS:=+python3-nextsec
+	DEPENDS:=+python3-nextsec +python3-openssl +python3-urllib +python3-idna
 	PKGARCH:=all
 endef
  
@@ -57,6 +57,8 @@ define Package/ns-api/install
 	$(INSTALL_BIN) ./files/api-cli $(1)/usr/bin/
 	$(INSTALL_BIN) ./files/ns.talkers $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.talkers.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.ovpntunnel $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.ovpntunnel.json $(1)/usr/share/rpcd/acl.d/
 endef
  
 $(eval $(call BuildPackage,ns-api))

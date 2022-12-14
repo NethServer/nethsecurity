@@ -2,30 +2,116 @@
 
 NextSecurity APIs for `rpcd`.
 
-Conventions:
-- all APIs must start with `ns.` prefix
-- all APIs must read JSON object input from standard input
-- all APIs must write a JSON object to standard output: JSON arrays should always be wrapper d inside
-  an object due to ubus limitations
+* TOC
+{:toc}
 
 List available APIs:
 ```
 ubus -S list | grep '^ns.'
 ```
 
-APIs can be called directly from ubus.
-List 5 top talkers:
+APIs can be called directly from ubus, like:
 ```
 ubus -S call ns.talkers list '{"limit": 5}'
 ```
-
-Scripts can be tested by passing arguments to standard input.
-Example:
+Or using `api-cli`:
 ```
-echo '{"limit": 5 }' | /usr/libexec/rpcd/ns.talkers call list
+api-cli ns.talkers list --data '{"limit": 5}'
 ```
 
-## Adding a new API
+## ns.talkers
+
+### list
+
+List top network talkers:
+```
+api-cli ns.talkers list --data '{"limit": 1}'
+```
+
+Response:
+```json
+{
+  "talkers": [
+    {
+      "mac": "40:62:31:19:05:22",
+      "totals": {
+        "download": 21666,
+        "upload": 483727,
+        "packets": 643,
+        "bandwidth": 16846.433333333334,
+        "bandwiddh_h": "16.5 KB/s"
+      },
+      "apps": {
+        "0.netify.unclassified": 0,
+        "10334.netify.nethserver": 505393
+      },
+      "ip": "192.168.5.211",
+      "host": "nethvoice.nethesis.it"
+    }
+  ]
+}
+```
+
+## ns.ovpntunnel
+
+### add-server
+
+Add a tunnel server with subnet topology:
+```
+api-cli ns.ovpntunnel add-server --data '{"name": "server1", "lport": "2001", "proto": "tcp-server", "topology": "subnet", "server": "10.96.84.0/24", "public_ip": ["1.2.3.4"], "locals": ["192.168.102.0/24"], "remotes": ["192.168.5.0/24"]}'
+``` 
+
+Add a tunnel server with p2p topology:
+```
+api-cli ns.ovpntunnel add-server --data '{"name": "server1", "lport": "2001", "proto": "udp", "topology": "p2p", "ifconfig": "10.96.83.1 10.96.83.2", "public_ip": ["192.168.122.49"], "locals": ["192.168.102.0/24"], "remotes": ["192.168.5.0/24"]}'
+```
+
+Response example:
+```json
+{ "section": "ns_server1" }
+```
+
+### import-client
+
+Import a tunnel client from NS7 exported json file:
+```
+cat client.json | api-cli ns.ovpntunnel import-client --data -
+```
+
+### export-client
+
+Export a tunnel client as NS7 json file:
+```
+api-cli ns.ovpntunnel export-client --data '{"name": "ns_server1"}'
+```
+
+Response example:
+```json
+{
+  "name": "cns_server1",
+  "type": "tunnel",
+  "Mode": "routed",
+  "status": "enabled",
+  "Compression": "",
+  "RemotePort": "2001",
+  "RemoteHost": "192.168.122.49",
+  "Digest": "",
+  "Cipher": "",
+  "Topology": "subnet",
+  "Protocol": "tcp-client",
+  "RemoteNetworks": "192.168.5.0/24",
+  "AuthMode": "certificate",
+  "Crt": "-----BEGI..."
+}
+```
+
+# Creating a new API
+
+Conventions:
+- all APIs must start with `ns.` prefix
+- all APIs must read JSON object input from standard input
+- all APIs must write a JSON object to standard output: JSON arrays should always be wrapper d inside
+  an object due to ubus limitations
 
 To add a new API, follow these steps:
 1. create an executable file inside `/usr/libexec/rpcd/` directory, like `ns.example`, and restart rpcd
@@ -103,8 +189,12 @@ Test the new API:
 api-cli ns.example say --data '{"message": "hello world"}'
 ```
 
-## References
+Scripts can also be tested by passing arguments to standard input.
+Example:
+```
+echo '{"limit": 5 }' | /usr/libexec/rpcd/ns.talkers call list
+```
 
-External links:
-- https://openwrt.org/docs/techref/rpcd
-- https://github.com/openwrt/luci/wiki/JsonRpcHowTo
+References
+- [RPCD](https://openwrt.org/docs/techref/rpcd)
+- [JSONRPC](https://github.com/openwrt/luci/wiki/JsonRpcHowTo)
