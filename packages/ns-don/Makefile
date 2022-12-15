@@ -26,7 +26,7 @@ define Package/ns-don
 endef
  
 define Package/ns-don/description
-	Connect to a remote Windmill installations
+	Connect to a remote Windmill installation
 endef
 
 # this is required, otherwise compile will fail
