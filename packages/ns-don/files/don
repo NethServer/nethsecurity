@@ -10,7 +10,11 @@ timeout=60
 base_dir=/var/run/don
 vpn_conf="$base_dir/don.ovpn"
 vpn_pid="$base_dir/donvpn.pid"
-dropbear_pid="$base_dir/dropbear.pid"
+sshd_pid="$base_dir/sshd.pid"
+sshd_conf="$base_dir/sshd.conf"
+auth_keys="$base_dir/authorized_keys"
+rsa_key="$base_dir/rsa_key"
+ecdsa_key="$base_dir/ecdsa_key"
 socket="$base_dir/management"
 credentials="$base_dir/credentials"
 user="nethsupport"
@@ -25,13 +29,11 @@ fi
 
 function cleanup
 {
-    [ -f $dropbear_pid ] && kill $(cat $dropbear_pid)
+    [ -f $sshd_pid ] && kill $(cat $sshd_pid)
     [ -f $vpn_pid ] && kill $(cat $vpn_pid)
     [ -d $base_dir ] && rm -rf $base_dir
     uci -q delete rpcd.ns_don
     /etc/init.d/rpcd reload
-    key_id=$(cat $(uci -q get don.config.ssh_key) | cut -d' ' -f3)
-    sed -i '/'$key_id'/d' /etc/dropbear/authorized_keys
 }
 
 function show_credentials
@@ -127,8 +129,30 @@ EOF
     done
 
     # Start SSH daemon and bind it to the VPN
-    /usr/sbin/dropbear -P $dropbear_pid -s -g -p $ipaddr:981 -K 300 -T 2
-    cat $(uci -q get don.config.ssh_key) >> /etc/dropbear/authorized_keys
+    dropbearconvert dropbear openssh /etc/dropbear/dropbear_rsa_host_key $rsa_key 2>/dev/null
+    dropbearconvert dropbear openssh /etc/dropbear/dropbear_ed25519_host_key $ecdsa_key 2>/dev/null
+    cat << EOF > $sshd_conf
+ListenAddress $ipaddr:981
+HostKey $rsa_key
+HostKey $ecdsa_key
+LoginGraceTime 2m
+ChallengeResponseAuthentication no
+AllowUsers root
+MaxAuthTries 2
+MaxStartups 10:30:60
+PasswordAuthentication no
+PermitRootLogin yes
+AllowAgentForwarding no
+X11Forwarding no
+ClientAliveInterval 60
+ClientAliveCountMax 3
+PidFile $sshd_pid
+AuthorizedKeysFile $auth_keys
+StrictModes no
+EOF
+
+    /usr/sbin/sshd -f $sshd_conf
+    cat $(uci -q get don.config.ssh_key) > $auth_keys
 
     # Enable UI access
     uci set rpcd.ns_don=login
