@@ -1,6 +1,6 @@
 #!/bin/sh
 
-[ "$(uci -q get rsyslog.memory)" == "selector" ] && exit 0
+[ "$(uci -q get rsyslog.ns_memory)" == "selector" ] && exit 0
 
 echo '# Rotate in-memory log if size is bigger than 50MB' >> /etc/rsyslog.conf
 echo '$outchannel log_rotation,/var/log/messages, 52428800, /usr/sbin/rotate-messages' >> /etc/rsyslog.conf
