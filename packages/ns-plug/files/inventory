@@ -93,8 +93,8 @@ for section in utils.get_all_by_type(u, 'network', 'interface'):
     if section == "lan6" or section == "wan6": # skip IPv6 for now
         continue
     interface = u.get_all('network', section)
-    device = interface["device"]
-    if device == "lo" or device.startswith("ipsec") or device.startswith("tun"):
+    device = interface.get("device")
+    if not device or device == "lo" or device.startswith("ipsec") or device.startswith("tun"):
         continue
     network = {"type": "ethernet", "name": device, "props": { "role": _get_role(u, section), "ipaddr": _get_ip(section), "netmask": _get_mask(section), "gateway": _get_gateway(section)}}
     if interface['device'].startswith('br'):
