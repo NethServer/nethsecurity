@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
+import os
 import csv
 import json
 import uuid
@@ -39,20 +40,21 @@ for line in _run("find /sys | grep '.*/drivers/.*/0000:.*$' | cut -d'/' -f6,7").
 # lspci -n: 00:1b.0 0403: 8086:293e (rev 03)
 # fields:   bus class vendor:device revision
 pci = {}
-for line in _run("lspci -n").split("\n"):
-    revision = ''
-    fields = line.split(" ", maxsplit=4)
-    (vendor, device) = fields[2].split(":")
-    if len(fields) > 3:
-        revision = fields[4]
-    pci[fields[0]] = {"class_id": fields[1].rstrip(":"), "vendor_id": vendor, "device_id": device, "revision": revision.strip(')')}
+if os.path.isdir('/proc/bus/pci'):
+    for line in _run("lspci -n").split("\n"):
+        revision = ''
+        fields = line.split(" ", maxsplit=4)
+        (vendor, device) = fields[2].split(":")
+        if len(fields) > 3:
+            revision = fields[4]
+        pci[fields[0]] = {"class_id": fields[1].rstrip(":"), "vendor_id": vendor, "device_id": device, "revision": revision.strip(')')}
 
-# lspci -mm: 00:00.0 "Host bridge" "Intel Corporation" "82G33/G31/P35/P31 Express DRAM Controller" -p00 "Red Hat, Inc." "QEMU Virtual Machine"
-for fields in csv.reader(_run("lspci -mm").split("\n"), delimiter=' ', quotechar='"'):
-    pci[fields[0]]['class_name'] = fields[1].strip('"')
-    pci[fields[0]]['vendor_name'] = fields[2]
-    pci[fields[0]]['device_name'] = fields[3]
-    pci[fields[0]]['driver'] =  drivers.get(fields[0], '')
+    # lspci -mm: 00:00.0 "Host bridge" "Intel Corporation" "82G33/G31/P35/P31 Express DRAM Controller" -p00 "Red Hat, Inc." "QEMU Virtual Machine"
+    for fields in csv.reader(_run("lspci -mm").split("\n"), delimiter=' ', quotechar='"'):
+        pci[fields[0]]['class_name'] = fields[1].strip('"')
+        pci[fields[0]]['vendor_name'] = fields[2]
+        pci[fields[0]]['device_name'] = fields[3]
+        pci[fields[0]]['driver'] =  drivers.get(fields[0], '')
 
 # use hardware uuid, if not present just generate one
 sid = _run("cat /sys/class/dmi/id/product_uuid")
@@ -63,6 +65,14 @@ if not sid:
         sid = str(uuid.uuid4())
         u.set('phonehome', 'config', 'uuid', sid)
         u.commit('phonehome')
+
+product = _run("cat /sys/devices/virtual/dmi/id/product_name")
+if not product:
+    try:
+        binfo = json.loads(_run("cat /etc/board.json"))
+        product = binfo['model']['name']
+    except:
+        product = ""
 
 data = {
     "$schema": "https://schema.nethserver.org/facts/2022-12.json",
@@ -79,7 +89,7 @@ data = {
             "architecture": _get_cpu_field("Architecture", cpu_info)
         },
         "product": {
-            "name": _run("cat /sys/devices/virtual/dmi/id/product_name"),
+            "name": product,
             "manufacturer": _run("cat /sys/devices/virtual/dmi/id/sys_vendor")
         },
         "virtual": _get_cpu_field("Hypervisor vendor", cpu_info) if _get_cpu_field("Hypervisor vendor", cpu_info) else 'physical',
