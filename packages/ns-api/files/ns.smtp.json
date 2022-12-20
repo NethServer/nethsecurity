@@ -1,0 +1,13 @@
+{
+  "smtp-manager": {
+    "description": "Read and set SMTP configuration",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.smtp": [
+          "*"
+        ]
+      }
+    }
+  }
+}

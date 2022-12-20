@@ -105,6 +105,48 @@ Response example:
 }
 ```
 
+## ns.smtp
+
+### get
+
+Return the SMTP configuration for `/etc/msmtp`:
+```
+api-cli ns.smtp get
+```
+
+Response example:
+```json
+{"host": "mail.oursite.example", "port": "465", "tls": "on", "tls_starttls": "off", "from": "%U@oursite.example", "syslog": "LOG_MAIL"}
+```
+
+### set
+
+Configure SMTP options to send mail using a NS7 machine:
+```
+echo '{"host": "mail.nethserver.org", "port": 587, "auth": "on", "user": "myuser", "password": "Nethesis,1234", "tls": "on", "tls_starttls": "on", "from": "no-reply@nethserver.org", "syslog": "LOG_MAIL"}' | api-cli ns.smtp set --data -
+
+```
+
+The API accepts all [msmtp options](https://marlam.de/msmtp/msmtprc.txt) but always configure only the default account.
+Any existing configuration will be overridden.
+
+Response example:
+```json
+{"success": true}
+```
+
+### test
+
+Send a test mail to the given address:
+```
+echo '{"to": "giacomo@myserver.org"}' | api-cli ns.smtp test --data -
+```
+
+Response example:
+```json
+{"success": true}
+```
+
 # Creating a new API
 
 Conventions:

@@ -59,6 +59,8 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.talkers.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.ovpntunnel $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.ovpntunnel.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.smtp $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.smtp.json $(1)/usr/share/rpcd/acl.d/
 endef
  
 $(eval $(call BuildPackage,ns-api))

@@ -1,0 +1,67 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Read and set SMTP configuration
+
+import sys
+import json
+import socket
+import subprocess
+
+conf_file = "/etc/msmtprc"
+
+def get_config():
+    '''
+    Read default account configuration
+    '''
+    config = {}
+    with open(conf_file, 'r') as fp:
+        for line in fp:
+            line = line.rstrip()
+            if not line or line.startswith("#"):
+                continue
+            (k, v) = line.split(" ")
+            if k != "account":
+                config[k] = v
+    return config
+
+def set_config(config):
+    '''
+    Always set default account configuration
+    '''
+    # remove ubus injected field
+    del(config['ubus_rpc_session'])
+    try:
+        with open(conf_file, 'w') as fp:
+            for k in config:
+                fp.write(f"{k} {config[k]}\n")
+        return {"success": True}
+    except:
+        return {"success": False}
+
+def test_config(args):
+    message = f"To: {args['to']}\nSubject: Test mail\n\nThis is a test mail from your firewall.\n\nSee you soon, human.\n"
+    try:
+        subprocess.run(["/usr/bin/msmtp", "--read-recipients"], check=True, input=message, text=True)
+        return {"success": True}
+    except:
+        return {"success": False}
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({"get": {}, "set": {"host": "mail.host.com", "port": 587, "auth": "on", "user": "myuser", "password": "mypass", "tls": "on", "tls_starttls": "off", "syslog": "LOG_MAIL", "from": "no-reply@host.org"}, "test": {"to": "user@example.com"}}))
+else:
+    action = sys.argv[2]
+    if action == "get":
+        print(json.dumps(get_config()))
+    elif action == "set":
+        args = json.loads(sys.stdin.read())
+        print(json.dumps(set_config(args)))
+    elif action == "test":
+        args = json.loads(sys.stdin.read())
+        print(json.dumps(test_config(args)))
