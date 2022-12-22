@@ -15,7 +15,7 @@
 # in the templates via {{ site.myvariable }}.
 title: NextSecurity
 description: NextSecurity - A firewall from NethServer family
-remote_theme: pmarsceill/just-the-docs
+remote_theme: pmarsceill/just-the-docs@v0.3.3
 
 baseurl: /nextsecurity
 version: 22.03.2
