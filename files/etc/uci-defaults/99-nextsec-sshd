@@ -1,0 +1,2 @@
+service sshd stop || return 0
+service sshd disable
