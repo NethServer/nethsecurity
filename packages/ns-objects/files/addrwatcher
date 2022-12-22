@@ -1,0 +1,8 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+exec /usr/bin/socat exec:"/usr/sbin/addrwatch -r 60" unix-listen:/var/run/addrwatcher.sock,fork

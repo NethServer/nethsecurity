@@ -1,0 +1,170 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import os
+import json
+import shutil
+from euci import EUci
+from nextsec import utils
+
+macs = {}
+
+def uniq(l):
+    return list(set(l))
+
+def get_macs(uci, section):
+    return list(uci.get('objects', section, 'macaddr', list=True, default=[]))
+
+def add_macs(name, new_macs, ipset):
+    global macs
+    for m in new_macs:
+        if m not in macs:
+            macs[m] = set()
+        macs[m].add(ipset)
+
+def get_addresses(uci, section):
+    ipv4 = []
+    ipv6 = []
+    for ip in uci.get('objects', section, 'ipaddr', list=True, default=[]):
+        if ':' in ip:
+            ipv6.append(ip)
+        else:
+            ipv4.append(ip)
+ 
+    for v in uci.get('objects', section, 'vpn', list=True, default=[]): # vpn reservation
+        ip = uci.get('openvpn', v, 'ipaddr', default='')
+        if not ip:
+            continue
+        if ':' in ip:
+            ipv6.append(ip)
+        else:
+            ipv4.append(ip)
+    for st in ['host', 'domain']:
+        for h in uci.get('objects', section, st, list=True, default=[]): # dhcp reservation
+            ip = uci.get('dhcp', h, 'ip', default='')
+            if not ip:
+                continue
+            if ':' in ip:
+                ipv6.append(ip)
+            else:
+                ipv4.append(ip)
+ 
+    return (ipv4, ipv6)
+
+def add_user_set(uci, section, match, family, addresses):
+    fid = family[3]
+    if match == 'src_ip':
+        name = f"us{section}.v{fid}"
+    else:
+        name = f"ud{section}.v{fid}"
+    add_set(uci, name, match, family, addresses)
+    return name
+
+def add_group_set(uci, section, match, family, addresses):
+    fid = family[3]
+    if match == 'src_ip':
+        name = f"gs{section}.v{fid}"
+    else:
+        name = f"gd{section}.v{fid}"
+    add_set(uci, name, match, family, addresses)
+    return name
+
+def add_set(uci, name, match, family, entries):
+    section = utils.get_id(name)
+    uci.set('firewall', section, 'ipset')
+    uci.set('firewall', section, 'name', name)
+    uci.set('firewall', section, 'match', match)
+    uci.set('firewall', section, 'family', family)
+    uci.set('firewall', section, 'enabled', '1')
+    uci.set('firewall', section, 'timeout', '0') # enable timeout flag
+    uci.set('firewall', section, 'entry', uniq(entries))
+
+# generate user ipset
+def add_user_ipsets(uci, user, direction):
+    sets = []
+    (ipv4, ipv6) = get_addresses(uci, user)
+    if ipv4:
+        sets.append(add_user_set(uci, user, direction, 'ipv4', ipv4))
+    if ipv6:
+        sets.append(add_user_set(uci, user, direction, 'ipv6', ipv6))
+
+    return sets
+
+# generate group ipset
+def add_group_ipsets(uci, group, direction):
+    ipv4 = []
+    ipv6 = []
+    macs = []
+    sets = []
+    for u in uci.get('objects', group, 'user', list=True, default=[]):
+        (uipv4, uipv6) = get_addresses(uci, u)
+        ipv4 = ipv4 + uipv4
+        ipv6 = ipv6 + uipv6
+        macs = macs + get_macs(uci, u)
+
+    if ipv4:
+        sets.append(add_group_set(uci, group, direction, 'ipv4', ipv4))
+    
+    if ipv6:
+        sets.append(add_group_set(uci, group, direction, 'ipv6', ipv6))
+
+    return (macs, sets)
+
+
+if os.path.isfile('/etc/config/firewall'):
+    os.unlink('/etc/config/firewall')
+shutil.copyfile('/etc/config/absfirewall', '/etc/config/firewall')
+
+uci = EUci()
+macs = {}
+rules = []
+
+for section in uci.get_all('firewall'):
+    for direction in ['src', 'dest']:
+        user = uci.get('firewall', section, f'user_{direction}', default=None)
+        if user:
+            rule = uci.get_all('firewall', section)
+            del(rule[f'user_{direction}'])
+            sets = add_user_ipsets(uci, user, f'{direction}_ip')
+            uci.delete('firewall', section)
+            for s in sets:
+                crule = rule.copy()
+                crule['ipset'] = s
+                rules.append(crule)
+                add_macs(user, get_macs(uci, user), s)
+ 
+for section in uci.get_all('firewall'):
+    for direction in ['src', 'dest']:
+        group = uci.get('firewall', section, f'group_{direction}', default=None)
+        if group:
+            rule = uci.get_all('firewall', section)
+            del(rule[f'group_{direction}'])
+            (gmacs, sets) = add_group_ipsets(uci, group, f'{direction}_ip')
+            uci.delete('firewall', section)
+            for s in sets:
+                crule = rule.copy()
+                crule['ipset'] = s
+                rules.append(crule)
+                add_macs(group, gmacs, s)
+    
+count = 0
+for rule in rules:
+    section = utils.get_id(f'arule{count}')
+    uci.set('firewall', section, 'rule')
+    for option in rule:
+        uci.set('firewall', section, option, rule[option])
+    count += 1
+uci.commit('firewall')
+
+dconfig = {}
+for m in macs:
+    dconfig[m] = {'v6': [], 'v4': []}
+    for ipset in macs[m]:
+        (name, family) = ipset.split(".")
+        dconfig[m][family].append(ipset)
+
+print(json.dumps(dconfig))
