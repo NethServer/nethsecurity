@@ -7,7 +7,7 @@
 # shellcheck disable=SC2154
 # shellcheck disable=SC2129
 
-START=20
+START=12
 
 USE_PROCD=1
 
