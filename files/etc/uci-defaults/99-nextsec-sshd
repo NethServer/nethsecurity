@@ -1,2 +1,2 @@
-service sshd stop || return 0
-service sshd disable
+service dropbear stop || return 0
+service dropbear disable
