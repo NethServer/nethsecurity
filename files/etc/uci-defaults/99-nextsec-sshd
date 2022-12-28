@@ -1,2 +1,3 @@
-service dropbear stop || return 0
-service dropbear disable
+service sshd stop || return 0
+service sshd disable
+sed -i "s/#Port 22/Port 0/g" /etc/ssh/sshd_config
