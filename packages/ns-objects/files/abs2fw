@@ -29,12 +29,13 @@ def add_macs(name, new_macs, ipset):
 def get_addresses(uci, section):
     ipv4 = []
     ipv6 = []
+    # get addresses from plain ipaddr option
     for ip in uci.get('objects', section, 'ipaddr', list=True, default=[]):
         if ':' in ip:
             ipv6.append(ip)
         else:
             ipv4.append(ip)
- 
+    # get vpn reservation
     for v in uci.get('objects', section, 'vpn', list=True, default=[]): # vpn reservation
         ip = uci.get('openvpn', v, 'ipaddr', default='')
         if not ip:
@@ -43,6 +44,7 @@ def get_addresses(uci, section):
             ipv6.append(ip)
         else:
             ipv4.append(ip)
+    # get address from DNS record and DHCP reservation
     for st in ['host', 'domain']:
         for h in uci.get('objects', section, st, list=True, default=[]): # dhcp reservation
             ip = uci.get('dhcp', h, 'ip', default='')
@@ -83,7 +85,6 @@ def add_set(uci, name, match, family, entries):
     uci.set('firewall', section, 'timeout', '0') # enable timeout flag
     uci.set('firewall', section, 'entry', uniq(entries))
 
-# generate user ipset
 def add_user_ipsets(uci, user, direction):
     sets = []
     (ipv4, ipv6) = get_addresses(uci, user)
@@ -94,7 +95,6 @@ def add_user_ipsets(uci, user, direction):
 
     return sets
 
-# generate group ipset
 def add_group_ipsets(uci, group, direction):
     ipv4 = []
     ipv6 = []
@@ -115,6 +115,11 @@ def add_group_ipsets(uci, group, direction):
     return (macs, sets)
 
 
+# initialize config files
+if not os.path.isfile('/etc/config/absfirewall'):
+    shutil.copyfile('/etc/config/firewall', '/etc/config/absfirewall')
+
+# replace firewall config
 if os.path.isfile('/etc/config/firewall'):
     os.unlink('/etc/config/firewall')
 shutil.copyfile('/etc/config/absfirewall', '/etc/config/firewall')
@@ -123,6 +128,7 @@ uci = EUci()
 macs = {}
 rules = []
 
+# convert user sources and destinations
 for section in uci.get_all('firewall'):
     for direction in ['src', 'dest']:
         user = uci.get('firewall', section, f'user_{direction}', default=None)
@@ -137,6 +143,7 @@ for section in uci.get_all('firewall'):
                 rules.append(crule)
                 add_macs(user, get_macs(uci, user), s)
  
+# convert group sources and destinations
 for section in uci.get_all('firewall'):
     for direction in ['src', 'dest']:
         group = uci.get('firewall', section, f'group_{direction}', default=None)
@@ -150,7 +157,8 @@ for section in uci.get_all('firewall'):
                 crule['ipset'] = s
                 rules.append(crule)
                 add_macs(group, gmacs, s)
-    
+
+# generate new rules with ipsets
 count = 0
 for rule in rules:
     section = utils.get_id(f'arule{count}')
@@ -160,6 +168,7 @@ for rule in rules:
     count += 1
 uci.commit('firewall')
 
+# output configuration for mac2ips
 dconfig = {}
 for m in macs:
     dconfig[m] = {'v6': [], 'v4': []}

@@ -5,18 +5,24 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-START=80
+START=90
 
 USE_PROCD=1
-NAME=addrwatcher
-PROG=/usr/sbin/addrwatcher
+NAME=mac2ip
+PROG=/usr/sbin/mac2ip
+CONFIG=/var/etc/mac2ip.json
 
 start_service() {
+	# init config
+	if [ ! -f "$CONFIG" ]; then
+		echo null > "$CONFIG"
+
+	fi
 	procd_open_instance
 	procd_set_param command "$PROG"
 	procd_close_instance
 }
 
 reload_service() {
-	procd_send_signal $PROG
+	procd_send_signal $PROG SIGUSR1
 }
