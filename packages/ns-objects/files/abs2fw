@@ -61,45 +61,37 @@ def get_addresses(uci, section):
  
     return (ipv4, ipv6)
 
-def add_user_set(uci, section, match, family, addresses):
-    fid = family[3]
-    if match == 'src_ip':
-        name = f"us{section}.v{fid}"
-    else:
-        name = f"ud{section}.v{fid}"
-    add_set(uci, name, match, family, addresses)
+def add_user_set(uci, section, family, addresses):
+    name = f"us{section}.v{family[3]}"
+    add_set(uci, name, family, addresses)
     return name
 
-def add_group_set(uci, section, match, family, addresses):
-    fid = family[3]
-    if match == 'src_ip':
-        name = f"gs{section}.v{fid}"
-    else:
-        name = f"gd{section}.v{fid}"
-    add_set(uci, name, match, family, addresses)
+def add_group_set(uci, section, family, addresses):
+    name = f"gs{section}.v{family[3]}"
+    add_set(uci, name, family, addresses)
     return name
 
-def add_set(uci, name, match, family, entries):
+def add_set(uci, name, family, entries):
     section = utils.get_id(name)
     uci.set('firewall', section, 'ipset')
     uci.set('firewall', section, 'name', name)
-    uci.set('firewall', section, 'match', match)
+    uci.set('firewall', section, 'match', 'src_ip')
     uci.set('firewall', section, 'family', family)
     uci.set('firewall', section, 'enabled', '1')
     uci.set('firewall', section, 'timeout', '0') # enable timeout flag
     uci.set('firewall', section, 'entry', uniq(entries))
 
-def add_user_ipsets(uci, user, direction):
+def add_user_ipsets(uci, user):
     sets = []
     (ipv4, ipv6) = get_addresses(uci, user)
     if ipv4:
-        sets.append(add_user_set(uci, user, direction, 'ipv4', ipv4))
+        sets.append(add_user_set(uci, user, 'ipv4', ipv4))
     if ipv6:
-        sets.append(add_user_set(uci, user, direction, 'ipv6', ipv6))
+        sets.append(add_user_set(uci, user, 'ipv6', ipv6))
 
     return sets
 
-def add_group_ipsets(uci, group, direction):
+def add_group_ipsets(uci, group):
     ipv4 = []
     ipv6 = []
     macs = []
@@ -111,10 +103,10 @@ def add_group_ipsets(uci, group, direction):
         macs = macs + get_macs(uci, u)
 
     if ipv4:
-        sets.append(add_group_set(uci, group, direction, 'ipv4', ipv4))
+        sets.append(add_group_set(uci, group, 'ipv4', ipv4))
     
     if ipv6:
-        sets.append(add_group_set(uci, group, direction, 'ipv6', ipv6))
+        sets.append(add_group_set(uci, group, 'ipv6', ipv6))
 
     return (macs, sets)
 
@@ -140,40 +132,38 @@ if not os.path.isfile('/etc/config/absfirewall'):
 if os.path.isfile('/etc/config/firewall'):
     os.makedirs(tmp_dir, exist_ok=True)
     shutil.copyfile('/etc/config/absfirewall', tmp_file)
+    shutil.copyfile('/etc/config/objects', f'{tmp_dir}/objects')
 
 uci = EUci(confdir=tmp_dir)
 macs = {}
 rules = []
 
-# convert user sources and destinations
-for section in uci.get_all('firewall'):
-    for direction in ['src', 'dest']:
-        user = uci.get('firewall', section, f'user_{direction}', default=None)
-        if user:
-            rule = uci.get_all('firewall', section)
-            del(rule[f'user_{direction}'])
-            sets = add_user_ipsets(uci, user, f'{direction}_ip')
-            uci.delete('firewall', section)
-            for s in sets:
-                crule = rule.copy()
-                crule['ipset'] = s
-                rules.append(crule)
-                add_macs(user, get_macs(uci, user), s)
+for section in utils.get_all_by_type(uci, 'firewall', 'rule'):
+    # convert user sources and destinations
+    user = uci.get('firewall', section, f'user_src', default=None)
+    if user:
+        rule = uci.get_all('firewall', section)
+        del(rule[f'user_src'])
+        sets = add_user_ipsets(uci, user)
+        uci.delete('firewall', section)
+        for s in sets:
+            crule = rule.copy()
+            crule['ipset'] = s
+            rules.append(crule)
+            add_macs(user, get_macs(uci, user), s)
  
-# convert group sources and destinations
-for section in uci.get_all('firewall'):
-    for direction in ['src', 'dest']:
-        group = uci.get('firewall', section, f'group_{direction}', default=None)
-        if group:
-            rule = uci.get_all('firewall', section)
-            del(rule[f'group_{direction}'])
-            (gmacs, sets) = add_group_ipsets(uci, group, f'{direction}_ip')
-            uci.delete('firewall', section)
-            for s in sets:
-                crule = rule.copy()
-                crule['ipset'] = s
-                rules.append(crule)
-                add_macs(group, gmacs, s)
+    # convert group sources and destinations
+    group = uci.get('firewall', section, f'group_src', default=None)
+    if group:
+        rule = uci.get_all('firewall', section)
+        del(rule[f'group_src'])
+        (gmacs, sets) = add_group_ipsets(uci, group)
+        uci.delete('firewall', section)
+        for s in sets:
+            crule = rule.copy()
+            crule['ipset'] = s
+            rules.append(crule)
+            add_macs(group, gmacs, s)
 
 # generate new rules with ipsets
 count = 0
@@ -187,12 +177,12 @@ uci.commit('firewall')
 
 # replace original firewall file, if generated file is different
 if not filecmp.cmp('/etc/config/firewall', tmp_file):
-    print("replacing")
     os.unlink('/etc/config/firewall')
     shutil.copyfile(tmp_file, '/etc/config/firewall')
 
-if os.path.isfile(tmp_file):
-    os.unlink(tmp_file)
+# remove temporary directory
+if os.path.isdir(tmp_dir):
+    shutil.rmtree(tmp_dir, ignore_errors=True)
 
 # write to stdin the config for mac2ip daemon
 output_mac2ip_config()
