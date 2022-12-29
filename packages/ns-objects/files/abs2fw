@@ -6,12 +6,16 @@
 #
 
 import os
+import sys
 import json
 import shutil
+import filecmp
 from euci import EUci
 from nextsec import utils
 
 macs = {}
+tmp_dir = '/tmp/absfirewall'
+tmp_file = f'/tmp/absfirewall/firewall'
 
 def uniq(l):
     return list(set(l))
@@ -114,17 +118,30 @@ def add_group_ipsets(uci, group, direction):
 
     return (macs, sets)
 
+def output_mac2ip_config():
+    global macs
+    dconfig = {}
+    for m in macs:
+        dconfig[m] = {'v6': [], 'v4': []}
+        for ipset in macs[m]:
+            (name, family) = ipset.split(".")
+            dconfig[m][family].append(ipset)
+
+    print(json.dumps(dconfig))
 
 # initialize config files
 if not os.path.isfile('/etc/config/absfirewall'):
     shutil.copyfile('/etc/config/firewall', '/etc/config/absfirewall')
+    # nothing to do anymore
+    output_mac2ip_config()
+    sys.exit(0)
 
 # replace firewall config
 if os.path.isfile('/etc/config/firewall'):
-    os.unlink('/etc/config/firewall')
-shutil.copyfile('/etc/config/absfirewall', '/etc/config/firewall')
+    os.makedirs(tmp_dir, exist_ok=True)
+    shutil.copyfile('/etc/config/absfirewall', tmp_file)
 
-uci = EUci()
+uci = EUci(confdir=tmp_dir)
 macs = {}
 rules = []
 
@@ -168,12 +185,14 @@ for rule in rules:
     count += 1
 uci.commit('firewall')
 
-# output configuration for mac2ips
-dconfig = {}
-for m in macs:
-    dconfig[m] = {'v6': [], 'v4': []}
-    for ipset in macs[m]:
-        (name, family) = ipset.split(".")
-        dconfig[m][family].append(ipset)
+# replace original firewall file, if generated file is different
+if not filecmp.cmp('/etc/config/firewall', tmp_file):
+    print("replacing")
+    os.unlink('/etc/config/firewall')
+    shutil.copyfile(tmp_file, '/etc/config/firewall')
 
-print(json.dumps(dconfig))
+if os.path.isfile(tmp_file):
+    os.unlink(tmp_file)
+
+# write to stdin the config for mac2ip daemon
+output_mac2ip_config()
