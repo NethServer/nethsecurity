@@ -7,3 +7,4 @@
 
 mv -f /var/log/messages /var/log/messages.1
 gzip /var/log/messages.1
+exit 0
