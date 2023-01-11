@@ -94,7 +94,7 @@ data = {
         },
         "virtual": _get_cpu_field("Hypervisor vendor", cpu_info) if _get_cpu_field("Hypervisor vendor", cpu_info) else 'physical',
         "memory": {
-            "swap": { "used_bytes": _run("free | grep 'Swap': | awk '{print $3}'"), "available_bytes": _run("free | grep 'Swap': | awk '{print $7}'") },
+            "swap": { "used_bytes": _run("free | grep 'Swap': | awk '{print $3}'"), "available_bytes": _run("free | grep 'Swap': | awk '{print $4}'") },
             "system": { "used_bytes": _run("free | grep 'Mem': | awk '{print $3}'"), "available_bytes": _run("free | grep 'Mem:' | awk '{print $7}'") }
         },
         "pci": list(pci.values()),
