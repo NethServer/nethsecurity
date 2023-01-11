@@ -16,8 +16,8 @@ PKG_INSTALL:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://gitlab.com/netify.ai/public/netify-agent.git
-PKG_SOURCE_DATE:=2022-11-07
-PKG_SOURCE_VERSION:=189a993a831a3eb74951fc19ea54e6144263c09e
+PKG_SOURCE_DATE:=2023-01-11
+PKG_SOURCE_VERSION:=bca71fbdecaa115ed08c5d9d61b3e41a410987a9
 PKG_MIRROR_HASH:=9762c98053fdc7f6f40560b6af9638cbe380dfc84201ffc91ec1e1005323b06c
 
 include $(INCLUDE_DIR)/package.mk
@@ -48,7 +48,6 @@ define Package/netifyd/conffiles
 /etc/netify.d/agent.uuid
 /etc/netify.d/serial.uuid
 /etc/netify.d/site.uuid
-/etc/netify.d/netify-categories.json
 endef
 
 TARGET_CFLAGS+=-ffunction-sections -fdata-sections -Wno-psabi
@@ -73,7 +72,6 @@ CONFIGURE_ARGS+= \
 endif
 
 define Build/Configure
-	(cd $(PKG_BUILD_DIR); ./autogen.sh)
 	$(call Build/Configure/Default)
 endef
 
@@ -84,6 +82,8 @@ define Build/InstallDev
 	$(CP) $(PKG_INSTALL_DIR)/usr/include/netifyd/pcap-compat/*.h $(1)/usr/include/netifyd/pcap-compat
 	$(INSTALL_DIR) $(1)/usr/include/netifyd/nlohmann
 	$(CP) $(PKG_INSTALL_DIR)/usr/include/netifyd/nlohmann/*.hpp $(1)/usr/include/netifyd/nlohmann
+	$(INSTALL_DIR) $(1)/usr/include/netifyd/radix
+	$(CP) $(PKG_INSTALL_DIR)/usr/include/netifyd/radix/*.hpp $(1)/usr/include/netifyd/radix
 	$(INSTALL_DIR) $(1)/usr/include/ndpi
 	$(CP) $(PKG_INSTALL_DIR)/usr/include/ndpi/*.h $(1)/usr/include/ndpi
 	$(INSTALL_DIR) $(1)/usr/lib
