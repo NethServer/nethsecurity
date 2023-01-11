@@ -48,7 +48,6 @@ define Package/netifyd/conffiles
 /etc/netify.d/agent.uuid
 /etc/netify.d/serial.uuid
 /etc/netify.d/site.uuid
-/etc/netify.d/netify-categories.json
 endef
 
 TARGET_CFLAGS+=-ffunction-sections -fdata-sections -Wno-psabi
@@ -73,7 +72,6 @@ CONFIGURE_ARGS+= \
 endif
 
 define Build/Configure
-	(cd $(PKG_BUILD_DIR); ./autogen.sh)
 	$(call Build/Configure/Default)
 endef
 
@@ -84,6 +82,8 @@ define Build/InstallDev
 	$(CP) $(PKG_INSTALL_DIR)/usr/include/netifyd/pcap-compat/*.h $(1)/usr/include/netifyd/pcap-compat
 	$(INSTALL_DIR) $(1)/usr/include/netifyd/nlohmann
 	$(CP) $(PKG_INSTALL_DIR)/usr/include/netifyd/nlohmann/*.hpp $(1)/usr/include/netifyd/nlohmann
+	$(INSTALL_DIR) $(1)/usr/include/netifyd/radix
+	$(CP) $(PKG_INSTALL_DIR)/usr/include/netifyd/radix/*.hpp $(1)/usr/include/netifyd/radix
 	$(INSTALL_DIR) $(1)/usr/include/ndpi
 	$(CP) $(PKG_INSTALL_DIR)/usr/include/ndpi/*.h $(1)/usr/include/ndpi
 	$(INSTALL_DIR) $(1)/usr/lib
