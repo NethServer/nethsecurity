@@ -47,50 +47,47 @@ categories=$(uci -q get threat_shield.config.categories)
 # Expand categories
 for cat in $categories
 do
-    for ipset in $(find $DEST_DIR -type f)
-    do
-        # busybox find doesn't have "not" operator so we must check the whitelist file here
-        if [ "$ipset" = "whitelist" ]; then
-            continue
-        fi
-        # skip empty files
-        if [ ! -s $ipset ]; then
-            continue
-        fi
-        name=$(basename $ipset | cut -d '.' -f1)
-        echo add set inet threat_shield $name { typeof ip saddr\; flags interval\; auto-merge\; }
-        count=$(grep -v '^#' $ipset | wc -l)
-        times=$((count / MAX_IPS))
-        if [ "$count" -gt "$MAX_IPS" ]; then
-            for i in $(seq 1 1 $times); do
-                end=$((MAX_IPS * i))
-                start=$(( $((MAX_IPS * $((i - 1)))) + 1))
-                elements=$(grep -v '^#' $ipset | awk "NR>=$start&&NR<=$end" | tr '\n' ',')
-                if [ ! -z "$elements" ]; then
-                    echo add element inet threat_shield $name { $elements }
-                fi
-            done
-            remainder=$((count - end))
-            last=$((end + remainder))
-            end=$(( end + 1 ))
-            elements=$(grep -v '^#' $ipset | awk "NR>=$end&&NR<=$last" | tr '\n' ',')
+    if [ "$cat" = "whitelist" ]; then
+        continue
+    fi
+    ipset="$DEST_DIR$cat"
+    # skip empty or non existing categories
+    if [ ! -f $ipset ] || [ ! -s "$ipset" ]; then
+        continue
+    fi
+    name=$(basename $ipset | cut -d '.' -f1)
+    echo add set inet threat_shield $name { typeof ip saddr\; flags interval\; auto-merge\; }
+    count=$(grep -v '^#' $ipset | wc -l)
+    times=$((count / MAX_IPS))
+    if [ "$count" -gt "$MAX_IPS" ]; then
+        for i in $(seq 1 1 $times); do
+            end=$((MAX_IPS * i))
+            start=$(( $((MAX_IPS * $((i - 1)))) + 1))
+            elements=$(grep -v '^#' $ipset | awk "NR>=$start&&NR<=$end" | tr '\n' ',')
             if [ ! -z "$elements" ]; then
                 echo add element inet threat_shield $name { $elements }
             fi
-        else
-            elements=$(grep -v '^#' $ipset | tr '\n' ',')
-            if [ ! -z "$elements" ]; then
-                echo add element inet threat_shield $name { $elements }
-            fi
+        done
+        remainder=$((count - end))
+        last=$((end + remainder))
+        end=$(( end + 1 ))
+        elements=$(grep -v '^#' $ipset | awk "NR>=$end&&NR<=$last" | tr '\n' ',')
+        if [ ! -z "$elements" ]; then
+            echo add element inet threat_shield $name { $elements }
         fi
-        if [ "$log_blocked" = 1 ]; then
-            log_src="log prefix \"ts:$name:src \""
-            log_dst="log prefix \"ts:$name:dst \""
-        else
-            log_src=""
-            log_dst=""
+    else
+        elements=$(grep -v '^#' $ipset | tr '\n' ',')
+        if [ ! -z "$elements" ]; then
+            echo add element inet threat_shield $name { $elements }
         fi
-        echo add rule inet threat_shield block-src ip saddr @$name $log_src drop
-        echo add rule inet threat_shield block-dst ip daddr @$name $log_dst reject
-    done
+    fi
+    if [ "$log_blocked" = 1 ]; then
+        log_src="log prefix \"ts:$name:src \""
+        log_dst="log prefix \"ts:$name:dst \""
+    else
+        log_src=""
+        log_dst=""
+    fi
+    echo add rule inet threat_shield block-src ip saddr @$name $log_src drop
+    echo add rule inet threat_shield block-dst ip daddr @$name $log_dst reject
 done
