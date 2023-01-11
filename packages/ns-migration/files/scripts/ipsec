@@ -34,7 +34,7 @@ gsettings = utils.get_id("ipsec_global")
 nsmigration.vprint(f'Settings IPSec {gsettings}')
 u.set("ipsec", gsettings, "ipsec")
 u.set("ipsec", gsettings, "rtinstall_enabled", '0')
-u.set("ipsec", gsettings, "debug", '1')
+u.set("ipsec", gsettings, "debug", '0')
 u.set("ipsec", gsettings, "zone", 'ipsectun')
 
 for p in data['proposals']:
