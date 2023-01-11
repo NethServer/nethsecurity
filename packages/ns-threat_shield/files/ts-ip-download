@@ -23,6 +23,7 @@ categories=$(uci -q get threat_shield.config.categories)
 if [ -z "$categories" ]; then
     exit 0
 fi
+categories="$categories whitelist"
 
 
 def_sources="/usr/share/threat_shield/nethesis-ip.sources.gz"
