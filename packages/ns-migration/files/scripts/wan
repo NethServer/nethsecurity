@@ -72,6 +72,7 @@ for p in data['providers']:
     ponly = utils.get_id(f'{iname}', length = 15)
     u.set("mwan3", ponly, "policy")
     u.set("mwan3", ponly, "use_member", mname)
+    u.set("mwan3", ponly, "last_resort", "default")
     divert_policies[p["name"]] = ponly
 
     metric = metric + 10
@@ -82,6 +83,7 @@ else:
     pname = utils.get_id("ns7backup", length = 15)
 u.set("mwan3", pname, "policy")
 u.set("mwan3", pname, "use_member", list(utils.get_all_by_type(u, "mwan3", "member").keys()))
+u.set("mwan3", pname, "last_resort", "default")
 
 # Sort rules in reverse order
 # On NS7 last match wins
