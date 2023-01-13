@@ -41,8 +41,13 @@ try:
 except:
     pass
 
-# Setup global option
+# Setup global options
 u.set("openvpn", iname, "openvpn")
+# Migrate from net30 obsolete topology to subnet topology
+# This is required to allow queries to local dnsamasq from VPN if
+# local-service option is enabled
+if data['rw']['options'].get('topology') == 'net30':
+    data['rw']['options']['topology' ] = 'subnet'
 for option in data['rw']['options']:
     nsmigration.vprint(f"Setting OpenVPN roadwarrior option {option}")
     u.set("openvpn", iname, option, data['rw']['options'][option])
