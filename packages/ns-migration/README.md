@@ -126,6 +126,10 @@ The `redirect` script will import:
 
 If `HairpinNat` option was enabled on NS7, all imported port forward will have hairpin enabled (see `reflection` option).
 
+Differences since NS7:
+
+- port forwards with multiple IP limitations will be split into multiple redirects
+
 ## Firewall rules
 
 The `rules` script will import:
