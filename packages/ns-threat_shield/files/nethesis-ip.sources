@@ -14,14 +14,14 @@
                 "descurl": "https://www.nethesis.it"
         },
         "yoroi_susp_level1": {
-                "url": "https://__USER__:__PASSWORD__@bl.nethesis.it/plain/nethesis-blacklists/yoroi_suspicious_level1.ipset",
+                "url": "https://__USER__:__PASSWORD__@bl.nethesis.it/plain/nethesis-blacklists/yoroi_souspicious_level1.ipset",
                 "rule": "/^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}/{print $1}",
                 "size": "XL",
                 "focus": "malware",
                 "descurl": "https://www.nethesis.it"
         },
         "yoroi_susp_level2": {
-                "url": "https://__USER__:__PASSWORD__@bl.nethesis.it/plain/nethesis-blacklists/yoroi_suspicious_level2.ipset",
+                "url": "https://__USER__:__PASSWORD__@bl.nethesis.it/plain/nethesis-blacklists/yoroi_souspicious_level2.ipset",
                 "rule": "/^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}/{print $1}",
                 "size": "XL",
                 "focus": "malware",
