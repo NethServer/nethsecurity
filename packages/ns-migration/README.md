@@ -129,6 +129,7 @@ If `HairpinNat` option was enabled on NS7, all imported port forward will have h
 Differences since NS7:
 
 - port forwards with multiple IP limitations will be split into multiple redirects
+- port forwards with multiple ports will be split into multiple redirects
 
 ## Firewall rules
 
