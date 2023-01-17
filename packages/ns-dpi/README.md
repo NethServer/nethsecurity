@@ -28,6 +28,8 @@ Rule options:
 - `criteria`: DPI expression to match the traffic
   - the criteria must terminate with `;` when using complex expressions
   - use the `"` symbol to enclose strings, double-qoutes will be then translated to `'` inside the plugin configuration file (`/etc/netify.d/netify-flow-actions.json`)
+- `user_src` or `group_src`: match all traffic from the given [user or group object](../ns-objects);
+  when using `user_src` or `group_src` all criteria must use complex expressions
 - `action`: valid actions are:
   - `block`: matching traffic will be blocked
   - `bulk`: matching traffic will be moved to low priority QoS class named `Bulk`
@@ -57,6 +59,21 @@ config rule
 	option criteria 'local_ip == 192.168.100.22 && application == "netify.facebook";'
 	option description 'Low priority for 192.168.100.22 when accessing Facebook'
 	option enabled 1
+
+config rule
+	option action 'block'
+	option criteria 'app == "netify.twitter"'
+	option user_src 'goofy'
+	option description 'Block Twitter for user Goofy'
+	option enabled 1
+
+config rule
+	option action 'block'
+	option criteria 'app == "netify.twitter" or app =="netify.instagram"'
+	option group_src 'vip'
+	option description 'Block Twitter and Instagrm for group vip'
+	option enabled 1
+
 ```
 
 QoS rules do not have any effect if qosify is not enabled.

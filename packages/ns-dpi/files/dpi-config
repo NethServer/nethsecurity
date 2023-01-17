@@ -8,6 +8,7 @@
 from euci import EUci
 import json
 import subprocess
+from nextsec import utils
 
 def get_interface_ips(interface):
     ret = list()
@@ -24,6 +25,27 @@ def get_interface_ips(interface):
                     ret.append(addr['address'])
 
     return ret
+
+def user_to_criteria(uci, user):
+    criteria = []
+    (ipv4, ipv6) = utils.get_user_addresses(uci, user)
+    return entries_to_criteria(ipv4, ipv6, utils.get_user_macs(uci, user))
+
+def group_to_criteria(uci, group):
+    criteria = []
+    (ipv4, ipv6) = utils.get_group_addresses(uci, group)
+    return entries_to_criteria(ipv4, ipv6, utils.get_group_macs(uci, group))
+
+def entries_to_criteria(ipv4, ipv6, macs):
+    criteria = []
+    for mac in macs:
+        criteria.append(f"(local_mac == {mac})")
+    for ip in ipv4:
+        criteria.append(f"(local_ip == {ip} and ip_version == 4)")
+    for ip in ipv6:
+        criteria.append(f"(local_ip == {ip} and ip_version == 6)")
+    return " or ".join(criteria)
+
 
 cfg_file = "/etc/netify.d/netify-flow-actions.json"
 config = {
@@ -57,10 +79,17 @@ for section in u.get_all('dpi'):
     rule = u.get_all('dpi', section)
     if rule['action'] not in valid_actions or not rule['enabled']:
         continue
+
+    criteria = rule['criteria'].replace('"',"'")
+    if 'user_src' in rule:
+        criteria = f"({user_to_criteria(u, rule['user_src'])}) and ({criteria.strip(';')});"
+    elif 'group_src' in rule:
+        criteria = f"({group_to_criteria(u, rule['group_src'])}) and ({criteria.strip(';')});"
+
     config["actions"][f"rule{rcount}"] = {
         "enabled": rule['enabled'] == '1',
         "interface": "*",
-        "criteria": rule['criteria'].replace('"',"'"),
+        "criteria": criteria,
         "targets": [rule['action']]
     }
     config["targets"][rule['action']] = {
