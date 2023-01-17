@@ -223,8 +223,6 @@ define Package/openssh-server/install
 	install -d -m0700 $(1)/etc/ssh
 	$(INSTALL_DATA) $(PKG_INSTALL_DIR)/etc/ssh/sshd_config $(1)/etc/ssh/
 	sed -r -i 's,^#(HostKey /etc/ssh/ssh_host_(rsa|ed25519)_key)$$$$,\1,' $(1)/etc/ssh/sshd_config
-	$(INSTALL_DIR) $(1)/etc/init.d
-	$(INSTALL_BIN) ./files/sshd.init $(1)/etc/init.d/sshd
 	$(INSTALL_DIR) $(1)/lib/preinit
 	$(INSTALL_BIN) ./files/sshd.failsafe $(1)/lib/preinit/99_10_failsafe_sshd
 	$(INSTALL_DIR) $(1)/usr/sbin
