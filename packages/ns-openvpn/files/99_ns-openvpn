@@ -1,11 +1,2 @@
 grep -q '/usr/libexec/ns-openvpn/init-connections-db' /etc/openvpn.user || echo "/usr/libexec/ns-openvpn/init-connections-db" >> /etc/openvpn.user
-# start openvpn initialization when firewall is ready
-# the temporary init script will be executed only once
-cat << EOF > /etc/rc.d/S99ns-openvpn-init
-#!/bin/sh
-/usr/sbin/ns-openvpnrw-setup 2>&1 | tee /var/log/ns-openvpnrw-setup.log
-if [ \$? -eq 0 ]; then
-    rm -f /etc/rc.d/S99ns-openvpn-init
-fi
-EOF
-chmod a+x /etc/rc.d/S99ns-openvpn-init
+/usr/sbin/ns-openvpnrw-setup

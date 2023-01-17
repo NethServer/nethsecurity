@@ -44,7 +44,6 @@ Each script takes 2 arguments: the server instance name and the client CN.
 
 Execute:
 ```
-ns-openvpnrw-setup
 uci set openvpn.ns_roadwarrior.enabled=1
 uci commit openvpn
 service openvpn start
