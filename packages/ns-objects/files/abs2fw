@@ -20,46 +20,12 @@ tmp_file = f'/tmp/absfirewall/firewall'
 def uniq(l):
     return list(set(l))
 
-def get_macs(uci, section):
-    return list(uci.get('objects', section, 'macaddr', list=True, default=[]))
-
 def add_macs(name, new_macs, ipset):
     global macs
     for m in new_macs:
         if m not in macs:
             macs[m] = set()
         macs[m].add(ipset)
-
-def get_addresses(uci, section):
-    ipv4 = []
-    ipv6 = []
-    # get addresses from plain ipaddr option
-    for ip in uci.get('objects', section, 'ipaddr', list=True, default=[]):
-        if ':' in ip:
-            ipv6.append(ip)
-        else:
-            ipv4.append(ip)
-    # get vpn reservation
-    for v in uci.get('objects', section, 'vpn', list=True, default=[]): # vpn reservation
-        ip = uci.get('openvpn', v, 'ipaddr', default='')
-        if not ip:
-            continue
-        if ':' in ip:
-            ipv6.append(ip)
-        else:
-            ipv4.append(ip)
-    # get address from DNS record and DHCP reservation
-    for st in ['host', 'domain']:
-        for h in uci.get('objects', section, st, list=True, default=[]): # dhcp reservation
-            ip = uci.get('dhcp', h, 'ip', default='')
-            if not ip:
-                continue
-            if ':' in ip:
-                ipv6.append(ip)
-            else:
-                ipv4.append(ip)
- 
-    return (ipv4, ipv6)
 
 def add_user_set(uci, section, family, addresses):
     name = f"us{section}.v{family[3]}"
@@ -83,7 +49,7 @@ def add_set(uci, name, family, entries):
 
 def add_user_ipsets(uci, user):
     sets = []
-    (ipv4, ipv6) = get_addresses(uci, user)
+    (ipv4, ipv6) = utils.get_user_addresses(uci, user)
     if ipv4:
         sets.append(add_user_set(uci, user, 'ipv4', ipv4))
     if ipv6:
@@ -92,15 +58,9 @@ def add_user_ipsets(uci, user):
     return sets
 
 def add_group_ipsets(uci, group):
-    ipv4 = []
-    ipv6 = []
-    macs = []
     sets = []
-    for u in uci.get('objects', group, 'user', list=True, default=[]):
-        (uipv4, uipv6) = get_addresses(uci, u)
-        ipv4 = ipv4 + uipv4
-        ipv6 = ipv6 + uipv6
-        macs = macs + get_macs(uci, u)
+    (ipv4, ipv6) = utils.get_group_addresses(uci, group)
+    macs = utils.get_group_macs(uci, group)
 
     if ipv4:
         sets.append(add_group_set(uci, group, 'ipv4', ipv4))
@@ -150,7 +110,7 @@ for section in utils.get_all_by_type(uci, 'firewall', 'rule'):
             crule = rule.copy()
             crule['ipset'] = s
             rules.append(crule)
-            add_macs(user, get_macs(uci, user), s)
+            add_macs(user, utils.get_user_macs(uci, user), s)
  
     # convert group sources and destinations
     group = uci.get('firewall', section, f'group_src', default=None)
