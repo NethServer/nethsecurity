@@ -40,7 +40,7 @@ if [ -b $T ]; then
            pushd $DL_DIR >/dev/null
            wget -q --show-progress $HASH_URL $IMG_URL
            grep $IMG $DL_DIR/sha256sums | sha256sum -c
-           zcat $DL_DIR/$IMG | dd of=$T bs=64K iflag=fullblock conv=notrunc 2>/dev/null
+           zcat $DL_DIR/$IMG | dd of=$T bs=64K iflag=fullblock conv=fsync oflag=direct 2>/dev/null
            popd >/dev/null
         else
            if [ $M -eq 0 ]; then
