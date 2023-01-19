@@ -3,15 +3,26 @@
 # Copyright (C) 2022 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
+
+set -e
+
+source /etc/os-release
+
+DL_DIR=/tmp/download
+BASE_URL="https://distfeed.nethserver.org"
+ARCH=$(echo $OPENWRT_BOARD | tr '/' '-')
+IMG="nextsecurity-$VERSION-$ARCH-generic-ext4-combined-efi.img.gz"
+IMG_URL="$BASE_URL/$VERSION/targets/$OPENWRT_BOARD/$IMG"
+HASH_URL="$BASE_URL/$VERSION/targets/$OPENWRT_BOARD/sha256sums"
+
 if [ $# -eq 0 ]; then
-    echo -e "No arguments supplied, target device for installation needed\n$0 -t /dev/sdX [-s source]"    
+    echo -e "No arguments supplied, target device for installation needed\n$0 -t /dev/sdX"
     exit 1
 fi
 F=0
-while getopts "ft::s::" opt; do
+while getopts "ft::" opt; do
             case $opt in
             (f) F=1 ;; #Force write
-            (s) S=${OPTARG} ;; #Source image
             (t) T=${OPTARG} ;; #Target disk
             (*) printf "Illegal option '-%s'\n" "$opt" && exit 1 ;;
             esac
@@ -23,36 +34,14 @@ if [ -b $T ]; then
            N=$(grep "${T##*/}" /proc/partitions | wc -l)
         fi
         M=$(mount | grep $T| wc -l)
-        P=$(df -t vfat /boot | tail -n 1| cut -d " " -f 1| tr "1" "3")
         if [ $N -eq 1 ] && [ $M -eq 0 ]; then
-           temp="/tmp/firmware"
-           mkdir -p $temp
-           grep -q "$temp" /proc/mounts && umount "$temp"
-           mount -o ro -t vfat $P "$temp"
-           FW=( $(find "$temp" -name nextsecurity\*img.gz| tr " " "$")) ;
-           if [ "${#FW[@]}" -eq 1 ]; then
-              IMG=${FW//$/ };
-           elif [ ! -z ${S+x} ]; then 
-              IMG="$S" 
-           else
-              let A=1; B=("");
-              echo "Choose one of the detected images to install to device:"
-              for I in ${FW[@]}; do
-                 I=${I//$/ };
-                 echo "$A. ${I:14}"; ((A+=1));B+=($I); 
-              done;
-              echo -n "Your choice: "
-              read -r IMG
-              IMG=${B[$IMG]}
-           fi
-           if [ ! -f $IMG ]; then
-              echo "Firmware not found"
-              error=1
-           else
-              zcat $IMG| dd of=$T  bs=64K iflag=fullblock conv=notrunc
-           fi
-           umount "$temp"
-           rmdir "$temp"
+           rm -rf $DL_DIR &> /dev/null
+           mkdir -p $DL_DIR
+           pushd $DL_DIR >/dev/null
+           wget -q --show-progress $HASH_URL $IMG_URL
+           grep $IMG $DL_DIR/sha256sums | sha256sum -c
+           zcat $DL_DIR/$IMG | dd of=$T bs=64K iflag=fullblock conv=notrunc 2>/dev/null
+           popd >/dev/null
         else
            if [ $M -eq 0 ]; then
               echo -e "Multiple partitions found on target device, check it or use -f to force overwrite"
