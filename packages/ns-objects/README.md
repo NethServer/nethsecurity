@@ -13,7 +13,7 @@ The `user` and `group` objects types can be used inside the abstract firewall UC
 
 ## User and groups
 
-A user is a dynamic entity representing all physical and devices belonging to a person like PCs, mobile phones or VPN road warrior accesses.
+A user is a dynamic entity representing all physical and virtual devices belonging to a person like PCs, mobile phones or VPN road warrior accesses.
 A group is a dynamic entity representing a list of users.
 
 The `user` and `group` object are identified by the section name.
@@ -21,13 +21,13 @@ The section name must:
 
 - be unique
 - be a valid UCI id (it may contain only the characters `a-z`, `0-9` and `_`)
-- have a maximum length of 14 characters (nft set name must be 16 characters or less, 4 chars are reserved by `abs2f2` to generate unique nft set names)
+- have a maximum length of 12 characters (nft set name must be 16 characters or less, 4 chars are reserved by `abs2fw` to generate unique nft set names)
 
 The `user` object can have the following non-mandatory options:
 
 - `name`: name of user
 - `description`: a longer label for the user
-- `macaddr`: list of MAC address that will be resolved as IPs (see below)
+- `macaddr`: list of MAC addresses that will be resolved as IPs (see below)
 - `ipaddr`: list of IP addresses
 - `domain`: list of DNS names resolved to IP address, each DNS name is a `domain` record inside the [`dhcp` database](https://openwrt.org/docs/guide-user/base-system/dhcp_configuration#hostnames)
 - `host`: list of DHCP reservations resolved to IP addresses, each reservation is a `host` record inside the [`dhcp` database](https://openwrt.org/docs/guide-user/base-system/dhcp#static_leases)
@@ -63,12 +63,12 @@ config group 'vip'
 
 ### Abstract firewall
 
-The `absfirewall` configuration has the same syntax of `firewall` configuration but is also supports the following options inside the `rule` record:
+The `absfirewall` configuration has the same syntax of `firewall` configuration but it also supports the following options inside the `rule` record:
 
 - `user_src`: match incoming traffic from the specified user IPs
 - `group_src`: match incoming traffic from the specified user group IPs
 
-The abstract firewall must be converted to a standard firewall configuration using the `abs2f2` command. The command will:
+The abstract firewall must be converted to a standard firewall configuration using the `abs2fw` command. The command will:
 
 - create all required IPv4 and IPv6 ipsets
 - rewrite user/group based rules using the ipsets
@@ -98,7 +98,7 @@ fw4 restart
 ## Host
 
 Objects of type `host` are used only as labels inside the UI to display details on firewall rules source and destinations.
-This kind of objects can't be used inside `absfirewall` not `firewall` config: if the user changes the IP address of an host object, such
+This kind of objects can't be used inside `absfirewall` or `firewall` config: if the user changes the IP address of an host object, such
 change is not propagated to any other configuration file.
 
 Example of `/etc/config/objects`:
