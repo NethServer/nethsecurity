@@ -1,0 +1,128 @@
+#!/bin/bash
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+set -e
+
+function list_disks {
+    find /dev/ -name 'sd[a-z]' -o -name 'nvme[0-9]' -o -name 'hd[a-z]' -o -name 'vd[a-z]' -o -name 'xvd[a-z]' -o -name 'mmcblk[0-9]' | sort | uniq
+}
+
+function color_green {
+    echo -ne '\e[32m'$1'\e[0m'
+}
+function color_white {
+    echo -ne '\e[97m'$1'\e[0m'
+}
+function wrong_command {
+    echo -e '\e[31m'"Wrong option."'\e[0m';
+}
+
+function install() {
+    echo "Downloading image ... "
+    img=$(/usr/bin/ns-download -l)
+    if [ -z "$img" ]; then
+        echo "Aborted: download failed"
+	exit 1
+    fi
+    echo "Writing image ... "
+    zcat $img | dd of=$1 bs=1M iflag=fullblock conv=fsync 2>/dev/null
+}
+
+function print_help {
+    echo "Usage: $0 [-t <device>] -f"
+    echo "  -t <device>: install on the given block device"
+    echo "  -f: force install, ignore existing data and override partitions"
+    exit 1
+}
+
+function check {
+    disk=$1
+    if [ $(grep "${disk##*/}" /proc/partitions | wc -l) -gt 1 ]; then
+        echo -e "Multiple partitions found on $(color_white $disk), all content on device will be deleted!"
+        read -rp "$(color_white 'Do you want to proceed? (y/N) ')" force
+        case $force in
+            [yY] ) return 0;;
+            * ) echo "Aborted"; return 1;;
+        esac
+    fi
+    return 0
+}
+
+function bytes_to_h() {
+    echo $1 | awk 'function human(x) {
+         x=x*512
+        s=" B   KiB MiB GiB TiB EiB PiB YiB ZiB"
+         while (x>=1024 && length(s)>1)
+               {x/=1024; s=substr(s,5)}
+         s=substr(s,1,4)
+         xf=(s==" B  ")?"%3d":"%8.2f"
+         return sprintf( xf"%s\n", x, s)
+      }
+      {gsub(/^[0-9]+/, human($1)); print}'
+}
+
+
+force=0
+while getopts "hft::" opt; do
+    case $opt in
+        (f) force=1 ;; #Force write
+        (t) target=${OPTARG} ;; #Target disk
+        (h) print_help ;;
+        (*) printf "Illegal option '-%s'\n" "$opt" && exit 1 ;;
+    esac
+done
+
+# select existing disks
+if [ -z "$target" ]; then
+    echo "Select target disk:"
+    counter=1
+    for disk in $(list_disks); do
+        model=$(cat /sys/class/block/${disk:5}/device/model 2>/dev/null || echo '')
+        vendor=$(cat /sys/class/block/${disk:5}/device/vendor 2>/dev/null || echo '')
+        if [ ! -z "$model" ] && [ -z "$vendor" ]; then
+            model="($vendor: $model)"
+        fi
+        size=$(bytes_to_h $(cat /sys/class/block//${disk:5}/device/block//${disk:5}/size))
+        if grep -q $disk /proc/mounts; then
+            used='used'
+        else
+            used='free'
+        fi
+        echo -n "$(color_green "${counter})" ) $(color_white ${disk:5})   $size   $used   $model"
+        counter=$((counter+1))
+        echo
+    done;
+    read -rp "$(color_white 'Your choice: ')" choice
+    if [ ${choice:-1} -gt 0 ] && [ ${choice} -lt ${counter} ]; then
+        target=$(list_disks | awk 'NR=='$choice'{ print; }')
+    else
+       echo "Aborted: invalid choice"
+       exit 1
+    fi
+fi
+
+if [ -b $target ]; then
+    if [ "$force" -eq 1 ]; then
+        install $target
+    else
+        check $target && install $target
+        if [ $? -eq 0 ]; then
+            echo -e "Installation completed"
+            sync
+            mount -o remount,ro /boot
+            mount -o remount,ro /
+            sleep 1
+            reset
+            read -rp "$(color_white 'Remove install medium and press enter to reboot')" reboot;
+            reboot
+        fi
+   fi
+else
+    echo -e "Target device not found: '$target'"
+    error=1
+fi
+
+exit ${error:-0}
