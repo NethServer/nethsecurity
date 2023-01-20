@@ -21,7 +21,6 @@ def sfmt(num, suffix="B"):
 def list_talkers(limit = 20, stat_file="/tmp/netify-plugin-stats.json"):
     data = None
     stats = dict()
-    stats_list = list()
     time_diff = 1
 
     with open(stat_file, 'r') as fp:
@@ -33,6 +32,8 @@ def list_talkers(limit = 20, stat_file="/tmp/netify-plugin-stats.json"):
         for ip in data['stats'][mac]:
             if ip not in stats:
                 stats[ip] = {
+                        'ip' : ip,
+                        'host' : ip,
                         'mac': mac,
                         'totals': {
                             'download': 0,
@@ -45,22 +46,19 @@ def list_talkers(limit = 20, stat_file="/tmp/netify-plugin-stats.json"):
                 for app in data['stats'][mac][ip]:
                     if app not in stats[ip]['apps']:
                         stats[ip]['apps'][app] = 0
-                for proto in  data['stats'][mac][ip][app]:
-                    stats[ip]['totals']['download'] += data['stats'][mac][ip][app][proto]['download']
-                    stats[ip]['totals']['upload'] += data['stats'][mac][ip][app][proto]['upload']
-                    stats[ip]['totals']['bandwidth'] +=  data['stats'][mac][ip][app][proto]['download'] +  data['stats'][mac][ip][app][proto]['upload']
-                    stats[ip]['totals']['packets'] += data['stats'][mac][ip][app][proto]['packets']
-                    stats[ip]['apps'][app] += data['stats'][mac][ip][app][proto]['download'] + data['stats'][mac][ip][app][proto]['upload']
+                    for proto in data['stats'][mac][ip][app]:
+                        stats[ip]['totals']['download'] += data['stats'][mac][ip][app][proto]['download']
+                        stats[ip]['totals']['upload'] += data['stats'][mac][ip][app][proto]['upload']
+                        stats[ip]['totals']['bandwidth'] +=  data['stats'][mac][ip][app][proto]['download'] +  data['stats'][mac][ip][app][proto]['upload']
+                        stats[ip]['totals']['packets'] += data['stats'][mac][ip][app][proto]['packets']
+                        stats[ip]['apps'][app] += data['stats'][mac][ip][app][proto]['download'] + data['stats'][mac][ip][app][proto]['upload']
 
-    for ip in stats:
-        info = stats[ip]
-        info['ip'] = ip
-        info['host'] = socket.getnameinfo((ip, 0), 0)[0]
-        info['totals']['bandwidth'] = info['totals']['bandwidth'] / time_diff
-        info['totals']['bandwiddh_h'] = sfmt(info['totals']['bandwidth'])
-        stats_list.append(info)
+            # name resolution can highly slow down the API
+            stats[ip]['host'] = socket.getnameinfo((ip, 0), 0)[0]
+            stats[ip]['totals']['bandwidth'] = stats[ip]['totals']['bandwidth'] / time_diff
+            stats[ip]['totals']['bandwiddh_h'] = sfmt(stats[ip]['totals']['bandwidth'])
 
-    ordered = sorted(stats_list, key=lambda x: x['totals']['bandwidth'], reverse=True)
+    ordered = sorted(stats.values(), key=lambda x: x['totals']['bandwidth'], reverse=True)
     return ordered[:limit]
 
 
