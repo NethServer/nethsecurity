@@ -114,3 +114,12 @@ if [ -f ${CONFIG_FILE} ]; then
 else
     exit 3
 fi
+
+# Configure rsyslog to send to promtail
+uci set rsyslog.promtail=forwarder
+uci set rsyslog.promtail.source=*.*
+uci set rsyslog.promtail.protocol=tcp
+uci set rsyslog.promtail.port=$(echo "$response" | jq -r .promtail_port)
+uci set rsyslog.promtail.rfc=5424
+uci set rsyslog.promtail.target=$(echo "$response" | jq -r .promtail_address)
+/etc/init.d/rsyslog restart
