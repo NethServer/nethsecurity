@@ -14,7 +14,7 @@ Example:
 ```
 PKG_NAME:=ns-myapp
 PKG_VERSION:=0.0.1
-PKG_RELEASE:=$(AUTORELEASE)
+PKG_RELEASE:=1
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-myapp-$(PKG_VERSION)
 include $(INCLUDE_DIR)/package.mk

@@ -7,7 +7,7 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-flashstart
 PKG_VERSION:=0.0.1
-PKG_RELEASE:=$(AUTORELEASE)
+PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-flashstart-$(PKG_VERSION)
 
