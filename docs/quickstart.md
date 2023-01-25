@@ -55,17 +55,7 @@ NextSecurity can be run directly from a USB stick:
    ```
 4. unplug the USB stick from the desktop and plug it into the server
 5. boot the server, make sure to select the USB stick from boot menu
-6. connect to VGA or serial console and select option `2` from the menu
-
-   Menu example:
-   ```
-   Quick options:
-   1) Load alternate keyboard maps
-   2) Install NextSecurity on sda
-   3) Install NextSecurity on other storage
-   l) Login
-   x) Exit
-   ```
+6. connect to VGA or serial console, login with default credentials and execute `ns-install`
 
 If you're running a desktop Windows machine, you will need extra software for point 2.
 First, make sure to format the USB drive then unmount it.
