@@ -37,8 +37,13 @@ jobs:
         run: |
           # Build the image
           ./run
+      - id: release
+        name: Update latest_release file
+        run: |
           # Setup OWRT_VERSION env variable for release action
           grep '^OWRT_VERSION' builder/build-builder | tr -d '"' >> $GITHUB_ENV
+          # Create release file pointing to OWRT_VERSION
+          grep '^OWRT_VERSION' builder/build-builder | tr -d '"' | cut -d'=' -f2 > latest_release
       - uses: actions/upload-artifact@v3
         name: Publish images as temporary artifacts
         with:
@@ -66,3 +71,13 @@ jobs:
           cdn_domain: ${{ env.CDN_DOMAIN }}
           source: bin/targets
           out_dir: ${{ env.OWRT_VERSION }}/targets
+      - uses: BetaHuhn/do-spaces-action@v2
+        name: Publish latest_release to distfeed repository
+        if: ${{ github.ref == 'refs/heads/master' }}
+        with:
+          access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
+          secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
+          space_name: ${{ env.DO_SPACE_NAME }}
+          space_region: ${{ env.DO_SPACE_REGION }}
+          cdn_domain: ${{ env.CDN_DOMAIN }}
+          source: latest_release
