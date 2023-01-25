@@ -1,0 +1,83 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Download NextSec image and verify the hash.
+# Print the path of downloaded image on success.
+
+. /etc/os-release
+DL_DIR=/tmp/download
+BASE_URL="https://distfeed.nethserver.org"
+ARCH=$(echo "$OPENWRT_BOARD" | tr '/' '-')
+
+# Cleanup on kill
+cleanup() {
+    rm -rf "$DL_DIR" 2>/dev/null
+    exit 1
+}
+trap cleanup SIGTERM SIGINT SIGKILL
+
+help() {
+    echo "Usage: $0 [-f] [-l]"
+    echo "  -f: force download, even if the image already exists"
+    echo "  -l: download latest available version, not the currently installed one"
+    exit 1
+}
+
+force=0
+latest=0
+
+while getopts "hfl" opt; do
+    case $opt in
+        (f) force=1 ;; # force download
+        (l) latest=1 ;; # download latest image
+        (*) help ;;
+    esac
+done
+
+# Force download by deleting destination dir
+if [ "$force" -eq 1 ]; then
+    rm -rf "$DL_DIR" &> /dev/null   
+fi
+
+# Set version to download
+if [ "$latest" -eq 1 ]; then
+    version=$(curl -L -s -m 60 $BASE_URL/latest_release)
+    if [ -z "$version" ]; then
+        exit 1
+    fi
+else
+    version=$VERSION
+fi
+
+hash="$DL_DIR/sha256"
+img_name="nextsecurity-$version-$ARCH-generic-ext4-combined-efi.img.gz"
+img="$DL_DIR/$img_name"
+img_url="$BASE_URL/$version/targets/$OPENWRT_BOARD/$img_name"
+hash_url="$BASE_URL/$version/targets/$OPENWRT_BOARD/sha256sums"
+
+# Download if image does not exists
+if [ ! -d "$DL_DIR" ] || [ ! -f "$img" ] || [ ! -f "$hash" ]; then
+    mkdir -p "$DL_DIR"
+    rm -f "$img" "$hash" &> /dev/null
+    curl -L -s -m 60 -o "$hash" "$hash_url"
+    curl -L -s --connect-timeout 60 -o "$img" "$img_url"
+fi
+
+# Check image integrity
+ori_dir=$(pwd)
+cd "$DL_DIR"
+grep "$img_name" "$hash" | sha256sum -c &>/dev/null
+check=$?
+cd "$ori_dir"
+if [ "$check" -gt 0 ]; then
+    # Cleanup if image is not good
+    rm -rf "$DL_DIR" &> /dev/null
+    exit 1
+else
+    echo "$img"
+    exit 0
+fi
