@@ -156,7 +156,18 @@ Then will be able to login to the console using default credentials above.
 
 Please note that the system is configured with `US` keyboard layout.
 
-To change current keyboard layout, execute the `menu` script and select option `1`.
+To temporary change current keyboard layout to Italian, login to the system then execute:
+```
+loadkmap < /usr/share/keymaps/it.map.bin
+```
+
+Keyboard layout configuration can be saved by writing the keymap code inside `/etc/keymap`. Example:
+```
+echo 'it' > /etc/keymap
+grep -q /etc/keymap /etc/sysupgrade.conf || echo /etc/keymap >> /etc/sysupgrade.conf
+```
+
+To obtain the list of availabile keymaps execute: `ls -1 /usr/share/keymaps/ | cut -d'.' -f1`.
 
 Other keymaps can be generated from a CentOS machine with the following command:
 ```
