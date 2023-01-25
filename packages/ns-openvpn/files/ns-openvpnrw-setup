@@ -5,18 +5,24 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
+import os
+import sys
 import subprocess
 from euci import EUci
 from nextsec import firewall, utils
+
+instance = utils.get_id('roadwarrior')
+# Make sure to not change firewall rule on upgrade
+if os.path.isdir(f'/etc/openvpn/{instance}'):
+    sys.exit(0)
 
 u = EUci()
 firewall.add_to_lan(u, 'tunrw')
 ovpn_interface = firewall.add_vpn_interface(u, 'openvpnrw', 'tunrw')
 ovpn_zone = firewall.add_trusted_zone(u, "openvpnrw", [ovpn_interface])
 firewall.add_service(u, 'openvpnrw', '1194', 'udp')
-firewall.apply(u)
+u.commit('firewall')
 
-instance = utils.get_id('roadwarrior')
 try:
     u.get('openvpn', instance)
 except:
