@@ -38,10 +38,49 @@ You can use the downloaded image as a virtual machine disk:
 
 1. extract the downloaded image:
    ```
-   gunzip nextsecurity-22.03.0-x86-64-generic-squashfs-combined.img.gz
+   gunzip nextsecurity-22.03.3-x86-64-generic-squashfs-combined.img.gz
    ```
 2. create a new virtual machine and select the uncompressed image as disk
 3. boot the virtual machine
+
+#### Proxmox
+
+The image can be imported inside [Proxmox](https://www.proxmox.com/).
+
+First, make sure to have 2 different network bridges. In this example we are going to use `vmbr0` abd `vmbr1`.
+The described procedure can be also done using the Proxmox UI.
+
+Create the virtual machine, in this example the machine will have id `401`:
+```
+qm create 401 --name "NextSecurity" --ostype l26 --cores 1 --memory 1024 --net0 virtio,bridge=vmbr0,firewall=0 --net1 virtio,bridge=vmbr1,firewall=0 --scsihw virtio-scsi-pci
+```
+
+Download the image:
+```
+wget "https://distfeed.nethserver.org/22.03.3/targets/x86/64/nextsecurity-22.03.3-x86-64-generic-ext4-combined-efi.img.gz"
+```
+
+Extract the image:
+```
+gunzip nextsecurity-22.03.3-x86-64-generic-ext4-combined-efi.img.gz
+```
+
+Import the extracted images a virtual machine disk:
+```
+qm importdisk 401 nextsecurity-22.03.3-x86-64-generic-ext4-combined-efi.img local-lvm
+```
+
+Attach the disk to the virtual machine:
+```
+qm set 401 --scsi0 "local-lvm:vm-401-disk-0"
+```
+
+Setup the boot order:
+```
+qm set 401 --boot order=scsi0
+```
+
+Finally, start the virtual machine.
 
 ### Physical machines
 
