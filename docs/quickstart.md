@@ -30,7 +30,7 @@ The image should work both on machines with legacy and EFI BIOS.
 To install the system you can choose between 2 alternative methods:
 
 - write the downloaded image directly to the disk (recommended for virtual machines)
-- boot from an USB stick (recommended for physical machines)
+- boot from an USB stick (recommended for physical machines with Internet access)
 
 ### Virtual machines
 
@@ -47,7 +47,7 @@ You can use the downloaded image as a virtual machine disk:
 
 The image can be imported inside [Proxmox](https://www.proxmox.com/).
 
-First, make sure to have 2 different network bridges. In this example we are going to use `vmbr0` abd `vmbr1`.
+First, make sure to have 2 different network bridges. In this example we are going to use `vmbr0` and `vmbr1`.
 The described procedure can be also done using the Proxmox UI.
 
 Create the virtual machine, in this example the machine will have id `401`:
@@ -84,17 +84,18 @@ Finally, start the virtual machine.
 
 ### Physical machines
 
-NextSecurity can be run directly from a USB stick:
+NextSecurity can be run from a USB stick or installed directly to any bootable device like
+hard disks or SD cards.
 
-1. plug the USB stick into your desktop Linux machine
-2. find the USB stick device name, in this example the device is named `/dev/sdd`
+1. attach the target disk/stick/card to a desktop Linux machine
+2. find the disk/stick/card device name, in this example the device is named `/dev/sdd`
 3. as `root` user, write the downloaded image to the device:
    ```
    zcat nextsecurity-22.03.0-x86-64-generic-squashfs-combined.img.gz | dd of=/dev/sdd bs=1M iflag=fullblock status=progress oflag=direct
    ```
-4. unplug the USB stick from the desktop and plug it into the server
-5. boot the server, make sure to select the USB stick from boot menu
-6. connect to VGA or serial console, login with default credentials and execute `ns-install`
+4. unplug the disk/stick/card from the desktop and plug it into the server
+5. boot the server, select the correct device (USB, SD card or hard disk) from boot menu
+6. the server is installed and ready to be used
 
 If you're running a desktop Windows machine, you will need extra software for point 2.
 First, make sure to format the USB drive then unmount it.
@@ -105,13 +106,15 @@ Use one of the following tools to write the USB stick:
 * [Rawrite32](http://www.netbsd.org/~martin/rawrite32/)
 * [dd for Windows](http://www.chrysocome.net/dd)
 
-You can also connect to the running machine using SSH and manually
-install the system to the disk using `install-nx.sh` command.
+### Install from USB to disk
 
-Usage Example:
-```
-install-nx.sh -t /dev/vda
-```
+Since running from the USB stick does not guarantee best performances, you can also install
+NextSecurity to the hard disk while running it from the USB stick itself:
+
+1. make sure the server has Internet access
+2. connect to the server using VGA, serial console or SSH
+3. login with default credentials
+4. execute `ns-install` and follow the instructions
 
 ## Default network configuration
 
@@ -196,7 +199,7 @@ echo 'it' > /etc/keymap
 grep -q /etc/keymap /etc/sysupgrade.conf || echo /etc/keymap >> /etc/sysupgrade.conf
 ```
 
-To obtain the list of availabile keymaps execute: `ls -1 /usr/share/keymaps/ | cut -d'.' -f1`.
+To obtain the list of available keymaps execute: `ls -1 /usr/share/keymaps/ | cut -d'.' -f1`.
 
 Other keymaps can be generated from a CentOS machine with the following command:
 ```
