@@ -36,7 +36,7 @@ endef
 define Package/ns-storage/postinst
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
-  crontab -l | grep -q '/usr/sbin/logrotate' || echo '5 1 * * * /usr/sbin/logrotate' >> /etc/crontabs/root
+  crontab -l | grep -q '/usr/sbin/logrotate /etc/logrotate.conf' || echo '5 1 * * * /usr/sbin/logrotate /etc/logrotate.conf' >> /etc/crontabs/root
   /etc/init.d/cron restart
 fi
 exit 0
@@ -45,7 +45,7 @@ endef
 define Package/ns-storage/prerm
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
-	crontab -l | grep -v "/usr/sbin/logrotate" | sort | uniq | crontab -
+	crontab -l | grep -v "/usr/sbin/logrotate /etc/logrotate.conf" | sort | uniq | crontab -
 fi
 exit 0
 endef
