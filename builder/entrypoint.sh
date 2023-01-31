@@ -5,6 +5,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
+# Abort if any setup step fails
+set -e
+
 echo "Preparing build environment ..."
 
 OUTPUT=/home/build/openwrt/.config
