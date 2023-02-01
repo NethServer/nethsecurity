@@ -14,9 +14,21 @@ if [ $(uci -q get dpi.config.log_blocked) = "1" ]; then
     log_opt='log prefix "DPI block: "'
 fi
 
+policy=$(uci -q get dpi.config.policy)
+if [ -z "$policy" ]; then
+    policy='allow'
+fi
+
 echo add table inet dpi
-echo add chain inet dpi block '{ type filter hook forward priority -1; policy accept; }'
+if [ "$policy" = "allow" ]; then
+    echo add chain inet dpi block '{ type filter hook forward priority -1; policy accept; }'
+else
+    echo add chain inet dpi block '{ type filter hook forward priority -1; policy drop; }'
+    echo add rule inet dpi block ct label allow counter accept
+    echo add rule inet dpi block ct label != dpi-complete counter accept
+fi
 echo add rule inet dpi block ct label block counter $log_opt reject
+echo add rule inet dpi block counter reject
 
 echo add chain inet dpi qos '{ type filter hook prerouting priority -1; }'
 echo add rule inet dpi qos ct label bulk counter ip dscp set cs1 return
