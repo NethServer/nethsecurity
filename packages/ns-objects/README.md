@@ -9,8 +9,6 @@ Supported object types:
 
 All objects are saved inside `/ect/config/objects` UCI database.
 
-The `user` and `group` objects types can be used inside the abstract firewall UCI database named `/etc/config/absfirewall`.
-
 ## User and groups
 
 A user is a dynamic entity representing all physical and virtual devices belonging to a person like PCs, mobile phones or VPN road warrior accesses.
@@ -21,7 +19,7 @@ The section name must:
 
 - be unique
 - be a valid UCI id (it may contain only the characters `a-z`, `0-9` and `_`)
-- have a maximum length of 12 characters (nft set name must be 16 characters or less, 4 chars are reserved by `abs2fw` to generate unique nft set names)
+- have a maximum length of 12 characters (nft set name must be 16 characters or less, 4 chars are reserved for future use
 
 The `user` object can have the following non-mandatory options:
 
@@ -61,45 +59,10 @@ config group 'vip'
 	list user 'daisy'
 ```
 
-### Abstract firewall
-
-The `absfirewall` configuration has the same syntax of `firewall` configuration but it also supports the following options inside the `rule` record:
-
-- `user_src`: match incoming traffic from the specified user IPs
-- `group_src`: match incoming traffic from the specified user group IPs
-
-The abstract firewall must be converted to a standard firewall configuration using the `abs2fw` command. The command will:
-
-- create all required IPv4 and IPv6 ipsets
-- rewrite user/group based rules using the ipsets
-
-MAC addresses listed inside the `macaddr` user option are converted to IPs at run-time using 2 daemons:
-
-- `addrwatcher` exposes [addrwatch](https://github.com/fln/addrwatch) events to UNIX socket `/var/run/addrwatcher.sock` using `socat`
-- `map2ip` reads ARP events from addrwatcher socket and dynamically adds the resolved IP to the existing ipsets
-
-Rule example inside `absfirewall`:
-```
-config rule 'ns_test1'
-	option name 'test-user-giacomo'
-	option user_src 'giacomo'
-	option proto 'udp'
-	option dest_port '53'
-	option target 'ACCEPT'
-```
-
-Apply configuration:
-```
-abs2fw > /var/etc/mac2ip.json
-service mac2ip reload
-fw4 restart
-```
-
 ## Host
 
 Objects of type `host` are used only as labels inside the UI to display details on firewall rules source and destinations.
-This kind of objects can't be used inside `absfirewall` or `firewall` config: if the user changes the IP address of an host object, such
-change is not propagated to any other configuration file.
+If the user changes the IP address of an host object, such change is not propagated to any configuration file.
 
 Example of `/etc/config/objects`:
 ```

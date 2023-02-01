@@ -21,7 +21,7 @@ define Package/ns-objects
 	CATEGORY:=NextSecurity
 	TITLE:=NextSecurity controller client
 	URL:=https://github.com/NethServer/nextsecurity-controller/
-	DEPENDS:=+python3-nextsec +addrwatch
+	DEPENDS:=+python3-nextsec
 	PKGARCH:=all
 endef
  
@@ -31,7 +31,6 @@ endef
 
 define Package/ns-objects/conffiles
 	/etc/config/objects
-	/etc/config/absfirewall
 endef
 
 # this is required, otherwise compile will fail
@@ -39,15 +38,8 @@ define Build/Compile
 endef
 
 define Package/ns-objects/install
-	$(INSTALL_DIR) $(1)/usr/sbin
-	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
-	$(INSTALL_BIN) ./files/mac2ip.init $(1)/etc/init.d/mac2ip
-	$(INSTALL_BIN) ./files/addrwatcher.init $(1)/etc/init.d/addrwatcher
-	$(INSTALL_BIN) ./files/mac2ip $(1)/usr/sbin
-	$(INSTALL_BIN) ./files/abs2fw $(1)/usr/sbin
-	$(INSTALL_BIN) ./files/addrwatcher $(1)/usr/sbin
 	$(INSTALL_CONF) ./files/config $(1)/etc/config/objects
 endef
  
