@@ -109,6 +109,7 @@ The `dns` script will import:
 - global DNS configuration like local domain and DNS forwarders
 - static hosts
 - static wild card hosts
+- DNS redirect for Active Directory
 
 TFTP options are migrated, but not the content of the tftp_root directory. To re-enable the service make sure to setup `tftp_root` option.
 
