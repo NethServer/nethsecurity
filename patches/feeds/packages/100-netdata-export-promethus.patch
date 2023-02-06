@@ -1,0 +1,12 @@
+diff --git a/admin/netdata/Makefile b/admin/netdata/Makefile
+index e471f27b2..def44a874 100644
+--- a/admin/netdata/Makefile
++++ b/admin/netdata/Makefile
+@@ -62,7 +62,6 @@ CONFIGURE_ARGS += \
+ 	--disable-plugin-freeipmi \
+ 	--disable-plugin-cups \
+ 	--disable-plugin-xenstat \
+-	--disable-backend-prometheus-remote-write \
+ 	--disable-unit-tests \
+ 	--disable-ml \
+ 	--disable-cloud
