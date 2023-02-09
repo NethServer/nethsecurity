@@ -17,14 +17,14 @@ The client is composed by 3 main parts:
 The `ns-plug` service needs only the `server` configuration option. Example:
 ```
 uci set ns-plug.config.server=https://controller.nethserver.org
-uci commit
+uci commit ns-plug
 ``` 
 
 As default, `ns-plug`will identify itself using the MAC address of the LAN network interface without separators: given a MAC address like `52:54:00:6b:8a:cf`, the default `system_id` will be `5254006b8acf`.
 The system id can also be overridden using the `system_id` option. Example:
 ```
 uci set ns-plug.config.system_id=392e068e-8557-4b1e-ba15-a1dfba1d59f0
-uci commit
+uci commit ns-plug
 ```
 
 On first run, `ns-plug` will create an administrator user for Luci, the user is saved inside UCI config `rpcd.controller`. The user will have a random name and a random password.
@@ -35,7 +35,7 @@ The password of controller user will be regenerated and sent to the controller o
 On development environments, if a valid certificate is not available, it is possible to disable TLS verification:
 ```
 uci set ns-plug.config.tls_verify='0'
-uci commit
+uci commit ns-plug
 ```
 
 To reset ns-plug configuration use:
