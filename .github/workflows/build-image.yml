@@ -26,7 +26,7 @@ jobs:
       IMAGETAG: ${{ github.ref_name }}
       DO_SPACE_NAME: 'distfeed-nextsecurity'
       DO_SPACE_REGION: 'fra1'
-      CDN_NAME: 'distfeed.nextsecurity.nethserver.org'
+      CDN_NAME: 'distfeed.nethserver.org'
       USIGN_PUB_KEY: ${{ secrets.USIGN_PUB_KEY }}
       USIGN_PRIV_KEY: ${{ secrets.USIGN_PRIV_KEY }}
       NETIFYD_ACCESS_TOKEN: ${{ secrets.NETIFYD_ACCESS_TOKEN }}
