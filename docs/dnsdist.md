@@ -63,7 +63,7 @@ Configuration from [Cyber Defence Lab](https://cylab.be/blog/211/dns-over-https-
 
 Move Dnsmasq to port 5353
 ```
-uci set dhcp.@dnsmasq[0].port=5353
+uci set dhcp.@dnsmasq[0].port = 5353
 uci commit dhcp
 service dnsmasq restart
 ```
@@ -74,5 +74,5 @@ addLocal('0.0.0.0:53', { reusePort=true })
 newServer({address="127.0.0.1:5353", pool="local"})
 addAction({"lan."},  PoolAction("local"))
 newServer({address="1.1.1.1", pool="flashstart", name="cloudflare1"})
-newServer({address="1.0.0.1", pool="flashstart", name="cloudlfare2"})
+newServer({address="1.0.0.1", pool="flashstart", name="cloudflare2"})
 ```
