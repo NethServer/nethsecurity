@@ -63,7 +63,7 @@ Configuration from [Cyber Defence Lab](https://cylab.be/blog/211/dns-over-https-
 
 Move Dnsmasq to port 5353
 ```
-uci set dhcp.@dnsmasq[0].port = 5353
+uci set dhcp.@dnsmasq[0].port=5353
 uci commit dhcp
 service dnsmasq restart
 ```
