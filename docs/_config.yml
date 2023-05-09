@@ -18,7 +18,7 @@ description: NextSecurity - A firewall from NethServer family
 remote_theme: pmarsceill/just-the-docs@v0.3.3
 
 baseurl: /nextsecurity
-version: 22.03.3
+version: 22.03.5
 
 permalink: pretty
 exclude: [vendor]
