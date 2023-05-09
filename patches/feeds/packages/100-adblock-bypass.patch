@@ -1,8 +1,8 @@
 diff --git a/net/adblock/files/README.md b/net/adblock/files/README.md
-index 7e62306ad..b16ebe461 100644
+index 95cbfeedc..688bdb7cc 100644
 --- a/net/adblock/files/README.md
 +++ b/net/adblock/files/README.md
-@@ -156,6 +156,7 @@ Available commands:
+@@ -159,6 +159,7 @@ Available commands:
  | adb_debug          | 0, disabled                        | set to 1 to enable the debug output                                                            |
  | adb_nice           | 0, standard prio.                  | valid nice level range 0-19 of the adblock processes                                           |
  | adb_forcedns       | 0, disabled                        | set to 1 to force DNS requests to the local resolver                                           |
@@ -11,7 +11,7 @@ index 7e62306ad..b16ebe461 100644
  | adb_dnstimeout     | 10                                 | timeout in seconds to wait for a successful DNS backend restart                                |
  | adb_dnsinstance    | 0, first instance                  | set to the relevant dns backend instance used by adblock (dnsmasq only)                        |
 diff --git a/net/adblock/files/adblock.sh b/net/adblock/files/adblock.sh
-index 94b7b62b0..3039cebbc 100755
+index e76e81450..eab9ed76c 100755
 --- a/net/adblock/files/adblock.sh
 +++ b/net/adblock/files/adblock.sh
 @@ -197,6 +197,9 @@ f_conf() {
@@ -41,15 +41,15 @@ index 94b7b62b0..3039cebbc 100755
  		for zone in ${adb_zonelist}; do
  			for port in ${adb_portlist}; do
  				if ! printf "%s" "${fwcfg}" | grep -q "adblock_${zone}${port}[ |\$]"; then
-@@ -566,6 +579,7 @@ f_extconf() {
- 						set firewall."adblock_${zone}${port}".src_dport="${port}"
+@@ -567,6 +580,7 @@ f_extconf() {
  						set firewall."adblock_${zone}${port}".dest_port="${port}"
  						set firewall."adblock_${zone}${port}".target="DNAT"
-+						set firewall."adblock_${zone}${port}".ipset="!adblock_bypass"
+ 						set firewall."adblock_${zone}${port}".family="any"
++						set firewall."adblock_${zone}${port}".ipset="!adblock_bypass
  					EOC
  				fi
  				fwcfg="${fwcfg/adblock_${zone}${port}[ |\$]/}"
-@@ -578,6 +592,7 @@ f_extconf() {
+@@ -579,6 +593,7 @@ f_extconf() {
  		for section in ${fwcfg}; do
  			uci_remove firewall "${section}"
  		done
