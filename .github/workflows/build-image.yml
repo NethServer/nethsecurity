@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - 'main'
-      - 'master'
     paths:
       - 'config/**'
       - 'files/**'
@@ -51,7 +50,7 @@ jobs:
           path: bin/targets/x86/64/nextsecurity-*-x86-64-generic-ext4-combined-efi.img.gz
       - uses: BetaHuhn/do-spaces-action@v2
         name: Publish packages to distfeed repository
-        if: ${{ github.ref == 'refs/heads/master' }}
+        if: ${{ github.ref == 'refs/heads/main' }}
         with:
           access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
           secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
@@ -62,7 +61,7 @@ jobs:
           out_dir: ${{ env.OWRT_VERSION }}/packages
       - uses: BetaHuhn/do-spaces-action@v2
         name: Publish images to distfeed repository
-        if: ${{ github.ref == 'refs/heads/master' }}
+        if: ${{ github.ref == 'refs/heads/main' }}
         with:
           access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
           secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
@@ -73,7 +72,7 @@ jobs:
           out_dir: ${{ env.OWRT_VERSION }}/targets
       - uses: BetaHuhn/do-spaces-action@v2
         name: Publish latest_release to distfeed repository
-        if: ${{ github.ref == 'refs/heads/master' }}
+        if: ${{ github.ref == 'refs/heads/main' }}
         with:
           access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
           secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
