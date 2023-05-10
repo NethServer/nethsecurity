@@ -50,35 +50,15 @@ def entries_to_criteria(ipv4, ipv6, macs):
 cfg_file = "/etc/netify.d/netify-flow-actions.json"
 config = {
     "version": 1,
-    "targets": {
-        "ctlabel.dpi-complete": {
-            "target_type": "ctlabel",
-            "labels": [
-                "dpi-complete"
-            ]
-        }
-    },
-    "target_defaults": {
-        "ctlabel": {
-            "log_errors": True
-        }
-    },
+    "targets": {},
+    "target_defaults": {},
     "target_globals": {
         "ctlabel": {
             "max_bits": 127,
             "connlabel_conf": "/etc/xtables/connlabel.conf"
-        }
-    },
-    "actions": {
-        "dpi-complete": {
-            "enabled": True,
-            "interface": "lan",
-            "criteria": "other_type == other_remote;",
-            "targets": [
-                "ctlabel.dpi-complete"
-            ]
-        }
-    },
+            }
+        },
+    "actions": {},
     "exemptions": []
 }
 
@@ -92,7 +72,7 @@ if u.get('dpi', 'config', 'firewall_exemption', default=0) == '1':
                 config["exemptions"] = config["exemptions"] + ip_addrs
 
 rcount = 0
-valid_actions = ['allow', 'block', 'bulk', 'best_effort', 'video', 'voice']
+valid_actions = ['block', 'bulk', 'best_effort', 'video', 'voice']
 for section in u.get_all('dpi'):
     if u.get('dpi', section) != 'rule':
         continue
