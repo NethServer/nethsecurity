@@ -123,14 +123,12 @@ uci add_list adblock.global.adb_sources=yoroi_malware_level1
 uci add_list adblock.global.adb_sources=yoroi_malware_level2
 uci add_list adblock.global.adb_sources=yoroi_susp_level1
 uci add_list adblock.global.adb_sources=yoroi_susp_level2
-ts-dns
 /etc/init.d/adblock start
 ```
 
 Keep adblock enabled but disable threat shield categories:
 ```
 uci set adblock.global.ts_enabled=0
-ts-dns
 /etc/init.d/adblock reload
 ```
 
