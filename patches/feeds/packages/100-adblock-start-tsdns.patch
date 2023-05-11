@@ -1,0 +1,30 @@
+diff --git a/net/adblock/files/adblock.init b/net/adblock/files/adblock.init
+index 947e2f6ce..b68e8a4cb 100755
+--- a/net/adblock/files/adblock.init
++++ b/net/adblock/files/adblock.init
+@@ -33,6 +33,7 @@ boot() {
+ 
+ start_service() {
+ 	if "${adb_init}" enabled; then
++		/usr/sbin/ts-dns # configure threat shield dns, if needed
+ 		if [ "${action}" = "boot" ]; then
+ 			[ -n "$(uci_get adblock global adb_trigger)" ] && return 0
+ 		fi
+@@ -47,14 +48,17 @@ start_service() {
+ }
+ 
+ reload_service() {
++	/usr/sbin/ts-dns # configure threat shield dns, if needed
+ 	rc_procd start_service reload
+ }
+ 
+ stop_service() {
++	/usr/sbin/ts-dns # configure threat shield dns, if needed
+ 	rc_procd "${adb_script}" stop
+ }
+ 
+ restart() {
++	/usr/sbin/ts-dns # configure threat shield dns, if needed
+ 	rc_procd start_service restart
+ }
+ 
