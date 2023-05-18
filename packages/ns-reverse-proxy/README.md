@@ -25,6 +25,15 @@ The `nginx-proxy` utility reads all the location objects from UCI config and cre
 inside `/etc/nginx/conf.d/<server>.proxy` files, like `/etc/nginx/conf.d/_lan.proxy`.
 Then, the generated files must be explicitly added to the `include` option of the server object.
 
+When the `proxy_pass` option points to a hostname, the hostname *must* be resolvable during
+nginx startup, otherwise nginx will fail.
+To make sure the target server is always resolvable, use the following hack:
+```
+option resolver '127.0.0.1'
+option set '$upstream server.nethserver.org'
+option proxy_pass 'https://$upstream'
+```
+
 ### Path rules
 
 Example of a path rule for the default virtual host:
