@@ -7,7 +7,7 @@ Supported object types:
 - `group`
 - `host`
 
-All objects are saved inside `/ect/config/objects` UCI database.
+All objects are saved inside the `/etc/config/objects` UCI database.
 
 ## User and groups
 
@@ -19,13 +19,13 @@ The section name must:
 
 - be unique
 - be a valid UCI id (it may contain only the characters `a-z`, `0-9` and `_`)
-- have a maximum length of 12 characters (nft set name must be 16 characters or less, 4 chars are reserved for future use
+- have a maximum length of 12 characters (nft set name must be 16 characters or less, 4 chars are reserved for future use)
 
 The `user` object can have the following non-mandatory options:
 
 - `name`: name of user
 - `description`: a longer label for the user
-- `macaddr`: list of MAC addresses that will be resolved as IPs (see below)
+- `macaddr`: list of MAC addresses belonging to the user's devices
 - `ipaddr`: list of IP addresses
 - `domain`: list of DNS names resolved to IP address, each DNS name is a `domain` record inside the [`dhcp` database](https://openwrt.org/docs/guide-user/base-system/dhcp_configuration#hostnames)
 - `host`: list of DHCP reservations resolved to IP addresses, each reservation is a `host` record inside the [`dhcp` database](https://openwrt.org/docs/guide-user/base-system/dhcp#static_leases)
