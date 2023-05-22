@@ -136,6 +136,8 @@ Allow bypass of DNS redirect for a specific source IP:
 ```
 uci set adblock.global.adb_forcedns=1
 uci add_list adblock.global.adb_bypass=192.168.100.2
+uci add_list adblock.global.adb_zonelist=lan
+uci add_list adblock.global.adb_portlist=53
 uci commit adblock
 /etc/init.d/adblock restart
 ```
