@@ -159,6 +159,7 @@ Available commands:
 | adb_debug          | 0, disabled                        | set to 1 to enable the debug output                                                            |
 | adb_nice           | 0, standard prio.                  | valid nice level range 0-19 of the adblock processes                                           |
 | adb_forcedns       | 0, disabled                        | set to 1 to force DNS requests to the local resolver                                           |
+| adb_bypass         | -, not set                         | list of IP addresses excluded from `adb_forcedns` option                                       |
 | adb_dnsdir         | -, auto-detected                   | path for the generated blocklist file 'adb_list.overall'                                       |
 | adb_dnstimeout     | 10                                 | timeout in seconds to wait for a successful DNS backend restart                                |
 | adb_dnsinstance    | 0, first instance                  | set to the relevant dns backend instance used by adblock (dnsmasq only)                        |

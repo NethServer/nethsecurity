@@ -197,6 +197,8 @@ f_conf() {
 				eval "${option}=\"$(printf "%s" "${adb_zonelist}") ${value}\""
 			elif [ "${option}" = "adb_portlist" ]; then
 				eval "${option}=\"$(printf "%s" "${adb_portlist}") ${value}\""
+			elif [ "${option}" = "adb_bypass" ]; then
+				eval "${option}=\"$(printf "%s" "${adb_bypass}") ${value}\""
 			fi
 		}
 	}
@@ -567,6 +569,7 @@ f_extconf() {
 						set firewall."adblock_${zone}${port}".dest_port="${port}"
 						set firewall."adblock_${zone}${port}".target="DNAT"
 						set firewall."adblock_${zone}${port}".family="any"
+						set firewall."adblock_${zone}${port}".ipset="!tsdns_bypass"
 					EOC
 				fi
 				fwcfg="${fwcfg/adblock_${zone}${port}[ |\$]/}"
@@ -580,6 +583,33 @@ f_extconf() {
 			uci_remove firewall "${section}"
 		done
 	fi
+
+	# add adb_bypass
+	if [ "${adb_enabled}" = "1" ] && [ "${adb_forcedns}" = "1" ] &&	/etc/init.d/firewall enabled; then
+		if ! uci -q get firewall.tsdns_bypass >/dev/null; then
+			uci -q batch <<-EOC
+				set firewall.tsdns_bypass="ipset"
+				set firewall.tsdns_bypass.name="tsdns_bypass"
+				set firewall.tsdns_bypass.match="src_net"
+				set firewall.tsdns_bypass.enabled="1"
+			EOC
+		fi
+		# note: adb_bypass var contains an extra space at the beginning
+		if [ " $(uci -q get firewall.tsdns_bypass.entry)" != "${adb_bypass}" ]; then
+			# make sure bypass list is always empty
+			uci -q delete firewall.tsdns_bypass.entry
+			for src in ${adb_bypass}
+			do
+				uci -q add_list firewall.tsdns_bypass.entry="${src}"
+			done
+		fi
+	fi
+
+	# remove adb_bypass
+	if [ "${adb_enabled}" = "0" ] || [ "${adb_forcedns}" = "0" ]; then
+		uci -q delete firewall.tsdns_bypass
+	fi
+
 	f_uci "${config}"
 }
 
