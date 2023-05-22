@@ -1,0 +1,23 @@
+#!/bin/sh /etc/rc.common
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+START=90
+USE_PROCD=1
+PROG=/usr/sbin/ns-api-server
+
+start_service() {
+    procd_open_instance
+    procd_set_param env GIN_MODE=release
+    procd_set_param env LISTEN=127.0.0.1:9090
+    procd_set_param command "$PROG"
+    procd_close_instance
+}
+
+service_triggers()
+{
+    procd_add_reload_trigger "ns-api-server"
+}
