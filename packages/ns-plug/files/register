@@ -74,8 +74,12 @@ uci commit ns-plug
 # Register the machine by sending the inventory for the first time
 send-inventory
 send-heartbeat
+exit_code=$?
 
 # Execute register hooks
 for script in $(find /usr/share/ns-plug/hooks/register -maxdepth 1 -executable -type f | sort); do
     $script
 done
+
+# Ignore hooks exit codes
+exit $exit_code
