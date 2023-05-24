@@ -38,12 +38,16 @@ define Package/ns-threat_shield/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
+	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/register
+	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/unregister
 	$(INSTALL_BIN) ./files/ts-ip.init $(1)/etc/init.d/ts-ip
 	$(INSTALL_BIN) ./files/ts-dns $(1)/usr/sbin/ts-dns
 	$(INSTALL_BIN) ./files/ts-ip $(1)/usr/sbin/ts-ip
 	$(INSTALL_BIN) ./files/ts-ip-download $(1)/usr/sbin/ts-ip-download
 	$(INSTALL_BIN) ./files/ts-ip-nft $(1)/usr/sbin/ts-ip-nft
 	$(INSTALL_BIN) ./files/20_threat_shield $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/ts-dns.hook $(1)/usr/share/ns-plug/hooks/register/90ts-dns
+	$(INSTALL_BIN) ./files/ts-dns.hook $(1)/usr/share/ns-plug/hooks/unregister/90ts-dns
 	$(INSTALL_DIR) $(1)/usr/share/threat_shield
 	$(INSTALL_DATA) ./files/nethesis-ip.sources $(1)/usr/share/threat_shield
 	$(INSTALL_DATA) ./files/nethesis-dns.sources $(1)/usr/share/threat_shield

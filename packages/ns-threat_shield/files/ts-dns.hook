@@ -1,0 +1,3 @@
+#!/bin/sh
+
+exec /etc/init.d/adblock restart
