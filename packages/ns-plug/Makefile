@@ -65,6 +65,7 @@ define Package/ns-plug/install
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
+	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_BIN) ./files/ns-plug.init $(1)/etc/init.d/ns-plug
 	$(INSTALL_BIN) ./files/ns-plug $(1)/usr/sbin/ns-plug
 	$(INSTALL_BIN) ./files/remote-backup $(1)/usr/sbin
@@ -76,6 +77,7 @@ define Package/ns-plug/install
 	$(INSTALL_BIN) ./files/inventory $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/20_ns-plug $(1)/etc/uci-defaults
 	$(INSTALL_CONF) ./files/config $(1)/etc/config/ns-plug
+	$(INSTALL_CONF) files/ns-plug.keep $(1)/lib/upgrade/keep.d/ns-plug
 endef
  
 $(eval $(call BuildPackage,ns-plug))

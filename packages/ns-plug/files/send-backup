@@ -14,10 +14,17 @@ WORK_DIR="/var/backup"
 BACKUP="$WORK_DIR/backup.tar.gz"
 MD5="$WORK_DIR/md5"
 MD5_LAST="/etc/backup.md5"
+PASSPHRASE="/etc/backup.pass"
 
 function send {
-    remote-backup upload "$BACKUP"
-    rm -f "$BACKUP"
+    if [ -s $PASSPHRASE ]; then
+        # send encrypted backup
+        gpg --batch -c --passphrase-file $PASSPHRASE $BACKUP
+        remote-backup upload "$BACKUP.gpg"
+    else
+        remote-backup upload "$BACKUP"
+    fi
+    rm -f "$BACKUP" "$BACKUP.gpg"
     mv $MD5 $MD5_LAST
     exit $?
 }

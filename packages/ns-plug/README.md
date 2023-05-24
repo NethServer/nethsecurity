@@ -86,9 +86,22 @@ The execution will continue regardless of script exit codes.
 If the machine has a valid enterprise subscription, every night a cron job
 will execute the backup and send it to a remote server.
 
-To manually manage remote backups use the `remote-backup` command.
+### Backup encryption
 
-Restore the latest available remote backup:
+If the file `/etc/backup.pass` exists, the backup will be encrypted using
+the given passphrase: only the encrypted backup will be sent to the remote server.
+
+To disable the encryption, just delete the file `/etc/backup.pass`.
+
+### Restore
+
+Download the latest unencrypted backup and restore it:
 ```
 remote-backup download $(remote-backup list | jq -r .[0].file) - | sysupgrade -r -
+```
+
+Download the latest encrypted backup and restore it:
+```
+echo <your_passphrase> > /etc/backup.pass
+remote-backup download $(remote-backup list | jq -r .[0].file) - | gpg --batch --passphrase-file /etc/backup.pass -d | sysupgrade -r -
 ```
