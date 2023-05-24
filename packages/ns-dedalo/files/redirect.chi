@@ -1,0 +1,10 @@
+#!/usr/bin/haserl
+<% 
+url=$(echo "${FORM_url}" | base64 -d)
+echo "HTTP/1.1 302 Found"
+echo "Location: ${url}&sessionid=${CHI_SESSION_ID}"
+echo "Connection: close"
+echo "Cache: none"
+
+echo -en "\r\n\r\n"
+%>

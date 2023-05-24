@@ -141,7 +141,7 @@ define Package/ns-dedalo/install
 	$(INSTALL_CONF) $(PKG_BUILD_DIR)/dedalo/walled_gardens/wifi4eu.conf $(1)/opt/icaro/dedalo/walled_gardens/wifi4eu.conf
 
 	$(INSTALL_DIR) $(1)/opt/icaro/dedalo/www
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/dedalo/www/temporary.chi $(1)/opt/icaro/dedalo/www/temporary.chi
+	$(INSTALL_BIN) files/redirect.chi $(1)/opt/icaro/dedalo/www/redirect.chi
 
 	touch $(1)/opt/icaro/dedalo/local.conf
 	touch $(1)/opt/icaro/dedalo/walled_gardens/local.conf
