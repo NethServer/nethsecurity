@@ -44,6 +44,8 @@ define Package/ns-api-server/install
 	$(INSTALL_BIN) ./files/ns-api-server.initd $(1)/etc/init.d/ns-api-server
 	$(INSTALL_DIR) $(1)/usr/sbin/
 	$(INSTALL_BIN) $(GO_PKG_BUILD_DIR)/bin/ns-api-server $(1)/usr/sbin/
+	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
+	$(INSTALL_CONF) files/ns-api-server.keep $(1)/lib/upgrade/keep.d/ns-api-server
 endef
 
 $(eval $(call GoBinPackage,ns-api-server))
