@@ -33,6 +33,7 @@ boot() {
 
 start_service() {
 	if "${adb_init}" enabled; then
+		/usr/sbin/ts-dns # configure threat shield dns, if needed
 		if [ "${action}" = "boot" ]; then
 			[ -n "$(uci_get adblock global adb_trigger)" ] && return 0
 		fi
@@ -47,6 +48,7 @@ start_service() {
 }
 
 reload_service() {
+	/usr/sbin/ts-dns # configure threat shield dns, if needed
 	rc_procd start_service reload
 }
 
@@ -55,6 +57,7 @@ stop_service() {
 }
 
 restart() {
+	/usr/sbin/ts-dns # configure threat shield dns, if needed
 	rc_procd start_service restart
 }
 
