@@ -48,6 +48,8 @@ define Package/ns-threat_shield/install
 	$(INSTALL_BIN) ./files/20_threat_shield $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/ts-dns.hook $(1)/usr/share/ns-plug/hooks/register/90ts-dns
 	$(INSTALL_BIN) ./files/ts-dns.hook $(1)/usr/share/ns-plug/hooks/unregister/90ts-dns
+	$(INSTALL_BIN) ./files/ts-ip.register $(1)/usr/share/ns-plug/hooks/register/80ts-ip
+	$(INSTALL_BIN) ./files/ts-ip.unregister $(1)/usr/share/ns-plug/hooks/unregister/80ts-ip
 	$(INSTALL_DIR) $(1)/usr/share/threat_shield
 	$(INSTALL_DATA) ./files/nethesis-ip.sources $(1)/usr/share/threat_shield
 	$(INSTALL_DATA) ./files/nethesis-dns.sources $(1)/usr/share/threat_shield
