@@ -59,6 +59,8 @@ endef
 
 define Package/ns-plug/install
 	$(INSTALL_DIR) $(1)/usr/share/ns-plug
+	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/register
+	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/unregister
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/etc/config

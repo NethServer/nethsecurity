@@ -30,3 +30,8 @@ uci set ns-plug.config.secret=""
 
 # Save config
 uci commit ns-plug
+
+# Execute unregister hooks
+for script in $(find /usr/share/ns-plug/hooks/unregister -maxdepth 1 -executable -type f | sort); do
+    $script
+done

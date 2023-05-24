@@ -72,6 +72,15 @@ To deregister the machine, execute:
 unregister
 ```
 
+### Hooks
+
+The registration can be customized by adding scripts inside the `/usr/share/ns-plug/hooks/<command>` directory:
+- `register` command will search for custom scripts inside the `/usr/share/ns-plug/hooks/register`
+- `unregister` command will search for custom scripts inside the `/usr/share/ns-plug/hooks/unregister`
+
+Custom scripts must be executable and will be executed in lexicographic order.
+The execution will continue regardless of script exit codes.
+
 ## Remote backup
 
 If the machine has a valid enterprise subscription, every night a cron job
