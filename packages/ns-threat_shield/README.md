@@ -53,14 +53,14 @@ Enable the service and select one or more categories to block:
 ```
 uci add_list threat_shield.config.categories=yoroi_malware_level1
 uci set threat_shield.config.status=1
-uci commit
+uci commit threat_shield
 ts-ip
 ```
 
 To disable `ts-ip` use:
 ```
 uci set threat_shield.config.status=0
-uci commit
+uci commit threat_shield
 ts-ip
 ```
 
@@ -69,7 +69,7 @@ ts-ip
 The local whitelist can be enabled by adding IP entries to the `allow` option. Example:
 ```
 uci add_list threat_shield.config.allow=1.1.1.1
-uci commit
+uci commit threat_shield
 ts-ip
 ```
 
@@ -78,7 +78,7 @@ ts-ip
 To enable logging of blocked packets:
 ```
 uci set threat_shield.config.log_blocked=1
-uci commit
+uci commit threat_shield
 ts-ip
 ```
 
@@ -94,7 +94,7 @@ To use a different sources file, copy the original one to a different path, then
 Finally, set up the source archive path. Example:
 ```
 uci set threat_shield.config.srcarc=/usr/share/threat_shield/mysources.gz
-uci commit
+uci commit threat_shield
 ts-ip
 ```
 
@@ -123,12 +123,14 @@ uci add_list adblock.global.adb_sources=yoroi_malware_level1
 uci add_list adblock.global.adb_sources=yoroi_malware_level2
 uci add_list adblock.global.adb_sources=yoroi_susp_level1
 uci add_list adblock.global.adb_sources=yoroi_susp_level2
+uci commit adblock
 /etc/init.d/adblock start
 ```
 
 Keep adblock enabled but disable threat shield categories:
 ```
 uci set adblock.global.ts_enabled=0
+uci commit adblock
 /etc/init.d/adblock reload
 ```
 
