@@ -75,15 +75,6 @@ set firewall.ns_hs_uamport.proto='tcp'
 set firewall.ns_hs_uamport.dest_port='3990'
 set firewall.ns_hs_uamport.target='ACCEPT'
 
-set firewall.ns_hs_dhcp_broadcast=rule
-set firewall.ns_hs_dhcp_broadcast.name='Allow-HotSpot-DHCP-Broadcast'
-set firewall.ns_hs_dhcp_broadcast.family='ipv4'
-set firewall.ns_hs_dhcp_broadcast.src='dedalo'
-set firewall.ns_hs_dhcp_broadcast.proto='udp'
-set firewall.ns_hs_dhcp_broadcast.dest_ip='255.255.255.255'
-set firewall.ns_hs_dhcp_broadcast.dest_port='67-68'
-set firewall.ns_hs_dhcp_broadcast.target='ACCEPT'
-
 set firewall.ns_hs_dhcp=rule
 set firewall.ns_hs_dhcp.name='Allow-HotSpot-DHCP'
 set firewall.ns_hs_dhcp.src='dedalo'
