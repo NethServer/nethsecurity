@@ -7,7 +7,7 @@ Index: ns-dedalo-0.0.1/dedalo/template/engine
  HS_DIGEST=$(echo -n "$HS_SECRET$HS_UUID" | md5sum | awk '{print $1}')
  HS_AAA_HOST=$(echo "$HS_AAA_URL" | sed -e 's|https\?://\([^/:]\+\)\(.*\)|\1|')
 -HS_TIMEZONE=$(timedatectl | grep "Time zone" | awk '{print $3}')
-+HS_TIMEZONE=$(/sbin/uci get system.@system[0].zonename)
++HS_TIMEZONE=$(/sbin/uci -q get system.@system[0].zonename)
  HS_WALLED_GARDEN_INTEGRATIONS=$(find /opt/icaro/dedalo/walled_gardens/integrations/ -type f -exec echo include {} \;)
  
  eval "cat <<EOF
