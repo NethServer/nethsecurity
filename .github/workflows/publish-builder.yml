@@ -16,7 +16,7 @@ jobs:
     env:
       IMAGETAG: ${{ github.ref_name }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - id: build
         name: Build podman image
         run: |
