@@ -17,10 +17,17 @@ function exit_error {
 SYSTEM_SECRET=$(uci -q get ns-plug.config.secret)
 SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
 
-sources=/etc/banip/banip.nethesis.feeds
-
 if [ ! -z "$SYSTEM_SECRET" ] && [ ! -z "$SYSTEM_ID" ]; then
-    cat $sources | sed -e "s/__USER__/$SYSTEM_ID/" -e "s/__PASSWORD__/$SYSTEM_SECRET/" > /etc/banip/banip.custom.feeds
+    cat /etc/banip/banip.nethesis.feeds | sed -e "s/__USER__/$SYSTEM_ID/" -e "s/__PASSWORD__/$SYSTEM_SECRET/" > /etc/banip/banip.custom.feeds
+    if ! uci -q get banip.global.ban_allowurl | grep -q bl.nethesis.it; then
+        uci add_list banip.global.ban_allowurl="https://$SYSTEM_ID:$SYSTEM_SECRET@bl.nethesis.it/plain/nethesis-blacklists/whitelist.global"
+        uci commit banip
+    fi
 else
+    allow=$(uci -q get banip.global.ban_allowurl | tr " " "\n" | grep bl.nethesis.it)
+    if [ "$allow" != "" ]; then
+        uci del_list banip.global.ban_allowurl="$allow"
+        uci commit banip
+    fi
     > /etc/banip/banip.custom.feeds
 fi
