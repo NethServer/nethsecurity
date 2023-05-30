@@ -89,6 +89,10 @@ set firewall.ns_hs_dns.proto='udp'
 set firewall.ns_hs_dns.dest_port='53'
 set firewall.ns_hs_dns.target='ACCEPT'
 
+set firewall.ns_hs_include=include
+set firewall.ns_hs_include.type='script'
+set firewall.ns_hs_include.path='/opt/icaro/dedalo/dedalo.user'
+
 commit
 
 endef
@@ -120,6 +124,7 @@ define Package/ns-dedalo/install
 	$(INSTALL_DIR) $(1)/opt/icaro/dedalo
 	$(INSTALL_CONF) $(PKG_BUILD_DIR)/dedalo/config $(1)/opt/icaro/dedalo/config
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/dedalo/dedalo_users_auth.sh $(1)/opt/icaro/dedalo/
+	$(INSTALL_BIN) files/dedalo.user $(1)/opt/icaro/dedalo/
 
 	$(INSTALL_DIR) $(1)/opt/icaro/dedalo/template
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/dedalo/template/engine $(1)/opt/icaro/dedalo/template/engine
