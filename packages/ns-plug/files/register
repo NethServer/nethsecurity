@@ -77,7 +77,7 @@ send-heartbeat
 exit_code=$?
 
 # Execute register hooks
-for script in $(find /usr/share/ns-plug/hooks/register -maxdepth 1 -executable -type f | sort); do
+for script in $(find /usr/share/ns-plug/hooks/register -maxdepth 1 -executable -type f,l | sort); do
     $script
 done
 
