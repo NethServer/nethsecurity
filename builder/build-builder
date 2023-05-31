@@ -44,10 +44,6 @@ buildah run --user build ${container} -- bash -c "cd /home/build/openwrt && sed 
 echo "Update feeds"
 buildah run --user build ${container} -- bash -c "cd /home/build/openwrt && ./scripts/feeds update && ./scripts/feeds install -a"
 
-branch="openwrt-"$(echo $OWRT_VERSION | cut -d'.' -f 1,2)
-echo "Force package feed branch to $branch"
-buildah run --user build ${container} -- bash -c "cd /home/build/openwrt && sed -i 's/\^.*$/;$branch/' feeds.conf.default"
-
 echo "Creating default config"
 buildah run --user build ${container} -- bash -c "cd /home/build/openwrt && make defconfig"
 
