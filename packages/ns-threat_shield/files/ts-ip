@@ -1,12 +1,12 @@
 #!/bin/sh
 
 #
-# Copyright (C) 2022 Nethesis S.r.l.
+# Copyright (C) 2023 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
 #
-# Threat shield: download remote blocklist
+# Threat shield: add Nethesis categories to banip
 #
 
 function exit_error {
@@ -18,7 +18,8 @@ SYSTEM_SECRET=$(uci -q get ns-plug.config.secret)
 SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
 
 if [ ! -z "$SYSTEM_SECRET" ] && [ ! -z "$SYSTEM_ID" ]; then
-    cat /etc/banip/banip.nethesis.feeds | sed -e "s/__USER__/$SYSTEM_ID/" -e "s/__PASSWORD__/$SYSTEM_SECRET/" > /etc/banip/banip.custom.feeds
+    jq -s '.[0] * .[1]' /etc/banip/banip.nethesis.feeds /etc/banip/banip.feeds \
+	    | sed -e "s/__USER__/$SYSTEM_ID/" -e "s/__PASSWORD__/$SYSTEM_SECRET/" > /etc/banip/banip.custom.feeds
     if ! uci -q get banip.global.ban_allowurl | grep -q bl.nethesis.it; then
         uci add_list banip.global.ban_allowurl="https://$SYSTEM_ID:$SYSTEM_SECRET@bl.nethesis.it/plain/nethesis-blacklists/whitelist.global"
         uci commit banip

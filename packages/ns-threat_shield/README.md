@@ -22,9 +22,9 @@ The following categories require a valid entitlement:
 - `yoroisusplvl2` (was `yoroi_souspicious_level2` on NS7)
 - `nethesislvl3` (was `nethesis_level3` on NS7)
 
-Above categories will be automatically enabled after machine registration.
+After machine registration, above categories will be automatically added to existing banip categories (`/etc/banip/banip.custom.feeds`).
 
-If a category is named `whitelist`, it will be used a global whitelist and all IP inside it will always be allowed.
+A special global allowist will also be added to banip (`ban_allowurl` option).
 
 ### Examples
 
