@@ -54,6 +54,7 @@ define Package/ns-api/install
 	$(INSTALL_DIR) $(1)/usr/libexec/rpcd/
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_DIR) $(1)/usr/bin/
+	$(INSTALL_DIR) $(1)/usr/sbin/
 	$(INSTALL_BIN) ./files/api-cli $(1)/usr/bin/
 	$(INSTALL_BIN) ./files/ns.talkers $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.talkers.json $(1)/usr/share/rpcd/acl.d/
@@ -63,6 +64,7 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.smtp.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_CONF) files/msmtp.keep $(1)/lib/upgrade/keep.d/msmtp
+	$(LN) /usr/bin/msmtp $(1)/usr/sbin/sendmail
 endef
  
 $(eval $(call BuildPackage,ns-api))
