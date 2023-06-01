@@ -1,24 +1,34 @@
 #!/bin/sh
 
 #
-# Copyright (C) 2022 Nethesis S.r.l.
+# Copyright (C) 2023 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
 #
-# Threat shield: download lists and setup firewalls
+# Threat shield: add Nethesis categories to banip
 #
 
-# Cleanup existing table 
-if nft list tables inet | grep -q 'table inet threat_shield'; then
-    nft delete table inet threat_shield
-fi
+function exit_error {
+    >&2 echo "[ERROR] $@"
+    exit 1
+}
 
-status=$(uci get threat_shield.config.status)
-if [ "$status" == "0" ]; then
-    exit 0
-fi
+SYSTEM_SECRET=$(uci -q get ns-plug.config.secret)
+SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
 
-if /usr/sbin/ts-ip-download; then
-    /usr/sbin/ts-ip-nft | nft -f -
+if [ ! -z "$SYSTEM_SECRET" ] && [ ! -z "$SYSTEM_ID" ]; then
+    jq -s '.[0] * .[1]' /etc/banip/banip.nethesis.feeds /etc/banip/banip.feeds \
+	    | sed -e "s/__USER__/$SYSTEM_ID/" -e "s/__PASSWORD__/$SYSTEM_SECRET/" > /etc/banip/banip.custom.feeds
+    if ! uci -q get banip.global.ban_allowurl | grep -q bl.nethesis.it; then
+        uci add_list banip.global.ban_allowurl="https://$SYSTEM_ID:$SYSTEM_SECRET@bl.nethesis.it/plain/nethesis-blacklists/whitelist.global"
+        uci commit banip
+    fi
+else
+    allow=$(uci -q get banip.global.ban_allowurl | tr " " "\n" | grep bl.nethesis.it)
+    if [ "$allow" != "" ]; then
+        uci del_list banip.global.ban_allowurl="$allow"
+        uci commit banip
+    fi
+    > /etc/banip/banip.custom.feeds
 fi

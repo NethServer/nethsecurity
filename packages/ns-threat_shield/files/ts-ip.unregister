@@ -1,6 +1,0 @@
-#!/bin/sh
-
-uci set threat_shield.config.status=0
-uci commit
-ts-ip
-exec /etc/init.d/ts-ip restart

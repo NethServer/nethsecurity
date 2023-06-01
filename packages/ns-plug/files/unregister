@@ -34,7 +34,7 @@ uci commit ns-plug
 exit_code=$?
 
 # Execute unregister hooks
-for script in $(find /usr/share/ns-plug/hooks/unregister -maxdepth 1 -executable -type f | sort); do
+for script in $(find /usr/share/ns-plug/hooks/unregister -maxdepth 1 -executable -type f,l | sort); do
     $script
 done
 

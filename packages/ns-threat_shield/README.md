@@ -4,46 +4,27 @@ This is a porting of [nethserver-blacklist](https://github.com/NethServer/nethse
 
 This package is composed of 2 different services:
 
-- [ts-ip](#ts-ip): block traffic from/to a given list of IPs
-- [ts-dns](#ts-dns): block DNS queries to a given list of domains
+- [ts-ip](#ts-ip): block traffic from/to a given list of IPs, it is based on banip
+- [ts-dns](#ts-dns): block DNS queries to a given list of domains, it is based on adblock
 
-Both services use the adblock JSON file format for category souces.
-Source files are gzipped to preserve space.
 If the machine is registered using [ns-plug](../ns-plug), the `system_id` and the `secret` will be used to authenticate requests to URL sources.
 Please note that to access the extra categories, the machine should have a valid entitlement for this service.
 
 ## ts-ip
 
-Threat shield IP (`ts-ip`) blocks traffic from/to a given list of IPs, it's based on fw4.
-
-Main files:
-
-- `/usr/sbin/ts-ip`: sh script to apply threat shield configuration
-- `/usr/sbin/ts-ip-download`: sh script to download lists from a remote GIT repository
-- `/usr/sbin/ts-ip-nft`: sh script to print nftables code to stdout
-- `/etc/init.d/ts-ip`: start and stop threat shield IP service
-- `/etc/config/threat_shield`: UCI configuration file
-
-Available options:
-
-| Option             | Default                            | Description/Valid Values                                                                       |
-| :----------------- | :--------------------------------- | :--------------------------------------------------------------------------------------------- |
-| status             | 1, enabled                         | set to 0 to disable the ts-ip service                                                          |
-| categories         | -                                  | list of enabled block categories                                                               |
-| allow              | -                                  | list of IP addresses always allowed                                                              |
-| log_blocked        | 0, disabled                        | set to 1 to enable the logging of blocked packets. Log prefix: ts:_category_:_direction_.      |
-| srcarc             | -, /usr/share/threat_shield/nethesis-ip.sources.gz | full path to the used source archive                                           |
-
+Threat shield IP (`ts-ip`) blocks traffic from/to a given list of IPs.
 
 The following categories require a valid entitlement:
 
-- `yoroi_malware_level1`
-- `yoroi_malware_level2`
-- `yoroi_susp_level1` (was `yoroi_souspicious_level1` on NS7)
-- `yoroi_susp_level2` (was `yoroi_souspicious_level2` on NS7)
-- `nethesis_level3`
+- `yoroimallvl1` (was `yoroi_malware_level1` on NS7)
+- `yoroimallvl2` (was `yoroi_malware_level2` on NS7)
+- `yoroisusplvl1` (was `yoroi_souspicious_level1` on NS7)
+- `yoroisusplvl2` (was `yoroi_souspicious_level2` on NS7)
+- `nethesislvl3` (was `nethesis_level3` on NS7)
 
-If a category is named `whitelist`, it will be used a global whitelist and all IP inside it will always be allowed.
+After machine registration, above categories will be automatically added to existing banip categories (`/etc/banip/banip.custom.feeds`).
+
+A special global allowist will also be added to banip (`ban_allowurl` option).
 
 ### Examples
 
@@ -51,51 +32,19 @@ If a category is named `whitelist`, it will be used a global whitelist and all I
 
 Enable the service and select one or more categories to block:
 ```
-uci add_list threat_shield.config.categories=yoroi_malware_level1
-uci set threat_shield.config.status=1
-uci commit threat_shield
+uci add_list banip.global.ban_feed=yoroimallvl1
+uci set banip.global.ban_enabled=1
+uci commit banip
 ts-ip
+/etc/init.d/banip restart
 ```
 
 To disable `ts-ip` use:
 ```
-uci set threat_shield.config.status=0
-uci commit threat_shield
+uci set banip.global.ban_enabled=1
+uci commit banip
 ts-ip
-```
-
-#### Local whitelist
-
-The local whitelist can be enabled by adding IP entries to the `allow` option. Example:
-```
-uci add_list threat_shield.config.allow=1.1.1.1
-uci commit threat_shield
-ts-ip
-```
-
-#### Logging
-
-To enable logging of blocked packets:
-```
-uci set threat_shield.config.log_blocked=1
-uci commit threat_shield
-ts-ip
-```
-
-Log lines have a prefix like `ts:_category_:_direction_`, where `direction` can be `src` or `dst`.
-Example of a log line:
-```
-Jul 21 08:48:34 nstest kernel: [26244.356917] ts:yoroi_malware_level1:dst IN= OUT=eth0 SRC=192.168.122.40 DST=217.70.184.38 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=15590 DF PROTO=ICMP TYPE=8 CODE=0 ID=21415 SEQ=0 MARK=0x3e00
-```
-
-#### Replace sources file
-
-To use a different sources file, copy the original one to a different path, then modify it.
-Finally, set up the source archive path. Example:
-```
-uci set threat_shield.config.srcarc=/usr/share/threat_shield/mysources.gz
-uci commit threat_shield
-ts-ip
+/etc/init.d/banip restart
 ```
 
 ## ts-dns
