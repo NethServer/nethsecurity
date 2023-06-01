@@ -7,7 +7,7 @@
 
 import hashlib
 import nsmigration
-from nextsec import firewall, utils
+from nethsec import firewall, utils
 from euci import UciExceptionNotFound
 
 (u, data, nmap) = nsmigration.init("network.json")

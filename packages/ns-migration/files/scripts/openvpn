@@ -12,7 +12,7 @@ import sys
 import os.path
 import nsmigration
 import subprocess
-from nextsec import firewall, utils
+from nethsec import firewall, utils
 
 def save_cert(path, data):
     # setup rw permissions only for nobody user

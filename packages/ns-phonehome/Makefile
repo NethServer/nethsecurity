@@ -18,9 +18,9 @@ include $(INCLUDE_DIR)/package.mk
  
 define Package/ns-phonehome
 	SECTION:=base
-	CATEGORY:=NextSecurity
-	TITLE:=NextSecurity controller client
-	URL:=https://github.com/NethServer/nextsecurity-controller/
+	CATEGORY:=NethSecurity
+	TITLE:=NethSecurity controller client
+	URL:=https://github.com/NethServer/nethsecurity-controller/
 	DEPENDS:=+lscpu +pciutils +python3-uuid
 	PKGARCH:=all
 endef

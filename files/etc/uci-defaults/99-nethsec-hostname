@@ -1,6 +1,6 @@
 [ "$(uci -q get system.@system[0].hostname)" != "OpenWrt" ] && exit 0
 
 uci -q batch << EOI
-set system.@system[0].hostname="NextSec"
+set system.@system[0].hostname="NethSec"
 commit system
 EOI

@@ -19,9 +19,9 @@ include $(INCLUDE_DIR)/package.mk
 
 define Package/ns-dpi
 	SECTION:=base
-	CATEGORY:=NextSecurity
+	CATEGORY:=NethSecurity
 	TITLE:=DPI rules
-	URL:=https://github.com/NethServer/nextsecurity/
+	URL:=https://github.com/NethServer/nethsecurity/
 	DEPENDS:=+netify-flow-actions +kmod-ipt-conntrack-label
 	PKGARCH:=all
 endef

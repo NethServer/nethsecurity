@@ -1,4 +1,4 @@
-# NextSecurity UI
+# NethSecurity UI
 
 location / {
         root /www-ns;

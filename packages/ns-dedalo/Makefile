@@ -23,7 +23,7 @@ include $(INCLUDE_DIR)/package.mk
  
 define Package/ns-dedalo
 	SECTION:=base
-	CATEGORY:=NextSecurity
+	CATEGORY:=NethSecurity
 	TITLE:=Dedalo Network Access Controller, runs on the firewall and intercepts all guest connections
 	URL:=https://github.com/nethesis/icaro
 	DEPENDS:=+curl +grep +ca-bundle +haserl +uuidgen +coova-chilli +ethtool

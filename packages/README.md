@@ -5,7 +5,7 @@ Make sure to enable it on build time adding the correct configuration file insid
 
 Conventions:
 - the name of the package should always start with `ns-` prefix. Example: `ns-myapp`
-- set the `CATEGORY` to `NextSecurity` and `SECTION` to `base`, the package will show up under `NextSecurity` section
+- set the `CATEGORY` to `NethSecurity` and `SECTION` to `base`, the package will show up under `NethSecurity` section
   when executing `make menuconfig`
 
 When creating a new package which includes all the code, do *not* set `PKG_SOURCE_URL` and `PKG_SOURCE` variables.
@@ -21,7 +21,7 @@ include $(INCLUDE_DIR)/package.mk
 
 define Package/ns-myapp
 	SECTION:=base
-	CATEGORY:=NextSecurity
+	CATEGORY:=NethSecurity
 	TITLE:=My mighty myapp
 	URL:=<app_url>
 	DEPENDS:=+firstdepend
@@ -31,14 +31,14 @@ endef
 
 To compile only the package, launch the shell inside the container then use:
 ```
-make package/feeds/nextsecurity/ns-myapp/{download,compile} V=sc
+make package/feeds/nethsecurity/ns-myapp/{download,compile} V=sc
 ```
 
 Or, using a one-liner:
 ```
-./run bash -- -c "make package/feeds/nextsecurity/ns-myapp/{download,compile} V=sc"
+./run bash -- -c "make package/feeds/nethsecurity/ns-myapp/{download,compile} V=sc"
 ```
 
-The package will be availale inside `bin/packages/x86_64/nextsecurity/ns-myapp_<version>_all.ipk`.
+The package will be availale inside `bin/packages/x86_64/nethsecurity/ns-myapp_<version>_all.ipk`.
 
 For more info, see [upstream guide](https://openwrt.org/docs/guide-developer/packages)

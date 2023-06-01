@@ -19,10 +19,10 @@ include $(INCLUDE_DIR)/package.mk
  
 define Package/ns-threat_shield
 	SECTION:=base
-	CATEGORY:=NextSecurity
+	CATEGORY:=NethSecurity
 	TITLE:=Threat shield block list
-	URL:=https://github.com/NethServer/nextsecurity/
-	DEPENDS:=+wget-ssl +adblock +jq +banip
+	URL:=https://github.com/NethServer/nethsecurity/
+	DEPENDS:=+wget-ssl +adblock +jq
 	PKGARCH:=all
 endef
  

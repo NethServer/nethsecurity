@@ -18,9 +18,9 @@ include $(INCLUDE_DIR)/package.mk
  
 define Package/ns-reverse-proxy
 	SECTION:=base
-	CATEGORY:=NextSecurity
-	TITLE:=NextSecurity reverse-proxy manager
-	URL:=https://github.com/NethServer/nextsecurity/
+	CATEGORY:=NethSecurity
+	TITLE:=NethSecurity reverse-proxy manager
+	URL:=https://github.com/NethServer/nethsecurity/
 	DEPENDS:=+nginx
 	PKGARCH:=all
 endef

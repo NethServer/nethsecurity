@@ -18,9 +18,9 @@ include $(INCLUDE_DIR)/package.mk
  
 define Package/ns-storage
 	SECTION:=base
-	CATEGORY:=NextSecurity
-	TITLE:=NextSecurity storage manager
-	URL:=https://github.com/NethServer/nextsecurity/
+	CATEGORY:=NethSecurity
+	TITLE:=NethSecurity storage manager
+	URL:=https://github.com/NethServer/nethsecurity/
 	DEPENDS:=+parted +block-mount +logrotate +rsync
 	PKGARCH:=all
 endef

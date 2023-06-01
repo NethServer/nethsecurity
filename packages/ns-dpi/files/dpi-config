@@ -8,7 +8,7 @@
 from euci import EUci
 import json
 import subprocess
-from nextsec import utils
+from nethsec import utils
 
 def get_interface_ips(interface):
     ret = list()

@@ -6,7 +6,7 @@
 #
 
 import nsmigration
-from nextsec import firewall, utils
+from nethsec import firewall, utils
 
 (u, data, nmap) = nsmigration.init("routes.json")
 

@@ -18,10 +18,10 @@ include $(INCLUDE_DIR)/package.mk
  
 define Package/ns-objects
 	SECTION:=base
-	CATEGORY:=NextSecurity
-	TITLE:=NextSecurity controller client
-	URL:=https://github.com/NethServer/nextsecurity-controller/
-	DEPENDS:=+python3-nextsec
+	CATEGORY:=NethSecurity
+	TITLE:=NethSecurity controller client
+	URL:=https://github.com/NethServer/nethsecurity-controller/
+	DEPENDS:=+python3-nethsec
 	PKGARCH:=all
 endef
  

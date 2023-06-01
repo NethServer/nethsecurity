@@ -6,7 +6,7 @@
 #
 
 import nsmigration
-from nextsec import utils
+from nethsec import utils
 
 (u, data, nmap) = nsmigration.init("redirects.json")
 

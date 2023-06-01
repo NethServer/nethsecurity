@@ -17,7 +17,7 @@ import socket
 import struct
 import subprocess
 from euci import EUci
-from nextsec import utils, firewall
+from nethsec import utils, firewall
 
 def to_cidr(netmask):
     return sum([bin(int(x)).count('1') for x in netmask.split('.')])
@@ -147,7 +147,7 @@ def add_server(tunnel):
     subprocess.run(['/etc/init.d/openvpn', 'reload'])
 
     # Setup dynamic config for iroute:
-    # OpenVPN on NextSec requires an iroute directive for the remote network
+    # OpenVPN on NethSec requires an iroute directive for the remote network
     u.set("openvpn", iname, 'client_connect', f'"/usr/libexec/ns-openvpn/openvpn-connect {iname}"')
     u.set("openvpn", iname, 'client_disconnect', f'"/usr/libexec/ns-openvpn/openvpn-disconnect {iname}"')
 

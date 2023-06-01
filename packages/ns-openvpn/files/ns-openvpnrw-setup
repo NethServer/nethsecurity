@@ -9,7 +9,7 @@ import os
 import sys
 import subprocess
 from euci import EUci
-from nextsec import firewall, utils
+from nethsec import firewall, utils
 
 instance = utils.get_id('roadwarrior')
 # Make sure to not change firewall rule on upgrade

@@ -5,7 +5,7 @@
 
 include $(TOPDIR)/rules.mk
  
-PKG_NAME:=python3-nextsec
+PKG_NAME:=python3-nethsec
 PKG_VERSION:=0.0.1
 PKG_RELEASE:=1
  
@@ -13,25 +13,25 @@ PKG_MAINTAINER:=Giacomo Sanchietti <giacomo.sanchietti@nethesis.it>
 PKG_LICENSE:=GPL-3.0-only
 
 PKG_SOURCE_PROTO:=git
-PKG_SOURCE_URL:=https://github.com/NethServer/python3-nextsec
+PKG_SOURCE_URL:=https://github.com/NethServer/python3-nethsec
 PKG_SOURCE_VERSION:=50675e6dea8922bc0d3c23edd046d80f3dd848b9
 
 include $(INCLUDE_DIR)/package.mk
 include $(TOPDIR)/feeds/packages/lang/python/python3-package.mk
  
-define Package/python3-nextsec
+define Package/python3-nethsec
 	SECTION:=base
-	CATEGORY:=NextSecurity
-	TITLE:=NextSecurity python libraries
-	URL:=https://github.com/NethServer/nextsecurity-controller/
+	CATEGORY:=NethSecurity
+	TITLE:=NethSecurity python libraries
+	URL:=https://github.com/NethServer/nethsecurity-controller/
 	DEPENDS:=+python3-light +python3-uci
 	PKGARCH:=all
 endef
  
-define Package/python3-nextsec/description
-    NextSecurity python utilities
+define Package/python3-nethsec/description
+    NethSecurity python utilities
 endef
 
-$(eval $(call Py3Package,python3-nextsec))
-$(eval $(call BuildPackage,python3-nextsec))
-$(eval $(call BuildPackage,python3-nextsec-src))
+$(eval $(call Py3Package,python3-nethsec))
+$(eval $(call BuildPackage,python3-nethsec))
+$(eval $(call BuildPackage,python3-nethsec-src))

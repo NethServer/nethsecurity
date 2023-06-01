@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-# Download NextSec image and verify the hash.
+# Download NethSec image and verify the hash.
 # Print the path of downloaded image on success.
 
 . /etc/os-release
@@ -54,7 +54,7 @@ else
 fi
 
 hash="$DL_DIR/sha256"
-img_name="nextsecurity-$version-$ARCH-generic-ext4-combined-efi.img.gz"
+img_name="nethecurity-$version-$ARCH-generic-ext4-combined-efi.img.gz"
 img="$DL_DIR/$img_name"
 img_url="$BASE_URL/$version/targets/$OPENWRT_BOARD/$img_name"
 hash_url="$BASE_URL/$version/targets/$OPENWRT_BOARD/sha256sums"

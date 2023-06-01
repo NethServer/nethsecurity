@@ -21,9 +21,9 @@ sudo cp -r /patches /home/build/openwrt/
 echo "Creating download cache dir"
 mkdir -p /home/build/openwrt/download
 
-echo "src-link nextsecurity /home/build/openwrt/nspackages" >> feeds.conf.default
-./scripts/feeds update nextsecurity
-./scripts/feeds install -a -p nextsecurity
+echo "src-link nethsecurity /home/build/openwrt/nspackages" >> feeds.conf.default
+./scripts/feeds update nethsecurity
+./scripts/feeds install -a -p nethsecurity
 
 # Update LuCI fork
 ./scripts/feeds update luci
@@ -36,7 +36,7 @@ do
     if [ -e "package/feeds/packages/$package" ]; then
         echo "Replacing upstream package: $package"
 	    rm -f "package/feeds/packages/$package"
-	    ln -s "../../../feeds/nextsecurity/$package" "/home/build/openwrt/package/feeds/packages/$package"
+	    ln -s "../../../feeds/nethsecurity/$package" "/home/build/openwrt/package/feeds/packages/$package"
     fi
 done
 

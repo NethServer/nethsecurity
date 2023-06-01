@@ -22,15 +22,15 @@ HOST_BUILD_PARALLEL:=1
 
 define Package/ns-ui
 	SECTION:=base
-	CATEGORY:=NextSecurity
-	TITLE:=NextSecurity UI
-	URL:=https://github.com/NethServer/nextsecurity-controller/
+	CATEGORY:=NethSecurity
+	TITLE:=NethSecurity UI
+	URL:=https://github.com/NethServer/nethsecurity-controller/
 	DEPENDS:=+nginx
 	PKGARCH:=all
 endef
  
 define Package/ns-ui/description
-NextSecurity web user interface
+NethSecurity web user interface
 endef
 
 define Package/ns-ui/conffiles

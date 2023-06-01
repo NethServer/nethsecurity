@@ -9,7 +9,7 @@ set -e
 
 OWRT_VERSION="22.03.5"
 repobase="ghcr.io/nethserver"
-reponame="nextsecurity-builder"
+reponame="nethsecurity-builder"
 
 container=$(buildah from docker.io/debian:bullseye-slim)
 

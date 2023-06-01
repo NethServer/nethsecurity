@@ -77,10 +77,10 @@ if not product:
 data = {
     "$schema": "https://schema.nethserver.org/facts/2022-12.json",
     "uuid": sid,
-    "installation": "nextsecurity",
+    "installation": "nethsecurity",
     "facts": {
         "distro": {
-            "name": "NextSecurity",
+            "name": "NethSecurity",
             "version": _run('grep VERSION= /etc/os-release | cut -d= -f 2 | tr -d \'"\'')
         },
         "processors": { 

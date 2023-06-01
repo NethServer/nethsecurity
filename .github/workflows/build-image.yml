@@ -1,4 +1,4 @@
-name: "Build NextSecurity image"
+name: "Build NethSecurity image"
 
 on:
   workflow_dispatch:
@@ -19,11 +19,11 @@ on:
 
 jobs:
   publish_images:
-    name: 'Build NextSecurity image'
+    name: 'Build NethSecurity image'
     runs-on: self-hosted
     env:
       IMAGETAG: ${{ github.ref_name }}
-      DO_SPACE_NAME: 'distfeed-nextsecurity'
+      DO_SPACE_NAME: 'distfeed-nethsecurity'
       DO_SPACE_REGION: 'fra1'
       CDN_NAME: 'distfeed.nethserver.org'
       USIGN_PUB_KEY: ${{ secrets.USIGN_PUB_KEY }}
@@ -47,7 +47,7 @@ jobs:
         name: Publish images as temporary artifacts
         with:
           name: ext4-x86_64-image
-          path: bin/targets/x86/64/nextsecurity-*-x86-64-generic-ext4-combined-efi.img.gz
+          path: bin/targets/x86/64/nethsecurity-*-x86-64-generic-ext4-combined-efi.img.gz
       - uses: BetaHuhn/do-spaces-action@v2
         name: Publish packages to distfeed repository
         if: ${{ github.ref == 'refs/heads/main' }}

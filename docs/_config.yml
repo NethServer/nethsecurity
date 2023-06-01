@@ -13,11 +13,11 @@
 # you will see them accessed via {{ site.title }}, {{ site.github_repo }}, and so on.
 # You can create any custom variable you would like, and they will be accessible
 # in the templates via {{ site.myvariable }}.
-title: NextSecurity
-description: NextSecurity - A firewall from NethServer family
+title: NethSecurity
+description: NethSecurity - A firewall from NethServer family
 remote_theme: pmarsceill/just-the-docs@v0.3.3
 
-baseurl: /nextsecurity
+baseurl: /nethsecurity
 version: 22.03.5
 
 permalink: pretty
@@ -37,8 +37,8 @@ heading_anchors: true
 
 # Aux links for the upper right navigation
 aux_links:
-  "NextSecurity GitHub":
-    - "//github.com/nethserver/nextsecurity"
+  "NethSecurity GitHub":
+    - "//github.com/nethserver/nethsecurity"
 
 # Download base URL
 download_url: https://distfeed.nethserver.org

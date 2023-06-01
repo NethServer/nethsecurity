@@ -29,7 +29,7 @@ jobs:
           # Publish the branch
           trap 'buildah logout ghcr.io' EXIT
           buildah login -u ${{ github.actor }} --password-stdin ghcr.io <<<"${{ secrets.GITHUB_TOKEN }}"
-          image='ghcr.io/nethserver/nextsecurity-builder'
+          image='ghcr.io/nethserver/nethsecurity-builder'
           if [[ "${IMAGETAG}" == "main" ]]; then
               IMAGETAG=latest
           fi

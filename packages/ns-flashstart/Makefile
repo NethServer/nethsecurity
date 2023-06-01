@@ -18,10 +18,10 @@ include $(INCLUDE_DIR)/package.mk
  
 define Package/ns-flashstart
 	SECTION:=base
-	CATEGORY:=NextSecurity
+	CATEGORY:=NethSecurity
 	TITLE:=Flashstart integration
-	URL:=https://github.com/NethServer/nextsecurity-controller/
-	DEPENDS:=+dnsdist +python3-nextsec
+	URL:=https://github.com/NethServer/nethsecurity-controller/
+	DEPENDS:=+dnsdist +python3-nethsec
 	PKGARCH:=all
 endef
  

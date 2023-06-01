@@ -18,15 +18,15 @@ include $(INCLUDE_DIR)/package.mk
  
 define Package/ns-api
 	SECTION:=base
-	CATEGORY:=NextSecurity
-	TITLE:=NextSecurity REST API
-	URL:=https://github.com/NethServer/nextsecurity-controller/
-	DEPENDS:=+python3-nextsec +python3-openssl +python3-urllib +python3-idna
+	CATEGORY:=NethSecurity
+	TITLE:=NethSecurity REST API
+	URL:=https://github.com/NethServer/nethsecurity-controller/
+	DEPENDS:=+python3-nethsec +python3-openssl +python3-urllib +python3-idna
 	PKGARCH:=all
 endef
  
 define Package/ns-api/description
-	Configure NextSecurity using REST APIs
+	Configure NethSecurity using REST APIs
 endef
 
 define Package/ns-api/postinst

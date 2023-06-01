@@ -29,7 +29,7 @@ The `user` object can have the following non-mandatory options:
 - `ipaddr`: list of IP addresses
 - `domain`: list of DNS names resolved to IP address, each DNS name is a `domain` record inside the [`dhcp` database](https://openwrt.org/docs/guide-user/base-system/dhcp_configuration#hostnames)
 - `host`: list of DHCP reservations resolved to IP addresses, each reservation is a `host` record inside the [`dhcp` database](https://openwrt.org/docs/guide-user/base-system/dhcp#static_leases)
-- `vpn`: list of VPN users with an IP reservation, each VPN user is a `user` record inside [`openvpn` database](https://nethserver.github.io/nextsecurity/packages/ns-openvpn/#authentications-methods)
+- `vpn`: list of VPN users with an IP reservation, each VPN user is a `user` record inside [`openvpn` database](https://nethserver.github.io/nethsecurity/packages/ns-openvpn/#authentications-methods)
 
 The `group` object can have the following non-mandatory options:
 

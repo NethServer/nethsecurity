@@ -9,9 +9,9 @@ nav_order: 20
 * TOC
 {:toc}
 
-NextSecurity uses [OpenWrt](https://openwrt.org/) build system.
+NethSecurity uses [OpenWrt](https://openwrt.org/) build system.
 
-Automatic builds run inside [GitHub actions](https://github.com/NethServer/nextsecurity/actions)
+Automatic builds run inside [GitHub actions](https://github.com/NethServer/nethsecurity/actions)
 on every pull request (PR), git push and git merge.
 
 To build the images locally on you machine, make sure these requirements are met:
@@ -70,8 +70,8 @@ Then build the image and use it with the `run` script:
 ```
 ./builder/build-builder
 declare IMAGE_TAG="mybranch"
-TAG=$(podman images --quiet ghcr.io/nethserver/nextsecurity-builder:latest)
-podman tag $TAG ghcr.io/nethserver/nextsecurity-builder:$IMAGE_TAG
+TAG=$(podman images --quiet ghcr.io/nethserver/nethsecurity-builder:latest)
+podman tag $TAG ghcr.io/nethserver/nethsecurity-builder:$IMAGE_TAG
 ./run
 ```
 
@@ -88,7 +88,7 @@ After changing the the upstream release:
 - rebuild the builder container locally or push the changes and the CI pipeline will do it for you
 - wipe podman volumes  otherwise the build will fail:
   ```
-  podman volume rm nextsecurity-build_dir nextsecurity-staging_dir
+  podman volume rm nethsecurity-build_dir nethsecurity-staging_dir
   ```
 - rebuild the image using latest builder container image
 
@@ -171,13 +171,13 @@ opkg info luci | grep Version | cut -d'-' -f3
 
 ## Package signing
 
-All packages are signed with the following public key generated with [OpenBSD signify](nextsecurity-pub.key).
+All packages are signed with the following public key generated with [OpenBSD signify](nethsecurity-pub.key).
 
 Public key fingerprint: `7640d16662de3b89`
 
 Public key content:
 ```
-untrusted comment: NextSecurity sign key
+untrusted comment: NethSecurity sign key
 RWR2QNFmYt47ieK7g/zEPwgk+MN8bHsA2vFnPThSpnLZ48L7sh6wxB/f
 ```
 
@@ -187,7 +187,7 @@ To sign the packages, just execute the `run` script with the following environme
 
 Usage example:
 ```
-USIGN_PUB_KEY=$(cat nextsecurity-pub.key) USIGN_PRIV_KEY=$(cat nextsecurity-priv.key) ./run
+USIGN_PUB_KEY=$(cat nethsecurity-pub.key) USIGN_PRIV_KEY=$(cat nethsecurity-priv.key) ./run
 ```
 
 If the above environment variables are not set, the build system will generate a local temporary signing key.
@@ -196,7 +196,7 @@ Builds executed inside CI will sign the packages with correct key.
 
 ## Builder image
 
-The `nethserver/nextsecurity-builder` is a container image to build nextsecurity.
+The `nethserver/nethsecurity-builder` is a container image to build nethsecurity.
 It's based on `debian-slim` and contains a OpenWrt build environment ready to be used.
 
 ### How to build it
@@ -214,12 +214,12 @@ cd builder
 Publish the image:
 ```
 buildah login ghcr.io
-buildah push ghcr.io/nethserver/nextsecurity-builder docker://ghcr.io/nethserver/nextsecurity-builder
+buildah push ghcr.io/nethserver/nethsecurity-builder docker://ghcr.io/nethserver/nethsecurity-builder
 ```
 
 ## Netifyd plugins
 
-NextSecurity uses two [netifyd](https://gitlab.com/netify.ai/public/netify-agent) proprietary plugins from [Netify](https://www.netify.ai/):
+NethSecurity uses two [netifyd](https://gitlab.com/netify.ai/public/netify-agent) proprietary plugins from [Netify](https://www.netify.ai/):
 
 - Netify Flow Actions Plugin (netify-flow-actions)
 - Netify Agent Stats Plugin (netify-plugin-stats)
@@ -301,6 +301,6 @@ sed -i 's/PKG_SOURCE_URL.*$/PKG_SOURCE_URL:=file:\/\/\/home\/build\/openwrt\/net
 To manually build the stack, use:
 ```
 make -j $(nproc) package/feeds/packages/netifyd/{download,compile} V=sc
-make -j $(nproc) package/feeds/nextsecurity/netify-plugin-stats/{download,compile} V=sc
-make -j $(nproc) package/feeds/nextsecurity/netify-flow-actions/{download,compile} V=sc
+make -j $(nproc) package/feeds/nethsecurity/netify-plugin-stats/{download,compile} V=sc
+make -j $(nproc) package/feeds/nethsecurity/netify-flow-actions/{download,compile} V=sc
 ```

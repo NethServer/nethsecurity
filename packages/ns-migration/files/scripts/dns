@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-from nextsec import utils
+from nethsec import utils
 import nsmigration
 
 (u, data, nmap) = nsmigration.init("dns.json")

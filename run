@@ -6,13 +6,13 @@
 #
 
 #
-# Launch podman image to build nextsecurity
+# Launch podman image to build nethsecurity
 # As default the script mounts as volume staging and build dirs to speedup successibe builds
 #
 
 workdir=$(pwd)
 image_tag=${IMAGE_TAG:-latest}
-image="ghcr.io/nethserver/nextsecurity-builder:$image_tag"
+image="ghcr.io/nethserver/nethsecurity-builder:$image_tag"
 
 VALID_ARGS=$(getopt -o n --long no-cache -- "$@")
 if [[ $? -ne 0 ]]; then
@@ -45,19 +45,19 @@ fi
 
 # Setup cache volumes
 if [ $cache -ge 1 ]; then
-    opts=" -v nextsecurity-build_dir:/home/build/openwrt/build_dir:z -v nextsecurity-staging_dir:/home/build/openwrt/staging_dir:z -v nextsecurity-ccache:/home/build/openwrt/.ccache -v nextsecurity-download:/home/build/openwrt/download"
+    opts=" -v nethsecurity-build_dir:/home/build/openwrt/build_dir:z -v nethsecurity-staging_dir:/home/build/openwrt/staging_dir:z -v nethsecurity-ccache:/home/build/openwrt/.ccache -v nethsecurity-download:/home/build/openwrt/download"
 fi
 
 # Download latest image
 podman pull $image
 
 # Renove existing container
-if [ "$(podman ps -a --format '{{.Names}}')" == "nextsec-builder" ]; then
-    podman rm nextsec-builder
+if [ "$(podman ps -a --format '{{.Names}}')" == "nethsec-builder" ]; then
+    podman rm nethsec-builder
 fi
 
 # Run podman with local mounted dirs
-podman run -ti --name nextsec-builder \
+podman run -ti --name nethsec-builder \
     --security-opt label=disable \
     --env=USIGN_PUB_KEY --env=USIGN_PRIV_KEY \
     --env=NETIFYD_ACCESS_TOKEN \
@@ -68,13 +68,13 @@ ret=$?
 if [[ $ret -gt 0 && -n "${CI}" ]]; then
     exit $ret
 fi
-podman cp nextsec-builder:/home/build/openwrt/bin/ $workdir/
+podman cp nethsec-builder:/home/build/openwrt/bin/ $workdir/
 if [ $? -eq 0 ]; then
-    podman rm nextsec-builder
+    podman rm nethsec-builder
 else
     echo
     echo "Export of built binaries failed: the container has not been removed"
-    echo "To remove the container use: podman rm nextsec-builder"
-    echo "To re-try export built binaries: podman cp nextsec-builder:/home/build/openwrt/bin/ $workdir/"
+    echo "To remove the container use: podman rm nethsec-builder"
+    echo "To re-try export built binaries: podman cp nethsec-builder:/home/build/openwrt/bin/ $workdir/"
     echo
 fi

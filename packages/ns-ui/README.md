@@ -1,6 +1,6 @@
 # ns-ui
 
-ns-ui is the stand-alone UI built from [NextSecurity controller](https://github.com/NethServer/nextsecurity-controller).
+ns-ui is the stand-alone UI built from [NethSecurity controller](https://github.com/NethServer/nethsecurity-controller).
 
 ## UI development
 

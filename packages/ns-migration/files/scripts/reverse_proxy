@@ -7,7 +7,7 @@
 
 import sys
 import nsmigration
-from nextsec import utils
+from nethsec import utils
 
 (u, data, nmap) = nsmigration.init("reverse_proxy.json")
 

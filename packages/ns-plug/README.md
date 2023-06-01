@@ -1,12 +1,12 @@
 # ns-plug
 
 ns-plug handles:
-- the connection to remote [NextSecurity controller](https://github.com/NethServer/nextsecurity-controller)
+- the connection to remote [NethSecurity controller](https://github.com/NethServer/nethsecurity-controller)
 - the machine registration to monitoring services like [my.nethserver.com](https://my.nethserver.com) (community subscription)
   and [my.nethesis.it](https://my.nethesis.it) (enterprise subscription)
 - the remote backup for enterprise subscriptions
 
-## NextSecurity controller client
+## NethSecurity controller client
 
 The client is composed by 3 main parts:
 

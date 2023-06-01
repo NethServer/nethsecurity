@@ -6,7 +6,7 @@ nav_order: 01
 
 # Quickstart guide
 
-NextSecurity can be installed on virtual machines or x86 hardware.
+NethSecurity can be installed on virtual machines or x86 hardware.
 
 * TOC
 {:toc}
@@ -21,7 +21,7 @@ Minimum requirements:
 
 ## Download
 
-Download the [x86_64 image]({{site.download_url}}/{{site.version}}/targets/x86/64/nextsecurity-{{site.version}}-x86-64-generic-ext4-combined-efi.img.gz).
+Download the [x86_64 image]({{site.download_url}}/{{site.version}}/targets/x86/64/nethsecurity-{{site.version}}-x86-64-generic-ext4-combined-efi.img.gz).
 
 The image should work both on machines with legacy and EFI BIOS.
 
@@ -38,7 +38,7 @@ You can use the downloaded image as a virtual machine disk:
 
 1. extract the downloaded image:
    ```
-   gunzip nextsecurity-22.03.3-x86-64-generic-squashfs-combined.img.gz
+   gunzip nethsecurity-22.03.3-x86-64-generic-squashfs-combined.img.gz
    ```
 2. create a new virtual machine and select the uncompressed image as disk
 3. boot the virtual machine
@@ -52,22 +52,22 @@ The described procedure can be also done using the Proxmox UI.
 
 Create the virtual machine, in this example the machine will have id `401`:
 ```
-qm create 401 --name "NextSecurity" --ostype l26 --cores 1 --memory 1024 --net0 virtio,bridge=vmbr0,firewall=0 --net1 virtio,bridge=vmbr1,firewall=0 --scsihw virtio-scsi-pci
+qm create 401 --name "NethSecurity" --ostype l26 --cores 1 --memory 1024 --net0 virtio,bridge=vmbr0,firewall=0 --net1 virtio,bridge=vmbr1,firewall=0 --scsihw virtio-scsi-pci
 ```
 
 Download the image:
 ```
-wget "https://distfeed.nethserver.org/22.03.3/targets/x86/64/nextsecurity-22.03.3-x86-64-generic-ext4-combined-efi.img.gz"
+wget "https://distfeed.nethserver.org/22.03.3/targets/x86/64/nethsecurity-22.03.3-x86-64-generic-ext4-combined-efi.img.gz"
 ```
 
 Extract the image:
 ```
-gunzip nextsecurity-22.03.3-x86-64-generic-ext4-combined-efi.img.gz
+gunzip nethsecurity-22.03.3-x86-64-generic-ext4-combined-efi.img.gz
 ```
 
 Import the extracted images a virtual machine disk:
 ```
-qm importdisk 401 nextsecurity-22.03.3-x86-64-generic-ext4-combined-efi.img local-lvm
+qm importdisk 401 nethsecurity-22.03.3-x86-64-generic-ext4-combined-efi.img local-lvm
 ```
 
 Attach the disk to the virtual machine:
@@ -84,14 +84,14 @@ Finally, start the virtual machine.
 
 ### Physical machines
 
-NextSecurity can be run from a USB stick or installed directly to any bootable device like
+NethSecurity can be run from a USB stick or installed directly to any bootable device like
 hard disks or SD cards.
 
 1. attach the target disk/stick/card to a desktop Linux machine
 2. find the disk/stick/card device name, in this example the device is named `/dev/sdd`
 3. as `root` user, write the downloaded image to the device:
    ```
-   zcat nextsecurity-22.03.0-x86-64-generic-squashfs-combined.img.gz | dd of=/dev/sdd bs=1M iflag=fullblock status=progress oflag=direct
+   zcat nethsecurity-22.03.0-x86-64-generic-squashfs-combined.img.gz | dd of=/dev/sdd bs=1M iflag=fullblock status=progress oflag=direct
    ```
 4. unplug the disk/stick/card from the desktop and plug it into the server
 5. boot the server, select the correct device (USB, SD card or hard disk) from boot menu
@@ -109,7 +109,7 @@ Use one of the following tools to write the USB stick:
 ### Install from USB to disk
 
 Since running from the USB stick does not guarantee best performances, you can also install
-NextSecurity to the hard disk while running it from the USB stick itself:
+NethSecurity to the hard disk while running it from the USB stick itself:
 
 1. make sure the server has Internet access
 2. connect to the server using VGA, serial console or SSH
@@ -149,15 +149,16 @@ Default network configuration:
 
 ### Web user interface
 
-NextSecurity has 2 different web user interface:
+NethSecurity has 2 different web user interface:
 
 - LuCI: forked OpenWrt web interface, some pages may cause unpredictable configuration changes (see below)
-- NextSec: custom UI, this is just a prototype and can't be used to configure the system
+- LuCI: standard OpenWrt web interface, some pages may cause unpredictable configuration changes (see below)
+- NethSec: custom UI, this is just a prototype and can't be used to configure the system
 
 Both user interfaces listen on port 443 (HTTPs):
 
 - LuCI is accessible at `https://server_ip/cgi-bin/luci`
-- NextSec is accessible at `https://server_ip`
+- NethSec is accessible at `https://server_ip`
 
 #### LuCI
 

@@ -18,10 +18,10 @@ include $(INCLUDE_DIR)/package.mk
  
 define Package/ns-migration
 	SECTION:=base
-	CATEGORY:=NextSecurity
-	TITLE:=NS7 2 NextSecurity migration
-	URL:=https://github.com/NethServer/nextsecurity/tree/master/packages/ns-migration
-	DEPENDS:=+python3-nextsec
+	CATEGORY:=NethSecurity
+	TITLE:=NS7 2 NethSecurity migration
+	URL:=https://github.com/NethServer/nethsecurity/tree/master/packages/ns-migration
+	DEPENDS:=+python3-nethsec
 	PKGARCH:=all
 endef
  

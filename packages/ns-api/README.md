@@ -1,6 +1,6 @@
 # ns-api
 
-NextSecurity APIs for `rpcd`.
+NethSecurity APIs for `rpcd`.
 
 * TOC
 {:toc}

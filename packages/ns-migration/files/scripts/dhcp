@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-from nextsec import firewall, utils
+from nethsec import firewall, utils
 import nsmigration
 
 (u, data, nmap) = nsmigration.init("dhcp.json")

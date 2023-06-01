@@ -31,7 +31,7 @@ Key features:
 OpenWrt is a really tiny distribution which can run on very small hardware.
 To achieve this goal it uses [BusyBox](https://busybox.net/) as main tool.
 
-NextSecurity doesn't have such limitations because it has been designed to run
+NethSecurity doesn't have such limitations because it has been designed to run
 on more powerful hardware with at least 1GB of RAM and 1GB of disk space.
 It includes many of the same tools present inside CentOS such as:
 top, find, diff, grep, ps and awk.

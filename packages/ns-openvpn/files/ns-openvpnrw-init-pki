@@ -13,7 +13,7 @@ fi
 
 cn=$(uci get system.@system[0].hostname | cut -d '.' -f 1)
 if [ -z "$cn" ]; then
-    cn=NextSec
+    cn=NethSec
 fi
 
 mkdir -p /etc/openvpn/$instance

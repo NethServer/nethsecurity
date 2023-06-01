@@ -27,14 +27,14 @@ include $(TOPDIR)/feeds/packages/lang/golang/golang-package.mk
  
 define Package/ns-api-server
 	SECTION:=base
-	CATEGORY:=NextSecurity
-	TITLE:=NextSecurity REST API server
+	CATEGORY:=NethSecurity
+	TITLE:=NethSecurity REST API server
 	URL:=https://github.com/NethServer/ns-api-server
 	DEPENDS:=$(GO_ARCH_DEPENDS)
 endef
  
 define Package/ns-api-server/description
-	NextSecurity REST API server
+	NethSecurity REST API server
 endef
 
 

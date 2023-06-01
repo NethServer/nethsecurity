@@ -10,7 +10,7 @@
 #
 
 from euci import EUci
-from nextsec import utils
+from nethsec import utils
 import subprocess
 
 u = EUci()

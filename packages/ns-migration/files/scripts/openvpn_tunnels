@@ -12,7 +12,7 @@ import sys
 import os.path
 import nsmigration
 import subprocess
-from nextsec import firewall, utils
+from nethsec import firewall, utils
 
 def save_cert(path, data):
     # setup rw permissions only for nobody user
@@ -46,7 +46,7 @@ def import_tunnel(u, tunnel, ttype):
 
     if ttype == 'server':
         # Setup dynamic config for iroute:
-        # OpenVPN on NextSec requires an iroute directive for the remote network
+        # OpenVPN on NethSec requires an iroute directive for the remote network
         u.set("openvpn", iname, 'client_connect', f'"/usr/libexec/ns-openvpn/openvpn-connect {iname}"')
         u.set("openvpn", iname, 'client_disconnect', f'"/usr/libexec/ns-openvpn/openvpn-disconnect {iname}"')
 

@@ -9,7 +9,7 @@ import json
 import subprocess
 from euci import EUci
 from struct import pack
-from nextsec import utils
+from nethsec import utils
 from socket import inet_ntoa
 
 def _run(cmd):
@@ -111,7 +111,7 @@ data = {
     "kernel": _run('uname'),
     "kernelrelease": _run('uname -r'),
     "networking": { "fqdn": _run('uname -n')},
-    "os": { "type": "nextsecurity", "name": "NextSec", "release": { "full": release, "major": 7 }, "family": "OpenWRT" },
+    "os": { "type": "nethsecurity", "name": "NethSec", "release": { "full": release, "major": 7 }, "family": "OpenWRT" },
     "processors": { "count": _run("grep processor /proc/cpuinfo  | wc -l"), "models": [  _get_cpu_field("Model name", cpu_info) ], "isa": _get_cpu_field("Architecture", cpu_info)},
     "timezone": _run('uci get system.@system[0].zonename'),
     "system_uptime": { "seconds": _run("cat /proc/uptime | awk -F. '{print $1}'") },

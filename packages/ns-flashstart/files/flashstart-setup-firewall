@@ -7,7 +7,7 @@
 
 import sys
 from euci import EUci
-from nextsec import firewall
+from nethsec import firewall
 
 u = EUci()
 
