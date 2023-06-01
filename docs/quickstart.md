@@ -151,7 +151,7 @@ Default network configuration:
 
 NextSecurity has 2 different web user interface:
 
-- LuCI: standard OpenWrt web interface, some pages may cause unpredictable configuration changes (see below)
+- LuCI: forked OpenWrt web interface, some pages may cause unpredictable configuration changes (see below)
 - NextSec: custom UI, this is just a prototype and can't be used to configure the system
 
 Both user interfaces listen on port 443 (HTTPs):
@@ -163,11 +163,9 @@ Both user interfaces listen on port 443 (HTTPs):
 
 The following sections/options should not be changed from the web interface:
 
-- Logging
 - Flashstart firewall rules
 - OpenVPN instances starting with `ns_` prefix
 - XFRM network interfaces
-- HTTP(S) access
 - opkg configuration
 - Adblock configuration
 

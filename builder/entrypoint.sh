@@ -25,6 +25,9 @@ echo "src-link nextsecurity /home/build/openwrt/nspackages" >> feeds.conf.defaul
 ./scripts/feeds update nextsecurity
 ./scripts/feeds install -a -p nextsecurity
 
+# Update LuCI fork
+./scripts/feeds update luci
+
 # Replace upstream packages
 for d in $(find /home/build/openwrt/nspackages/ -maxdepth 1 -type d)
 do

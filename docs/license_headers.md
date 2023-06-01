@@ -14,7 +14,7 @@ Code files should contain an header with valid [SPDX](https://spdx.dev/ids/) ID 
 Example for `sh`, `bash`, `python` and `Makefile` files:
 ```
 #
-# Copyright (C) 2022 Nethesis S.r.l.
+# Copyright (C) {{ 'now' | date: "%Y" }} Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 ```

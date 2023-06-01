@@ -154,6 +154,21 @@ released by OpenWrt.
 To replace an upstream package just create a new package with the same
 name inside the `packages` directory.
 
+## LuCI web interface fork
+
+Some configurations should not be changed from LuCI to avoid problems on the underlaying system.
+This is the reason why, during the build, a fork of LuCI will be used.
+The fork is hosted at the following [repository](https://github.com/NethServer/luci).
+
+{% assign vparts = site.version | split:'.' %}
+Please make changes only to the `nethsec-{{ vparts | slice: 0,2 | join:'.' }}` branch.
+
+LuCI fork is updated on every build run.
+The original GIT commit used during the build can be found with whis command:
+```
+opkg info luci | grep Version | cut -d'-' -f3
+```
+
 ## Package signing
 
 All packages are signed with the following public key generated with [OpenBSD signify](nextsecurity-pub.key).
