@@ -1,0 +1,16 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+if [ "$(uci -q get dedalo.config.disabled)" = "1" ]; then
+    exit 0
+fi
+
+interface=$(uci -q get dedalo.config.interface)
+
+if [ "$interface" != "" ]; then
+    nft insert rule inet fw4 forward meta iifname "$interface" drop
+fi

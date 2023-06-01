@@ -75,15 +75,6 @@ set firewall.ns_hs_uamport.proto='tcp'
 set firewall.ns_hs_uamport.dest_port='3990'
 set firewall.ns_hs_uamport.target='ACCEPT'
 
-set firewall.ns_hs_dhcp_broadcast=rule
-set firewall.ns_hs_dhcp_broadcast.name='Allow-HotSpot-DHCP-Broadcast'
-set firewall.ns_hs_dhcp_broadcast.family='ipv4'
-set firewall.ns_hs_dhcp_broadcast.src='dedalo'
-set firewall.ns_hs_dhcp_broadcast.proto='udp'
-set firewall.ns_hs_dhcp_broadcast.dest_ip='255.255.255.255'
-set firewall.ns_hs_dhcp_broadcast.dest_port='67-68'
-set firewall.ns_hs_dhcp_broadcast.target='ACCEPT'
-
 set firewall.ns_hs_dhcp=rule
 set firewall.ns_hs_dhcp.name='Allow-HotSpot-DHCP'
 set firewall.ns_hs_dhcp.src='dedalo'
@@ -97,6 +88,10 @@ set firewall.ns_hs_dns.src='dedalo'
 set firewall.ns_hs_dns.proto='udp'
 set firewall.ns_hs_dns.dest_port='53'
 set firewall.ns_hs_dns.target='ACCEPT'
+
+set firewall.ns_hs_include=include
+set firewall.ns_hs_include.type='script'
+set firewall.ns_hs_include.path='/opt/icaro/dedalo/dedalo.user'
 
 commit
 
@@ -129,6 +124,7 @@ define Package/ns-dedalo/install
 	$(INSTALL_DIR) $(1)/opt/icaro/dedalo
 	$(INSTALL_CONF) $(PKG_BUILD_DIR)/dedalo/config $(1)/opt/icaro/dedalo/config
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/dedalo/dedalo_users_auth.sh $(1)/opt/icaro/dedalo/
+	$(INSTALL_BIN) files/dedalo.user $(1)/opt/icaro/dedalo/
 
 	$(INSTALL_DIR) $(1)/opt/icaro/dedalo/template
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/dedalo/template/engine $(1)/opt/icaro/dedalo/template/engine
@@ -141,7 +137,7 @@ define Package/ns-dedalo/install
 	$(INSTALL_CONF) $(PKG_BUILD_DIR)/dedalo/walled_gardens/wifi4eu.conf $(1)/opt/icaro/dedalo/walled_gardens/wifi4eu.conf
 
 	$(INSTALL_DIR) $(1)/opt/icaro/dedalo/www
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/dedalo/www/temporary.chi $(1)/opt/icaro/dedalo/www/temporary.chi
+	$(INSTALL_BIN) files/redirect.chi $(1)/opt/icaro/dedalo/www/redirect.chi
 
 	touch $(1)/opt/icaro/dedalo/local.conf
 	touch $(1)/opt/icaro/dedalo/walled_gardens/local.conf
