@@ -41,7 +41,7 @@ aux_links:
     - "//github.com/nethserver/nethsecurity"
 
 # Download base URL
-download_url: https://distfeed.nethserver.org
+download_url: https://updates.nethsecurity.nethserver.org
 
 # Footer content appears at the bottom of every page's main content
 footer_content: ""

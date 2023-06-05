@@ -38,7 +38,7 @@ You can use the downloaded image as a virtual machine disk:
 
 1. extract the downloaded image:
    ```
-   gunzip nethsecurity-22.03.3-x86-64-generic-squashfs-combined.img.gz
+   gunzip nethsecurity-{{site.version}}-x86-64-generic-squashfs-combined.img.gz
    ```
 2. create a new virtual machine and select the uncompressed image as disk
 3. boot the virtual machine
@@ -57,17 +57,17 @@ qm create 401 --name "NethSecurity" --ostype l26 --cores 1 --memory 1024 --net0 
 
 Download the image:
 ```
-wget "https://distfeed.nethserver.org/22.03.3/targets/x86/64/nethsecurity-22.03.3-x86-64-generic-ext4-combined-efi.img.gz"
+wget "{{site.download_url}}/{{site.version}}/targets/x86/64/nethsecurity-{{site.version}}-x86-64-generic-ext4-combined-efi.img.gz"
 ```
 
 Extract the image:
 ```
-gunzip nethsecurity-22.03.3-x86-64-generic-ext4-combined-efi.img.gz
+gunzip nethsecurity-{{site.version}}-x86-64-generic-ext4-combined-efi.img.gz
 ```
 
 Import the extracted images a virtual machine disk:
 ```
-qm importdisk 401 nethsecurity-22.03.3-x86-64-generic-ext4-combined-efi.img local-lvm
+qm importdisk 401 nethsecurity-{{site.version}}-x86-64-generic-ext4-combined-efi.img local-lvm
 ```
 
 Attach the disk to the virtual machine:
@@ -91,7 +91,7 @@ hard disks or SD cards.
 2. find the disk/stick/card device name, in this example the device is named `/dev/sdd`
 3. as `root` user, write the downloaded image to the device:
    ```
-   zcat nethsecurity-22.03.0-x86-64-generic-squashfs-combined.img.gz | dd of=/dev/sdd bs=1M iflag=fullblock status=progress oflag=direct
+   zcat nethsecurity-{{site.version}}-x86-64-generic-squashfs-combined.img.gz | dd of=/dev/sdd bs=1M iflag=fullblock status=progress oflag=direct
    ```
 4. unplug the disk/stick/card from the desktop and plug it into the server
 5. boot the server, select the correct device (USB, SD card or hard disk) from boot menu
