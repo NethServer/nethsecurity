@@ -58,7 +58,7 @@ define Package/ns-dedalo/firewall_config
 
 set firewall.ns_dedalo=zone
 set firewall.ns_dedalo.name='dedalo'
-add_list firewall.ns_dedalo.network='dedalo'
+set firewall.ns_dedalo.network='dedalo'
 set firewall.ns_dedalo.mtu_fix=1
 set firewall.ns_dedalo.forward='DROP'
 set firewall.ns_dedalo.input='DROP'
@@ -107,11 +107,9 @@ uci batch <<EOF
 $(Package/ns-dedalo/firewall_config)
 EOF
 else
-echo "#!/bin/sh" > $${IPKG_INSTROOT}/etc/uci-defaults/dedalo
 echo uci batch "<<EOF" "$(Package/ns-dedalo/networks_config)""EOF" >> $${IPKG_INSTROOT}/etc/uci-defaults/dedalo
 echo uci batch "<<EOF" "$(Package/ns-dedalo/firewall_config)""EOF" >> $${IPKG_INSTROOT}/etc/uci-defaults/dedalo
 echo "exit 0" >> $${IPKG_INSTROOT}/etc/uci-defaults/dedalo
-set +x /etc/uci-defaults/dedalo
 fi
 exit 0
 endef
