@@ -10,7 +10,7 @@ PKG_VERSION:=0.0.1
 PKG_RELEASE:=1
 
 PKG_SOURCE:=ui.tar.gz
-PKG_SOURCE_URL:=https://distfeed.nethserver.org
+PKG_SOURCE_URL:=https://nethsecurity.ams3.digitaloceanspaces.com
 PKG_HASH:=skip
 
 PKG_MAINTAINER:=Giacomo Sanchietti <giacomo.sanchietti@nethesis.it>
