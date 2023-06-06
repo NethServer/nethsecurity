@@ -41,9 +41,6 @@ endef
 
 # this is required, otherwise compile will fail
 define Build/Compile
-	(cd $(PKG_BUILD_DIR)/../dist; \
-		sed -i 's/"controller"/"stand-alone"/' config/config.production.js; \
-	)
 endef
 
 define Package/ns-ui/install
