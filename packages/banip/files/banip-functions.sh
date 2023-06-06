@@ -1368,12 +1368,12 @@ f_mail() {
 f_monitor() {
 	local nft_expiry line proto ip log_raw log_count
 
-	if [ -x "${ban_logreadcmd}" ] && [ -n "${ban_logterm%%??}" ] && [ "${ban_loglimit}" != "0" ]; then
+	if [ -n "${ban_logterm%%??}" ] && [ "${ban_loglimit}" != "0" ]; then
 
 		f_log "info" "start detached banIP log service"
 		[ -n "${ban_nftexpiry}" ] && nft_expiry="timeout $(printf "%s" "${ban_nftexpiry}" | "${ban_grepcmd}" -oE "([0-9]+[d|h|m|s])+$")"
 
-		"${ban_logreadcmd}" -fe "${ban_logterm%%??}" 2>/dev/null |
+		tail -f /var/log/messages | grep -e "${ban_logterm%%??}" 2>/dev/null |
 			while read -r line; do
 				proto=""
 				ip="$(printf "%s" "${line}" | "${ban_awkcmd}" 'BEGIN{RS="(([0-9]{1,3}\\.){3}[0-9]{1,3})+"}{if(!seen[RT]++)printf "%s ",RT}')"
@@ -1388,7 +1388,7 @@ f_monitor() {
 				fi
 				if [ -n "${proto}" ] && ! "${ban_nftcmd}" get element inet banIP blocklist"${proto}" "{ ${ip} }" >/dev/null 2>&1; then
 					f_log "info" "suspicious IP${proto} '${ip}'"
-					log_raw="$("${ban_logreadcmd}" -l "${ban_loglimit}" 2>/dev/null)"
+					log_raw="$(tail -n "${ban_loglimit}" /var/log/messages 2>/dev/null)"
 					log_count="$(printf "%s\n" "${log_raw}" | "${ban_grepcmd}" -c "suspicious IP${proto} '${ip}'")"
 					if [ "${log_count}" -ge "${ban_logcount}" ]; then
 						if "${ban_nftcmd}" add element inet banIP "blocklist${proto}" "{ ${ip} ${nft_expiry} }" >/dev/null 2>&1; then
