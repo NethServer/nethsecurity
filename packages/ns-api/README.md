@@ -52,6 +52,39 @@ Response:
 }
 ```
 
+## ns.firewall
+
+### rules
+
+List firewall rules in order:
+```
+api-cli ns.firewall rules
+```
+
+Response:
+```json
+{
+  "rules": [
+    {
+      "name": "Allow-DHCP-Renew",
+      "src": "wan",
+      "proto": "udp",
+      "dest_port": "68",
+      "target": "ACCEPT",
+      "family": "ipv4"
+    },
+    {
+      "name": "Allow-Ping",
+      "src": "wan",
+      "proto": "icmp",
+      "icmp_type": "echo-request",
+      "family": "ipv4",
+      "target": "ACCEPT"
+    }
+  ]
+}
+```
+
 ## ns.ovpntunnel
 
 ### add-server
