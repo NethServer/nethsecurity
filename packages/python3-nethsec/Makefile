@@ -14,7 +14,7 @@ PKG_LICENSE:=GPL-3.0-only
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/NethServer/python3-nethsec
-PKG_SOURCE_VERSION:=50675e6dea8922bc0d3c23edd046d80f3dd848b9
+PKG_SOURCE_VERSION:=98e28e9e21c2b814da626d7bfb71e52bcbc3409d
 
 include $(INCLUDE_DIR)/package.mk
 include $(TOPDIR)/feeds/packages/lang/python/python3-package.mk
@@ -23,7 +23,7 @@ define Package/python3-nethsec
 	SECTION:=base
 	CATEGORY:=NethSecurity
 	TITLE:=NethSecurity python libraries
-	URL:=https://github.com/NethServer/nethsecurity-controller/
+	URL:=https://github.com/NethServer/python3-nethsec/
 	DEPENDS:=+python3-light +python3-uci
 	PKGARCH:=all
 endef
