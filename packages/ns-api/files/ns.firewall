@@ -1,0 +1,27 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# List firewall rules
+
+import sys
+import json
+from euci import EUci
+from nethsec import utils
+
+def list_rules(param = ''):
+    u = EUci()
+    rules = utils.get_all_by_type(u, 'firewall', 'rule')
+    print(json.dumps({"rules": list(rules.values())}))
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({"rules": {}}))
+elif cmd == 'call':
+    action = sys.argv[2]
+    if action == "rules":
+        list_rules()
