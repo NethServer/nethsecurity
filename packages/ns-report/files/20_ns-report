@@ -1,0 +1,3 @@
+#!/bin/sh
+
+crontab -l | grep -q '/usr/bin/dpireport-cleanup' || echo '04 0 * * * /usr/bin/dpireport-cleanup' >> /etc/crontabs/root

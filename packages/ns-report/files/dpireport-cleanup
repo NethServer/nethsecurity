@@ -1,0 +1,20 @@
+#!/bin/bash
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+MAX_SIZE=$(( $(df /tmp/ | grep tmpfs | awk '{print $2}'0) / 100 )) # 1% of /tmp
+BASE_DIR=/var/run/dpireport
+
+# Cleanup if MAX_SIZE has been exceeded
+while [ $(du -s $BASE_DIR | cut -f 1) -gt $MAX_SIZE ]; do
+    # find all report directories excluding today, delete oldest first
+    to_be_deleted="$(find $BASE_DIR -daystart -mindepth 3 -mtime +0 -type d -printf "%T+ %p\n" | sort | awk '{print $2}' | head -n 1)"
+    if [ "$to_be_deleted" != "" ]; then
+        rm -rf "$to_be_deleted"
+    else
+        exit 0
+    fi
+done

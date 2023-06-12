@@ -64,3 +64,11 @@ Example:
   }
 }
 ```
+
+### Data retention policy
+
+A cron job is executed every night to enforce the data retention policy.
+
+The retention policy aims to keep the `/var/run/dpireport` directory within a certain size limit (1% of /tmp filesystem)
+by removing the oldest report directories that are not from the current day.
+This ensures that only recent data is retained, while older data is automatically deleted to free up disk space.

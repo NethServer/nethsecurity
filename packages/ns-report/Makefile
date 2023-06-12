@@ -29,9 +29,20 @@ define Package/ns-report/description
 	NethSecurity reports
 endef
 
+define Package/ns-report/prerm
+#!/bin/sh
+if [ -z "$${IPKG_INSTROOT}" ]; then
+	crontab -l | grep -v "/usr/bin/dpireport-cleanup" | sort | uniq | crontab -
+fi
+exit 0
+endef
+
 define Package/ns-report/postinst
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
+  (. /etc/uci-defaults/20_ns-report)
+  rm -f /etc/uci-defaults/20_ns-report
+  /etc/init.d/cron restart
   /etc/init.d/dpireport restart
 fi
 exit 0
@@ -53,8 +64,11 @@ endef
 define Package/ns-report/install
 	$(INSTALL_DIR) $(1)/etc/init.d/
 	$(INSTALL_DIR) $(1)/usr/bin/
+	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/dpireport $(1)/usr/bin/
+	$(INSTALL_BIN) ./files/dpireport-cleanup $(1)/usr/bin/
 	$(INSTALL_BIN) ./files/dpireport.init $(1)/etc/init.d/dpireport
+	$(INSTALL_BIN) ./files/20_ns-report $(1)/etc/uci-defaults
 endef
  
 $(eval $(call BuildPackage,ns-report))
