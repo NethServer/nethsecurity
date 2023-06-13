@@ -58,9 +58,8 @@ valid=0
 response=""
 until [ ${valid} -eq 1 ]
 do
-    data='{"system_id": "'${system_id}'", "username": "'${user}'", "password": "'${secret}'"}'
-    response=$(curl ${curl_opts} -H "Content-Type: application/json" ${server}/api/servers/register -X POST --data '{"system_id": "'${system_id}'", "username": "'${user}'", "password": "'${secret}'"}' -w  "|%{http_code}")
-    http_code=$(echo $response | cut -d'|' -f2)
+    response=$(curl ${curl_opts} -H "Content-Type: application/json" ${server}/api/units/register -X POST --data '{"unit_name": "'${system_id}'", "username": "'${user}'", "password": "'${secret}'"}')
+    http_code=$(echo ${response} | jq -r .code)
     if [ "${http_code}" == "409" ]; then
         # Duplicat entry, cleanup uci config
         uci delete rpcd.controller
@@ -80,11 +79,11 @@ uci set rpcd.controller.password=${passwd}
 uci commit
 
 # Configuration received, setup the VPN
-host=$(echo ${response} | jq -r .host)
-port=$(echo ${response} | jq -r .port)
-cert=$(echo ${response} | jq -r .cert)
-key=$(echo ${response} | jq -r .key)
-ca=$(echo ${response} | jq -r .ca)
+host=$(echo ${response} | jq -r .data.host)
+port=$(echo ${response} | jq -r .data.port)
+cert=$(echo ${response} | jq -r .data.cert)
+key=$(echo ${response} | jq -r .data.key)
+ca=$(echo ${response} | jq -r .data.ca)
 cat <<EOF > ${CONFIG_FILE}
 client
 server-poll-timeout 5
@@ -112,9 +111,9 @@ EOF
 uci set rsyslog.promtail=forwarder
 uci set rsyslog.promtail.source=*.*
 uci set rsyslog.promtail.protocol=tcp
-uci set rsyslog.promtail.port=$(echo "$response" | jq -r .promtail_port)
+uci set rsyslog.promtail.port=$(echo "$response" | jq -r .data.promtail_port)
 uci set rsyslog.promtail.rfc=5424
-uci set rsyslog.promtail.target=$(echo "$response" | jq -r .promtail_address)
+uci set rsyslog.promtail.target=$(echo "$response" | jq -r .data.promtail_address)
 uci commit
 /etc/init.d/rsyslog restart
 
