@@ -7,10 +7,11 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-ui
 PKG_VERSION:=0.0.1
-PKG_RELEASE:=1
+UI_COMMIT=d20234a55b20e0fa0a058d34c42ce8254ceaed3f
+PKG_RELEASE:=$(UI_COMMIT)
 
-PKG_SOURCE:=ui.tar.gz
-PKG_SOURCE_URL:=https://nethsecurity.ams3.digitaloceanspaces.com
+PKG_SOURCE:=ui-$(UI_COMMIT).tar.gz
+PKG_SOURCE_URL:=https://nethsecurity.ams3.digitaloceanspaces.com/ui-dist/
 PKG_HASH:=skip
 
 PKG_MAINTAINER:=Giacomo Sanchietti <giacomo.sanchietti@nethesis.it>
