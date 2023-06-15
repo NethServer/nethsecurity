@@ -21,9 +21,8 @@ jobs:
         uses: actions/checkout@v3
         with:
           ref: ${{ github.ref }}
-          persist-credentials: false
 
-      - name: Reconfigure git to use HTTP authentication and update package
+      - name: Check if new UI commit is different
         run: |
           NEW_COMMIT=$(curl https://api.github.com/repos/NethServer/nethsecurity-ui/commits/main | jq -r .sha)
           sed "s/UI_COMMIT=.*/UI_COMMIT=$NEW_COMMIT-$NEW_COMMIT/" packages/ns-ui/Makefile
