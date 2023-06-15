@@ -36,12 +36,13 @@ endef
 
 define Package/ns-threat_shield/install
 	$(INSTALL_DIR) $(1)/usr/sbin
-	$(INSTALL_DIR) $(1)/etc/init.d
+	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_DIR) $(1)/etc/banip
 	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/register
 	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/unregister
 	$(INSTALL_BIN) ./files/ts-dns $(1)/usr/sbin/ts-dns
 	$(INSTALL_BIN) ./files/ts-ip $(1)/usr/sbin/ts-ip
+	$(INSTALL_BIN) ./files/20_threat_shield $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/ts-dns.hook $(1)/usr/share/ns-plug/hooks/register/90ts-dns
 	$(INSTALL_BIN) ./files/ts-dns.hook $(1)/usr/share/ns-plug/hooks/unregister/90ts-dns
 	$(LN) /usr/sbin/ts-ip $(1)/usr/share/ns-plug/hooks/register/80ts-ip
@@ -55,6 +56,8 @@ endef
 define Package/ns-threat_shield/postinst
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
+  (. /etc/uci-defaults/20_threat_shield)
+  rm -f /etc/uci-defaults/20_threat_shield
   /etc/init.d/cron restart
 fi
 exit 0
@@ -63,7 +66,6 @@ endef
 define Package/ns-threat_shield/prerm
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
-	/usr/sbin/ts-ip
 	crontab -l | grep -v "/etc/init.d/banip reload" | sort | uniq | crontab -
 	crontab -l | grep -v "/etc/init.d/adblock" | sort | uniq | crontab -
 fi
