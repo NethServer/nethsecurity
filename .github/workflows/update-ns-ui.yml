@@ -22,9 +22,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: update apt
-        run: apt update
+        run: sudo apt update
       - name: Install deps
-        run: apt-get install -y curl jq git
+        run: sudo apt-get install -y curl jq git
       - name: Check if new UI commit is different
         run: |
           NEW_COMMIT=$(curl https://api.github.com/repos/NethServer/nethsecurity-ui/commits/main | jq -r .sha)
