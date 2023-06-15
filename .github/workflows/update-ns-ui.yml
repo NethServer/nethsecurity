@@ -1,6 +1,6 @@
-name: Update nethsecurity-ui package
+name: Update ns-ui package
 
-# **What it does**: Every nigth, at midnight checks if a new version of nethsecurity-ui is available.
+# **What it does**: Every nigth, at midnight checks if a new version of ns-ui is available.
 # **Why we have it**: To avoid manually updating the package.
 # **Who does it impact**: packages/ns-ui/Makefile and the UI_COMMIT value
 
@@ -12,7 +12,7 @@ on:
 
 jobs:
   update-package:
-    name: Update nethsecurity-ui package
+    name: Update ns-ui package
 
     runs-on: ubuntu-latest
 
@@ -32,7 +32,7 @@ jobs:
       - name: Commit and create PR
         uses: peter-evans/create-pull-request@v5
         with:
-          title: 'build(deps): Update nethsecurity-ui package (automated)'
-          branch: 'build-update-nethsecurity-ui-package-automated'
-          commit-message: 'build(deps): ns-ui package: update nethsecurity-ui package (automated)'
+          title: 'build(deps): Update ns-ui package (automated)'
+          branch: 'build-update-ns-ui-package-automated'
+          commit-message: 'build(deps): ns-ui package: update ns-ui package (automated)'
           base: main

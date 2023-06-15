@@ -1,6 +1,6 @@
-name: Update nethsecurity-api package
+name: Update ns-api-server package
 
-# **What it does**: Every nigth, at midnight checks if a new version of nethsecurity-api is available.
+# **What it does**: Every nigth, at midnight checks if a new version of ns-api-server is available.
 # **Why we have it**: To avoid manually updating the package.
 # **Who does it impact**: packages/ns-api-server/Makefile and the PKG_VERSION value
 
@@ -12,7 +12,7 @@ on:
 
 jobs:
   update-package:
-    name: Update nethsecurity-api package
+    name: Update ns-api-server package
 
     runs-on: ubuntu-latest
 
@@ -25,14 +25,14 @@ jobs:
         run: sudo apt update
       - name: Install deps
         run: sudo apt-get install -y curl jq git
-      - name: Check if new UI commit is different
+      - name: Check if new API tag is different
         run: |
           NEW_TAG=$(curl https://api.github.com/repos/NethServer/nethsecurity-api/tags | jq -r .[0].name)
           sed -i "s/PKG_VERSION:=.*/PKG_VERSION:=$NEW_TAG/g" packages/ns-api-server/Makefile
       - name: Commit and create PR
         uses: peter-evans/create-pull-request@v5
         with:
-          title: 'build(deps): Update nethsecurity-api package (automated)'
-          branch: 'build-update-nethsecurity-api-package-automated'
-          commit-message: 'build(deps): ns-api-server package: update nethsecurity-api package (automated)'
+          title: 'build(deps): Update ns-api-server package (automated)'
+          branch: 'build-update-ns-api-server-package-automated'
+          commit-message: 'build(deps): ns-api-server package: update ns-api-server package (automated)'
           base: main
