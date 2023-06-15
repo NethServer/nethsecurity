@@ -27,7 +27,6 @@ jobs:
         run: apt-get install -y curl jq git
       - name: Check if new UI commit is different
         run: |
-          ls -la
           NEW_COMMIT=$(curl https://api.github.com/repos/NethServer/nethsecurity-ui/commits/main | jq -r .sha)
           sed -i "s/UI_COMMIT=.*/UI_COMMIT=$NEW_COMMIT/g" packages/ns-ui/Makefile
       - name: Commit and create PR
