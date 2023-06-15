@@ -1,0 +1,36 @@
+name: Update nethsecurity-ui package
+
+# **What it does**: Every nigth, at midnight checks if a new version of nethsecurity-ui is available.
+# **Why we have it**: To avoid manually updating the package.
+# **Who does it impact**: packages/ns-ui/Makefile and the UI_COMMIT value
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    - cron:  "0 0 * * *"
+
+jobs:
+  update-package:
+    name: Update nethsecurity-ui package
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.ref }}
+          persist-credentials: false
+
+      - name: Reconfigure git to use HTTP authentication and update package
+        run: |
+          NEW_COMMIT=$(curl https://api.github.com/repos/NethServer/nethsecurity-ui/commits/main | jq -r .sha)
+          sed "s/UI_COMMIT=.*/UI_COMMIT=$NEW_COMMIT-$NEW_COMMIT/" packages/ns-ui/Makefile
+
+      - name: Commit and create PR
+        uses: peter-evans/create-pull-request@v3
+        with:
+          title: 'build(deps): Update nethsecurity-ui package (automated)'
+          branch: 'build-update-nethsecurity-ui-package-automated'
+          commit-message: 'build(deps): ns-ui package: update nethsecurity-ui package (automated)'
