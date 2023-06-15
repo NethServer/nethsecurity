@@ -1,0 +1,38 @@
+name: Update nethsecurity-api package
+
+# **What it does**: Every nigth, at midnight checks if a new version of nethsecurity-api is available.
+# **Why we have it**: To avoid manually updating the package.
+# **Who does it impact**: packages/ns-api-server/Makefile and the PKG_VERSION value
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    - cron:  "0 0 * * *"
+
+jobs:
+  update-package:
+    name: Update nethsecurity-api package
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Update apt
+        run: sudo apt update
+      - name: Install deps
+        run: sudo apt-get install -y curl jq git
+      - name: Check if new UI commit is different
+        run: |
+          NEW_TAG=$(curl https://api.github.com/repos/NethServer/nethsecurity-api/tags | jq -r .[0].name)
+          sed -i "s/PKG_VERSION:=.*/PKG_VERSION:=$NEW_TAG/g" packages/ns-api-server/Makefile
+      - name: Commit and create PR
+        uses: peter-evans/create-pull-request@v5
+        with:
+          title: 'build(deps): Update nethsecurity-api package (automated)'
+          branch: 'build-update-nethsecurity-api-package-automated'
+          commit-message: 'build(deps): ns-api-server package: update nethsecurity-api package (automated)'
+          base: main
