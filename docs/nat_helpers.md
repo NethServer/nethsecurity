@@ -40,7 +40,7 @@ nf_nat_irc
 To enable only SIP helper with default configuration and load it at boot, use:
 ```
 echo nf_nat_sip > /etc/modules.d/nf-nat-sip
-modprobe nf_nat_sip
+reboot
 ```
 The `nf_nat_sip` module will automatically load the `nf_conntrack_sip` module.
 
