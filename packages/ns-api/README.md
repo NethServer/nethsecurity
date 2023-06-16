@@ -115,7 +115,7 @@ Each array contains year, month and day.
 
 Get report details for a client in the given date:
 ```
-api-cli ns.dpireport details --data '{"year": "2023", "month: "06", "day": "16", "client": "192.168.100.22"}'
+api-cli ns.dpireport details --data '{"year": "2023", "month": "06", "day": "16", "client": "192.168.100.22"}'
 ```
 
 Data not grouped by hour are a total for the whole day.
@@ -185,7 +185,7 @@ Example:
 
 Retrive a traffic summary for the given day:
 ```
-api-cli ns.dpireport summary --data '{"year": "2023", "month: "06", "day": "16"}'
+api-cli ns.dpireport summary --data '{"year": "2023", "month": "06", "day": "16"}'
 ```
 
 The summary contains network traffic from multiple hosts.
