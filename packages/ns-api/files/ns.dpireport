@@ -1,0 +1,110 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Read dpireport statics files
+
+import sys
+import json
+import glob
+import socket
+from datetime import date
+
+def reverse_dns(ip):
+    try:
+        return socket.gethostbyaddr(ip)[0]
+    except:
+        return ip
+
+def list_days():
+    ret = list()
+    for day in glob.glob('/var/run/dpireport/*/*/*'):
+        tmp = day.removeprefix('/var/run/dpireport/').split('/')
+        ret.append((tmp[0], tmp[1], tmp[2]))
+    return {"days": ret}
+
+def summary(year, month, day):
+    hours = dict()
+    for i in range(24):
+        hours[f'{i:02}'] = 0
+    ret = {"total": 0, "clients": {}, "hours": hours, "names": {}, "protocol": {}, "host": {}, "application": {}}
+
+    for client_f in glob.glob(f'/var/run/dpireport/{year}/{month}/{day}/*'):
+        client = client_f.removeprefix(f'/var/run/dpireport/{year}/{month}/{day}/')
+        cdetails = details(year, month, day, client)
+        ret["clients"][client] = cdetails["total"]
+        ret["names"][client] = cdetails["name"]
+        for hour in cdetails["hours"]:
+            try:
+                ret["hours"][hour] += cdetails["hours"][hour]["total"]
+            except:
+                pass
+        ret["total"] += cdetails["total"] 
+
+        for key in ("protocol", "host", "application"):
+            for el in cdetails[key]:
+                if el not in ret[key]:
+                    ret[key][el] = 0
+                ret[key][el] += cdetails[key][el]
+    try:
+        tmp_c = sorted(ret['clients'].items(), key=lambda x:x[1], reverse=True)
+    except:
+        tmp_c = list()
+    try:
+        tmp_h = sorted(ret['hours'].items())
+    except:
+        tmp_h = list()
+
+    ret['clients'] = tmp_c
+    ret['hours'] = tmp_h
+
+    for key in ("protocol", "host", "application"):
+        try:
+            tmp = sorted(ret[key].items(), key=lambda x:x[1], reverse=True)
+        except:
+            tmp = list()
+        ret[key] = tmp[0:10]
+
+    return ret
+
+def details(year, month, day, client):
+    hours = dict()
+    if not client:
+        return ret
+    for i in range(24):
+        hours[f'{i:02}'] = dict()
+    ret = {"hours": hours, "total": 0, "name": reverse_dns(client), "protocol" : {}, "host": {}, "application": {}}
+    ddir = f'/var/run/dpireport/{year}/{month}/{day}/{client}/'
+    for hour_f in glob.glob(f'{ddir}??.json'):
+        hour = hour_f.removesuffix(".json").removeprefix(ddir)
+        with open(hour_f, 'r') as fp:
+            ret["hours"][hour] = json.load(fp)
+        for key in ("protocol", "host", "application"):
+            for el in ret["hours"][hour][key]:
+                if el not in ret[key]:
+                    ret[key][el] = 0
+                ret[key][el] += ret["hours"][hour][key][el]
+        ret["total"] += ret["hours"][hour]["total"]
+    return ret
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({"summary": {"year": "2023", "month": "06", "day": "02"}, "details": {"year": "2023", "month": "06", "day": "16", "client": "192.168.100.22"},"days":{}}))
+else:
+    action = sys.argv[2]
+    if action == "days":
+        print(json.dumps(list_days()))
+    else:
+        args = json.loads(sys.stdin.read())
+        year = args.get('year', f'{date.today().year:02}')
+        month = args.get('month', f'{date.today().month:02}')
+        day = args.get('day', f'{date.today().day:02}')
+        if action == "summary":
+             print(json.dumps(summary(year, month, day)))
+        elif action == "details":
+             client = args.get('client', '')
+             print(json.dumps(details(year, month, day, client)))
