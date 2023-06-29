@@ -208,7 +208,7 @@ Additional requirements:
 Execute:
 ```
 cd builder
-./build-builder.sh
+./build-builder
 ```
 
 Publish the image:
