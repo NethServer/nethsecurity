@@ -62,8 +62,8 @@ done
 if [[ -n "$NETIFYD_ACCESS_TOKEN" ]]; then
     echo "Enabling Netifyd closed-sources plugins.."
     pushd /home/build/openwrt
-    git clone -b vendor-nethesis-v4.4.x https://oauth2:$NETIFYD_ACCESS_TOKEN@gitlab.com/netify.ai/private/nethesis/netify-flow-actions.git
-    git clone -b vendor-nethesis-v4.4.x https://oauth2:$NETIFYD_ACCESS_TOKEN@gitlab.com/netify.ai/private/nethesis/netify-agent-stats-plugin.git
+    git clone https://oauth2:$NETIFYD_ACCESS_TOKEN@gitlab.com/netify.ai/private/nethesis/netify-flow-actions.git
+    git clone https://oauth2:$NETIFYD_ACCESS_TOKEN@gitlab.com/netify.ai/private/nethesis/netify-agent-stats-plugin.git
 
     cat <<EOF >>$OUTPUT
 CONFIG_PACKAGE_netify-flow-actions=y
