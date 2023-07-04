@@ -16,7 +16,6 @@ PKG_INSTALL:=1
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=file:///home/build/openwrt/netify-agent-stats-plugin
 PKG_SOURCE_DATE:=2023-03-03
-#PKG_SOURCE_VERSION:=v1.0.17
 PKG_SOURCE_VERSION:=96eed2c327d9ee0d7b6eeea7288e30c93f4e9f1b
 PKG_MIRROR_HASH:=whatever
 
