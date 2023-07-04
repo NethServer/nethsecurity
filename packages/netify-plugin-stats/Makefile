@@ -15,9 +15,8 @@ PKG_INSTALL:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=file:///home/build/openwrt/netify-agent-stats-plugin
-PKG_SOURCE_DATE:=2022-09-07
-#PKG_SOURCE_VERSION:=v1.0.11
-PKG_SOURCE_VERSION:=6d3a37d9035ddf01b8c969b3b687fb8b0e3f6ab1
+PKG_SOURCE_DATE:=2023-03-03
+PKG_SOURCE_VERSION:=96eed2c327d9ee0d7b6eeea7288e30c93f4e9f1b
 PKG_MIRROR_HASH:=whatever
 
 include $(INCLUDE_DIR)/package.mk
@@ -32,6 +31,7 @@ define Package/netify-plugin-stats
   # std::unordered_map is only available via libstdcpp which is required for
   # performance reasons.
   DEPENDS+=+libstdcpp
+  EXTRA_DEPENDS:=netifyd (>=4.4.1)
 endef
 
 define Package/netify-plugin-stats/description

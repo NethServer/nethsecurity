@@ -15,9 +15,8 @@ PKG_INSTALL:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=file:///home/build/openwrt/netify-flow-actions
-PKG_SOURCE_DATE:=2022-11-03
-#PKG_SOURCE_VERSION:=v1.0.1
-PKG_SOURCE_VERSION:=133fcc5340c95abc5cd5190726c236b68d443d62
+PKG_SOURCE_DATE:=2023-03-03
+PKG_SOURCE_VERSION:=81ea8c4127238f230f919b2718ead07862d0a233
 PKG_MIRROR_HASH:=whatever
 
 PKG_CONFIG_DEPENDS:= \
@@ -42,6 +41,7 @@ define Package/netify-flow-actions
   DEPENDS+=+NETIFY_FLOW_ACTIONS_TARGET_CTLABEL:libnetfilter-conntrack
   DEPENDS+=+NETIFY_FLOW_ACTIONS_TARGET_IPSET:libipset
   DEPENDS+=+NETIFY_FLOW_ACTIONS_TARGET_NFTSET:nftables
+  EXTRA_DEPENDS:=netifyd (>=4.4.1-1)
 endef
 
 define Package/netify-flow-actions/description
