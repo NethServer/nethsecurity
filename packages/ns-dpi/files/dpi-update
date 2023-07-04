@@ -1,0 +1,40 @@
+#!/bin/bash
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+#
+# DPI: download signatures
+#
+
+OUT_DIR=${OUT_DIR:-"/etc/netify.d"}
+HOST=${HOST:-"https://__USER__:__PASSWORD__@sp.nethesis.it"}
+TMP_DIR=${TMP_DIR:-"/tmp/signatures-download"}
+
+trap "rm -rf $TMP_DIR" EXIT SIGINT SIGTERM
+
+SYSTEM_SECRET=$(uci -q get ns-plug.config.secret)
+SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
+
+if [ -z "$SYSTEM_SECRET" ] || [ -z "$SYSTEM_ID" ]; then
+    exit 0
+fi
+
+set -e
+mkdir -p "$TMP_DIR"
+
+version=$(netifyd --help 2>&1| grep "Netify Agent/" | cut -d'/' -f 2 | cut -d' ' -f1)
+options="settings_version=$version&settings_format=netifyd"
+curl_cmd='/usr/bin/curl -L -s -f -m 10'
+
+base_url=$(echo $HOST | sed -e "s/__USER__/$SYSTEM_ID/" -e "s/__PASSWORD__/$SYSTEM_SECRET/")
+
+$curl_cmd "$base_url/applications?$options" -o "$TMP_DIR/netify-apps.conf"
+$curl_cmd "$base_url/categories?$options" -o "$TMP_DIR/netify-categories.json"
+
+mv "$TMP_DIR/netify-apps.conf" "$OUT_DIR"
+mv "$TMP_DIR/netify-categories.json/" "$OUT_DIR"
+
+/etc/init.d/netifyd reload

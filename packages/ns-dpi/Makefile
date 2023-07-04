@@ -30,6 +30,24 @@ define Package/ns-dpi/description
 	Traffic rules for network flows
 endef
 
+define Package/ns-dpi/postinst
+#!/bin/sh
+if [ -z "$${IPKG_INSTROOT}" ]; then
+  (. /etc/uci-defaults/20_dpi)
+  rm -f /etc/uci-defaults/20_dpi
+  /etc/init.d/cron restart
+fi
+exit 0
+endef
+
+define Package/ns-dpi/prerm
+#!/bin/sh
+if [ -z "$${IPKG_INSTROOT}" ]; then
+	crontab -l | grep -v "/usr/sbin/dpi-update" | sort | uniq | crontab -
+fi
+exit 0
+endef
+
 # this is required, otherwise compile will fail
 define Build/Compile
 endef
@@ -44,7 +62,10 @@ define Package/ns-dpi/install
 	$(INSTALL_BIN) ./files/dpi-start $(1)/usr/sbin/
 	$(INSTALL_BIN) ./files/dpi-nft $(1)/usr/sbin/
 	$(INSTALL_BIN) ./files/dpi-config $(1)/usr/sbin/
+	$(INSTALL_BIN) ./files/dpi-update $(1)/usr/sbin/
 	$(INSTALL_CONF) ./files/20_dpi $(1)/etc/uci-defaults
+	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/register
+	$(LN) /usr/sbin/dpi-update $(1)/usr/share/ns-plug/hooks/register/80dpi-update
 endef
 
 $(eval $(call BuildPackage,ns-dpi))
