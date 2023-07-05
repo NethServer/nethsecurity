@@ -8,3 +8,5 @@ config main 'config'
 	option enabled '0'
 	option firewall_exemption '0'
 EOI
+
+crontab -l | grep -q '/usr/sbin/dpi-update' || echo '8 4 * * * sleep $(( RANDOM % 3600 )); /usr/sbin/dpi-update' >> /etc/crontabs/root

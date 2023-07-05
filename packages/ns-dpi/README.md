@@ -103,3 +103,26 @@ If needed, start netifyd in debug mode:
 ```
 netifyd -R -d -I br-lan -E eth1
 ```
+
+## Supplementary signatures
+
+By default, netifyd is equipped to detect around 430 protocols and applications. With the inclusion of
+supplementary signatures, netifyd can extend its recognition capabilities to encompass over 1600 protocols and applications.
+
+Extra signatures are accessible only from a machine with a valid subscription.
+A cron job will update DPI signatures during the night and upon machine registration.
+The download will be authenticated using a Nethesis proxy.
+
+To force the update execute:
+```
+dpi-update
+```
+
+You can use a different proxy by overriding the `HOST` env variable.
+If the proxy is authenticated, use the `__USER__` and `__PASSWORD__` placeholders.
+The placeholders will be replaced with systemd id and secret from `ns-plug`.
+
+Example:
+```
+HOST=http://__USER__:__PASSWORD__@sp.gs.nethserver.net dpi-update
+```
