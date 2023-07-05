@@ -109,7 +109,7 @@ netifyd -R -d -I br-lan -E eth1
 By default, netifyd is equipped to detect around 430 protocols and applications. With the inclusion of
 supplementary signatures, netifyd can extend its recognition capabilities to encompass over 1600 protocols and applications.
 
-Extra signatures are accessibile only from machine with a a valid Enterprise subscription.
+Extra signatures are accessible only from a machine with a valid subscription.
 A cron job will update DPI signatures during the night and upon machine registration.
 The download will be authenticated using a Nethesis proxy.
 
