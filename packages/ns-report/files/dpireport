@@ -102,7 +102,7 @@ def restore():
 
                 with open(hour_file, 'r') as fp:
                     try:
-                        stats[client] = json.load(fp)
+                        stats[client.removeprefix(odir)] = json.load(fp)
                     except:
                         pass
 
@@ -157,6 +157,7 @@ def reader():
                      continue
 
                  if data["flow"]["local_ip"] == '::' or data["flow"]["local_ip"] == '0.0.0.0' or not ip.is_private:
+                     logging.debug(f'Evaluating non-local ip {data["flow"]["local_ip"]} -> {data}')
                      continue
             
                  with flows_lock:
@@ -168,8 +169,8 @@ def reader():
                         "total_bytes": -1,
                         "timestamp": datetime.timestamp(datetime.now())
                      }
-   
-             if data['type'] == "flow_status" or data['type'] == "flow_purge":
+
+             if data['type'] in ("flow_status","flow_purge","flow_stats"):
                  with flows_lock:
                      if data['flow']['digest'] in flows:
                          flows[data['flow']['digest']]['total_bytes'] = data['flow'].get('total_bytes', -1)
