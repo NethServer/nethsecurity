@@ -10,7 +10,7 @@
 
 . /etc/os-release
 DL_DIR=/tmp/download
-BASE_URL="https://distfeed.nethserver.org"
+BASE_URL="https://updates.nethsecurity.nethserver.org"
 ARCH=$(echo "$OPENWRT_BOARD" | tr '/' '-')
 
 # Cleanup on kill
