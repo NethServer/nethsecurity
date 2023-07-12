@@ -10,7 +10,7 @@
 
 . /etc/os-release
 DL_DIR=/tmp/download
-BASE_URL="https://distfeed.nethserver.org"
+BASE_URL="https://updates.nethsecurity.nethserver.org"
 ARCH=$(echo "$OPENWRT_BOARD" | tr '/' '-')
 
 # Cleanup on kill
@@ -54,7 +54,7 @@ else
 fi
 
 hash="$DL_DIR/sha256"
-img_name="nethecurity-$version-$ARCH-generic-ext4-combined-efi.img.gz"
+img_name="nethsecurity-$version-$ARCH-generic-ext4-combined-efi.img.gz"
 img="$DL_DIR/$img_name"
 img_url="$BASE_URL/$version/targets/$OPENWRT_BOARD/$img_name"
 hash_url="$BASE_URL/$version/targets/$OPENWRT_BOARD/sha256sums"
