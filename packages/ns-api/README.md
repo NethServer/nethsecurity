@@ -185,7 +185,7 @@ Response example:
 Conventions:
 - all APIs must start with `ns.` prefix
 - all APIs must read JSON object input from standard input
-- all APIs must write a JSON object to standard output: JSON arrays should always be wrapper inside
+- all APIs must write a JSON object to standard output: JSON arrays should always be wrapped inside
   an object due to ubus limitations
 
 To add a new API, follow these steps:
