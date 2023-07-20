@@ -85,6 +85,190 @@ Response:
 }
 ```
 
+## ns.dpireport
+
+Lightsquid-like reports based on netifyd data streams.
+
+### days
+
+List available reports:
+```
+api-cli ns.dpireport days
+```
+
+Example:
+```json
+{
+	"days": [
+		[
+			"2023",
+			"06",
+			"16"
+		]
+	]
+}
+```
+
+Each array contains year, month and day.
+
+### details
+
+Get report details for a client in the given date:
+```
+api-cli ns.dpireport details --data '{"year": "2023", "month": "06", "day": "16", "client": "192.168.100.22"}'
+```
+
+Data not grouped by hour are a total for the whole day.
+
+Example:
+```json
+{
+  "hours": {
+    "00": {
+      "total": 4697332,
+      "protocol": {
+        "http/s": 4669084,
+        "ntp": 2700,
+        "icmp": 70
+      },
+      "application": {
+        "unknown": 38955,
+        "netify.nethserver": 41934,
+        "netify.reverse-dns": 226,
+      },
+      "host": {
+        "pool.ntp.org": 2700,
+        "urlhaus.abuse.ch": 882992,
+      }
+    },
+    ...
+    },
+    "11": {
+      "total": 930002,
+      "protocol": {
+        "http/s": 923080,
+        "netbios": 1614,
+      },
+      "application": {
+        "netify.internal-network": 793,
+        "netify.nethserver": 27024,
+        "unknown": 21930,
+      },
+      "host": {
+        "_http._tcp.local": 576,
+        "sambafax___nethservice._ipp._tcp.local": 217
+      }
+    },
+    ...
+    "23": {}
+  },
+  "total": 119058259,
+  "name": "server.test.org",
+  "protocol": {
+    "http/s": 74134684,
+    "netbios": 29590,
+    ...
+  },
+  "host": {
+    "nethservice": 29590,
+    "211.222.102.147.in-addr.arpa": 233,
+    ...
+  },
+  "application": {
+    "netify.internal-network": 13273,
+     ...
+  }
+}
+```
+
+### summary
+
+Retrive a traffic summary for the given day:
+```
+api-cli ns.dpireport summary --data '{"year": "2023", "month": "06", "day": "16"}'
+```
+
+The summary contains network traffic from multiple hosts.
+Lists are sorted in descending order by the amount of traffic in bytes.
+JSON structure:
+- `client`" is an array containing sub-arrays, where each sub-array represents a client.
+   The sub-array consists of two elements: the client's IP address and the corresponding amount of traffic in bytes.
+- `hours` is an array containing sub-arrays representing each hour. Each sub-array consists of two elements: the hour (represented as a string)
+   and the total amount of traffic in bytes during that hour. The main array always contains all 24 hours, from `00` to `23`.
+- `total` indicates the overall total traffic count in bytes.
+- `names` a mapping between the host addess and reverse DNS
+- `protocol` is the top 10 list of protocols
+- `application` is the top 10 list of all applications
+- `host` is the top 10 list of target hosts
+
+
+Example:
+```json
+{
+  "total": 53431766455,
+  "clients": [
+    [
+      "172.25.5.13",
+      31861541373
+    ],
+    [
+      "fe80::9451:4aff:fec4:42d3",
+      924
+    ],
+    ...
+  ],
+  "hours": [
+    [
+      "00",
+      148225512
+    ],
+    ...
+    [
+      "23",
+      0
+    ]
+  ],
+  "names": {
+    "fe80::9528:c0f8:553e:14ae": "fe80::9528:c0f8:553e:14ae",
+    "192.168.5.5": "filippo-v6.nethesis.it",
+     ...
+  },
+  "protocol": [
+    [
+      "http/s",
+      39098676979
+    ],
+    [
+      "stun",
+      4719233858
+    ],
+    ...
+  ],
+  "host": [
+    [
+      "f003.backblazeb2.com",
+      12985715728
+    ],
+    [
+      "191.meet.nethesis.it",
+      4618635575
+    ],
+    ...
+  ],
+  "application": [
+    [
+      "netify.backblaze",
+      30906291212
+    ],
+    [
+      "netify.ubuntu",
+      753625987
+    ],
+    ...
+  ]
+}
+```
+
 ## ns.ovpntunnel
 
 ### add-server

@@ -1,0 +1,216 @@
+#!/usr/bin/python
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import os
+import sys
+import json
+import glob
+import time
+import queue
+import signal
+import socket
+import logging
+import threading
+import ipaddress
+from datetime import datetime, date
+
+flow_stale_timeout = int(os.environ.get("FLOW_STALE_TIMEOUT", 3600))
+dump_timeout = int(os.environ.get("DUMP_TIMEOUT", 120))
+last_hour = datetime.now().strftime("%H")
+last_date = datetime.today()
+run = True
+flows = dict()
+flows_q = queue.Queue()
+stats = {}
+stats_lock = threading.Lock()
+flows_lock = threading.Lock()
+consolidate_t = None
+dumper_t = None
+reader_t = None
+
+# Return output directory
+def get_dump_path(date, client = ""):
+    base_path = os.environ.get("DUMP_PATH", "/var/run/dpireport")
+    return os.path.join(base_path,f'{date.year}',f'{date.month:02}',f'{date.day:02}',client)
+
+
+def remove_stale_flows():
+    global flows_lock
+    global flows
+    # remove stale flows
+    with flows_lock:
+        now = datetime.now()
+        flows_to_delete = list()
+        for key in flows:
+            flow = flows[key]
+            if (datetime.timestamp(now) - flow['timestamp']) > flow_stale_timeout:
+                logging.debug(f'Cleanup flow {key}')
+                flows_to_delete.append(key)
+
+        for digest in flows_to_delete:
+            del flows[digest]
+
+def dump():
+    global last_date
+    global stats_lock
+    global stats
+    with stats_lock:
+        for client in stats:
+            out_dir = get_dump_path(last_date, client)
+            os.makedirs(out_dir, exist_ok = True)
+            logging.debug(f'Saving {client} stats to {out_dir}/{last_hour}.json')
+            with open(os.path.join(out_dir,f'{last_hour}.json'),'w') as fp:
+                json.dump(stats[client], fp,separators=(',', ':'))
+
+
+def clear():
+    global last_date
+    global last_hour
+    global stats_lock
+    global stats
+    remove_stale_flows()
+
+    # reset stats for next hour
+    if date.today() != last_date or last_hour != datetime.now().strftime("%H"):
+        with stats_lock:
+            stats.clear()
+        last_date = date.today()
+        last_hour = datetime.now().strftime("%H")
+
+def dumper():
+    global run
+    while run:
+        time.sleep(dump_timeout)
+        dump()
+        clear()
+
+
+# Read existing data and restore them inside stats hash
+def restore():
+    global last_date
+    global stats
+    odir = get_dump_path(last_date)
+    if os.path.isdir(odir):
+        for client in glob.glob(odir+'*'):
+            hour_file = os.path.join(client,f'{last_hour}.json')
+            if os.path.isfile(hour_file):
+                logging.debug(f'Restore {hour_file}')
+
+                with open(hour_file, 'r') as fp:
+                    try:
+                        stats[client.removeprefix(odir)] = json.load(fp)
+                    except:
+                        pass
+
+# Save client statistics
+def consolidate():
+    global stats
+    global stats_lock
+    global run
+    global flows
+    while run:
+        flow = flows_q.get()
+        logging.debug(f'Consolidate flow {flow}')
+        if "local_ip" in flow:
+            client = flow["local_ip"]
+            if last_hour and datetime.now().strftime("%H") != last_hour:
+                # hour change, save current hour stats and drop them
+                dump()
+                clear()
+            with stats_lock:
+                if client not in stats:
+                    stats[client] = { 'total': 0, 'protocol' :{}, 'application': {}, 'host': {} }
+
+                stats[client]["total"] += flow["total_bytes"]
+                for key in ("protocol", "application", "host"):
+                    if flow[key]:
+                        name = flow[key].lower()
+                        try:
+                            stats[client][key][name] += flow["total_bytes"]
+                        except:
+                            stats[client][key].setdefault(name, flow["total_bytes"])
+
+# Read from netify socket and filter data stream
+def reader():
+    global flows_locks
+    global flows
+    client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    client.connect(os.environ.get('NETIFYD_SOCKET', '/var/run/netifyd/netifyd.sock'))
+    logging.debug(f'Connected to socket')
+    for line in client.makefile('r'):
+        if not run:
+            break
+        data = json.loads(line)
+        # ignore events that are not data streams
+        if 'type' in data:
+             if data['type'] == "flow":
+                 # ignore all flows with an invalid IP address
+                 if not 'local_ip' in data["flow"]:
+                     continue
+                 try:
+                     ip = ipaddress.ip_address(data["flow"]["local_ip"])
+                 except:
+                     continue
+
+                 if data["flow"]["local_ip"] == '::' or data["flow"]["local_ip"] == '0.0.0.0' or not ip.is_private:
+                     logging.debug(f'Evaluating non-local ip {data["flow"]["local_ip"]} -> {data}')
+                     continue
+            
+                 with flows_lock:
+                     flows[data['flow']['digest']] =  { 
+                        "application": data["flow"].get("detected_application_name", ""),
+                        "protocol": data["flow"].get("detected_protocol_name", ""),
+                        "host": data["flow"].get("host_server_name", ""),
+                        "local_ip": data["flow"].get("local_ip", ""),
+                        "total_bytes": -1,
+                        "timestamp": datetime.timestamp(datetime.now())
+                     }
+
+             if data['type'] in ("flow_status","flow_purge","flow_stats"):
+                 with flows_lock:
+                     if data['flow']['digest'] in flows:
+                         flows[data['flow']['digest']]['total_bytes'] = data['flow'].get('total_bytes', -1)
+                         flows[data['flow']['digest']]['timestamp'] = data['flow'].get('last_seen_at', -1)
+                         flows_q.put(flows.pop(data['flow']['digest']))
+
+
+# Signal handler: stop threads and dump all data to disk
+def dump_and_exit(signum, frame):
+    global run
+    run = False
+    logging.info("Closing threads ...")
+    try:
+        reader_t.join(timeout=1)
+        consolidate_t.join(timeout=1)
+        dumper_t.join(timeout=1)
+    except:
+        pass
+    dump()
+    logging.info("Bye")
+    sys.exit(0)
+
+# Setup logging to syslog
+logger = logging.getLogger()
+logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+logger.addHandler(handler)
+
+# Setup signal handlers
+signal.signal(signal.SIGINT, dump_and_exit)
+
+logging.info("Started dpireport")
+# Load existing data
+restore()
+# Start all threads
+consolidate_t = threading.Thread(target=consolidate, daemon=True)
+consolidate_t.start()
+dumper_t = threading.Thread(target=dumper, daemon=True)
+dumper_t.start()
+reader_t = threading.Thread(target=reader, daemon=True)
+reader_t.start()
+reader_t.join()

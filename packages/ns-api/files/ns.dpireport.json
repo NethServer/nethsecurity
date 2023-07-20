@@ -1,0 +1,13 @@
+{
+  "dpireport-reader": {
+    "description": "Read dpireport",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.dpireport": [
+          "*"
+        ]
+      }
+    }
+  }
+}
