@@ -24,6 +24,10 @@ define Package/ns-api
 	DEPENDS:=+python3-nethsec +python3-openssl +python3-urllib +python3-idna
 	PKGARCH:=all
 endef
+
+define Package/ns-api/conffiles
+/etc/config/ns-api
+endef
  
 define Package/ns-api/description
 	Configure NethSecurity using REST APIs
@@ -69,6 +73,8 @@ define Package/ns-api/install
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_CONF) files/msmtp.keep $(1)/lib/upgrade/keep.d/msmtp
 	$(LN) /usr/bin/msmtp $(1)/usr/sbin/sendmail
+	$(INSTALL_DIR) $(1)/etc/config
+	$(INSTALL_CONF) ./files/config $(1)/etc/config/ns-api
 endef
  
 $(eval $(call BuildPackage,ns-api))
