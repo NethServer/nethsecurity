@@ -1,0 +1,40 @@
+# this lists the defaults used to create the interfaces for MWAN
+config defaults_mwan 'defaults_mwan'
+        # expect the interface used to be on
+        option initial_state 'online'
+        # protocol used to ping, can be 'ipv4' or 'ipv6'
+        option protocol 'ipv4'
+        # list of IPs/hosts for online checks
+        list track_ip '8.8.8.8'
+        list track_ip '208.67.222.222'
+        # what to use to send the ping for online status, do not touch unless told you so
+        option tracking_method 'ping'
+        # how many IPs need to answer before knowing if the link is online or not, the number goes from 1 to 100
+        option tracking_reliability '1'
+        # how many ping to send to each interval
+        option ping_count '1'
+        # ping size and time to live, leave defaults if possible
+        option ping_size '56'
+        option ping_max_ttl '60'
+        # after how much time a ping should be considered failed (in seconds)
+        option ping_timeout '4'
+        # ping interval on a online interface (in seconds)
+        option ping_interval '10'
+        # if ping fails, this is how often we check for an online status (in seconds)
+        option ping_failure_interval '5'
+        # seconds between pings when recovering from a failure, below a better explanation on how this option is treated
+        option ping_recovery_interval '5'
+        # this two options are counters of how many pings are needed to pass from the down status to the up status and
+        # vice-versa, the flow is: up -> down -> recovering -> up
+        option interface_down_threshold '5'
+        option interface_up_threshold '5'
+        # should the quality of the link be checked? if so, options below describe how the link should perform
+        option link_quality '0'
+        # in milliseconds
+        option quality_failure_latency '1000'
+        # in percentage (%)
+        option quality_failure_packet_loss '40'
+        # in milliseconds
+        option quality_recovery_latency '500'
+        # in percentage (%)
+        option quality_recovery_packet_loss '10'
