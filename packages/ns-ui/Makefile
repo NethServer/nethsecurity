@@ -7,7 +7,7 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-ui
 PKG_VERSION:=0.0.1
-UI_COMMIT=4a2132d3cf56c3c9ae1500ca2e142cf59b23f9a9
+UI_COMMIT=8e7e90ad03cd0ea2dcddd16ef67bb3d8b35569be
 PKG_RELEASE:=$(UI_COMMIT)
 
 PKG_SOURCE:=ui-$(UI_COMMIT).tar.gz
