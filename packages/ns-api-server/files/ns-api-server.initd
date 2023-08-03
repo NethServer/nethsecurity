@@ -23,7 +23,7 @@ start_service() {
     mkdir -m 0700 -p ${SECRETS_DIR}
 
     procd_set_param env GIN_MODE=release \
-        LISTEN_ADDRESS=127.0.0.1:9090 \
+        LISTEN_ADDRESS=127.0.0.1:8090 \
         SECRET_JWT="$(uuidgen | sha256sum | awk '{print $1}')" \
         ISSUER_2FA=${issuer_2fa} \
         SECRETS_DIR=${SECRETS_DIR} \
