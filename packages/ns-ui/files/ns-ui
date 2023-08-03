@@ -1,0 +1,55 @@
+#!/bin/bash
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+set -e
+
+NSUI_FILE=/etc/nginx/conf.d/00ns.locations
+NSUI_EXTRA_FILE=/etc/nginx/conf.d/ns-ui.conf
+LUCI_FILE=/etc/nginx/conf.d/luci.locations
+
+# Manage default ns-ui instance on port 443
+nsui_enable=$(uci -q get ns-ui.config.nsui_enable)
+if [ "$nsui_enable" == "1" ]; then
+    [ -f "$NSUI_FILE.disabled" ] && mv -f "$NSUI_FILE.disabled" "$NSUI_FILE"
+else
+    [ -f "$NSUI_FILE" ] && mv -f "$NSUI_FILE" "$NSUI_FILE.disabled"
+fi
+
+# Manage default luci instance on port 443
+luci_enable=$(uci -q get ns-ui.config.luci_enable)
+if [ "$luci_enable" == "1" ]; then
+    [ -f "$LUCI_FILE.disabled" ] && mv -f "$LUCI_FILE.disabled" "$LUCI_FILE"
+else
+    [ -f "$LUCI_FILE" ] && mv -f "$LUCI_FILE" "$LUCI_FILE.disabled"
+fi
+
+# Manage extra ns-ui instance on custom port
+nsui_extra_enable=$(uci -q get ns-ui.config.nsui_extra_enable)
+nsui_extra_port=$(uci -q get ns-ui.config.nsui_extra_port)
+if [[ "$nsui_extra_enable" == "1" && "$nsui_extra_port" != "" ]]; then
+    cat <<EOF > "$NSUI_EXTRA_FILE"
+server {
+	listen $nsui_extra_port ssl default_server;
+	listen [::]:$nsui_extra_port ssl default_server;
+	server_name _lan;
+	include conf.d/00ns.locations*;
+	include conf.d/luci.locations*;
+	ssl_certificate /etc/nginx/conf.d/_lan.crt;
+	ssl_certificate_key /etc/nginx/conf.d/_lan.key;
+	ssl_session_cache shared:SSL:32k;
+	ssl_session_timeout 64m;
+	error_log syslog:server=unix:/dev/log;
+	access_log syslog:server=unix:/dev/log;
+}
+EOF
+else
+    rm -f "$NSUI_EXTRA_FILE" ||  :
+fi
+
+if /usr/sbin/nginx -c /etc/nginx/uci.conf -T &> /dev/null ; then
+    /etc/init.d/nginx restart
+fi

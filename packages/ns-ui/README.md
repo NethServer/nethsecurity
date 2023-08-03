@@ -1,6 +1,47 @@
 # ns-ui
 
-ns-ui is the stand-alone UI built from [NethSecurity controller](https://github.com/NethServer/nethsecurity-controller).
+ns-ui is the stand-alone UI (User Interface) built from [NethSecurity controller](https://github.com/NethServer/nethsecurity-controller).
+
+## Management UI
+
+As default, the ns-ui management UI along with LuCi are available on standard HTTPS port 443
+at the following URL:
+- ns-ui: `/`
+- LuCi: `/cgi-bin/luci`
+
+You can:
+- selectively disable or enable both UIs
+- add an extra ns-ui instance on a different port
+
+Example: disable both UIs on port 443, enable ns-ui only port 9090:
+```
+uci set ns-ui.config.nsui_extra_enable=1
+uci set ns-ui.config.nsui_extra_port=9090
+uci set ns-ui.config.nsui_enable=0
+uci set ns-ui.config.luci_enable=0
+uci commit ns-ui
+ns-ui
+```
+
+## Configuration
+
+The package provides a configuration named `/etc/config/ns-ui`.
+It must contain a section named `config` of type `main`.
+
+Database example:
+```
+config main 'config'
+	option luci_enable '1'
+	option nsui_enable '1'
+	option nsui_extra_port '9090'
+	option nsui_extra_enable '0'
+```
+
+Available options:
+- `luci_enable`: it can be `0` or `1`; if set to `1` LuCi is enabled on port 443
+- `nsui_enable`: it can be `0` or `1`; if set to `1` ns-ui is enabled on port 443
+- `nsui_extra_port`: listen port for ns-ui extra instance, it must be a valid TCP port
+- `nsui_extra_enable`: it can be `0` or `1`; if set to `1` ns-ui is enabled on port set with `nsui_extra_port` option
 
 ## UI development
 
