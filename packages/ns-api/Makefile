@@ -27,6 +27,7 @@ endef
 
 define Package/ns-api/conffiles
 /etc/config/ns-api
+/etc/config/templates
 endef
  
 define Package/ns-api/description
@@ -75,6 +76,7 @@ define Package/ns-api/install
 	$(LN) /usr/bin/msmtp $(1)/usr/sbin/sendmail
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/config $(1)/etc/config/ns-api
+	$(INSTALL_CONF) ./files/templates $(1)/etc/config/
 endef
  
 $(eval $(call BuildPackage,ns-api))
