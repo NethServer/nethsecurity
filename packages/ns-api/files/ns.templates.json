@@ -1,0 +1,13 @@
+{
+  "templates-manager": {
+    "description": "Templates manager",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.templates": [
+          "*"
+        ]
+      }
+    }
+  }
+}

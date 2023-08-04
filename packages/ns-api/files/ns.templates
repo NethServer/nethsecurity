@@ -1,0 +1,39 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Manage templates
+
+import sys
+import json
+from euci import EUci
+from nethsec import utils, firewall
+
+def list_templates():
+    u = EUci()
+    templates = u.get_all('templates')
+    return {"templates": templates}
+
+def add_ipv6_rules():
+    u = EUci()
+    ret = list()
+    rules = ['ip6_dhcp', 'ip6_mld', 'ip6_icmp', 'ip6_icmp_forward']
+    for r in rules:
+        ret.append(firewall.add_template_rule(u, r, '', ''))
+    return {"rules": ret}
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({"list": {}, "add_ipv6_rules": {}}))
+elif cmd == 'call':
+    action = sys.argv[2]
+    if action == "list":
+        ret = list_templates()
+    elif action == "add_ipv6_rules":
+        ret = add_ipv6_rules()
+
+    print(json.dumps(ret))

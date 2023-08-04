@@ -71,6 +71,8 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.firewall.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.dpireport $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.dpireport.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.templates $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.templates.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_CONF) files/msmtp.keep $(1)/lib/upgrade/keep.d/msmtp
 	$(LN) /usr/bin/msmtp $(1)/usr/sbin/sendmail

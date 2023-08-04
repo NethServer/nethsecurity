@@ -364,6 +364,43 @@ Response example:
 {"success": true}
 ```
 
+## ns.templates
+
+### list
+
+Return the list of all templates from `/etc/config/templates` database:
+```
+api-cli ns.templates list
+```
+
+Response example:
+```json
+{
+  "templates": {
+    "ip6_dhcp": {
+      "name": "Allow-DHCPv6",
+      "src": "wan",
+      "proto": "udp",
+      "dest_port": "546",
+      "family": "ipv6",
+      "target": "ACCEPT"
+    },
+    ...
+}
+```
+
+### add_ipv6_rules
+
+Create all basic IPv6 rules. Return the list of created sections:
+```
+api-cli ns.templates add_ipv6_rules
+```
+
+Response example:
+```
+["ns_93c53354", "ns_59669e47", "ns_a0340929", "ns_dd7bb722"]
+```
+
 # Creating a new API
 
 Conventions:
