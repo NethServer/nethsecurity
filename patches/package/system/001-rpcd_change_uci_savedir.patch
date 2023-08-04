@@ -1,0 +1,37 @@
+diff -Naur system/rpcd.ori/patches/010-change_uci_savedir.patch system/rpcd/patches/010-change_uci_savedir.patch
+--- system/rpcd.ori/patches/010-change_uci_savedir.patch	1970-01-01 00:00:00.000000000 +0000
++++ system/rpcd/patches/010-change_uci_savedir.patch	2023-08-04 13:14:33.051063354 +0000
+@@ -0,0 +1,33 @@
++Index: rpcd-2022-12-15-7de4820c/uci.c
++===================================================================
++--- rpcd-2022-12-15-7de4820c.orig/uci.c
+++++ rpcd-2022-12-15-7de4820c/uci.c
++@@ -281,25 +281,13 @@ rpc_uci_replace_savedir(const char *path
++ }
++ 
++ /*
++- * Setup per-session delta save directory. If the passed "sid" blob attribute
++- * pointer is NULL then the precedure was not invoked through the ubus-rpc so
++- * we do not perform session isolation and use the default save directory.
+++ * Always save data inside the default uci temp dir:
+++ * allow all client to see current staged changes.
++  */
++ static void
++ rpc_uci_set_savedir(struct blob_attr *sid)
++ {
++-	char path[PATH_MAX];
++-
++-	if (!sid)
++-	{
++-		rpc_uci_replace_savedir("/tmp/.uci");
++-		return;
++-	}
++-
++-	snprintf(path, sizeof(path) - 1,
++-	         RPC_UCI_SAVEDIR_PREFIX "%s", blobmsg_get_string(sid));
++-
++-	rpc_uci_replace_savedir(path);
+++	rpc_uci_replace_savedir("/tmp/.uci");
++ }
++ 
++ /*
