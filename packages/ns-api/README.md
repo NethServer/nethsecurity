@@ -401,6 +401,22 @@ Response example:
 ["ns_93c53354", "ns_59669e47", "ns_a0340929", "ns_dd7bb722"]
 ```
 
+## ns.ovpnrw
+
+Manage OpenVPN Road Warrior server.
+
+### add-default-instance
+
+Create basic instance with network and firewall configuration:
+```
+api-cli ns.ovpnrw add-default-instance
+```
+
+Response example:
+```json
+{ "success": true }
+```
+
 # Creating a new API
 
 Conventions:

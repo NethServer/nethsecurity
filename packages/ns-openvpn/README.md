@@ -31,22 +31,28 @@ Supported authentication methods:
 
 ### First configuration
 
-After installation, the `ns-openvpnrw-setup`:
+After installation, the OpenVPN roadwarrior instance is not configured.
+
+You can enable it by invoking the `ns.ovpnrw`.`add-default-instance` API.
+The API will:
 
 - create a default OpenVPN roadwarrior server instance named `ns_roadwarrior`
 - open the default `ns_roadwarrior` port (`1194/udp`) from the WAN zone
 - create a `openvpnrw` trusted firewall zone which has access to LAN and WAN
 - setup the PKI (Public Key Infrastructure) inside `/etc/openvpn/<instance>/pki` with `ns-openvpnrw-init-pki`
+- create default firewall rules to access the `ns_roadwarrior` server from the WAN
 
 On client connect, the server will execute all scripts inside `/usr/libexec/ns-openvpn/connect-scripts/` directory in lexicographical order.
 On client disconnect, the server will execute all scripts inside `/usr/libexec/ns-openvpn/disconnect-scripts/` directory in lexicographical order.
 Each script takes 2 arguments: the server instance name and the client CN.
 
-Execute:
+Change from API are not commited.
+To start the OpenVPN execute:
 ```
-uci set openvpn.ns_roadwarrior.enabled=1
-uci commit openvpn
+uci commit openvpn firewall network
 service openvpn start
+service network restart
+service firewall restart
 ```
 
 ### Authentications methods
