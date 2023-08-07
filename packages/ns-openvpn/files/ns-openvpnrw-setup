@@ -7,6 +7,7 @@
 
 import os
 import sys
+import random
 import subprocess
 from euci import EUci
 from nethsec import firewall, utils
@@ -38,7 +39,7 @@ except:
     u.set('openvpn', instance, 'verb', '3')
     u.set('openvpn', instance, 'enabled', '0')
     u.set('openvpn', instance, 'keepalive', '20 120')
-    u.set('openvpn', instance, 'server', '10.42.66.0 255.255.255.0')
+    u.set('openvpn', instance, 'server', f'10.{random.randrange(254)}.{random.randrange(254)}.0 255.255.255.0')
     u.set('openvpn', instance, 'client_connect', f'"/usr/libexec/ns-openvpn/openvpn-connect {instance}"')
     u.set('openvpn', instance, 'client_disconnect', f'"/usr/libexec/ns-openvpn/openvpn-disconnect {instance}"')
     u.set('openvpn', instance, 'dh', f'/etc/openvpn/{instance}/pki/dh.pem')
