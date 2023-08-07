@@ -424,6 +424,7 @@ Conventions:
 - all APIs must read JSON object input from standard input
 - all APIs must write a JSON object to standard output: JSON arrays should always be wrapped inside
   an object due to ubus limitations
+- APIs should not commit changes to the configuration database: it's up to the user (or the UI) to commit them and restart the services
 
 To add a new API, follow these steps:
 1. create an executable file inside `/usr/libexec/rpcd/` directory, like `ns.example`, and restart rpcd
