@@ -33,10 +33,25 @@ def disable_ipv6_firewall():
     u = EUci()
     return {"sections": firewall.disable_ipv6_firewall(u)}
 
+def disable_linked_rules(link):
+    u = EUci()
+    return {"rules": firewall.disable_linked_rules(u, link)}
+
+def delete_linked_sections(link):
+    u = EUci()
+    return {"sections": firewall.delete_linked_sections(u, link)}
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
-    print(json.dumps({"list": {}, "add-ipv6-rules": {}, "is-ipv6-enabled": {}, 'disable-ipv6-firewall': {}}))
+    print(json.dumps({
+        "list": {},
+        "add-ipv6-rules": {},
+        "is-ipv6-enabled": {},
+        'disable-ipv6-firewall': {},
+        'disable-linked-rules': {"link": "openvpn/ns_roadwarrior"},
+        'delete-linked-sections': {"link": "openvpn/server1"},
+        }))
 elif cmd == 'call':
     action = sys.argv[2]
     if action == "list":
@@ -47,5 +62,11 @@ elif cmd == 'call':
         ret = is_ipv6_enabled()
     elif action == "disable-ipv6-firewall":
         ret = disable_ipv6_firewall()
+    elif action == "disable-linked-rules":
+        args = json.loads(sys.stdin.read())
+        ret = disable_linked_rules(args['link'])
+    elif action == "delete-linked-sections":
+        args = json.loads(sys.stdin.read())
+        ret = delete_linked_sections(args['link'])
 
     print(json.dumps(ret))

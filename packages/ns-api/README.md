@@ -414,9 +414,36 @@ Response example:
 
 ## disable-ipv6-firewall
 
-Disable all rules, forwardings, redirects, zones and ipsets for ipv6-only family.
+Disable all rules, forwardings, redirects, zones and ipsets for ipv6-only family:
+```
+api-cli ns.templates disable-ipv6-firewall
+```
 
 Response example, a list of disabled sections:
+```json
+{"sections": ["ns_3cb45d88", "ns_5c877052", "ns_61615098", "ns_ba392633"]}
+```
+
+## disable-linked-rules
+
+Disable all rules matching the given link:
+```
+api-cli ns.templates disable-linked-rules --data '{"link": "dedalo/config"}'
+```
+
+Response example, a list of disabled rules:
+```json
+{"rules": ["ns_3cb45d88", "ns_5c877052", "ns_61615098", "ns_ba392633"]}
+```
+
+## delete-linked-sections
+
+Delete all sections matching the given link:
+```
+api-cli ns.templates delete-linked-sections --data '{"link": "dedalo/config"}'
+```
+
+Response example, a list of deleted sections:
 ```json
 {"sections": ["ns_3cb45d88", "ns_5c877052", "ns_61615098", "ns_ba392633"]}
 ```
