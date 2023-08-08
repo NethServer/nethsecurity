@@ -385,7 +385,6 @@ Response example:
       "family": "ipv6",
       "target": "ACCEPT"
     },
-    ...
 }
 ```
 
@@ -397,9 +396,22 @@ api-cli ns.templates add-ipv6-rules
 ```
 
 Response example:
-```
+```json
 ["ns_93c53354", "ns_59669e47", "ns_a0340929", "ns_dd7bb722"]
 ```
+
+### is-ipv6-enabled
+
+Check if there are devices or network interfaces with IPv6 enabled:
+```
+api-cli ns.templates is-ipv6-enabled
+```
+
+Response example:
+```json
+{"enabled": true}
+```
+
 
 ## ns.ovpnrw
 

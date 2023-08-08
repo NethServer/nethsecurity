@@ -25,15 +25,21 @@ def add_ipv6_rules():
         ret.append(firewall.add_template_rule(u, r, '', ''))
     return {"rules": ret}
 
+def is_ipv6_enabled():
+    u = EUci()
+    return {"enabled": firewall.is_ipv6_enabled(u)}
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
-    print(json.dumps({"list": {}, "add-ipv6-rules": {}}))
+    print(json.dumps({"list": {}, "add-ipv6-rules": {}, "is-ipv6-enabled": {}}))
 elif cmd == 'call':
     action = sys.argv[2]
     if action == "list":
         ret = list_templates()
     elif action == "add-ipv6-rules":
         ret = add_ipv6_rules()
+    elif action == "is-ipv6-enabled":
+        ret = is_ipv6_enabled()
 
     print(json.dumps(ret))
