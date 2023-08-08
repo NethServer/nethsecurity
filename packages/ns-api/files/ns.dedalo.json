@@ -1,0 +1,13 @@
+{
+  "dedalo-manager": {
+    "description": "Manage Dedalo hotspot",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.dedalo": [
+          "*"
+        ]
+      }
+    }
+  }
+}

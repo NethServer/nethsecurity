@@ -43,55 +43,12 @@ define Package/ns-dedalo/conffiles
 /etc/config/dedalo
 endef
 
-define Package/ns-dedalo/networks_config
-
-set network.dedalo=interface
-set network.dedalo.proto='none'
-set network.dedalo.device='tun-dedalo'
-set network.dedalo.ipv6=0
-
-commit
-
-endef
-
 define Package/ns-dedalo/firewall_config
-
-set firewall.ns_dedalo=zone
-set firewall.ns_dedalo.name='dedalo'
-set firewall.ns_dedalo.network='dedalo'
-set firewall.ns_dedalo.mtu_fix=1
-set firewall.ns_dedalo.forward='DROP'
-set firewall.ns_dedalo.input='DROP'
-set firewall.ns_dedalo.output='ACCEPT'
-
-set firewall.ns_dedalo_to_wan=forwarding
-set firewall.ns_dedalo_to_wan.src='dedalo'
-set firewall.ns_dedalo_to_wan.dest='wan'
-
-set firewall.ns_hs_uamport=rule
-set firewall.ns_hs_uamport.name='Allow-HotSpot-UAM'
-set firewall.ns_hs_uamport.src='dedalo'
-set firewall.ns_hs_uamport.proto='tcp'
-set firewall.ns_hs_uamport.dest_port='3990'
-set firewall.ns_hs_uamport.target='ACCEPT'
-
-set firewall.ns_hs_dhcp=rule
-set firewall.ns_hs_dhcp.name='Allow-HotSpot-DHCP'
-set firewall.ns_hs_dhcp.src='dedalo'
-set firewall.ns_hs_dhcp.proto='udp'
-set firewall.ns_hs_dhcp.dest_port='67-68'
-set firewall.ns_hs_dhcp.target='ACCEPT'
-
-set firewall.ns_hs_dns=rule
-set firewall.ns_hs_dns.name='Allow-HotSpot-DNS'
-set firewall.ns_hs_dns.src='dedalo'
-set firewall.ns_hs_dns.proto='udp'
-set firewall.ns_hs_dns.dest_port='53'
-set firewall.ns_hs_dns.target='ACCEPT'
 
 set firewall.ns_hs_include=include
 set firewall.ns_hs_include.type='script'
 set firewall.ns_hs_include.path='/opt/icaro/dedalo/dedalo.user'
+set firewall.ns_hs_include.fw4_compatible='1'
 
 commit
 
@@ -101,13 +58,9 @@ define Package/ns-dedalo/postinst
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
 uci batch <<EOF
-$(Package/ns-dedalo/networks_config)
-EOF
-uci batch <<EOF
 $(Package/ns-dedalo/firewall_config)
 EOF
 else
-echo uci batch "<<EOF" "$(Package/ns-dedalo/networks_config)""EOF" >> $${IPKG_INSTROOT}/etc/uci-defaults/dedalo
 echo uci batch "<<EOF" "$(Package/ns-dedalo/firewall_config)""EOF" >> $${IPKG_INSTROOT}/etc/uci-defaults/dedalo
 echo "exit 0" >> $${IPKG_INSTROOT}/etc/uci-defaults/dedalo
 fi

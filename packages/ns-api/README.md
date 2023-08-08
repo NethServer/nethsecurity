@@ -417,6 +417,23 @@ Response example:
 { "success": true }
 ```
 
+## ns.dedalo
+
+Manage Dedalo hotspot
+
+### add-default-config
+
+Configure netwok and firewall for Dedalo:
+```
+api-cli ns.dedalo add-default-config
+```
+
+Response example:
+```json
+{ "success": true }
+```
+
+
 # Creating a new API
 
 Conventions:
