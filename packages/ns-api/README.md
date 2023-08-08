@@ -389,11 +389,11 @@ Response example:
 }
 ```
 
-### add_ipv6_rules
+### add-ipv6-rules
 
 Create all basic IPv6 rules. Return the list of created sections:
 ```
-api-cli ns.templates add_ipv6_rules
+api-cli ns.templates add-ipv6-rules
 ```
 
 Response example:

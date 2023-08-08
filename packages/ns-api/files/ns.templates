@@ -28,12 +28,12 @@ def add_ipv6_rules():
 cmd = sys.argv[1]
 
 if cmd == 'list':
-    print(json.dumps({"list": {}, "add_ipv6_rules": {}}))
+    print(json.dumps({"list": {}, "add-ipv6-rules": {}}))
 elif cmd == 'call':
     action = sys.argv[2]
     if action == "list":
         ret = list_templates()
-    elif action == "add_ipv6_rules":
+    elif action == "add-ipv6-rules":
         ret = add_ipv6_rules()
 
     print(json.dumps(ret))
