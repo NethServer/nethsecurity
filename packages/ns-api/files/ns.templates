@@ -29,10 +29,14 @@ def is_ipv6_enabled():
     u = EUci()
     return {"enabled": firewall.is_ipv6_enabled(u)}
 
+def disable_ipv6_firewall():
+    u = EUci()
+    return {"sections": firewall.disable_ipv6_firewall(u)}
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
-    print(json.dumps({"list": {}, "add-ipv6-rules": {}, "is-ipv6-enabled": {}}))
+    print(json.dumps({"list": {}, "add-ipv6-rules": {}, "is-ipv6-enabled": {}, 'disable-ipv6-firewall': {}}))
 elif cmd == 'call':
     action = sys.argv[2]
     if action == "list":
@@ -41,5 +45,7 @@ elif cmd == 'call':
         ret = add_ipv6_rules()
     elif action == "is-ipv6-enabled":
         ret = is_ipv6_enabled()
+    elif action == "disable-ipv6-firewall":
+        ret = disable_ipv6_firewall()
 
     print(json.dumps(ret))

@@ -412,6 +412,14 @@ Response example:
 {"enabled": true}
 ```
 
+## disable-ipv6-firewall
+
+Disable all rules, forwardings, redirects, zones and ipsets for ipv6-only family.
+
+Response example, a list of disabled sections:
+```json
+{"sections": ["ns_3cb45d88", "ns_5c877052", "ns_61615098", "ns_ba392633"]}
+```
 
 ## ns.ovpnrw
 
