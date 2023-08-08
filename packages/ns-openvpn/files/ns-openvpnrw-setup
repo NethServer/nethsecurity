@@ -20,8 +20,8 @@ if os.path.isdir(f'/etc/openvpn/{instance}'):
 u = EUci()
 firewall.add_to_lan(u, 'tunrw')
 olink = f"openvpn/{instance}"
-ovpn_interface = firewall.add_vpn_interface(u, 'openvpnrw', 'tunrw', link=olink)
-ovpn_zone = firewall.add_trusted_zone(u, "openvpnrw", [ovpn_interface], link=olink)
+ovpn_interface = firewall.add_vpn_interface(u, 'rwopenvpn', 'tunrw', link=olink)
+ovpn_zone = firewall.add_trusted_zone(u, "rwpenvpn", [ovpn_interface], link=olink)
 ovpn_rule = firewall.add_service(u, 'OpenVPNRW', '1194', 'udp', link=olink)
 
 try:

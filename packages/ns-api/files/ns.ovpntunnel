@@ -86,8 +86,8 @@ def import_client(tunnel):
     u.save('openvpn')
     # Add interface to LAN
     olink = f"openvpn/{iname}"
-    ovpn_interface = firewall.add_vpn_interface(u, 'openvpntun', tun, link=olink)
-    ovpn_zone = firewall.add_trusted_zone(u, "openvpntun", [ovpn_interface], link=olink)
+    ovpn_interface = firewall.add_vpn_interface(u, 'openvpn', tun, link=olink)
+    ovpn_zone = firewall.add_trusted_zone(u, "openvpn", [ovpn_interface], link=olink)
     return {"section": iname}
 
 def add_server(tunnel):
@@ -155,8 +155,8 @@ def add_server(tunnel):
     firewall.add_service(u, f'ovpn{name}', tunnel['lport'], proto, link=olink)
 
     # Add interface to LAN
-    ovpn_interface = firewall.add_vpn_interface(u, 'openvpntun', tun, link=olink)
-    ovpn_zone = firewall.add_trusted_zone(u, "openvpntun", [ovpn_interface], link=olink)
+    ovpn_interface = firewall.add_vpn_interface(u, 'openvpn', tun, link=olink)
+    ovpn_zone = firewall.add_trusted_zone(u, "openvpn", [ovpn_interface], link=olink)
     return {"section": iname}
 
 def export_client(name):

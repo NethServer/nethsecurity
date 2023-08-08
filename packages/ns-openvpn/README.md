@@ -38,7 +38,7 @@ The API will:
 
 - create a default OpenVPN roadwarrior server instance named `ns_roadwarrior`
 - open the default `ns_roadwarrior` port (`1194/udp`) from the WAN zone
-- create a `openvpnrw` trusted firewall zone which has access to LAN and WAN
+- create a `rwopenvpn` trusted firewall zone which has access to LAN and WAN
 - setup the PKI (Public Key Infrastructure) inside `/etc/openvpn/<instance>/pki` with `ns-openvpnrw-init-pki`
 - create default firewall rules to access the `ns_roadwarrior` server from the WAN
 
