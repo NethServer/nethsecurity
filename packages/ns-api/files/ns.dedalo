@@ -18,7 +18,7 @@ def configure_fw():
     rules = ['ns_hs_uamport', 'ns_hs_dhcp', 'ns_hs_dns']
     for r in rules:
         ret.append(firewall.add_template_rule(u, r, '', ''))
-    z, f = firewall.add_template_zone(u, 'ns_dedalo', link="dedalo/config")
+    z, f = firewall.add_template_zone(u, 'ns_hotspot', link="dedalo/config")
     if not ret or not z or not f:
         return False
     return True
@@ -29,7 +29,7 @@ def setup_dedalo():
     if  not configure_fw():
         return {"success": False}
 
-    interface = "dedalo"
+    interface = "hotspot"
     u.set("network", interface, "interface")
     u.set("network", interface, "proto", "none")
     u.set("network", interface, "ipv6", "0")
