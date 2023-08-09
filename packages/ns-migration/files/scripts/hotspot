@@ -7,6 +7,7 @@
 
 import sys
 import nsmigration
+import subprocess
 from nethsec import firewall, utils
 
 (u, data, nmap) = nsmigration.init("hotspot.json")
@@ -34,8 +35,15 @@ nsmigration.vprint(f"Configuring dedalo hotspot on {itype}")
 for o in data['config']:
     u.set('dedalo', 'config', o, data['config'][o])
 
-u.set('firewall', 'ns_dedalo', 'device', [data['config']['interface']])
+# Initialize configuration
+subprocess.run(["/usr/sbin/ns-dedalo-setup"])
+# Add device to hotspot zone
+zones = utils.get_all_by_type(u, 'firewall', 'zone')
+for z in zones.keys():
+    if u.get("firewall", z, "name") == "hotspot":
+        u.set('firewall', z, 'device', [data['config']['interface']])
 
 # Save configuration
+u.commit('network')
 u.commit("dedalo")
 firewall.apply(u)
