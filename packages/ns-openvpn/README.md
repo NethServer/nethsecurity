@@ -29,6 +29,12 @@ Supported authentication methods:
 - remote LDAP users with password
 - remote LDAP users with password and certificate
 
+Network and firewall configuration:
+
+- the network device is named `tunrw`
+- the default zone for the device is named `rwopenvpn`: this is a trusted zone,
+  it will have access to `lan` and `wan` zones, it will be also accessible from `lan` zone
+
 ### First configuration
 
 After installation, the OpenVPN roadwarrior instance is not configured.
@@ -313,7 +319,12 @@ ns-openvpnrw-print-client ns_roadwarrior giacomo > giacomo.ovpn
 ## OpenVPN tunnels
 
 Tunnels are normal `openvpn` sections inside `/etc/config/openvpn`.
-All tunnels are added the `openvpntun` trusted zone.
+
+Network and firewall configuration:
+
+- the network device is named `tun<tunnel_name>`
+- the default zone for tunnel devices is named `openvpn`: this is a trusted zone,
+  it will have access to `lan` and `wan` zones, it will be also accessible from `lan` zone
 
 ### Servers
 
