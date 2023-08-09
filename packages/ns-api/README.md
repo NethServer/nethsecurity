@@ -450,6 +450,19 @@ Response example, a list of deleted sections:
 {"sections": ["ns_3cb45d88", "ns_5c877052", "ns_61615098", "ns_ba392633"]}
 ```
 
+### add-service-group
+
+Create all rules for the given service group:
+```
+api-cli ns.templates add-service-group --data '{"name": "ns_remote_admin", "src": "lan", "dest": "wan"}'
+```
+
+Response example:
+```json
+{"sections": ["ns_11a7ea5c", "ns_075979e2"]}
+```
+
+
 ### add-guest-zone
 
 Create the guest zone. Please note that the network interface must already exists inside the `network` database:
