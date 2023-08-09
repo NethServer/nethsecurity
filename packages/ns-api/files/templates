@@ -55,6 +55,8 @@ config template_rule 'ip6_icmp_forward'
 	option family 'ipv6'
 	option target 'ACCEPT'
 
+# Hotspot (dedalo)
+
 config template_zone 'ns_hotspot'
 	option name 'hotspot'
 	option network 'hotspot'
@@ -88,6 +90,8 @@ config template_rule 'ns_hs_dns'
 	option proto 'udp'
 	option dest_port '53'
 	option target 'ACCEPT'
+
+# Guest zone (blue)
 
 config template_zone 'ns_guest'
 	option name 'guest'
