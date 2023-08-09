@@ -77,6 +77,8 @@ Differences since NS7:
   this configuration can be changed by setting `src` option to `*` and adding `device` option set to the WAN physical ethernet interface
 - `green` zone has been renamed to `lan`
 - `red` zone has been renamed to `wan`
+- `blue` zone has been renamed to `guest`
+- `orange` zone has been renamed to `dmz`
 - bridges over bonds are not supported since UCI requires to setup an IP address on bond devices
 
 ## Date and time
