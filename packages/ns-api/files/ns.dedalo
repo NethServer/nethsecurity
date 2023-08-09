@@ -9,36 +9,14 @@
 
 import sys
 import json
-from euci import EUci
-from nethsec import utils, firewall
-
-def configure_fw():
-    u = EUci()
-    ret = list()
-    rules = ['ns_hs_uamport', 'ns_hs_dhcp', 'ns_hs_dns']
-    for r in rules:
-        ret.append(firewall.add_template_rule(u, r, link="dedalo/config"))
-    z, f = firewall.add_template_zone(u, 'ns_dedalo', link="dedalo/config")
-    if not ret or not z or not f:
-        return False
-    return True
-
+import subprocess
 
 def setup_dedalo():
-    u = EUci()
-    if  not configure_fw():
+    try:
+        subprocess.run(["/usr/sbin/ns-dedalo-setup"], check=True)
+        return {"success": True}
+    except:
         return {"success": False}
-
-    interface = "dedalo"
-    u.set("network", interface, "interface")
-    u.set("network", interface, "proto", "none")
-    u.set("network", interface, "ipv6", "0")
-    u.set("network", interface, "device", f"tun-{interface}")
-    u.set("network", interface, "ns_link", "dedalo/config")
-    u.set("network", interface, "ns_tag", ["automated"])
-    u.save("network")
-
-    return {"success": True}
 
 cmd = sys.argv[1]
 
