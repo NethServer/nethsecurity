@@ -1,0 +1,28 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Setup Dedalo hotspot
+
+import sys
+import json
+import subprocess
+
+def setup_dedalo():
+    try:
+        subprocess.run(["/usr/sbin/ns-dedalo-setup"], check=True)
+        return {"success": True}
+    except:
+        return {"success": False}
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({"add-default-config": {}}))
+else:
+    action = sys.argv[2]
+    if action == "add-default-config":
+        print(json.dumps(setup_dedalo()))

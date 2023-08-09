@@ -1,0 +1,13 @@
+{
+  "ovpnrw-manager": {
+    "description": "Read and write OpenVPN roadwarrior",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.ovpnrw": [
+          "*"
+        ]
+      }
+    }
+  }
+}

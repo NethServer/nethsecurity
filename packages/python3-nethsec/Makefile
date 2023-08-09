@@ -14,7 +14,7 @@ PKG_LICENSE:=GPL-3.0-only
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/NethServer/python3-nethsec
-PKG_SOURCE_VERSION:=98e28e9e21c2b814da626d7bfb71e52bcbc3409d
+PKG_SOURCE_VERSION:=03ea6f46f54baadfc6c6627f2570d1ddcc1e5e6a
 
 include $(INCLUDE_DIR)/package.mk
 include $(TOPDIR)/feeds/packages/lang/python/python3-package.mk

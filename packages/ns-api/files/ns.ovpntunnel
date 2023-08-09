@@ -83,12 +83,11 @@ def import_client(tunnel):
     if tunnel.get('TlsVersionMin', ''):
         u.set("openvpn", iname, "tls_version_min", tunnel['TlsVersionMin'])
 
-    u.commit('openvpn')
-    subprocess.run(['/etc/init.d/openvpn', 'reload'])
+    u.save('openvpn')
     # Add interface to LAN
-    ovpn_interface = firewall.add_vpn_interface(u, 'openvpntun', tun)
-    ovpn_zone = firewall.add_trusted_zone(u, "openvpntun", [ovpn_interface])
-    firewall.apply(u)
+    olink = f"openvpn/{iname}"
+    ovpn_interface = firewall.add_vpn_interface(u, 'openvpn', tun, link=olink)
+    ovpn_zone = firewall.add_trusted_zone(u, "openvpn", [ovpn_interface], link=olink)
     return {"section": iname}
 
 def add_server(tunnel):
@@ -143,8 +142,7 @@ def add_server(tunnel):
     # custom properties not honored by openvpn config
     u.set("openvpn", iname, "public_ip", tunnel['public_ip'])
 
-    u.commit('openvpn')
-    subprocess.run(['/etc/init.d/openvpn', 'reload'])
+    u.save('openvpn')
 
     # Setup dynamic config for iroute:
     # OpenVPN on NethSec requires an iroute directive for the remote network
@@ -153,12 +151,12 @@ def add_server(tunnel):
 
     # Open OpenVPN port
     proto = tunnel['proto'].removesuffix('-server')
-    firewall.add_service(u, f'ovpn{name}', tunnel['lport'], proto)
+    olink = f"openvpn/{iname}"
+    firewall.add_service(u, f'ovpn{name}', tunnel['lport'], proto, link=olink)
 
     # Add interface to LAN
-    ovpn_interface = firewall.add_vpn_interface(u, 'openvpntun', tun)
-    ovpn_zone = firewall.add_trusted_zone(u, "openvpntun", [ovpn_interface])
-    firewall.apply(u)
+    ovpn_interface = firewall.add_vpn_interface(u, 'openvpn', tun, link=olink)
+    ovpn_zone = firewall.add_trusted_zone(u, "openvpn", [ovpn_interface], link=olink)
     return {"section": iname}
 
 def export_client(name):

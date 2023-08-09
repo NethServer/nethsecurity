@@ -1,0 +1,28 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Setup default OpenVPN roadwarrior instance
+
+import sys
+import json
+import subprocess
+
+def add_default_instance():
+    try:
+        subprocess.run(["/usr/sbin/ns-openvpnrw-setup"], check=True)
+        return {"success": True}
+    except:
+        return {"success": False}
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({"add-default-instance": {}}))
+else:
+    action = sys.argv[2]
+    if action == "add-default-instance":
+        print(json.dumps(add_default_instance()))

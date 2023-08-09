@@ -66,6 +66,9 @@ done
 
 rm -rf $tmp_dir
 
+# Commit everything
+uci commit
+
 # Restart services
 service network restart
 service firewall restart

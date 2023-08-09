@@ -364,6 +364,150 @@ Response example:
 {"success": true}
 ```
 
+## ns.templates
+
+See [#template-database](template database) for more info.
+
+### list
+
+Return the list of all templates from `/etc/config/templates` database:
+```
+api-cli ns.templates list
+```
+
+Response example:
+```json
+{
+  "templates": {
+    "ip6_dhcp": {
+      "name": "Allow-DHCPv6",
+      "src": "wan",
+      "proto": "udp",
+      "dest_port": "546",
+      "family": "ipv6",
+      "target": "ACCEPT"
+    },
+}
+```
+
+### add-ipv6-rules
+
+Create all basic IPv6 rules. Return the list of created sections:
+```
+api-cli ns.templates add-ipv6-rules
+```
+
+Response example:
+```json
+["ns_93c53354", "ns_59669e47", "ns_a0340929", "ns_dd7bb722"]
+```
+
+### is-ipv6-enabled
+
+Check if there are devices or network interfaces with IPv6 enabled:
+```
+api-cli ns.templates is-ipv6-enabled
+```
+
+Response example:
+```json
+{"enabled": true}
+```
+
+### disable-ipv6-firewall
+
+Disable all rules, forwardings, redirects, zones and ipsets for ipv6-only family:
+```
+api-cli ns.templates disable-ipv6-firewall
+```
+
+Response example, a list of disabled sections:
+```json
+{"sections": ["ns_3cb45d88", "ns_5c877052", "ns_61615098", "ns_ba392633"]}
+```
+
+### disable-linked-rules
+
+Disable all rules matching the given link:
+```
+api-cli ns.templates disable-linked-rules --data '{"link": "dedalo/config"}'
+```
+
+Response example, a list of disabled rules:
+```json
+{"rules": ["ns_3cb45d88", "ns_5c877052", "ns_61615098", "ns_ba392633"]}
+```
+
+### delete-linked-sections
+
+Delete all sections matching the given link:
+```
+api-cli ns.templates delete-linked-sections --data '{"link": "dedalo/config"}'
+```
+
+Response example, a list of deleted sections:
+```json
+{"sections": ["ns_3cb45d88", "ns_5c877052", "ns_61615098", "ns_ba392633"]}
+```
+
+### add-service-group
+
+Create all rules for the given service group:
+```
+api-cli ns.templates add-service-group --data '{"name": "ns_remote_admin", "src": "lan", "dest": "wan"}'
+```
+
+Response example:
+```json
+{"sections": ["ns_11a7ea5c", "ns_075979e2"]}
+```
+
+
+### add-guest-zone
+
+Create the guest zone. Please note that the network interface must already exists inside the `network` database:
+```
+api-cli ns.templates add-guest-zone --data '{"network": "guest"}'
+```
+
+Response:
+```json
+{"zone": "ns_6d44f2a7", "forwardings": ["ns_c307fd13", "ns_9a15bb1d"]}
+```
+
+## ns.ovpnrw
+
+Manage OpenVPN Road Warrior server.
+
+### add-default-instance
+
+Create basic instance with network and firewall configuration:
+```
+api-cli ns.ovpnrw add-default-instance
+```
+
+Response example:
+```json
+{ "success": true }
+```
+
+## ns.dedalo
+
+Manage Dedalo hotspot
+
+### add-default-config
+
+Configure netwok and firewall for Dedalo:
+```
+api-cli ns.dedalo add-default-config
+```
+
+Response example:
+```json
+{ "success": true }
+```
+
+
 # Creating a new API
 
 Conventions:
@@ -371,6 +515,7 @@ Conventions:
 - all APIs must read JSON object input from standard input
 - all APIs must write a JSON object to standard output: JSON arrays should always be wrapped inside
   an object due to ubus limitations
+- APIs should not commit changes to the configuration database: it's up to the user (or the UI) to commit them and restart the services
 
 To add a new API, follow these steps:
 1. create an executable file inside `/usr/libexec/rpcd/` directory, like `ns.example`, and restart rpcd
@@ -457,3 +602,78 @@ echo '{"limit": 5 }' | /usr/libexec/rpcd/ns.talkers call list
 References
 - [RPCD](https://openwrt.org/docs/techref/rpcd)
 - [JSONRPC](https://github.com/openwrt/luci/wiki/JsonRpcHowTo)
+
+# Template database
+
+The `templates` database contains some special sections which can be used as template to generate new sections inside the real UCI configuration files. This is a list of currently supported files.
+
+## Service groups
+        
+Record type: `template_service_group`
+
+Description: this section defines service groups, which are collections of multiple network services. Each service group has a name and includes various services with their corresponding ports and protocols. It generated a rule for each protocol (`udp` or `tcp`) where all services are grouped
+
+Options:
+- option `name`: specifies the name or description of the service group, it can be used inside the UI
+- list `services`: represents a list of network services included in the service group. 
+      Each service is defined with a string in the form `<port>/<protocol>/<name>' like `80/tcp/HTTP`
+
+Example:
+```
+config template_service_group 'ns_web_secure'
+	option name 'Secure web navigation'
+	list services '80/tcp/HTTP'
+	list services '443/tcp/HTTP Secure'
+	list services '53/udp/DNS'
+```
+
+## Zones
+
+Record type: `template_zone`
+
+Description: this section defines network zones, each with a distinct purpose and network policies. Zones specify how traffic is handled, such as allowing or dropping incoming and outgoing packets.
+
+Contains all options from UCI `zone`, plus the following:
+- list `forwardings`: a list of forwardings to create for this zone, see below
+- option `ns_description`
+
+Example:
+```
+config template_zone 'ns_guest'
+	option name 'guest'
+	option forward 'DROP'
+	option input 'DROP'
+	option output 'ACCEPT'
+	option ns_description 'Guest network with Internet access'
+	list forwardings 'ns_guest2wan'
+
+config template_forwarding 'ns_guest2wan'
+	option src 'guest'
+	option dest 'wan'
+```
+
+##  Forwarding rules
+
+Record types: `template_forwarding`
+
+Description: this section defines forwarding rules that determine how traffic is forwarded between different zones. Each forwarding rule specifies a source zone and a destination zone.
+
+See zones for an example.
+
+## Rules
+
+Record type: `template_rule`
+
+Description: this section defines a template rule that applies to specific traffic between zones. The rule sets conditions for packet acceptance or rejection based on the source and destination zones, ports, and protocols. The placeholders `__PORT__` and `__PROTO__` are intended to be replaced with actual port numbers and protocols.
+
+Example:
+```
+config template_rule 'ns_test_rule'
+	option name 'Test-rule'
+	option src 'wan'
+	option dest 'blue'
+	option dest_port '__PORT__'
+	option proto '__PROTO__'
+	option target 'ACCEPT'
+	option enabled '1'
+```

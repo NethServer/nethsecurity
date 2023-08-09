@@ -100,10 +100,10 @@ for user in data["users"]:
     save_cert(os.path.join(cert_dir, f'issued/{sname}.crt'), user['crt'])
 
 # Add interface to LAN
-ovpn_interface = firewall.add_vpn_interface(u, 'openvpnrw', data['rw']['options']['dev'])
-ovpn_zone = firewall.add_trusted_zone(u, "openvpnrw", [ovpn_interface])
+ovpn_interface = firewall.add_vpn_interface(u, 'rwopenvpn', data['rw']['options']['dev'])
+ovpn_zone = firewall.add_trusted_zone(u, "rwopenvpn", [ovpn_interface])
 # Open OpenVPN port
-firewall.add_service(u, 'openvpnrw', data['rw']['options']['port'], data['rw']['options']['proto'])
+firewall.add_service(u, 'OpenVPNRW', data['rw']['options']['port'], data['rw']['options']['proto'])
 
 # Save configuration
 u.commit("openvpn")

@@ -7,6 +7,7 @@
 
 import os
 import sys
+import random
 import subprocess
 from euci import EUci
 from nethsec import firewall, utils
@@ -18,10 +19,10 @@ if os.path.isdir(f'/etc/openvpn/{instance}'):
 
 u = EUci()
 firewall.add_to_lan(u, 'tunrw')
-ovpn_interface = firewall.add_vpn_interface(u, 'openvpnrw', 'tunrw')
-ovpn_zone = firewall.add_trusted_zone(u, "openvpnrw", [ovpn_interface])
-firewall.add_service(u, 'openvpnrw', '1194', 'udp')
-u.commit('firewall')
+olink = f"openvpn/{instance}"
+ovpn_interface = firewall.add_vpn_interface(u, 'rwopenvpn', 'tunrw', link=olink)
+ovpn_zone = firewall.add_trusted_zone(u, "rwpenvpn", [ovpn_interface], link=olink)
+ovpn_rule = firewall.add_service(u, 'OpenVPNRW', '1194', 'udp', link=olink)
 
 try:
     u.get('openvpn', instance)
@@ -36,9 +37,9 @@ except:
     u.set('openvpn', instance, 'passtos', '1')
     u.set('openvpn', instance, 'multihome', '1')
     u.set('openvpn', instance, 'verb', '3')
-    u.set('openvpn', instance, 'enabled', '0')
+    u.set('openvpn', instance, 'enabled', '1')
     u.set('openvpn', instance, 'keepalive', '20 120')
-    u.set('openvpn', instance, 'server', '10.42.66.0 255.255.255.0')
+    u.set('openvpn', instance, 'server', f'10.{random.randrange(254)}.{random.randrange(254)}.0 255.255.255.0')
     u.set('openvpn', instance, 'client_connect', f'"/usr/libexec/ns-openvpn/openvpn-connect {instance}"')
     u.set('openvpn', instance, 'client_disconnect', f'"/usr/libexec/ns-openvpn/openvpn-disconnect {instance}"')
     u.set('openvpn', instance, 'dh', f'/etc/openvpn/{instance}/pki/dh.pem')
@@ -46,7 +47,9 @@ except:
     u.set('openvpn', instance, 'cert', f'/etc/openvpn/{instance}/pki/issued/server.crt')
     u.set('openvpn', instance, 'crl_verify', f'/etc/openvpn/{instance}/pki/crl.pem')
     u.set('openvpn', instance, 'key', f'/etc/openvpn/{instance}/pki/private/server.key')
-    u.commit('openvpn')
+    u.set('openvpn', instance, 'ns_description', "Default OpenVPN RoadWarrior instance")
+    u.set('openvpn', instance, 'ns_tag', ["automated"])
+    u.save('openvpn')
 
     # initialize pki
     subprocess.run(["/usr/sbin/ns-openvpnrw-init-pki", instance])

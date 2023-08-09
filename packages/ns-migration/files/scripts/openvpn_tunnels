@@ -55,8 +55,8 @@ def import_tunnel(u, tunnel, ttype):
         firewall.add_service(u, f'ovpn{name}', tunnel['lport'], proto)
 
     # Add interface to LAN
-    ovpn_interface = firewall.add_vpn_interface(u, 'openvpntun', tunnel['dev'])
-    ovpn_zone = firewall.add_trusted_zone(u, "openvpntun", [ovpn_interface])
+    ovpn_interface = firewall.add_vpn_interface(u, 'openvpn', tunnel['dev'])
+    ovpn_zone = firewall.add_trusted_zone(u, "openvpn", [ovpn_interface])
 
 
 (u, data, nmap) = nsmigration.init("openvpn_tunnels.json")

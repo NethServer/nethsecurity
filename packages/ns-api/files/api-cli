@@ -83,4 +83,13 @@ if not session:
     print("Bad authentication")
     sys.exit(1)
 response = call_api(session, args.path, args.method, params)
-print(json.dumps(response['result'][1]))
+if 'result' in response:
+    if len(response['result']) > 1:
+        print(json.dumps(response['result'][1]))
+        sys.exit(0)
+    else:
+        print("Generic error")
+        sys.exit(response['result'][0])
+else:
+    print(f'Error: {response["error"]["message"]}')
+    sys.exit(1)

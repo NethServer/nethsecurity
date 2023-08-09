@@ -6,7 +6,10 @@ nav_order: 05
 
 # Design
 
-**Goals**
+* TOC
+{:toc}
+
+## Goals
 
 Replace NethServer 7 firewall implementation with a dedicated UTM Linux distribution based on [OpenWrt](https://openwrt.org/)
 
@@ -18,7 +21,7 @@ Key features:
 - IPv6 support
 - optional [remote controller](../packages/ns-plug)
 
-**Architecture and design**
+## Architecture and design
 
 - no modularity: the OS is distributed as a bootable image
 - auto-updates only for security fixes or critical bugs
@@ -39,12 +42,36 @@ Also, the default shell is `bash`.
 
 ## Conventions
 
-### UCI configuration
+### Zones
 
-Whenever possible, all UCI section are named section.
-Automatically generated section are named with a `ns_` prefix.
+The firewall configuration comprises three default zones:
 
-The user should always avoid to manually edit sections containing the `ns_prefix.`
+- `lan`: this zone encompasses all hosts within the local area network. It was previously referred to as `green` in NethServer 7 (NS7).
+- `wan`: this zone represents the external network interface providing access to the Internet.
+   It is inherently untrusted and should be treated as the gateway to the wider online network. In NethServer 7 (NS7), this zone was formerly denoted as `red`.
+- `guest`: this zone encompasses non-trusted devices that are solely granted access to the Internet. It was previously labeled as `blue` in NS7.
+
+The `lan` and `wan` zones are consistently existent, whereas the `guest` zone is instantiated only upon assignment of an interface.
+
+Firewall policies facilitate inter-zone traffic according to the following schema:
+```
+lan -> guest -> wan
+```
+
+Traffic is permitted from left to right and denied from right to left.
+
+### UCI
+
+In the system, named UCI ections are generated whenever possible. Automatically generated sections typically bear a `ns_` prefix.
+
+Several distinctive options have been incorporated into UCI configuration sections:
+
+- `ns_description`: this option contains a comprehensive description aimed at elucidating the purpose of the section
+- `ns_link`: this option facilitates the linking of one record to another and adopts the format `<configuration>/<section_name>`.
+   It is commonly applied to rules and zones. This functionality serves to associate all rules and zones with a specific service:
+   if the particular service is deactivated, the linked rules and zones may also be automatically disabled
+- `ns_tag`: this option allows the assignment of a list of tags to any section.
+   Users can define custom tags. Meanwhile, the system already employs the special `automated` tag to label automatically generated sections.
 
 ### Packages
 

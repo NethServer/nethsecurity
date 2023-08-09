@@ -29,24 +29,36 @@ Supported authentication methods:
 - remote LDAP users with password
 - remote LDAP users with password and certificate
 
+Network and firewall configuration:
+
+- the network device is named `tunrw`
+- the default zone for the device is named `rwopenvpn`: this is a trusted zone,
+  it will have access to `lan` and `wan` zones, it will be also accessible from `lan` zone
+
 ### First configuration
 
-After installation, the `ns-openvpnrw-setup`:
+After installation, the OpenVPN roadwarrior instance is not configured.
+
+You can enable it by invoking the `ns.ovpnrw`.`add-default-instance` API.
+The API will:
 
 - create a default OpenVPN roadwarrior server instance named `ns_roadwarrior`
 - open the default `ns_roadwarrior` port (`1194/udp`) from the WAN zone
-- create a `openvpnrw` trusted firewall zone which has access to LAN and WAN
+- create a `rwopenvpn` trusted firewall zone which has access to LAN and WAN
 - setup the PKI (Public Key Infrastructure) inside `/etc/openvpn/<instance>/pki` with `ns-openvpnrw-init-pki`
+- create default firewall rules to access the `ns_roadwarrior` server from the WAN
 
 On client connect, the server will execute all scripts inside `/usr/libexec/ns-openvpn/connect-scripts/` directory in lexicographical order.
 On client disconnect, the server will execute all scripts inside `/usr/libexec/ns-openvpn/disconnect-scripts/` directory in lexicographical order.
 Each script takes 2 arguments: the server instance name and the client CN.
 
-Execute:
+Change from API are not commited.
+To start the OpenVPN execute:
 ```
-uci set openvpn.ns_roadwarrior.enabled=1
-uci commit openvpn
+uci commit openvpn firewall network
 service openvpn start
+service network restart
+service firewall restart
 ```
 
 ### Authentications methods
@@ -307,7 +319,12 @@ ns-openvpnrw-print-client ns_roadwarrior giacomo > giacomo.ovpn
 ## OpenVPN tunnels
 
 Tunnels are normal `openvpn` sections inside `/etc/config/openvpn`.
-All tunnels are added the `openvpntun` trusted zone.
+
+Network and firewall configuration:
+
+- the network device is named `tun<tunnel_name>`
+- the default zone for tunnel devices is named `openvpn`: this is a trusted zone,
+  it will have access to `lan` and `wan` zones, it will be also accessible from `lan` zone
 
 ### Servers
 

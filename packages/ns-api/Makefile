@@ -27,6 +27,7 @@ endef
 
 define Package/ns-api/conffiles
 /etc/config/ns-api
+/etc/config/templates
 endef
  
 define Package/ns-api/description
@@ -64,17 +65,24 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.talkers.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.ovpntunnel $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.ovpntunnel.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.ovpnrw $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.ovpnrw.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.smtp $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.smtp.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.firewall $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.firewall.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.dpireport $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.dpireport.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.templates $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.templates.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.dedalo $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.dedalo.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_CONF) files/msmtp.keep $(1)/lib/upgrade/keep.d/msmtp
 	$(LN) /usr/bin/msmtp $(1)/usr/sbin/sendmail
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/config $(1)/etc/config/ns-api
+	$(INSTALL_CONF) ./files/templates $(1)/etc/config/
 endef
  
 $(eval $(call BuildPackage,ns-api))
