@@ -4,10 +4,10 @@ ns-ui is the stand-alone UI (User Interface) built from [NethSecurity controller
 
 ## Management UI
 
-As default, the ns-ui management UI along with LuCi are available on standard HTTPS port 443
+By default, the ns-ui management UI along with LuCI is available on standard HTTPS port 443
 at the following URL:
 - ns-ui: `/`
-- LuCi: `/cgi-bin/luci`
+- LuCI: `/cgi-bin/luci`
 
 You can:
 - selectively disable or enable both UIs
@@ -38,7 +38,7 @@ config main 'config'
 ```
 
 Available options:
-- `luci_enable`: it can be `0` or `1`; if set to `1` LuCi is enabled on port 443
+- `luci_enable`: it can be `0` or `1`; if set to `1` LuCI is enabled on port 443
 - `nsui_enable`: it can be `0` or `1`; if set to `1` ns-ui is enabled on port 443
 - `nsui_extra_port`: listen port for ns-ui extra instance, it must be a valid TCP port
 - `nsui_extra_enable`: it can be `0` or `1`; if set to `1` ns-ui is enabled on port set with `nsui_extra_port` option
