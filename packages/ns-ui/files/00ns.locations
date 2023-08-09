@@ -8,5 +8,5 @@ location / {
 location /api/ {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_pass http://127.0.0.1:9090/api/;
+        proxy_pass http://127.0.0.1:8090/api/;
 }

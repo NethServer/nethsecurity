@@ -1,0 +1,6 @@
+
+config main 'config'
+	option luci_enable '1'
+	option nsui_enable '1'
+	option nsui_extra_port '9090'
+	option nsui_extra_enable '0'

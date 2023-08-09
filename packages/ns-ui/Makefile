@@ -40,14 +40,24 @@ endef
 define Build/Configure
 endef
 
+define Package/ns-ui/conffiles
+/etc/config/ns-ui
+endef
+
 # this is required, otherwise compile will fail
 define Build/Compile
 endef
 
 define Package/ns-ui/install
 	$(INSTALL_DIR) $(1)/www-ns
+	$(INSTALL_DIR) $(1)/etc/config
+	$(INSTALL_DIR) $(1)/usr/sbin
+	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_DIR) $(1)/etc/nginx/conf.d
 	$(INSTALL_CONF) ./files/00ns.locations $(1)/etc/nginx/conf.d/
+	$(INSTALL_CONF) ./files/config $(1)/etc/config/ns-ui
+	$(INSTALL_BIN) ./files/ns-ui $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/99_ns-ui $(1)/etc/uci-defaults
 	$(CP) $(PKG_BUILD_DIR)/../dist/* $(1)/www-ns
 endef
  
