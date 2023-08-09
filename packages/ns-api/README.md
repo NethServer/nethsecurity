@@ -412,7 +412,7 @@ Response example:
 {"enabled": true}
 ```
 
-## disable-ipv6-firewall
+### disable-ipv6-firewall
 
 Disable all rules, forwardings, redirects, zones and ipsets for ipv6-only family:
 ```
@@ -424,7 +424,7 @@ Response example, a list of disabled sections:
 {"sections": ["ns_3cb45d88", "ns_5c877052", "ns_61615098", "ns_ba392633"]}
 ```
 
-## disable-linked-rules
+### disable-linked-rules
 
 Disable all rules matching the given link:
 ```
@@ -436,7 +436,7 @@ Response example, a list of disabled rules:
 {"rules": ["ns_3cb45d88", "ns_5c877052", "ns_61615098", "ns_ba392633"]}
 ```
 
-## delete-linked-sections
+### delete-linked-sections
 
 Delete all sections matching the given link:
 ```
@@ -446,6 +446,18 @@ api-cli ns.templates delete-linked-sections --data '{"link": "dedalo/config"}'
 Response example, a list of deleted sections:
 ```json
 {"sections": ["ns_3cb45d88", "ns_5c877052", "ns_61615098", "ns_ba392633"]}
+```
+
+### add-guest-zone
+
+Create the guest zone. Please note that the network interface must already exists inside the `network` database:
+```
+api-cli ns.templates add-guest-zone --data '{"network": "guest"}'
+```
+
+Response:
+```json
+{"zone": "ns_6d44f2a7", "forwardings": ["ns_c307fd13", "ns_9a15bb1d"]}
 ```
 
 ## ns.ovpnrw
