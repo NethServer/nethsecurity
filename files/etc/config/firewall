@@ -44,13 +44,6 @@ config rule 'ns_ping_wan'
 	option family		ipv4
 	option target		ACCEPT
 
-config rule
-	option name		Allow-IGMP
-	option src		wan
-	option proto		igmp
-	option family		ipv4
-	option target		ACCEPT
-
 # include a file with users custom iptables rules
 config include
 	option path /etc/firewall.user
