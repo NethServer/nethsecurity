@@ -45,5 +45,6 @@ config rule 'ns_ping_wan'
 	option target		ACCEPT
 
 # include a file with users custom iptables rules
-config include
+config include 'ns_user_include'
 	option path /etc/firewall.user
+	option fw4_compatible 1
