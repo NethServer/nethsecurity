@@ -14,7 +14,7 @@ for pf in data['redirects']:
     sname = ''
     name = pf.pop("key")
     pfname = utils.get_id(name)
-    desc = pf.pop("description")
+    desc = pf.pop("ns_description")
     # create port forward 
     nsmigration.vprint(f'Creating port forward {pfname}')
     u.set("firewall", pfname, "redirect")

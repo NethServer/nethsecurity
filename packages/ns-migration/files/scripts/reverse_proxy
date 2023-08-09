@@ -46,7 +46,7 @@ for server in data['servers']:
         fp.write(key)
     u.set('nginx', s, 'ssl_certificate_key', f'/etc/nginx/conf.d/{s}.key')
     nsmigration.vprint(f'Setting reverse proxy host {s}')
-    u.set('nginx', s, 'uci_description', server.pop('description'))
+    u.set('nginx', s, 'uci_description', server.pop('ns_description'))
     for o in server:
         u.set('nginx', s, o, server[o])
 
