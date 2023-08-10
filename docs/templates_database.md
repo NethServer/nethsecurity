@@ -21,7 +21,7 @@ Currently, the known services include:
 - Nginx: change management UI port
 
 Configuration wizards:
-- Run a first configuration with 3 zones (lan, wan, and guests): this wizard automatically creates the "blue zone" for guests.
+- Run a first configuration with 3 zones (lan, wan, and guests): this wizard automatically creates the zone for guests.
 - Run a first configuration with strict mode (where all traffic is closed from lan to wan): enable access to a list of well-known services.
 
 ## Record types
@@ -32,7 +32,7 @@ The `templates` database contains some special sections which can be used as tem
         
 Record type: `template_service_group`
 
-Description: this section defines service groups, which are collections of multiple network services. Each service group has a name and includes various services with their corresponding ports and protocols. It generated a rule for each protocol (`udp` or `tcp`) where all services a grouped
+Description: this section defines service groups, which are collections of multiple network services. Each service group has a name and includes various services with their corresponding ports and protocols. It generates a rule for each protocol (`udp` or `tcp`) where all services are grouped.
 
 Options:
 - option `name`: specifies the name or description of the service group, it can be used inside the UI
@@ -60,16 +60,16 @@ Contains all options from UCI `zone`, plus the following:
 
 Example:
 ```
-config template_zone 'ns_blue'
-	option name 'blue'
+config template_zone 'ns_guest'
+	option name 'guest'
 	option forward 'DROP'
 	option input 'DROP'
 	option output 'ACCEPT'
 	option ns_description 'Guest network with Internet access'
-	list forwardings 'ns_blue2wan'
+	list forwardings 'ns_guest2wan'
 
-config template_forwarding 'ns_blue2wan'
-	option src 'blue'
+config template_forwarding 'ns_guest2wan'
+	option src 'guest'
 	option dest 'wan'
 ```
 
