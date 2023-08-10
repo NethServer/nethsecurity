@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 #
 # Copyright (C) 2022 Nethesis S.r.l.
@@ -55,13 +55,15 @@ fi
 
 # Register the server
 valid=0
+max_attempts=30 # 60 seconds
+watchdog=0
 response=""
-until [ ${valid} -eq 1 ]
+until [ "${valid}" -eq 1 ] || [ "${watchdog}" -ge "${max_attempts}" ]
 do
     response=$(curl ${curl_opts} -H "Content-Type: application/json" ${server}/api/units/register -X POST --data '{"unit_name": "'${system_id}'", "username": "'${user}'", "password": "'${secret}'"}')
     http_code=$(echo ${response} | jq -r .code)
     if [ "${http_code}" == "409" ]; then
-        # Duplicat entry, cleanup uci config
+        # Duplicate entry, cleanup uci config
         uci delete rpcd.controller
         uci commit
         exit 4
@@ -70,9 +72,14 @@ do
     elif [ "${http_code}" == "200" ]; then
         valid=1
     else
-        exit 5
+        sleep 2 # wait for controller to be reacheable
+	watchdog=$(( watchdog + 1 ))
     fi
 done
+
+if  [ "${watchdog}" -ge "${max_attempts}" ]; then
+    exit 5
+fi
 
 # Save the new password after successfull registration
 uci set rpcd.controller.password=${passwd}
@@ -91,8 +98,7 @@ nobind
 float
 explicit-exit-notify 1
 remote ${host} ${port} udp
-dev nsc
-dev-type tun
+dev tun-nsplug
 tls-client
 <ca>
 ${ca}
@@ -108,14 +114,17 @@ verb 3
 EOF
 
 # Configure rsyslog to send to promtail
-uci set rsyslog.promtail=forwarder
-uci set rsyslog.promtail.source=*.*
-uci set rsyslog.promtail.protocol=tcp
-uci set rsyslog.promtail.port=$(echo "$response" | jq -r .data.promtail_port)
-uci set rsyslog.promtail.rfc=5424
-uci set rsyslog.promtail.target=$(echo "$response" | jq -r .data.promtail_address)
-uci commit
-/etc/init.d/rsyslog restart
+if [ "$(uci -q get rsyslog.promtail)" == "" ]; then
+    uci set rsyslog.promtail=forwarder
+    uci set rsyslog.promtail.source=*.*
+    uci set rsyslog.promtail.protocol=tcp
+    uci set rsyslog.promtail.port=$(echo "$response" | jq -r .data.promtail_port)
+    uci set rsyslog.promtail.rfc=5424
+    uci set rsyslog.promtail.target=$(echo "$response" | jq -r .data.promtail_address)
+    uci commit
+    /etc/init.d/rsyslog restart
+    sleep 5 # wait for rsyslog
+fi
 
 # Start the VPN
 if [ -f ${CONFIG_FILE} ]; then
