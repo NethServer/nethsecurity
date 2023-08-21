@@ -1,0 +1,14 @@
+diff -Naur base-files.ori/files/etc/init.d/system base-files/files/etc/init.d/system
+--- base-files.ori/files/etc/init.d/system	2023-08-11 08:51:46.833625045 +0000
++++ base-files/files/etc/init.d/system	2023-08-11 08:56:38.824734040 +0000
+@@ -28,6 +28,9 @@
+ 
+ 	# apply timezone to kernel
+ 	hwclock -u --systz
++
++	# apply timezone to rsyslog
++	/etc/init.d/rsyslog restart
+ }
+ 
+ reload_service() {
+

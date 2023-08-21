@@ -1,0 +1,7 @@
+[ "$(uci -q get system.@system[0].zonename)" != "" ] && exit 0
+
+uci -q batch << EOI
+set system.@system[0].zonename="UTC"
+del system.@system[0].timezone
+commit system
+EOI
