@@ -50,34 +50,20 @@ This setup requires CORS headers enabled on the server.
 
 To enable CORS on the server, just apply the below patch:
 ```diff
-# diff -u /etc/nginx/conf.d/luci.locations.ori /etc/nginx/conf.d/luci.locations
---- /etc/nginx/conf.d/luci.locations.ori    2022-04-20 15:54:21.000000000 +0000
-+++ /etc/nginx/conf.d/luci.locations    2022-04-20 15:52:31.000000000 +0000
-@@ -1,4 +1,6 @@
- location /cgi-bin/luci {
-+        add_header 'Access-Control-Allow-Origin' '*' always;
-+        add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
-+        add_header 'Access-Control-Allow-Headers' 'content-type' always;
-+
-         index  index.html;
-         include uwsgi_params;
-         uwsgi_param SERVER_ADDR $server_addr;
-@@ -6,6 +8,8 @@
-         uwsgi_pass unix:////var/run/luci-webui.socket;
- }
- location ~ /cgi-bin/cgi-(backup|download|upload|exec) {
-+        add_header 'Access-Control-Allow-Origin' '*' always;
-+
-         include uwsgi_params;
-         uwsgi_param SERVER_ADDR $server_addr;
-         uwsgi_modifier1 9;
-@@ -17,6 +21,8 @@
- }
+--- /etc/init.d/ns-api-server       2023-09-01 12:57:19.510000000 +0000
++++ /etc/init.d/ns-api-server.develop       2023-09-01 12:57:07.030000000 +0000
+@@ -22,7 +22,7 @@
+     mkdir -m 0700 -p ${TOKENS_DIR}
+     mkdir -m 0700 -p ${SECRETS_DIR}
  
- location /ubus {
-+        add_header 'Access-Control-Allow-Origin' '*' always;
-+
-         ubus_interpreter;
-         ubus_socket_path /var/run/ubus/ubus.sock;
-         ubus_parallel_req 2;
+-    procd_set_param env GIN_MODE=release \
++    procd_set_param env GIN_MODE=debug \
+         LISTEN_ADDRESS=127.0.0.1:8090 \
+         SECRET_JWT="$(uuidgen | sha256sum | awk '{print $1}')" \
+         ISSUER_2FA=${issuer_2fa} \
+```
+
+Then, restart the API server:
+```
+/etc/init.d ns-api-server restart
 ```
