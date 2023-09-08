@@ -39,7 +39,6 @@ Response:
         "upload": 483727,
         "packets": 643,
         "bandwidth": 16846.433333333334,
-        "bandwiddh_h": "16.5 KB/s"
       },
       "apps": {
         "0.netify.unclassified": 0,
@@ -505,6 +504,94 @@ api-cli ns.dedalo add-default-config
 Response example:
 ```json
 { "success": true }
+```
+
+## ns.dashboard
+
+Expose dashboard statistics.
+
+### system-info
+
+Retrive general system info:
+```
+api-cli ns.dashboard system-info
+```
+
+Response example:
+```json
+{
+  "result": {
+    "uptime": 8500.37,
+    "load": [
+      0.0205078125,
+      0.00927734375,
+      0
+    ],
+    "version": {
+      "arch": "x86_64",
+      "release": "NethSecurity 22.03.5"
+    },
+    "hostname": "NethSec",
+    "hardware": "Standard PC (Q35 + ICH9, 2009)",
+    "memory": {
+      "used_bytes": "98972",
+      "available_bytes": "840060"
+    },
+    "storage": {
+      "/": {
+        "used_bytes": 175554560,
+        "available_bytes": 127582208
+      },
+      "/mnt/storage": {
+        "used_bytes": 0,
+        "available_bytes": 0
+      },
+      "tmpfs": {
+        "used_bytes": 14372864,
+        "available_bytes": 502484992
+      }
+    }
+  }
+}
+```
+
+### service-status
+
+Retrive the status of a service:
+```
+api-cli ns.dashboard service-status --data '{"service": "internet"}'
+```
+
+Supported services are: `internet`, `banip`, `dedalo`, `netifyd`, `threat_shield_dns`, `adblock`, `threat_shield_ip`, `openvpn_rw`, `flashstart`, `mwan`
+
+Valid return statuses are: `disabled`, `ok`, `error`, `warning`
+
+Response example:
+```json
+{
+  "result": {
+    "status": "ok"
+  }
+}
+```
+
+### counter
+
+Return a counter for the given service:
+```
+api-cli ns.dashboard counter --data '{"service": "hosts"}'
+```
+
+Supported services are:
+- `hosts`: return the number of hosts as seen by ARP protocol
+
+Response example:
+```json
+{
+  "result": {
+    "count": 3
+  }
+}
 ```
 
 
