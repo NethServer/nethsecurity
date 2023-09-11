@@ -52,7 +52,7 @@ To disable Flashstart:
 
 2. Remove the forwarder from dnsmasq
    ```
-   uci remove_list dhcp.@dnsmasq[0].server='127.0.0.1#5300'
+   uci del_list dhcp.@dnsmasq[0].server='127.0.0.1#5300'
    uci commit dhcp
-   /etc/init.d/dhcp restart
+   /etc/init.d/dnsmasq restart
    ```
