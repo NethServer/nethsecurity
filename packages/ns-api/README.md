@@ -594,6 +594,44 @@ Response example:
 }
 ```
 
+### traffic-interface
+
+Return an array of point describing the network traffic in the last hour:
+```
+api-cli ns.dashboard interface-traffic --data  '{"interface": "eth0"}'
+```
+
+Response example (with only 3 points):
+```json
+{
+  "result": {
+    "labels": [
+      1694438052,
+      1694438050,
+      1694438048
+    ],
+    "data": [
+      [
+        8.861697,
+        5.850112
+      ],
+      [
+        4.217272,
+        3.222161
+      ],
+      [
+        0.72875,
+        0.399582
+      ]
+    ]
+  }
+}
+```
+
+Description of response:
+- the `labels` field contains the timestamp of each point
+- the `data` field should contains 3600 points
+- each point is composed by an array o 2 element: first one is received bytes, second one is sent bytes
 
 # Creating a new API
 

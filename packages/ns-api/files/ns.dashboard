@@ -12,6 +12,7 @@ import sys
 import json
 import socket
 import subprocess
+import urllib.request
 from euci import EUci
 
 def get_uptime():
@@ -206,6 +207,22 @@ def system_info():
     ret['storage'] = get_storage()
     return ret
 
+def interface_traffic(interface):
+    ret = {"labels": [], "data": []}
+    # retrieve from netdata the traffic for the last hour
+    url = f'http://127.0.0.1:19999//api/v1/data?chart=net.{interface}&options=abs&after=-3600'
+    try:
+        with urllib.request.urlopen(url) as fu:
+            data = json.loads(fu.read())
+    except:
+        return ret
+
+    for record in data["data"]:
+        ret["labels"].append(record[0])
+        ret["data"].append([record[1], record[2]])
+
+    return ret
+
 def service_status(service):
     ret = {"status": "disabled"}
     if service == "internet":
@@ -236,7 +253,7 @@ def counter(service):
 cmd = sys.argv[1]
 
 if cmd == 'list':
-    print(json.dumps({"system-info": {}, "service-status": {"service": "myservice"}, "counter": {"service": "hosts"}}))
+    print(json.dumps({"system-info": {}, "service-status": {"service": "myservice"}, "counter": {"service": "hosts"}, "interface-traffic": {"interface": "eth0"}}))
 elif cmd == 'call':
     action = sys.argv[2]
     if action == "system-info":
@@ -247,5 +264,8 @@ elif cmd == 'call':
     elif action == "counter":
         args = json.loads(sys.stdin.read())
         ret = counter(args["service"])
+    elif action == "interface-traffic":
+        args = json.loads(sys.stdin.read())
+        ret = interface_traffic(args["interface"])
 
     print(json.dumps({"result": ret}))
