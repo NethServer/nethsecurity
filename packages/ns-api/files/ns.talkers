@@ -56,7 +56,6 @@ def list_talkers(limit = 20, stat_file="/tmp/netify-plugin-stats.json"):
             # name resolution can highly slow down the API
             stats[ip]['host'] = socket.getnameinfo((ip, 0), 0)[0]
             stats[ip]['totals']['bandwidth'] = stats[ip]['totals']['bandwidth'] / time_diff
-            stats[ip]['totals']['bandwiddh_h'] = sfmt(stats[ip]['totals']['bandwidth'])
 
     ordered = sorted(stats.values(), key=lambda x: x['totals']['bandwidth'], reverse=True)
     return ordered[:limit]
