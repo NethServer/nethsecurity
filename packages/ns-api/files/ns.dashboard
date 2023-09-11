@@ -14,6 +14,7 @@ import socket
 import subprocess
 import urllib.request
 from euci import EUci
+from nethsec import utils
 
 def get_uptime():
     with open('/proc/uptime', 'r') as f:
@@ -250,14 +251,30 @@ def counter(service):
 
     return {"count": ret}
 
+def list_wans():
+    u = EUci()
+    ret = []
+    interfaces = utils.get_all_by_type(u, 'network', 'interface')
+    device2name = {}
+    for i in interfaces:
+        if 'device' in interfaces[i]:
+            device2name[interfaces[i]['device']] = i
+    wans = utils.get_all_wan_devices(u)
+    for w in wans:
+        ret.append({"iface": device2name.get(w,w), "device": w})
+
+    return ret
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
-    print(json.dumps({"system-info": {}, "service-status": {"service": "myservice"}, "counter": {"service": "hosts"}, "interface-traffic": {"interface": "eth0"}}))
+    print(json.dumps({"system-info": {}, "list-wans":{}, "service-status": {"service": "myservice"}, "counter": {"service": "hosts"}, "interface-traffic": {"interface": "eth0"}}))
 elif cmd == 'call':
     action = sys.argv[2]
     if action == "system-info":
         ret = system_info()
+    if action == "list-wans":
+        ret = list_wans()
     elif action == "service-status":
         args = json.loads(sys.stdin.read())
         ret = service_status(args["service"])

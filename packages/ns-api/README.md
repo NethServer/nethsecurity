@@ -633,6 +633,29 @@ Description of response:
 - the `data` field should contains 3600 points
 - each point is composed by an array o 2 element: first one is received bytes, second one is sent bytes
 
+### list-wans
+
+List wan interfaces:
+```
+api-cli run ns.dashboard list-wans
+```
+
+Response example:
+```json
+{
+  "result": [
+    {
+      "iface": "wan",
+      "device": "eth1"
+    },
+    {
+      "iface": "nat2",
+      "device": "eth3"
+    }
+  ]
+}
+```
+
 # Creating a new API
 
 Conventions:
