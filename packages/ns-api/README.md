@@ -628,6 +628,277 @@ Error response example:
 { "error": "command failed" }
 ```
 
+## ns.routes
+
+List and manage routes
+
+### main-table
+
+List routes from the main table:
+```
+api-cli ns.routes main-table --date '{"protocol": "ipv4"}'
+```
+
+The `protocol` field can be `ipv4 ` or `ipv6`.
+
+IPv4 response example:
+```json
+{
+  "table": [
+    {
+      "network": "default",
+      "device": "eth3",
+      "interface": "nat2",
+      "gateway": "10.10.0.1",
+      "metric": "",
+      "protocol": "static"
+    },
+    {
+      "network": "10.10.0.0/24",
+      "device": "eth3",
+      "interface": "nat2",
+      "gateway": "",
+      "metric": "",
+      "protocol": "kernel"
+    }
+  ]
+}
+```
+
+IPv6 response example:
+```json
+{
+  "table": [
+    {
+      "network": "fe80::/64",
+      "device": "ifb-dns",
+      "interface": "ifb-dns",
+      "gateway": "",
+      "metric": 256,
+      "protocol": "kernel"
+    },
+    {
+      "network": "fe80::/64",
+      "device": "eth1",
+      "interface": "wan",
+      "gateway": "",
+      "metric": 256,
+      "protocol": "kernel"
+    }
+  ]
+}
+```
+
+### list-routes
+
+List existing configured routes:
+```
+api-cli ns.routes list-routes --data '{"protocol": "ipv4"}'
+```
+
+The `protocol` field can be `ipv4 ` or `ipv6`.
+
+IPv4 response example:
+```json
+{
+  "routes": {
+    "cfg07c8b4": {
+      "target": "10.6.0.0/24",
+      "gateway": "192.168.100.237",
+      "metric": "0",
+      "table": "main",
+      "interface": "nat2",
+      "type": "local",
+      "mtu": "1500",
+      "onlink": "1",
+      "disabled": "0",
+      "ns_description": ""
+    },
+    "cfg09c8b4": {
+      "target": "192.168.4.0/24",
+      "gateway": "192.168.100.1",
+      "metric": "0",
+      "table": "main",
+      "interface": "",
+      "type": "unicast",
+      "mtu": "1500",
+      "onlink": "0",
+      "disabled": "1",
+      "ns_description": ""
+    }
+  }
+}
+```
+
+IPv6 response example:
+```json
+{
+  "routes": {
+    "cfg08df6a": {
+      "target": "::/0",
+      "gateway": "fe80::1",
+      "metric": "0",
+      "table": "main",
+      "interface": "",
+      "type": "local",
+      "mtu": "1500",
+      "onlink": "1",
+      "disabled": "0",
+      "ns_description": ""
+    }
+  }
+}
+```
+
+### list-interfaces
+
+List existing interfaces:
+```
+api-cli ns.routes list-interfaces
+```
+
+Response example:
+```json
+{
+  "interfaces": [
+    "loopback",
+    "lan",
+    "wan",
+    "nat2"
+  ]
+}
+```
+
+### list-route-types
+
+List route types:
+```
+api-cli run ns.routes list-route-types
+```
+
+Response example:
+```json
+{
+  "types": [
+    "unicast",
+    "local",
+    "broadcast",
+    "multicast",
+    "unreachable",
+    "prohibit",
+    "blackhole",
+    "anycast"
+  ]
+}
+```
+
+### add-route
+
+Add a new IPv4 or IPv6 route:
+```
+api-cli ns.routes add-route --data '{"target": "192.168.4.0/24", "gateway": "192.168.100.1", "metric": "0", "table": "main", "interface": "", "type": "unicast", "mtu": "1500", "onlink": "0", "ns_description": "myroute2", "protocol": "ipv4"}'
+```
+
+The `protocol` field can be `ipv4 ` or `ipv6`.
+
+Success response example, the id of the new route:
+```json
+{
+  "id": "ns_0153cb52"
+}
+```
+
+Error response example:
+```json
+{
+  "id": null
+}
+```
+
+### edit-route
+
+Edit an existing route:
+```
+api-cli ns.routes edit-route --data '{"id": "ns_bc6a2749", "target": "192.168.7.0/24", "gateway": "192.168.100.1", "metric": "0", "table": "main", "interface": "lan", "type": "unicast", "mtu": "1501", "onlink": "1", "ns_description": "myroute2_edited"}'
+```
+
+Success response example, the id of the edited route:
+```json
+{
+  "id": "ns_bc6a2749"
+}
+```
+
+Error response example:
+```json
+{
+  "id": null
+}
+```
+
+### delete-route
+
+Delete an existing route:
+```
+api-cli ns.routes delete-route --data '{"id": "ns_bc6a2749"}'
+```
+
+Success response example, the id of the deleted route:
+```json
+{
+  "id": "ns_bc6a2749"
+}
+```
+
+Error response example:
+```json
+{
+  "id": null
+}
+```
+
+### enable-route
+
+Enable an existing route:
+```
+api-cli ns.routes enable-route --data '{"id": "ns_bc6a2749"}'
+```
+
+Success response example, the id of the enabled route:
+```json
+{
+  "id": "ns_bc6a2749"
+}
+```
+
+Error response example:
+```json
+{
+  "id": null
+}
+```
+
+### disable-route
+
+Disable an existing route:
+```
+api-cli run ns.routed disable-route --data '{"id": "ns_bc6a2749"}'
+```
+
+Success response example, the id of the disabled route:
+```json
+{
+  "id": "ns_bc6a2749"
+}
+```
+
+Error response example:
+```json
+{
+  "id": null
+}
+```
+
 # Creating a new API
 
 Conventions:

@@ -1,0 +1,174 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# List firewall rules
+
+import sys
+import json
+import subprocess
+from euci import EUci
+from nethsec import utils
+
+def main_table(proto):
+    u = EUci()
+    interfaces = utils.get_all_by_type(u, 'network', 'interface')
+    device2name = {}
+    ret = {"table": []}
+    for i in interfaces:
+        if 'device' in interfaces[i]:
+            device2name[interfaces[i]['device']] = i
+    if proto == "ipv6":
+        proto = "-6"
+    else:
+        proto = "-4"
+    try:
+        ip = subprocess.run(["/sbin/ip", "-j", proto, "route"], capture_output=True, text=True, check=True)
+        routes = json.loads(ip.stdout)
+        for r in routes:
+            route = {'network': '', 'device': '', 'interface': '', 'gateway': '', 'metric': '', 'protocol': ''}
+            if 'dev' in r:
+                route['interface'] = device2name.get(r['dev'], r['dev'])
+                route['device'] = r['dev']
+            route['network'] = r.get('dst', '')
+            route['gateway'] = r.get('gateway', '')
+            route['metric'] = r.get('metric', '')
+            route['protocol'] = r.get('protocol', '')
+
+            ret["table"].append(route)
+    except:
+        return ret
+
+    return ret
+
+def list_routes(protocol):
+    u = EUci()
+    ret = {"routes": {}}
+    if protocol == "ipv6":
+        routes = utils.get_all_by_type(u, 'network', 'route6')
+    else:
+        routes = utils.get_all_by_type(u, 'network', 'route')
+    for section in routes:
+        r = routes[section]
+        route =  {}
+        route["target"] = r.get("target", "")
+        route["gateway"] = r.get("gateway", "")
+        route["metric"] = r.get("metric", "0")
+        route["table"] = r.get("table", "main")
+        route["interface"] = r.get("interface", "")
+        route["type"] = r.get("type", "unicast")
+        route["mtu"] = r.get("mtu", "1500")
+        route["onlink"] = r.get("onlink", "0")
+        route["disabled"] = r.get("disabled", "0")
+        route["ns_description"] = r.get("ns_description", "")
+        ret["routes"][section] = route
+
+    return ret
+
+def enable_route(rid):
+    u = EUci()
+    try:
+        u.set("network", rid, "disabled", "0")
+        u.save("network")
+        return {"id": rid}
+    except:
+        return {"id": None}
+
+def disable_route(rid):
+    u = EUci()
+    try:
+        u.set("network", rid, "disabled", "1")
+        u.save("network")
+        return {"id": rid}
+    except:
+        return {"id": None}
+
+def delete_route(rid):
+    u = EUci()
+    try:
+        u.get("network", rid)
+        u.delete("network", rid)
+        u.save("network")
+        return {"id": rid}
+    except:
+        return {"id": None}
+
+def add_route(args):
+    u = EUci()
+    if args['protocol'] == "ipv6":
+        rtype = 'route6'
+    else:
+        rtype = 'route'
+    args.pop('protocol')
+    rname = utils.get_random_id()
+    try:
+        u.set('network', rname, rtype)
+        for a in args:
+            u.set('network', rname, a, args[a])
+        u.save("network")
+        return {"id": rname}
+    except:
+        return {"id": None}
+
+def edit_route(args):
+    u = EUci()
+    rname = args.pop('id')
+    try:
+        for a in args:
+            u.set('network', rname, a, args[a])
+        u.save("network")
+        return {"id": rname}
+    except:
+        return {"id": None}
+
+def list_interfaces():
+    u = EUci()
+    return {"interfaces": list(utils.get_all_by_type(u, 'network', 'interface').keys())}
+
+def list_types():
+    return {"types": ["unicast", "local", "broadcast", "multicast", "unreachable", "prohibit", "blackhole", "anycast"]}
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps(
+        {
+            "main-table": {"protocol": "ipv4"},
+            "list-routes": {"protocol": "ipv4"},
+            "list-route-types": {},
+            "list-interfaces": {},
+            "add-route": {"protocol": "ipv4", "target": "10.0.0.0/24", "gateway": "192.168.1.1", "metric": "0", "interface": "lan", "type": "unicast", "mtu": "1500", "onlink": "0", "disabled": "0", "ns_description": "my route"},
+            "edit-route": {"id": "ns_route1", "target": "10.0.0.0/24", "gateway": "192.168.1.1", "metric": "0", "interface": "lan", "type": "unicast", "mtu": "1500", "onlink": "0", "disabled": "1", "ns_description": "my route"},
+            "delete-route": {"id": "ns_route1"},
+            "enable-route": {"id": "ns_route1"},
+            "disable-route": {"id": "ns_route1"}
+        }))
+elif cmd == 'call':
+    action = sys.argv[2]
+    if action == "list-interfaces":
+        ret = list_interfaces()
+    elif action == "list-route-types":
+        ret = list_types()
+    else:
+        args = json.loads(sys.stdin.read())
+    if action == "main-table":
+        ret = main_table(args["protocol"])
+    elif action == "list-routes":
+        ret = list_routes(args["protocol"])
+    elif action == "add-route":
+        ret = add_route(args)
+    elif action == "edit-route":
+        ret = edit_route(args)
+    elif action == "delete-route":
+        ret = delete_route(args["id"])
+    elif action == "enable-route":
+        ret = enable_route(args["id"])
+    elif action == "disable-route":
+        ret = disable_route(args["id"])
+    else:
+        ret = {"error": "invalid action"}
+
+    print(json.dumps(ret))
