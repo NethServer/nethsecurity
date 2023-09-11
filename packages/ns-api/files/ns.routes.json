@@ -1,0 +1,13 @@
+{
+  "route-manager": {
+    "description": "Manage routes",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.routes": [
+          "*"
+        ]
+      }
+    }
+  }
+}

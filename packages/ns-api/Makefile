@@ -79,6 +79,8 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.dedalo.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.dashboard $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.dashboard.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.routes $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.routes.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_CONF) files/msmtp.keep $(1)/lib/upgrade/keep.d/msmtp
 	$(LN) /usr/bin/msmtp $(1)/usr/sbin/sendmail
