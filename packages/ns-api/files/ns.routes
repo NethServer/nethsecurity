@@ -75,7 +75,7 @@ def enable_route(rid):
         u.save("network")
         return {"id": rid}
     except:
-        return {"id": None}
+        return {"error": "route not enabled"}
 
 def disable_route(rid):
     u = EUci()
@@ -84,7 +84,7 @@ def disable_route(rid):
         u.save("network")
         return {"id": rid}
     except:
-        return {"id": None}
+        return {"error": "route not disabled"}
 
 def delete_route(rid):
     u = EUci()
@@ -94,7 +94,7 @@ def delete_route(rid):
         u.save("network")
         return {"id": rid}
     except:
-        return {"id": None}
+        return {"error": "route not deleted"}
 
 def add_route(args):
     u = EUci()
@@ -111,7 +111,7 @@ def add_route(args):
         u.save("network")
         return {"id": rname}
     except:
-        return {"id": None}
+        return {"error": "route not added"}
 
 def edit_route(args):
     u = EUci()
@@ -122,7 +122,7 @@ def edit_route(args):
         u.save("network")
         return {"id": rname}
     except:
-        return {"id": None}
+        return {"error": "route not modified"}
 
 def list_interfaces():
     u = EUci()

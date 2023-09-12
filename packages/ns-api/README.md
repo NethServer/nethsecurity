@@ -831,9 +831,7 @@ Success response example, the id of the edited route:
 
 Error response example:
 ```json
-{
-  "id": null
-}
+{"error": "route not modified"}
 ```
 
 ### delete-route
@@ -852,9 +850,7 @@ Success response example, the id of the deleted route:
 
 Error response example:
 ```json
-{
-  "id": null
-}
+{"error": "route not deleted"}
 ```
 
 ### enable-route
@@ -873,9 +869,7 @@ Success response example, the id of the enabled route:
 
 Error response example:
 ```json
-{
-  "id": null
-}
+{"error": "route not enabled"}
 ```
 
 ### disable-route
@@ -894,9 +888,7 @@ Success response example, the id of the disabled route:
 
 Error response example:
 ```json
-{
-  "id": null
-}
+{"error": "route not disabled"}
 ```
 
 ## ns.dashboard
