@@ -1,0 +1,288 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Return dashboard statistics
+
+import os
+import sys
+import json
+import socket
+import subprocess
+import urllib.request
+from euci import EUci
+from nethsec import utils
+
+def get_uptime():
+    with open('/proc/uptime', 'r') as f:
+        uptime_seconds = float(f.readline().split()[0])
+
+    return uptime_seconds
+
+def get_version():
+    ret = {"arch": "", "release": ""}
+    with open('/etc/os-release', 'r') as f:
+        for line in f.readlines():
+            if line.startswith("PRETTY_NAME"):
+                ret["release"] = line[line.index('=')+2:-2]
+            if line.startswith("OPENWRT_ARCH"):
+                ret["arch"] = line[line.index('=')+2:-2]
+    return ret
+
+def get_hardware():
+    try:
+        with open('/sys/devices/virtual/dmi/id/board_name') as f:
+            return f.read().lstrip().rstrip()
+    except:
+        with open('/sys/devices/virtual/dmi/id/product_name') as f:
+            return f.read().lstrip().rstrip()
+
+def _run(cmd):
+    try:
+        proc = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True)
+        return proc.stdout.rstrip().lstrip()
+    except:
+        return ''
+
+def _get_used_bytes(path):
+    try:
+        return int(_run("/bin/df | /usr/bin/sort | /usr/bin/uniq | /bin/grep '"+path+"$' | /usr/bin/awk '{print $3}'"))*1024
+    except:
+        return 0
+
+def _get_avail_bytes(path):
+    try:
+        return int(_run("/bin/df | /usr/bin/sort | /usr/bin/uniq | /bin/grep '"+path+"$' | /usr/bin/awk '{print $4}'"))*1024
+    except:
+        return 0
+
+def get_memory():
+    return { 
+            "used_bytes": _run("/usr/bin/free | /bin/grep 'Mem': | /usr/bin/awk '{print $3}'"), 
+            "available_bytes": _run("/usr/bin/free | /bin/grep 'Mem:' | /usr/bin/awk '{print $7}'")
+        }
+
+def get_storage():
+    return {
+        "/": {
+            "used_bytes": _get_used_bytes('/'),
+            "available_bytes": _get_avail_bytes('/')
+        },
+        "/mnt/storage": {
+            "used_bytes": _get_used_bytes('/mnt/storage'),
+            "available_bytes": _get_avail_bytes('/mnt/storage')
+        },
+        "tmpfs": {
+            "used_bytes": _get_used_bytes('/tmp'),
+            "available_bytes": _get_avail_bytes('/tmp')
+        }
+    }
+
+
+def check_internet():
+    for host in ("8.8.8.8", "1.1.1.1", "www.nethserver.org"):
+        try:
+            subprocess.check_output(["ping", "-c", "1", host])
+            return "ok"
+        except:
+            pass
+
+    return "error"
+
+def check_service(service):
+    proc = subprocess.run(["service", service, "status"], capture_output=True, text=True)
+    stdout = proc.stdout.rstrip().lstrip()
+    if stdout == "active with no instances" or proc.returncode == 1:
+        return "disabled"
+
+    try:
+        subprocess.run(["service", service, "running"], check=True, capture_output=True)
+        return "ok"
+    except:
+        return "error"
+
+def count_hosts():
+    ret = -1
+    with open("/proc/net/arp", "r") as fp:
+        for line in fp.readlines():
+            ret = ret + 1
+    return ret
+
+def check_ts_dns():
+    u = EUci()
+    ts_enabled = u.get("adblock", "global", "ts_enabled", default="0") == "1"
+    adb_enabled = u.get("adblock", "global", "adb_enabled", default="0") == "1"
+    if not ts_enabled or not adb_enabled:
+        return "disabled"
+    pa = subprocess.run(["service", "adblock", "running"], check=False, capture_output=True)
+    if adb_enabled and ts_enabled and pa.returncode == 0:
+        return "ok"
+    else:
+        return "error"
+
+def check_adblock():
+    u = EUci()
+    adb_enabled = u.get("adblock", "global", "adb_enabled", default="0") == "1"
+    if not adb_enabled:
+        return "disabled"
+    pa = subprocess.run(["service", "adblock", "running"], check=False, capture_output=True)
+    if adb_enabled and pa.returncode == 0:
+        return "ok"
+    else:
+        return "error"
+
+def check_ts_ip():
+    u = EUci()
+    ts_enabled = "bl.nethesis.it" in u.get("banip", "global", "ban_allowurl", default="")
+    bip_enabled = u.get("banip", "global", "ban_enabled", default="0") == "1"
+    if not ts_enabled or not bip_enabled:
+        return "disabled"
+    pa = subprocess.run(["service", "banip", "running"], check=False, capture_output=True)
+    if bip_enabled and ts_enabled and pa.returncode == 0:
+        return "ok"
+    else:
+        return "error"
+
+def check_openvpn_rw():
+    u = EUci()
+    rw_enabled = u.get("openvpn", "ns_roadwarrior", "enabled", default="0") == "1"
+    if not rw_enabled:
+        return "disabled"
+    try:
+        pa = subprocess.run(["service", "openvpn", "info"], check=True, capture_output=True)
+        info = json.loads(pa.stdout)
+        if info["openvpn"]["instances"]["ns_roadwarrior"]["running"]:
+            return "ok"
+    except:
+        return "error"
+
+def check_flashstart():
+    u = EUci()
+    fs_enabled = u.get("flashstart", "global", "enabled", default="0") == "1"
+    if not fs_enabled:
+        return "disabled"
+
+    try:
+        pa = subprocess.run(["service", "dnsdist", "running"], check=False, capture_output=True)
+        if fs_enabled and pa.returncode == 0:
+            return "ok"
+    except:
+        return "error"
+
+def check_mwan():
+    errored = 0
+    interfaces = 0
+    try:
+        pa = subprocess.run(["/usr/sbin/mwan3", "interfaces"], check=True, capture_output=True, text=True)
+        if pa.returncode == 0:
+            for line in pa.stdout.split("\n"):
+                if line.startswith(" interface"):
+                    interfaces = interfaces + 1
+                    tmp = line.split(" ")
+                    if tmp[4] == "error":
+                        errored = errored + 1
+    except:
+        return "error"
+
+    if interfaces == 0:
+        return "disabled"
+    if interfaces > 0 and errored == 0:
+        return "ok"
+    if interfaces > errored and errored > 0:
+        return "warning"
+
+    return "error"
+
+
+def system_info():
+    ret = dict()
+    ret['uptime'] = get_uptime()
+    ret['load'] = os.getloadavg()
+    ret['version'] = get_version()
+    ret['hostname'] = socket.getfqdn()
+    ret['hardware'] = get_hardware()
+    ret['memory'] = get_memory()
+    ret['storage'] = get_storage()
+    return ret
+
+def interface_traffic(interface):
+    ret = {"labels": [], "data": []}
+    # retrieve from netdata the traffic for the last hour
+    url = f'http://127.0.0.1:19999//api/v1/data?chart=net.{interface}&options=abs&after=-3600'
+    try:
+        with urllib.request.urlopen(url) as fu:
+            data = json.loads(fu.read())
+    except:
+        return ret
+
+    for record in data["data"]:
+        ret["labels"].append(record[0])
+        ret["data"].append([record[1], record[2]])
+
+    return ret
+
+def service_status(service):
+    ret = {"status": "disabled"}
+    if service == "internet":
+        ret["status"] = check_internet()
+    elif service == "threat_shield_dns":
+        ret["status"] = check_ts_dns()
+    elif service == "threat_shield_ip":
+        ret["status"] = check_ts_ip()
+    elif service == "adblock":
+        ret["status"] = check_adblock()
+    elif service == "openvpn_rw":
+        ret["status"] = check_openvpn_rw()
+    elif service == "flashstart":
+        ret["status"] = check_flashstart()
+    elif service == "mwan":
+        ret["status"] = check_mwan()
+    else:
+        ret["status"] = check_service(service)
+    return ret
+
+def counter(service):
+    ret = 0
+    if service == "hosts":
+        ret = count_hosts()
+
+    return {"count": ret}
+
+def list_wans():
+    u = EUci()
+    ret = []
+    interfaces = utils.get_all_by_type(u, 'network', 'interface')
+    device2name = {}
+    for i in interfaces:
+        if 'device' in interfaces[i]:
+            device2name[interfaces[i]['device']] = i
+    wans = utils.get_all_wan_devices(u)
+    for w in wans:
+        ret.append({"iface": device2name.get(w,w), "device": w})
+
+    return ret
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({"system-info": {}, "list-wans":{}, "service-status": {"service": "myservice"}, "counter": {"service": "hosts"}, "interface-traffic": {"interface": "eth0"}}))
+elif cmd == 'call':
+    action = sys.argv[2]
+    if action == "system-info":
+        ret = system_info()
+    if action == "list-wans":
+        ret = list_wans()
+    elif action == "service-status":
+        args = json.loads(sys.stdin.read())
+        ret = service_status(args["service"])
+    elif action == "counter":
+        args = json.loads(sys.stdin.read())
+        ret = counter(args["service"])
+    elif action == "interface-traffic":
+        args = json.loads(sys.stdin.read())
+        ret = interface_traffic(args["interface"])
+
+    print(json.dumps({"result": ret}))

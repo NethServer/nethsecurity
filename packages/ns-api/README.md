@@ -899,6 +899,156 @@ Error response example:
 }
 ```
 
+## ns.dashboard
+
+Expose dashboard statistics.
+
+### system-info
+
+Retrive general system info:
+```
+api-cli ns.dashboard system-info
+```
+
+Response example:
+```json
+{
+  "result": {
+    "uptime": 8500.37,
+    "load": [
+      0.0205078125,
+      0.00927734375,
+      0
+    ],
+    "version": {
+      "arch": "x86_64",
+      "release": "NethSecurity 22.03.5"
+    },
+    "hostname": "NethSec",
+    "hardware": "Standard PC (Q35 + ICH9, 2009)",
+    "memory": {
+      "used_bytes": "98972",
+      "available_bytes": "840060"
+    },
+    "storage": {
+      "/": {
+        "used_bytes": 175554560,
+        "available_bytes": 127582208
+      },
+      "/mnt/storage": {
+        "used_bytes": 0,
+        "available_bytes": 0
+      },
+      "tmpfs": {
+        "used_bytes": 14372864,
+        "available_bytes": 502484992
+      }
+    }
+  }
+}
+```
+
+### service-status
+
+Retrive the status of a service:
+```
+api-cli ns.dashboard service-status --data '{"service": "internet"}'
+```
+
+Supported services are: `internet`, `banip`, `dedalo`, `netifyd`, `threat_shield_dns`, `adblock`, `threat_shield_ip`, `openvpn_rw`, `flashstart`, `mwan`
+
+Valid return statuses are: `disabled`, `ok`, `error`, `warning`
+
+Response example:
+```json
+{
+  "result": {
+    "status": "ok"
+  }
+}
+```
+
+### counter
+
+Return a counter for the given service:
+```
+api-cli ns.dashboard counter --data '{"service": "hosts"}'
+```
+
+Supported services are:
+- `hosts`: return the number of hosts as seen by ARP protocol
+
+Response example:
+```json
+{
+  "result": {
+    "count": 3
+  }
+}
+```
+
+### traffic-interface
+
+Return an array of point describing the network traffic in the last hour:
+```
+api-cli ns.dashboard interface-traffic --data  '{"interface": "eth0"}'
+```
+
+Response example (with only 3 points):
+```json
+{
+  "result": {
+    "labels": [
+      1694438052,
+      1694438050,
+      1694438048
+    ],
+    "data": [
+      [
+        8.861697,
+        5.850112
+      ],
+      [
+        4.217272,
+        3.222161
+      ],
+      [
+        0.72875,
+        0.399582
+      ]
+    ]
+  }
+}
+```
+
+Description of response:
+- the `labels` field contains the timestamp of each point
+- the `data` field should contains 3600 points
+- each point is composed by an array o 2 element: first one is received bytes, second one is sent bytes
+
+### list-wans
+
+List wan interfaces:
+```
+api-cli run ns.dashboard list-wans
+```
+
+Response example:
+```json
+{
+  "result": [
+    {
+      "iface": "wan",
+      "device": "eth1"
+    },
+    {
+      "iface": "nat2",
+      "device": "eth3"
+    }
+  ]
+}
+```
+
 # Creating a new API
 
 Conventions:

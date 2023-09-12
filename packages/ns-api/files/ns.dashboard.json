@@ -1,0 +1,13 @@
+{
+  "dashboard-reader": {
+    "description": "Read dashboard",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.dashboard": [
+          "*"
+        ]
+      }
+    }
+  }
+}
