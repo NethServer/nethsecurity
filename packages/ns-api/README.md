@@ -5,6 +5,88 @@ NethSecurity APIs for `rpcd`.
 * TOC
 {:toc}
 
+## How to invoke the APIs
+
+APIs can be called using 4 different methods:
+- using `curl` and invoking the API server
+- using `api-cli` wrapper that talks with ubus over HTTP
+- directly invoking the scripts
+- using `ubus` client
+
+### curl
+
+The APIs should always be invoked through the API server on a production environment.
+The server will handle the authentication and invoke APIs using ubus.
+It also add some extra logic for 2FA and error handling.
+
+First, authenticate the user and obtain a JWT token:
+```
+curl -s -H 'Content-Type: application/json' -k https://localhost/api/login --data '{"username": "root", "password": "Nethesis,1234"}' | jq -r .token
+```
+
+Use the obtained token, to invoke an API:
+```
+curl -s -H 'Content-Type: application/json' -k  https://localhost/api/ubus/call -H 'Authorization: Bearer <jwt_token>' --data '{"path": "ns.dashboard", "method": "system-info", "payload": {}}' | jq
+```
+
+If you need to pass parameters to the API, add them inside the `payload` field:
+```
+curl -s -H 'Content-Type: application/json' -k  https://localhost/api/ubus/call -H 'Authorization: Bearer <jwt_token>' --data '{"path": "ns.dashboard", "method": "counter", "payload": {"service": "hosts"}}'
+```
+
+### api-cli
+
+The `api-cli` wrapper needs valid user credentials.
+If no credentials are given, it uses the default ones:
+
+- user: `root`
+- password: `Nethesis,1234`
+
+You can use this method to automate the configuration and to test existing APIs.
+
+Example with default credentials:
+```
+api-cli ns.dashboard system-info
+```
+
+If you changed the `root` password, use:
+```
+api-cli --password mypass ns.dashboard system-info
+```
+
+You can pass parameters to the APIs:
+```
+api-cli ns.dashboard counter --data '{"service": "hosts"}'
+```
+
+### Direct invocation
+
+Most APIs are implemented as executable scripts under the `/usr/libexec/rpcd` directory.
+See also [Creating a new API](#creating_a_new_api) for more info.
+
+You can call directly the script bypassing all system checks.
+Use this method during API development.
+
+Call the method `system-info` under the `ns.dashboard` API:
+```
+/usr/libexec/rpcd/ns.dashboard call system-info | jq
+```
+
+If you need to pass an argument, you must write it to the standard input:
+```
+echo '{"service": "hosts"}' | /usr/libexec/rpcd/ns.dashboard call counter | jq
+```
+
+To list all methods of a script use:
+```
+/usr/libexec/rpcd/ns.dashboard list | jq
+```
+
+### ubus
+
+You can check if an API follows all conventions using ubus.
+Even this method is recommended only during development.
+
 List available APIs:
 ```
 ubus -S list | grep '^ns.'
@@ -18,6 +100,7 @@ Or using `api-cli`:
 ```
 api-cli ns.talkers list --data '{"limit": 5}'
 ```
+
 
 ## ns.talkers
 
@@ -553,6 +636,7 @@ Conventions:
 - all APIs must write a JSON object to standard output: JSON arrays should always be wrapped inside
   an object due to ubus limitations
 - APIs should not commit changes to the configuration database: it's up to the user (or the UI) to commit them and restart the services
+- if the API raises and error, it should return an object like `{"error": "my error"}`
 
 To add a new API, follow these steps:
 1. create an executable file inside `/usr/libexec/rpcd/` directory, like `ns.example`, and restart rpcd
@@ -596,7 +680,6 @@ elif cmd == 'call' and sys.argv[2] == "say":
 Make the file executable and restart rpcd:
 ```
 chmod a+x /usr/libexec/rpcd/ns.example
-/etc/init.d/rpcd restart
 ```
 
 Usage example:
@@ -625,15 +708,14 @@ Example for `/usr/share/rpcd/acl.d/ns.example.json`:
 }
 ```
 
+Restart `rpcd`:
+```
+/etc/init.d/rpcd restart
+```
+
 Test the new API:
 ```
 api-cli ns.example say --data '{"message": "hello world"}'
-```
-
-Scripts can also be tested by passing arguments to standard input.
-Example:
-```
-echo '{"limit": 5 }' | /usr/libexec/rpcd/ns.talkers call list
 ```
 
 References
