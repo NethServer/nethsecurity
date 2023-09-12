@@ -512,7 +512,7 @@ Expose dashboard statistics.
 
 ### system-info
 
-Retrive general system info:
+Retrieve general system info:
 ```
 api-cli ns.dashboard system-info
 ```
@@ -557,7 +557,7 @@ Response example:
 
 ### service-status
 
-Retrive the status of a service:
+Retrieve the status of a service:
 ```
 api-cli ns.dashboard service-status --data '{"service": "internet"}'
 ```
@@ -594,9 +594,9 @@ Response example:
 }
 ```
 
-### traffic-interface
+### interface-traffic
 
-Return an array of point describing the network traffic in the last hour:
+Return an array of points describing the network traffic in the last hour:
 ```
 api-cli ns.dashboard interface-traffic --data  '{"interface": "eth0"}'
 ```
@@ -631,13 +631,13 @@ Response example (with only 3 points):
 Description of response:
 - the `labels` field contains the timestamp of each point
 - the `data` field should contains 3600 points
-- each point is composed by an array o 2 element: first one is received bytes, second one is sent bytes
+- each point is composed by an array o 2 elements: first one is received bytes, second one is sent bytes
 
 ### list-wans
 
 List wan interfaces:
 ```
-api-cli run ns.dashboard list-wans
+api-cli ns.dashboard list-wans
 ```
 
 Response example:
@@ -721,7 +721,7 @@ IPv6 response example:
 
 List existing configured routes:
 ```
-api-cli ns.routes list-routes --date '{"protocol": "ipv4"}'
+api-cli ns.routes list-routes --data '{"protocol": "ipv4"}'
 ```
 
 The `protocol` field can be `ipv4 ` or `ipv6`.
@@ -782,7 +782,7 @@ IPv6 response example:
 
 List existing interfaces:
 ```
-api-cli run ns.routes list-interfaces
+api-cli ns.routes list-interfaces
 ```
 
 Response example:
@@ -824,7 +824,7 @@ Response example:
 
 Add a new IPv4 or IPv6 route:
 ```
-api-cli run ns.routes add-route --data '{"target": "192.168.4.0/24", "gateway": "192.168.100.1", "metric": "0", "table": "main", "interface": "", "type": "unicast", "mtu": "1500", "onlink": "0", "ns_description": "myroute2", "protocol": "ipv4"}'
+api-cli ns.routes add-route --data '{"target": "192.168.4.0/24", "gateway": "192.168.100.1", "metric": "0", "table": "main", "interface": "", "type": "unicast", "mtu": "1500", "onlink": "0", "ns_description": "myroute2", "protocol": "ipv4"}'
 ```
 
 The `protocol` field can be `ipv4 ` or `ipv6`.
@@ -847,7 +847,7 @@ Error response example:
 
 Edit an existing route:
 ```
-api-cli run ns.routes edit-route --data '{"id": "ns_bc6a2749", "target": "192.168.7.0/24", "gateway": "192.168.100.1", "metric": "0", "table": "main", "interface": "lan", "type": "unicast", "mtu": "1501", "onlink": "1", "ns_description": "myroute2_edited"}'
+api-cli ns.routes edit-route --data '{"id": "ns_bc6a2749", "target": "192.168.7.0/24", "gateway": "192.168.100.1", "metric": "0", "table": "main", "interface": "lan", "type": "unicast", "mtu": "1501", "onlink": "1", "ns_description": "myroute2_edited"}'
 ```
 
 Success response example, the id of the edited route:
@@ -868,7 +868,7 @@ Error response example:
 
 Delete an existing route:
 ```
-api-cli run ns.routed delete-route --data '{"id": "ns_bc6a2749"}'
+api-cli ns.routes delete-route --data '{"id": "ns_bc6a2749"}'
 ```
 
 Success response example, the id of the deleted route:
@@ -889,7 +889,7 @@ Error response example:
 
 Enable an existing route:
 ```
-api-cli run ns.routed enable-route --data '{"id": "ns_bc6a2749"}'
+api-cli ns.routes enable-route --data '{"id": "ns_bc6a2749"}'
 ```
 
 Success response example, the id of the enabled route:
