@@ -1,0 +1,32 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Reboot and shutdown
+
+import sys
+import json
+import subprocess
+
+def run(cmd):
+    try:
+        subprocess.run([cmd], check=True, capture_output=True)
+        return {"result": "success"}
+    except:
+        return {"error": "command failed"}
+
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({"reboot": {}, "shutdown": {}}))
+elif cmd == 'call':
+    action = sys.argv[2]
+    if action == "reboot":
+        ret = run("/sbin/reboot")
+    if action == "poweroff":
+        ret = run("/sbin/poweroff")
+    print(json.dumps(ret))

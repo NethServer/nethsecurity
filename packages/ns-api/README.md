@@ -507,6 +507,43 @@ Response example:
 { "success": true }
 ```
 
+## ns.power
+
+Reboot and shutdown the system
+
+### reboot
+
+Reboot:
+```
+api-cli ns.power reboot
+```
+
+Success response example:
+```json
+{ "result": "success" }
+```
+
+Error response example:
+```json
+{ "error": "command failed" }
+```
+
+### poweroff
+
+Shutdown:
+```
+api-cli ns.power poweroff
+```
+
+Success response example:
+```json
+{ "result": "success" }
+```
+
+Error response example:
+```json
+{ "error": "command failed" }
+```
 
 # Creating a new API
 

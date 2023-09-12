@@ -1,0 +1,14 @@
+{
+  "power-manager": {
+    "description": "Reboot and shutdown",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.power": [
+          "*"
+        ]
+      }
+    }
+  }
+}
+
