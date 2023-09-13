@@ -1,0 +1,13 @@
+{
+  "dhcp-manager": {
+    "description": "Manage DHCP",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.dhcp": [
+          "*"
+        ]
+      }
+    }
+  }
+}
