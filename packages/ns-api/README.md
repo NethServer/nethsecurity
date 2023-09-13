@@ -1068,7 +1068,7 @@ Error response:
 
 Unregister the machine from the remote server:
 ```
-api-clit ns.subscription call unregister
+api-cli ns.subscription call unregister
 ```
 
 Success response:
