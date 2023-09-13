@@ -74,6 +74,7 @@ define Package/ns-plug/install
 	$(INSTALL_BIN) ./files/send-inventory $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/register $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/unregister $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/subscription-info $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/inventory $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/20_ns-plug $(1)/etc/uci-defaults
 	$(INSTALL_CONF) ./files/config $(1)/etc/config/ns-plug

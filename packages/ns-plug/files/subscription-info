@@ -1,0 +1,30 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+#
+# Retrieve subscription information
+# The script takes an optional timeout parameter
+#
+
+timeout=${1:-20}
+
+type=$(uci -q get ns-plug.config.type)
+secret=$(uci -q get ns-plug.config.secret)
+url=$(uci -q get ns-plug.config.api_url | sed 's/\/$//')
+
+if [ "$type" = "enterprise" ]; then
+    curl -s -f -m $timeout --retry 3 -L \
+        -H "Content-Type: application/json" -H "Accept: application/json" \
+        -d '{"secret": "'$secret'"}' "$url/systems/info"
+else
+    curl -f -s -m $timeout --retry 3 -L \
+        -H "Content-Type: application/json" -H "Accept: application/json" \
+        -H "Authorization: token $secret" \
+        "$url/machine/info"
+fi
+
+exit $?
