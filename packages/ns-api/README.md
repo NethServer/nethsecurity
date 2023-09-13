@@ -1015,7 +1015,7 @@ Response example (with only 3 points):
 
 Description of response:
 - the `labels` field contains the timestamp of each point
-- the `data` field should contains 3600 points
+- the `data` field should contains 180 points
 - each point is composed by an array o 2 element: first one is received bytes, second one is sent bytes
 
 ### list-wans

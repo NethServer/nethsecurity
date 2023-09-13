@@ -7,6 +7,7 @@
 
 # Return dashboard statistics
 
+import re
 import os
 import sys
 import json
@@ -113,12 +114,12 @@ def count_hosts():
 
 def check_ts_dns():
     u = EUci()
+    adb_status = check_adblock()
     ts_enabled = u.get("adblock", "global", "ts_enabled", default="0") == "1"
-    adb_enabled = u.get("adblock", "global", "adb_enabled", default="0") == "1"
-    if not ts_enabled or not adb_enabled:
+    if not ts_enabled or adb_status == "disabled":
         return "disabled"
     pa = subprocess.run(["service", "adblock", "running"], check=False, capture_output=True)
-    if adb_enabled and ts_enabled and pa.returncode == 0:
+    if ts_enabled and adb_status == "ok":
         return "ok"
     else:
         return "error"
@@ -128,20 +129,28 @@ def check_adblock():
     adb_enabled = u.get("adblock", "global", "adb_enabled", default="0") == "1"
     if not adb_enabled:
         return "disabled"
-    pa = subprocess.run(["service", "adblock", "running"], check=False, capture_output=True)
-    if adb_enabled and pa.returncode == 0:
+    pa = subprocess.run(["service", "adblock", "status"], check=False, capture_output=True, text=True)
+    if adb_enabled and re.search('adblock_status\s+:\s+enabled', pa.stdout):
         return "ok"
     else:
         return "error"
 
+def check_banip():
+    u = EUci()
+    bip_enabled = u.get("banip", "global", "ban_enabled", default="0") == "1"
+    if not bip_enabled:
+        return "disabled"
+    pa = subprocess.run(["service", "banip", "status"], check=False, capture_output=True, text=True)
+    if bip_enabled and re.search('status\s+:\s+active', pa.stdout):
+        return "ok"
+
 def check_ts_ip():
     u = EUci()
+    bip_status = check_banip()
     ts_enabled = "bl.nethesis.it" in u.get("banip", "global", "ban_allowurl", default="")
-    bip_enabled = u.get("banip", "global", "ban_enabled", default="0") == "1"
-    if not ts_enabled or not bip_enabled:
+    if not ts_enabled or bip_status == "disabled":
         return "disabled"
-    pa = subprocess.run(["service", "banip", "running"], check=False, capture_output=True)
-    if bip_enabled and ts_enabled and pa.returncode == 0:
+    if ts_enabled and bip_status == "ok":
         return "ok"
     else:
         return "error"
@@ -211,7 +220,7 @@ def system_info():
 def interface_traffic(interface):
     ret = {"labels": [], "data": []}
     # retrieve from netdata the traffic for the last hour
-    url = f'http://127.0.0.1:19999//api/v1/data?chart=net.{interface}&options=abs&after=-3600'
+    url = f'http://127.0.0.1:19999/api/v1/data?chart=net.{interface}&after=-3600&points=180'
     try:
         with urllib.request.urlopen(url) as fu:
             data = json.loads(fu.read())
@@ -238,6 +247,8 @@ def service_status(service):
         ret["status"] = check_openvpn_rw()
     elif service == "flashstart":
         ret["status"] = check_flashstart()
+    elif service == "banip":
+        ret["status"] = check_banip()
     elif service == "mwan":
         ret["status"] = check_mwan()
     else:
