@@ -38,7 +38,7 @@ if [ -z "${user}" ]; then
     uci set rpcd.controller.username=${user}
     uci add_list rpcd.controller.read='*'
     uci add_list rpcd.controller.write='*'
-    uci commit
+    uci commit rpcd
 fi
 
 # Generate random password at each restart
