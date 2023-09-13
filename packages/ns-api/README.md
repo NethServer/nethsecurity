@@ -1041,6 +1041,71 @@ Response example:
 }
 ```
 
+## ns.subscription
+
+Manage server subscription for [my.nethesis.it](https://my.nethesis.it) and [my.nethserver.com](https://my.nethserver.com).
+
+### register
+
+Register the machine to the remote server.
+First, try to register an Enteprise subscription. If Enterprise subscription fails, try the Community one.
+Example:
+```
+ns.subscription call register --data '{"secret": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}'
+```
+
+Success response:
+```json
+{"result": "success"}
+```
+
+Error response:
+```json
+{"error": "invalid secret or server not found"}
+```
+
+### unregister
+
+Unregister the machine from the remote server:
+```
+ns.subscription call unregister
+```
+
+Success response:
+```json
+{"result": "success"}
+```
+
+Error response:
+```json
+{"error": "unregister failure"}
+```
+
+### info
+
+Retrieve subscription information from remote server:
+```
+ns.subscription call info
+```
+
+Success response:
+```json
+{
+  "server_id": 5034,
+  "systemd_id": "1af7701a-b2c5-4445-9718-e102c80aef55",
+  "plan": "Trial Pizza",
+  "expiration": 1697183326,
+  "active": true
+}
+```
+
+If the subscription does not expire, `expiration` is set to `0`.
+
+Error response:
+```json
+{"error": "no subscription info found"}
+```
+
 # Creating a new API
 
 Conventions:
