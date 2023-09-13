@@ -773,7 +773,7 @@ Response example:
 
 List route types:
 ```
-api-cli run ns.routes list-route-types
+api-cli ns.routes list-route-types
 ```
 
 Response example:
@@ -876,7 +876,7 @@ Error response example:
 
 Disable an existing route:
 ```
-api-cli run ns.routed disable-route --data '{"id": "ns_bc6a2749"}'
+api-cli ns.routed disable-route --data '{"id": "ns_bc6a2749"}'
 ```
 
 Success response example, the id of the disabled route:
@@ -1022,7 +1022,7 @@ Description of response:
 
 List wan interfaces:
 ```
-api-cli run ns.dashboard list-wans
+api-cli ns.dashboard list-wans
 ```
 
 Response example:
@@ -1051,7 +1051,7 @@ Register the machine to the remote server.
 First, try to register an Enteprise subscription. If Enterprise subscription fails, try the Community one.
 Example:
 ```
-ns.subscription call register --data '{"secret": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}'
+api-cli ns.subscription call register --data '{"secret": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}'
 ```
 
 Success response:
@@ -1068,7 +1068,7 @@ Error response:
 
 Unregister the machine from the remote server:
 ```
-ns.subscription call unregister
+api-clit ns.subscription call unregister
 ```
 
 Success response:
@@ -1085,7 +1085,7 @@ Error response:
 
 Retrieve subscription information from remote server:
 ```
-ns.subscription call info
+api-cli ns.subscription call info
 ```
 
 Success response:
