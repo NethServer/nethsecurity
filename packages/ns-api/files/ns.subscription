@@ -1,0 +1,68 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Manage the subscription to my.nethesis.it or my.nethserver.com
+
+import sys
+import json
+import subprocess
+from datetime import datetime
+
+def register(secret):
+    try:
+        subprocess.run(["/usr/sbin/register", "enterprise", secret, '5'], check=True, capture_output=True)
+        return {"result": "success"}
+    except:
+        pass
+
+    try:
+        subprocess.run(["/usr/sbin/register", "community", secret, '5'], check=True, capture_output=True)
+        return {"result": "success"}
+    except:
+        return {"error": "invalid secret or server not found"}
+
+def unregister():
+    try:
+        subprocess.run(["/usr/sbin/unregister"], check=True, capture_output=True)
+        return {"result": "success"}
+    except:
+        return {"error": "unregister failure"}
+
+def info():
+    try:
+        ret = {}
+        p = subprocess.run(["/usr/sbin/subscription-info"], check=True, capture_output=True)
+        data = json.loads(p.stdout)
+    except:
+        return {"error": "no subscription info found"}
+
+    active = data["subscription"]["status"] == "valid"
+    try:
+        date =  datetime.strptime(data["subscription"]["valid_until"], '%Y-%m-%dT%H:%M:%S.%fZ')
+        expiration = int(datetime.timestamp(date))
+    except:
+        expiration = 0
+
+    ret = {"server_id": data["id"], "systemd_id": data["uuid"], "plan": data["subscription"]["subscription_plan"]["name"], "expiration": expiration, "active": active}
+    return ret
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({"register": {"secret": "xxxx"}, "unregister": {}, "info": {}}))
+elif cmd == 'call':
+    action = sys.argv[2]
+    if action == "register":
+        args = json.loads(sys.stdin.read())
+        ret = register(args["secret"])
+    elif action == "unregister":
+        ret = unregister()
+    elif action == "info":
+        ret = info()
+    else:
+        ret = {"error": "invalid action"}
+    print(json.dumps(ret))

@@ -1,0 +1,13 @@
+{
+  "subscription-manager": {
+    "description": "Subscription manager",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.subscription": [
+          "*"
+        ]
+      }
+    }
+  }
+}
