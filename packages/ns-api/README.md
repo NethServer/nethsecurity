@@ -919,8 +919,8 @@ Response example:
     "hostname": "NethSec",
     "hardware": "Standard PC (Q35 + ICH9, 2009)",
     "memory": {
-      "used_bytes": "98972",
-      "available_bytes": "840060"
+      "used_bytes": 98972,
+      "available_bytes": 840060
     },
     "storage": {
       "/": {
