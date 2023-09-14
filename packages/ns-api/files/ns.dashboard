@@ -11,7 +11,6 @@ import re
 import os
 import sys
 import json
-import socket
 import subprocess
 import urllib.request
 from euci import EUci
@@ -205,13 +204,16 @@ def check_mwan():
 
     return "error"
 
+def get_hostname():
+    with open('/proc/sys/kernel/hostname', 'r') as fp:
+        return fp.read().strip()
 
 def system_info():
     ret = dict()
     ret['uptime'] = get_uptime()
     ret['load'] = os.getloadavg()
     ret['version'] = get_version()
-    ret['hostname'] = socket.getfqdn()
+    ret['hostname'] = get_hostname()
     ret['hardware'] = get_hardware()
     ret['memory'] = get_memory()
     ret['storage'] = get_storage()
