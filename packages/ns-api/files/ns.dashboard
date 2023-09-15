@@ -222,7 +222,7 @@ def system_info():
 def interface_traffic(interface):
     ret = {"labels": [], "data": []}
     # retrieve from netdata the traffic for the last hour
-    url = f'http://127.0.0.1:19999/api/v1/data?chart=net.{interface}&after=-3600&points=180'
+    url = f'http://127.0.0.1:19999/api/v1/data?chart=net.{interface}&after=-3600&points=180&options=abs'
     try:
         with urllib.request.urlopen(url) as fu:
             data = json.loads(fu.read())
