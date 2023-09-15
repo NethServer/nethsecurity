@@ -168,6 +168,113 @@ Response:
 }
 ```
 
+### list zones
+
+List firewall zones:
+
+```
+api-cli ns.firewall list_zones
+```
+
+Response:
+
+```json
+{
+  "ns_lan": {
+    "name": "lan",
+    "input": "ACCEPT",
+    "output": "ACCEPT",
+    "forward": "ACCEPT",
+    "network": [
+      "GREEN_1"
+    ]
+  },
+  "ns_wan": {
+    "name": "wan",
+    "input": "REJECT",
+    "output": "ACCEPT",
+    "forward": "REJECT",
+    "masq": "1",
+    "mtu_fix": "1",
+    "network": [
+      "wan6",
+      "RED_2",
+      "RED_3",
+      "RED_1"
+    ]
+  },
+  "ns_guests": {
+    "name": "guests",
+    "input": "DROP",
+    "forward": "DROP",
+    "output": "ACCEPT"
+  }
+}
+
+```
+
+### list forwardings
+
+List forwardings:
+
+```
+api-cli ns.firewall list_forwardings
+```
+
+Response:
+
+```json
+{
+  "cfg06ad58": {
+    "src": "lan",
+    "dest": "wan"
+  },
+  "ns_guests2wan": {
+    "src": "guests",
+    "dest": "wan"
+  },
+  "ns_lan2guests": {
+    "src": "lan",
+    "dest": "guests"
+  }
+}
+
+
+```
+
+### create zone
+
+Create zone:
+
+```
+api-cli ns.firewall create_zone --data '{"name": "cool_zone", "input": "DROP", "forward": "DROP", "traffic_to_wan": true, "forwards_to": [], "forwards_from": ["lan"]}'
+```
+
+Response:
+
+```json
+{
+  "message": "success"
+}
+```
+
+### delete zone
+
+Delete zone:
+
+```
+api-cli ns.firewall delete_zone --data '{"config_name": "cool_zone"}'
+```
+
+Response:
+
+```json
+{
+  "message": "success"
+}
+```
+
+
 ## ns.dpireport
 
 Lightsquid-like reports based on netifyd data streams.
