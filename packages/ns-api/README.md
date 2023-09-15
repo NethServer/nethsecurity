@@ -1213,6 +1213,260 @@ Error response:
 {"error": "no subscription info found"}
 ```
 
+## ns.dhcp
+
+Manage DHCPv4 servers and static leases.
+
+### list-interfaces
+
+List all interfaces where it is possible to enable a DHCPv4 server:
+```
+api-cli ns.dhcp list-interfaces
+```
+
+Response example:
+```json
+{
+  "lan": {
+    "device": "br-lan",
+    "start": "",
+    "end": "",
+    "active": true,
+    "options": {
+      "leasetime": "12h",
+      "gateway": "192.168.100.1",
+      "domain": "nethserver.org",
+      "dns": "1.1.1.1 8.8.8.8",
+      "SIP ": "192.168.100.151"
+    },
+    "zone": "lan",
+    "first": "192.168.100.2",
+    "last": "192.168.100.150"
+  },
+  "blue": {
+    "device": "eth2.1",
+    "start": "",
+    "end": "",
+    "active": false,
+    "options": {},
+    "zone": ""
+  }
+}
+```
+
+### list-dhcp-options
+
+List all supported DHCPv4 options:
+```
+api-cli ns.dhcp list-dhcp-options
+```
+
+These options can be used inside the `options` array for the `edit-interface` API.
+
+Response example (just a part):
+```json
+{
+  "netmask": "1",
+  "time-offset": "2",
+  "router": "3",
+  "dns-server": "6",
+  "log-server": "7",
+  "lpr-server": "9",
+  "boot-file-size": "13",
+}
+```
+
+### get-interface
+
+Get DHCPv4 configuration for the given interface:
+```
+api-cli ns.dhcp get-interface --data '{"interface": "lan"}'
+```
+
+Successfull response example:
+```json
+{
+  "interface": "lan",
+  "options": [
+    {
+      "gateway": "192.168.100.1"
+    },
+    {
+      "domain": "nethserver.org"
+    },
+    {
+      "dns": "1.1.1.1,8.8.8.8"
+    },
+    {
+      "120": "192.168.100.151"
+    }
+  ],
+  "first": "192.168.100.2",
+  "last": "192.168.100.150",
+  "leasetime": "12h",
+  "active": true
+}
+```
+
+Each element of the `options` array is a key-value object.
+The key is the DHCP option name or number, the value is the option value.
+Multiple values can be comma-separated.
+
+Error response example:
+```json
+{"error": "interface not found"}
+```
+
+### edit-interface
+
+Change or add the DHCPv4 configuration for a given interface:
+```
+api-cli ns.dhcp edit-interface --data '{"interface":"lan","first":"192.168.100.2","last":"192.168.100.150","active":true,"leasetime": "12h","options":[{"gateway":"192.168.100.1"},{"domain":"nethserver.org"},{"dns":"1.1.1.1,8.8.8.8"},{"120":"192.168.100.151"}]}'
+```
+
+See [ns.dhcp get-interface][#get-interface] for the `options` array format.
+
+Successfull response:
+```json
+{"interface": "lan"}
+```
+
+Error response example:
+```json
+{"error": "interface not found"}
+```
+
+### list-active-leases
+
+List active DHCPv4 leases:
+```
+api-cli ns.dhcp list-active-leases
+```
+
+Response example:
+```json
+{
+  "leases": [
+    {
+      "timestamp": "1694779698",
+      "macaddr": "62:2b:d7:6d:69:3d",
+      "ipaddr": "192.168.5.138",
+      "hostname": "",
+      "interface": "blue",
+      "device": "eth2.1"
+    },
+    {
+      "timestamp": "1694779311",
+      "macaddr": "2c:ea:7f:ff:03:35",
+      "ipaddr": "192.168.5.38",
+      "hostname": "xps9500",
+      "interface": "blue",
+      "device": "eth2.1"
+    }
+}
+```
+
+### list-static-leases
+
+List configured static DHCPv4 leases:
+```
+api-cli ns.dhcp list-static-leases
+```
+
+Response example:
+```json
+{
+  "leases": [
+    {
+      "lease": "ns_lease1",
+      "macaddr": "80:5e:c0:7b:06:a1",
+      "ipaddr": "192.168.5.220",
+      "hostname": "W80B-2",
+      "interface": "blue",
+      "device": "eth2.1"
+    },
+    {
+      "lease": "ns_lease2",
+      "macaddr": "80:5e:c0:d9:c5:eb",
+      "ipaddr": "192.168.5.162",
+      "hostname": "W90B-1",
+      "interface": "blue",
+      "device": "eth2.1"
+    }
+  ]
+}
+```
+
+The `lease` field contains the lease id which can be used to retrive the lease configuration.
+
+### get-static-lease
+
+Get a static lease:
+```
+api-cli ns.dhcp get-static-lease --data '{"lease": "ns_mylease"}'
+```
+
+Successfull response example:
+```json
+{
+  "hostname": "myhost",
+  "ipaddr": "192.168.100.22",
+  "macaddr": "80:5e:c0:d9:c6:9b",
+  "description": "my desc"
+}
+```
+
+Error response example:
+```json
+{"error": "lease not found"}
+```
+
+### delete-static-lease
+
+Delete a static lease:
+```
+api-cli ns.dhcp get-static-lease --data '{"lease": "ns_mylease"}'
+```
+
+Successfull response example:
+```json
+{"lease": "ns_d5facd89"}
+```
+
+Error response example:
+```json
+{"error": "lease not found"}
+```
+
+### add-static-lease
+
+Add static lease:
+```
+api-cli ns.dhcp add-static-lease --data '{"ipaddr": "192.168.100.22", "macaddr": "80:5e:c0:d9:c6:9b", "hostname": "myhost", "description": "my desc"}'
+```
+
+Successfull response example:
+```json
+{"lease": "ns_d5facd89"}
+```
+
+### edit-static-lease
+
+Edit static lease:
+```
+api-cli ns.dhcp edit-static-lease --data '{"lease": "ns_d5facd89", "ipaddr": "192.168.100.22", "macaddr": "80:5e:c0:d9:c6:9b", "hostname": "myhost", "description": "my desc"}'
+```
+
+Successfull response example:
+```json
+{"lease": "ns_d5facd89"}
+```
+
+Error response example:
+```json
+{"error": "lease not found"}
+```
+
 # Creating a new API
 
 Conventions:
