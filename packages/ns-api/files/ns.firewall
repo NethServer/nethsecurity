@@ -7,21 +7,64 @@
 
 # List firewall rules
 
-import sys
 import json
-from euci import EUci
-from nethsec import utils
+import sys
 
-def list_rules(param = ''):
-    u = EUci()
-    rules = utils.get_all_by_type(u, 'firewall', 'rule')
-    print(json.dumps({"rules": list(rules.values())}))
+from euci import EUci
+from nethsec import utils, firewall
 
 cmd = sys.argv[1]
 
 if cmd == 'list':
-    print(json.dumps({"rules": {}}))
+    print(json.dumps({
+        'rules': {},
+        'list_zones': {},
+        'list_forwardings': {},
+        'create_zone': {
+            'name': 'String',
+            'input': 'String',
+            'forward': 'String',
+            'traffic_to_wan': 'Boolean',
+            'forwards_to': 'Array',
+            'forwards_from': 'Array'
+        },
+        'delete_zone': {
+            'config_name': 'String'
+        }
+    }))
 elif cmd == 'call':
     action = sys.argv[2]
-    if action == "rules":
-        list_rules()
+    e_uci = EUci()
+    if action == 'rules':
+        rules = utils.get_all_by_type(e_uci, 'firewall', 'rule')
+        print(json.dumps({'rules': list(rules.values())}))
+    elif action == 'list_zones':
+        print(json.dumps(firewall.list_zones(e_uci)))
+    elif action == 'list_forwardings':
+        print(json.dumps(firewall.list_forwardings(e_uci)))
+    elif action == 'create_zone':
+        try:
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            firewall.add_zone(e_uci,
+                              data['name'],
+                              data['input'],
+                              data['forward'],
+                              data['traffic_to_wan'],
+                              data['forwards_to'],
+                              data['forwards_from'], )
+            print(json.dumps({"message": "success"}))
+        except KeyError:
+            print(json.dumps({"error": "missing data required fields"}))
+        except json.JSONDecodeError:
+            print(json.dumps({"error": "json given is invalid"}))
+    elif action == 'delete_zone':
+        try:
+            zone_name = json.JSONDecoder().decode(sys.stdin.read())['config_name']
+            firewall.delete_zone(e_uci, zone_name)
+            print(json.dumps({"message": "success"}))
+        except json.JSONDecodeError:
+            print(json.dumps({"error": "json given is invalid"}))
+        except ValueError:
+            print(json.dumps({"error": "zone missing or not supported"}))
+        except KeyError:
+            print(json.dumps({"error": "missing required name field"}))
