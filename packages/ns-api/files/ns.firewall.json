@@ -5,10 +5,9 @@
     "read": {
       "ubus": {
         "ns.firewall": [
-          "rules"
+          "*"
         ]
       }
     }
   }
 }
-
