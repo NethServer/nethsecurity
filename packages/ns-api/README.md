@@ -1487,7 +1487,7 @@ Responses example:
       "ip": "1.2.3.4",
       "name": "host1.nethesis.it",
       "description": ""
-      "wildcard": True
+      "wildcard": true
     }
   ]
 }
