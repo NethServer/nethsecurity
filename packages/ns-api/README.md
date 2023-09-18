@@ -1580,7 +1580,7 @@ Responses example:
 
 Set DNS general configuration:
 ```
-api-cli ns.dns set-config --data '{"domain": "lan", "logqueries": true, "server": ["8.8.8.8", ["1.1.1"]]}''
+api-cli ns.dns set-config --data '{"domain": "lan", "logqueries": true, "server": ["8.8.8.8"], ["1.1.1"]]}''
 ```
 
 Responses example:
