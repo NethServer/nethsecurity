@@ -1467,6 +1467,127 @@ Error response example:
 {"error": "lease not found"}
 ```
 
+## ns.dns
+
+Manage global DNS configuration and DNS records.
+
+### list-records
+
+List DNS records:
+```
+api-cli ns.dns list-records
+```
+
+Response example:
+```json
+{
+  "records": [
+    {
+      "record": "cfg0af37d",
+      "ip": "1.2.3.4",
+      "name": "host1.nethesis.it",
+      "description": ""
+      "wildcard": true
+    }
+  ]
+}
+```
+
+The `record` field is the id of the DNS record.
+
+### get-record
+
+Retrieve the given record by id:
+```
+api-cli ns.dns get-record --data '{"record": "cfg0af37d"}'
+```
+
+Response example:
+```json
+{
+  "name": "host1.nethesis.it",
+  "ip": "1.2.3.4",
+  "description": "",
+  "wildcard": false
+}
+```
+
+### add-record
+
+Add a DNS record:
+```
+api-cli ns.dns add-record --data '{"name": "www.example.org", "ip": "192.168.100.2", "description": "My record", "wildcard": true}'
+```
+
+Successful response example:
+```json
+{"record": "my_record"}
+```
+
+### edit-record
+
+Edit a DNS record:
+```
+api-cli ns.dns edit-record --data '{"record": "cfg0af37d", "name": "www.example.org", "ip": "192.168.100.2", "description": "My record", "wildcard": false}'
+```
+
+Successful response example:
+```json
+{"record": "my_record"}
+```
+
+Error response example:
+```json
+{"error": "record not found"}
+```
+
+### delete-record
+
+Delete a DNS record:
+```
+api-cli ns.dns delete-record --data '{"record": "cfg0af37d"}'
+```
+
+Successful response example:
+```json
+{"record": "my_record"}
+```
+
+Error response example:
+```json
+{"error": "record not found"}
+```
+
+### get-config
+
+Get DNS general configuration:
+```
+api-cli ns.dns get-config
+```
+
+Response example:
+```json
+{
+  "domain": "lan",
+  "logqueries": true,
+  "server": [
+    "8.8.7.7"
+  ]
+}
+```
+
+### set-config
+
+Set DNS general configuration:
+```
+api-cli ns.dns set-config --data '{"domain": "lan", "logqueries": true, "server": ["8.8.8.8"], ["1.1.1"]]}''
+```
+
+Response example:
+```json
+{"server": "cfg01411c"}
+```
+
 # Creating a new API
 
 Conventions:

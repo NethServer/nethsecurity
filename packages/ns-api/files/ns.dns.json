@@ -1,0 +1,13 @@
+{
+  "dns-manager": {
+    "description": "Manage DNS",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.dns": [
+          "*"
+        ]
+      }
+    }
+  }
+}

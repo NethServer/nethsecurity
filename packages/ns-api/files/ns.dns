@@ -1,0 +1,185 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Manage DNS
+
+import sys
+import json
+import subprocess
+from euci import EUci
+from nethsec import utils
+
+def list_records():
+    ret = {"records": []}
+    u = EUci()
+    for r in utils.get_all_by_type(u, 'dhcp', 'domain'):
+        rdata = u.get_all('dhcp', r)
+        name = rdata.get('name','')
+        ip = rdata.get('ip', '')
+        ret['records'].append({"record": r, "ip": ip, "name": name, "description": rdata.get("ns_description", ""), 'wildcard': is_wildcard(u, ip, name)})
+    return ret
+
+def add_record(args):
+    u = EUci()
+    rname = utils.get_random_id()
+    u.set('dhcp', rname, 'domain')
+    u.set('dhcp', rname, 'ip', args["ip"])
+    u.set('dhcp', rname, 'name', args["name"])
+    u.set('dhcp', rname, 'ns_description', args["description"])
+    if args["wildcard"]:
+        add_wildcard(u, args['ip'], args['name'])
+    u.save('dhcp')
+    return {"record": rname}
+
+def is_wildcard(u, ip, name):
+    try:
+        cur = u.get('dhcp', get_server(u), 'address', list=True)
+    except:
+        return False
+    for addr in cur:
+        if f'/{name}/{ip}' == addr:
+            return True
+    return False
+
+def remove_wildcard(u, ip, name):
+    server = get_server(u)
+    new = []
+    try:
+        cur = u.get('dhcp', server, 'address', list=True)
+    except:
+        return
+    for addr in cur:
+        if f'/{name}/{ip}' == addr:
+            continue
+        new.append(addr)
+    u.set('dhcp', server, 'address', new)
+    u.save('dhcp')
+
+def add_wildcard(u, ip, name):
+    remove_wildcard(u, ip, name)
+    server = get_server(u)
+    try:
+        addr = u.get('dhcp', server, 'address', list=True)
+    except:
+        addr = []
+    addr.append(f'/{name}/{ip}')
+    u.set('dhcp', server, 'address', addr)
+    u.save('dhcp')
+
+def edit_record(args):
+    u = EUci()
+    try:
+        u.get('dhcp', args['record'])
+    except:
+        return {"error": "record not found"}
+    rname = args["record"]
+    u.set('dhcp', rname, 'domain')
+    u.set('dhcp', rname, 'ip', args["ip"])
+    u.set('dhcp', rname, 'name', args["name"])
+    u.set('dhcp', rname, 'ns_description', args["description"])
+    if args["wildcard"]:
+        add_wildcard(u, args['ip'], args['name'])
+    else:
+        remove_wildcard(u, args['ip'], args['name'])
+    u.save('dhcp')
+    return {"record": rname}
+
+def get_record(args):
+    u = EUci()
+    try:
+        record = u.get_all('dhcp', args['record'])
+    except:
+        return {"error": "record not found"}
+    return {"name": record.get('name', ''), "ip": record.get("ip", ''), "description": record.get("ns_description",""), 'wildcard': is_wildcard(u, record.get("ip", ''),  record.get('name', ''))}
+
+def delete_record(args):
+    u = EUci()
+    try:
+        u.get('dhcp', args['record'])
+        u.delete('dhcp', args['record'])
+        u.save('dhcp')
+    except:
+        return {"error": "record not found"}
+    return {"record": args['record']}
+
+def get_server(u):
+    for section in u.get("dhcp"):
+        if u.get("dhcp", section) == "dnsmasq":
+            return section
+    return None
+
+def get_config():
+    u = EUci()
+    ret = {}
+    section = get_server(u)
+    try:
+        config = u.get_all("dhcp", section)
+        ret["domain"] = config.get("domain", "lan")
+        ret["logqueries"] = config.get("logqueries", "0") == "1"
+        ret["server"] = config.get("server", [])
+    except:
+        return {"error": "config read error"}
+    return ret
+
+def bool2str(bval):
+    if bval:
+        return "1"
+    else:
+        return "0"
+
+def set_config(args):
+    u = EUci()
+    ret = {}
+    section = get_server(u)
+    try:
+        config = u.get_all("dhcp", section)
+        for opt in args:
+           val = args[opt]
+           if type(val) == type(True):
+               val = bool2str(val)
+           u.set("dhcp", section, opt, val)
+        # calculate local option to avoid errors
+        if 'domain' in args and not 'local' in args:
+           u.set("dhcp", section, 'local', f'/{args["domain"]}/')
+        u.save("dhcp")
+    except:
+        return {"error": "config write error"}
+
+    return {"server": section}
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({
+        "list-records": {},
+        "get-config": {},
+        "set-config": {"domain": "lan", "logqueries": True, "server": ["1.1.1.1"]},
+        "add-record": {"hostname": "www.example.org", "ipaddr": "192.168.100.2", "description": "My record", "wildcard": True},
+        "edit-record": {"record": "ns_myrecord", "hostname": "www.example.org", "ipaddr": "192.168.100.2", "description": "My record", "wildcard": True},
+        "get-record": {"record": "ns_myrecord"},
+        "delete-record": {"record": "ns_myrecord"}
+    }))
+elif cmd == 'call':
+    action = sys.argv[2]
+    ret = {}
+    if action == "list-records":
+        ret = list_records()
+    elif action == "get-config":
+        ret = get_config()
+    else:
+        args = json.loads(sys.stdin.read())
+    if action == "set-config":
+        ret = set_config(args)
+    elif action == "get-record":
+        ret = get_record(args)
+    elif action == "delete-record":
+        ret = delete_record(args)
+    elif action == "edit-record":
+        ret = edit_record(args)
+    elif action == "add-record":
+        ret = add_record(args)
+    print(json.dumps(ret))
