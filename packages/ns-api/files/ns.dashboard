@@ -49,20 +49,20 @@ def _run(cmd):
 
 def _get_used_bytes(path):
     try:
-        return int(_run("/bin/df | /usr/bin/sort | /usr/bin/uniq | /bin/grep '"+path+"$' | /usr/bin/awk '{print $3}'"))*1024
+        return int(_run("/bin/df -P | /usr/bin/sort | /usr/bin/uniq | /bin/grep '"+path+"$' | /usr/bin/awk '{print $3}'"))*1024
     except:
         return 0
 
 def _get_avail_bytes(path):
     try:
-        return int(_run("/bin/df | /usr/bin/sort | /usr/bin/uniq | /bin/grep '"+path+"$' | /usr/bin/awk '{print $4}'"))*1024
+        return int(_run("/bin/df -P | /usr/bin/sort | /usr/bin/uniq | /bin/grep '"+path+"$' | /usr/bin/awk '{print $4}'"))*1024
     except:
         return 0
 
 def get_memory():
     return { 
-            "used_bytes": int(_run("/usr/bin/free | /bin/grep 'Mem': | /usr/bin/awk '{print $3}'")),
-            "available_bytes": int(_run("/usr/bin/free | /bin/grep 'Mem:' | /usr/bin/awk '{print $7}'"))
+            "used_bytes": int(_run("/usr/bin/free | /bin/grep 'Mem': | /usr/bin/awk '{print $3}'"))*1024,
+            "available_bytes": int(_run("/usr/bin/free | /bin/grep 'Mem:' | /usr/bin/awk '{print $7}'"))*1024
         }
 
 def get_storage():
@@ -71,9 +71,9 @@ def get_storage():
             "used_bytes": _get_used_bytes('/'),
             "available_bytes": _get_avail_bytes('/')
         },
-        "/mnt/storage": {
-            "used_bytes": _get_used_bytes('/mnt/storage'),
-            "available_bytes": _get_avail_bytes('/mnt/storage')
+        "/mnt/data": {
+            "used_bytes": _get_used_bytes('/mnt/data'),
+            "available_bytes": _get_avail_bytes('/mnt/data')
         },
         "tmpfs": {
             "used_bytes": _get_used_bytes('/tmp'),

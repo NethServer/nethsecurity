@@ -1034,7 +1034,7 @@ Response example:
         "used_bytes": 175554560,
         "available_bytes": 127582208
       },
-      "/mnt/storage": {
+      "/mnt/data": {
         "used_bytes": 0,
         "available_bytes": 0
       },
