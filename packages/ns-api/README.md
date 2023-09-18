@@ -1548,7 +1548,7 @@ Delete a DNS record:
 api-cli ns.dns delete-record --data '{"record": "cfg0af37d"}'
 ```
 
-Successfull response example:
+Successful response example:
 ```json
 {"record": "my_record"}
 ```
