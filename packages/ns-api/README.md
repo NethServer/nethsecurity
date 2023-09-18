@@ -1478,7 +1478,7 @@ List DNS records:
 api-cli ns.dns list-records
 ```
 
-Responses example:
+Response example:
 ```json
 {
   "records": [
