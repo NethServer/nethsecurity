@@ -1565,7 +1565,7 @@ Get DNS general configuration:
 api-cli ns.dns get-config
 ```
 
-Responses example:
+Response example:
 ```json
 {
   "domain": "lan",
