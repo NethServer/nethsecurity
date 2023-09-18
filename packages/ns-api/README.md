@@ -1531,7 +1531,7 @@ Edit a DNS record:
 api-cli ns.dns edit-record --data '{"record": "cfg0af37d", "name": "www.example.org", "ip": "192.168.100.2", "description": "My record", "wildcard": false}'
 ```
 
-Successfull response example:
+Successful response example:
 ```json
 {"record": "my_record"}
 ```
