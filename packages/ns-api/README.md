@@ -1583,7 +1583,7 @@ Set DNS general configuration:
 api-cli ns.dns set-config --data '{"domain": "lan", "logqueries": true, "server": ["8.8.8.8"], ["1.1.1"]]}''
 ```
 
-Responses example:
+Response example:
 ```json
 {"server": "cfg01411c"}
 ```
