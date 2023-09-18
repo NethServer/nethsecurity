@@ -1519,7 +1519,7 @@ Add a DNS record:
 api-cli ns.dns add-record --data '{"name": "www.example.org", "ip": "192.168.100.2", "description": "My record", "wildcard": true}'
 ```
 
-Successfull response example:
+Successful response example:
 ```json
 {"record": "my_record"}
 ```
