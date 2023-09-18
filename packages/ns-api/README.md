@@ -1508,7 +1508,7 @@ Response example:
   "name": "host1.nethesis.it",
   "ip": "1.2.3.4",
   "description": "",
-  "wildcard": False
+  "wildcard": false
 }
 ```
 
