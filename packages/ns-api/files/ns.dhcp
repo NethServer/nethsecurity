@@ -94,7 +94,7 @@ def edit_interface(args):
     try:
         u.get_all("network", args["interface"])
     except:
-        return {"error": "interface not found"}
+        return utils.generic_error("interface_not_found")
     u.set("dhcp", args['interface'], 'dhcp')
     ipaddr = u.get('network', args['interface'], 'ipaddr')
     netmask = u.get('network', args['interface'], 'netmask')
@@ -124,7 +124,7 @@ def get_interface(args):
         dhcp = u.get_all("dhcp", args["interface"])
         interface = u.get_all("network", args["interface"])
     except:
-        return {"error": "interface not found"}
+        return utils.generic_error("interface not found")
     (ret['first'], ret['last']) = conf_to_range(interface['ipaddr'], interface['netmask'], dhcp.get('start', 100), dhcp.get('limit', 150))
     ret["leasetime"] = dhcp["leasetime"]
     ret["active"] = dhcp["dhcpv4"] == "server"
@@ -166,8 +166,21 @@ def list_static_leases():
             ret['leases'].append({"lease": l, "macaddr": ldata['mac'], "ipaddr": ldata['ip'], "hostname": ldata.get('name',''), 'interface': interface, "device": device, "description": ldata.get('ns_description', '')})
     return ret
 
+def is_reserved(u, mac):
+    try:
+        for h in utils.get_all_by_type(u, 'dhcp', 'host'):
+            if u.get('dhcp', h, 'mac', default='') == mac:
+                return True
+    except:
+        return False
+
+    return False
+
+
 def add_static_lease(args):
     u = EUci()
+    if is_reserved(u, args["macaddr"]):
+        return utils.validation_error("mac", "mac_already_reserved", args["macaddr"])
     lname = utils.get_random_id()
     u.set('dhcp', lname, 'host')
     u.set('dhcp', lname, 'ip', args["ipaddr"])
@@ -184,7 +197,10 @@ def edit_static_lease(args):
     try:
         u.get('dhcp', args['lease'])
     except:
-        return {"error": "lease not found"}
+        return utils.generic_error("lease_not_found")
+
+    if is_reserved(args["macaddr"]):
+        return utils.validation_error("mac", "mac_already_reserved", args["macaddr"])
     lname = args["lease"]
     u.set('dhcp', lname, 'host')
     u.set('dhcp', lname, 'ip', args["ipaddr"])
@@ -203,7 +219,7 @@ def get_static_lease(args):
     try:
         lease = u.get_all('dhcp', args['lease'])
     except:
-        return {"error": "lease not found"}
+        return utils.generic_error("lease_not_found")
     return {"hostname": lease.get('name', ''), "ipaddr": lease.get("ip", ''), 'macaddr': lease.get('mac',''), 'description': lease.get('ns_description', '')}
 
 def delete_static_lease(args):
@@ -213,7 +229,7 @@ def delete_static_lease(args):
         u.delete('dhcp', args['lease'])
         u.save('dhcp')
     except:
-        return {"error": "lease not found"}
+        return utils.generic_error("lease_not_found")
     return {"lease": args['lease']}
 
 cmd = sys.argv[1]
@@ -232,6 +248,7 @@ if cmd == 'list':
             {"120": "192.168.100.151"}
         ]},
         "list-active-leases": {},
+        "list-static-leases": {},
         "get-static-lease": {"lease": "ns_mylease"},
         "edit-static-lease": {"lease": "ns_mylease"},
         "delete-static-lease": {"lease": "ns_mylease"},
