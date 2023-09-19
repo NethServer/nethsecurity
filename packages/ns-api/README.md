@@ -5,103 +5,6 @@ NethSecurity APIs for `rpcd`.
 * TOC
 {:toc}
 
-## How to invoke the APIs
-
-APIs can be called using 4 different methods:
-- using `curl` and invoking the API server
-- using `api-cli` wrapper that talks with ubus over HTTP
-- directly invoking the scripts
-- using `ubus` client
-
-### curl
-
-The APIs should always be invoked through the API server on a production environment.
-The server will handle the authentication and invoke APIs using ubus.
-It also add some extra logic for 2FA and error handling.
-
-First, authenticate the user and obtain a JWT token:
-```
-curl -s -H 'Content-Type: application/json' -k https://localhost/api/login --data '{"username": "root", "password": "Nethesis,1234"}' | jq -r .token
-```
-
-Use the obtained token, to invoke an API:
-```
-curl -s -H 'Content-Type: application/json' -k  https://localhost/api/ubus/call -H 'Authorization: Bearer <jwt_token>' --data '{"path": "ns.dashboard", "method": "system-info", "payload": {}}' | jq
-```
-
-If you need to pass parameters to the API, add them inside the `payload` field:
-```
-curl -s -H 'Content-Type: application/json' -k  https://localhost/api/ubus/call -H 'Authorization: Bearer <jwt_token>' --data '{"path": "ns.dashboard", "method": "counter", "payload": {"service": "hosts"}}'
-```
-
-### api-cli
-
-The `api-cli` wrapper needs valid user credentials.
-If no credentials are given, it uses the default ones:
-
-- user: `root`
-- password: `Nethesis,1234`
-
-You can use this method to automate the configuration and to test existing APIs.
-
-Example with default credentials:
-```
-api-cli ns.dashboard system-info
-```
-
-If you changed the `root` password, use:
-```
-api-cli --password mypass ns.dashboard system-info
-```
-
-You can pass parameters to the APIs:
-```
-api-cli ns.dashboard counter --data '{"service": "hosts"}'
-```
-
-### Direct invocation
-
-Most APIs are implemented as executable scripts under the `/usr/libexec/rpcd` directory.
-See also [Creating a new API](#creating_a_new_api) for more info.
-
-You can call directly the script bypassing all system checks.
-Use this method during API development.
-
-Call the method `system-info` under the `ns.dashboard` API:
-```
-/usr/libexec/rpcd/ns.dashboard call system-info | jq
-```
-
-If you need to pass an argument, you must write it to the standard input:
-```
-echo '{"service": "hosts"}' | /usr/libexec/rpcd/ns.dashboard call counter | jq
-```
-
-To list all methods of a script use:
-```
-/usr/libexec/rpcd/ns.dashboard list | jq
-```
-
-### ubus
-
-You can check if an API follows all conventions using ubus.
-Even this method is recommended only during development.
-
-List available APIs:
-```
-ubus -S list | grep '^ns.'
-```
-
-APIs can be called directly from ubus, like:
-```
-ubus -S call ns.talkers list '{"limit": 5}'
-```
-Or using `api-cli`:
-```
-api-cli ns.talkers list --data '{"limit": 5}'
-```
-
-
 ## ns.talkers
 
 ### list
@@ -715,7 +618,7 @@ Success response example:
 
 Error response example:
 ```json
-{ "error": "command failed" }
+{ "error": "command_failed" }
 ```
 
 ### poweroff
@@ -732,7 +635,7 @@ Success response example:
 
 Error response example:
 ```json
-{ "error": "command failed" }
+{ "error": "command_failed" }
 ```
 
 ## ns.routes
@@ -938,7 +841,7 @@ Success response example, the id of the edited route:
 
 Error response example:
 ```json
-{"error": "route not modified"}
+{"error": "route_not_modified"}
 ```
 
 ### delete-route
@@ -957,7 +860,7 @@ Success response example, the id of the deleted route:
 
 Error response example:
 ```json
-{"error": "route not deleted"}
+{"error": "route_not_deleted"}
 ```
 
 ### enable-route
@@ -976,7 +879,7 @@ Success response example, the id of the enabled route:
 
 Error response example:
 ```json
-{"error": "route not enabled"}
+{"error": "route_not_enabled"}
 ```
 
 ### disable-route
@@ -995,7 +898,7 @@ Success response example, the id of the disabled route:
 
 Error response example:
 ```json
-{"error": "route not disabled"}
+{"error": "route_not_disabled"}
 ```
 
 ## ns.dashboard
@@ -1168,7 +1071,7 @@ Success response:
 
 Error response:
 ```json
-{"error": "invalid secret or server not found"}
+{"error": "invalid_secret_or_server_not_found"}
 ```
 
 ### unregister
@@ -1185,7 +1088,7 @@ Success response:
 
 Error response:
 ```json
-{"error": "unregister failure"}
+{"error": "unregister_failure"}
 ```
 
 ### info
@@ -1210,7 +1113,7 @@ If the subscription does not expire, `expiration` is set to `0`.
 
 Error response:
 ```json
-{"error": "no subscription info found"}
+{"error": "no_subscription_info_found"}
 ```
 
 ## ns.dhcp
@@ -1314,7 +1217,7 @@ Multiple values can be comma-separated.
 
 Error response example:
 ```json
-{"error": "interface not found"}
+{"error": "interface_not_found"}
 ```
 
 ### edit-interface
@@ -1333,7 +1236,7 @@ Successfull response:
 
 Error response example:
 ```json
-{"error": "interface not found"}
+{"error": "interface_not_found"}
 ```
 
 ### list-active-leases
@@ -1418,7 +1321,7 @@ Successfull response example:
 
 Error response example:
 ```json
-{"error": "lease not found"}
+{"error": "lease_not_found"}
 ```
 
 ### delete-static-lease
@@ -1435,7 +1338,7 @@ Successfull response example:
 
 Error response example:
 ```json
-{"error": "lease not found"}
+{"error": "lease_not_found"}
 ```
 
 ### add-static-lease
@@ -1448,6 +1351,21 @@ api-cli ns.dhcp add-static-lease --data '{"ipaddr": "192.168.100.22", "macaddr":
 Successfull response example:
 ```json
 {"lease": "ns_d5facd89"}
+```
+
+If the mac address has already a reservation, a validation error is returned:
+```
+{
+  "validation": {
+    "errors": [
+      {
+        "parameter": "mac",
+        "message": "mac_already_reserved",
+        "value": "80:5e:c0:d9:c6:9b"
+      }
+    ]
+  }
+}
 ```
 
 ### edit-static-lease
@@ -1464,8 +1382,10 @@ Successfull response example:
 
 Error response example:
 ```json
-{"error": "lease not found"}
+{"error": "lease_not_found"}
 ```
+
+This API can also raise a validation error like the `add-static-lease` API.
 
 ## ns.dns
 
@@ -1538,7 +1458,7 @@ Successful response example:
 
 Error response example:
 ```json
-{"error": "record not found"}
+{"error": "record_not_found"}
 ```
 
 ### delete-record
@@ -1555,7 +1475,7 @@ Successful response example:
 
 Error response example:
 ```json
-{"error": "record not found"}
+{"error": "record_not_found"}
 ```
 
 ### get-config
@@ -1588,96 +1508,3 @@ Response example:
 {"server": "cfg01411c"}
 ```
 
-# Creating a new API
-
-Conventions:
-- all APIs must start with `ns.` prefix
-- all APIs must read JSON object input from standard input
-- all APIs must write a JSON object to standard output: JSON arrays should always be wrapped inside
-  an object due to ubus limitations
-- APIs should not commit changes to the configuration database: it's up to the user (or the UI) to commit them and restart the services
-- if the API raises and error, it should return an object like `{"error": "my error"}`
-
-To add a new API, follow these steps:
-1. create an executable file inside `/usr/libexec/rpcd/` directory, like `ns.example`, and restart rpcd
-2. create an ACL JSON file inside `/usr/share/rpcd/acl.d`, like `ns.example.json`
-
-APIs can be written using any available programming language.
-In this example we are going to use python.
-
-Example for `/usr/libexec/rpcd/ns.example`:
-```python
-#!/usr/bin/python3
-
-#
-# Copyright (C) 2022 Nethesis S.r.l.
-# SPDX-License-Identifier: GPL-2.0-only
-#
-
-# Return the same message given as input parameter
-
-import sys
-import json
-
-def say(param):
-    res = ''
-    try:
-        # do something here
-        ret = param
-    finally:
-        print(json.dumps({"result": ret}))
-
-cmd = sys.argv[1]
-
-if cmd == 'list':
-    print(json.dumps({"say": {"message": "value"}}))
-elif cmd == 'call' and sys.argv[2] == "say":
-    args = json.loads(sys.stdin.read())
-    param = args.get('message', 'myvalue')
-    say(param)
-```
-
-Make the file executable and restart rpcd:
-```
-chmod a+x /usr/libexec/rpcd/ns.example
-```
-
-Usage example:
-```
-# ubus -v call ns.example say '{"message": "hello world"}' | jq
-{
-  "result": "hello world"
-}
-```
-
-Create the ACL file to enable RPC calls.
-Example for `/usr/share/rpcd/acl.d/ns.example.json`:
-```
-{
-  "example-reader": {
-    "description": "Access say method",
-    "write": {},
-    "read": {
-      "ubus": {
-        "ns.example": [
-          "say"
-        ]
-      }
-    }
-  }
-}
-```
-
-Restart `rpcd`:
-```
-/etc/init.d/rpcd restart
-```
-
-Test the new API:
-```
-api-cli ns.example say --data '{"message": "hello world"}'
-```
-
-References
-- [RPCD](https://openwrt.org/docs/techref/rpcd)
-- [JSONRPC](https://github.com/openwrt/luci/wiki/JsonRpcHowTo)

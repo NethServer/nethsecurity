@@ -10,13 +10,14 @@
 import sys
 import json
 import subprocess
+from nethsec import utils
 
 def run(cmd):
     try:
         subprocess.run([cmd], check=True, capture_output=True)
         return {"result": "success"}
     except:
-        return {"error": "command failed"}
+        return utils.generic_error("command_failed")
 
 
 cmd = sys.argv[1]

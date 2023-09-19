@@ -75,7 +75,7 @@ def enable_route(rid):
         u.save("network")
         return {"id": rid}
     except:
-        return {"error": "route not enabled"}
+        return utils.generic_error("route_not_enabled")
 
 def disable_route(rid):
     u = EUci()
@@ -84,7 +84,7 @@ def disable_route(rid):
         u.save("network")
         return {"id": rid}
     except:
-        return {"error": "route not disabled"}
+        return utils.generic_error("route_not_disabled")
 
 def delete_route(rid):
     u = EUci()
@@ -94,7 +94,7 @@ def delete_route(rid):
         u.save("network")
         return {"id": rid}
     except:
-        return {"error": "route not deleted"}
+        return utils.generic_error("route_not_deleted")
 
 def add_route(args):
     u = EUci()
@@ -111,7 +111,7 @@ def add_route(args):
         u.save("network")
         return {"id": rname}
     except:
-        return {"error": "route not added"}
+        return utils.generic_error("route_not_added")
 
 def edit_route(args):
     u = EUci()
@@ -122,7 +122,7 @@ def edit_route(args):
         u.save("network")
         return {"id": rname}
     except:
-        return {"error": "route not modified"}
+        return utils.generic_error("route_not_modified")
 
 def list_interfaces():
     u = EUci()
@@ -169,6 +169,6 @@ elif cmd == 'call':
     elif action == "disable-route":
         ret = disable_route(args["id"])
     else:
-        ret = {"error": "invalid action"}
+        ret = utils.generic_error("invalid_action")
 
     print(json.dumps(ret))

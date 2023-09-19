@@ -75,7 +75,7 @@ def edit_record(args):
     try:
         u.get('dhcp', args['record'])
     except:
-        return {"error": "record not found"}
+        return utils.generic_error("record_not_found")
     rname = args["record"]
     u.set('dhcp', rname, 'domain')
     u.set('dhcp', rname, 'ip', args["ip"])
@@ -93,7 +93,7 @@ def get_record(args):
     try:
         record = u.get_all('dhcp', args['record'])
     except:
-        return {"error": "record not found"}
+        return utils.generic_error("record_not_found")
     return {"name": record.get('name', ''), "ip": record.get("ip", ''), "description": record.get("ns_description",""), 'wildcard': is_wildcard(u, record.get("ip", ''),  record.get('name', ''))}
 
 def delete_record(args):
@@ -103,7 +103,7 @@ def delete_record(args):
         u.delete('dhcp', args['record'])
         u.save('dhcp')
     except:
-        return {"error": "record not found"}
+        return utils.generic_error("record_not_found")
     return {"record": args['record']}
 
 def get_server(u):
@@ -122,7 +122,7 @@ def get_config():
         ret["logqueries"] = config.get("logqueries", "0") == "1"
         ret["server"] = config.get("server", [])
     except:
-        return {"error": "config read error"}
+        return utils.generic_error("config_read_error")
     return ret
 
 def bool2str(bval):
@@ -147,7 +147,7 @@ def set_config(args):
            u.set("dhcp", section, 'local', f'/{args["domain"]}/')
         u.save("dhcp")
     except:
-        return {"error": "config write error"}
+        return utils.generic_error("config_write_error")
 
     return {"server": section}
 
