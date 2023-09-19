@@ -80,7 +80,7 @@ Each API script should also respect the following conventions:
 
 ### Error protocol
 
-If the API raises and error, it should return an object like:
+If the API raises an error, it should return an object like:
 ```json
 {
     "error": "command_failed"
