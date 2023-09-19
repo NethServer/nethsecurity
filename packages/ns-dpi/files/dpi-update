@@ -27,7 +27,7 @@ mkdir -p "$TMP_DIR"
 
 version=$(netifyd --help 2>&1| grep "Netify Agent/" | cut -d'/' -f 2 | cut -d' ' -f1)
 options="settings_version=$version&settings_format=netifyd"
-curl_cmd='/usr/bin/curl -L -s -f -m 10'
+curl_cmd='/usr/bin/curl -L -s -f -m 60'
 
 base_url=$(echo $HOST | sed -e "s/__USER__/$SYSTEM_ID/" -e "s/__PASSWORD__/$SYSTEM_SECRET/")
 
