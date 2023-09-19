@@ -715,7 +715,7 @@ Success response example:
 
 Error response example:
 ```json
-{ "error": "command failed" }
+{ "error": "command_failed" }
 ```
 
 ### poweroff
@@ -732,7 +732,7 @@ Success response example:
 
 Error response example:
 ```json
-{ "error": "command failed" }
+{ "error": "command_failed" }
 ```
 
 ## ns.routes
@@ -938,7 +938,7 @@ Success response example, the id of the edited route:
 
 Error response example:
 ```json
-{"error": "route not modified"}
+{"error": "route_not_modified"}
 ```
 
 ### delete-route
@@ -957,7 +957,7 @@ Success response example, the id of the deleted route:
 
 Error response example:
 ```json
-{"error": "route not deleted"}
+{"error": "route_not_deleted"}
 ```
 
 ### enable-route
@@ -976,7 +976,7 @@ Success response example, the id of the enabled route:
 
 Error response example:
 ```json
-{"error": "route not enabled"}
+{"error": "route_not_enabled"}
 ```
 
 ### disable-route
@@ -995,7 +995,7 @@ Success response example, the id of the disabled route:
 
 Error response example:
 ```json
-{"error": "route not disabled"}
+{"error": "route_not_disabled"}
 ```
 
 ## ns.dashboard
@@ -1168,7 +1168,7 @@ Success response:
 
 Error response:
 ```json
-{"error": "invalid secret or server not found"}
+{"error": "invalid_secret_or_server_not_found"}
 ```
 
 ### unregister
@@ -1185,7 +1185,7 @@ Success response:
 
 Error response:
 ```json
-{"error": "unregister failure"}
+{"error": "unregister_failure"}
 ```
 
 ### info
@@ -1210,7 +1210,7 @@ If the subscription does not expire, `expiration` is set to `0`.
 
 Error response:
 ```json
-{"error": "no subscription info found"}
+{"error": "no_subscription_info_found"}
 ```
 
 ## ns.dhcp
@@ -1314,7 +1314,7 @@ Multiple values can be comma-separated.
 
 Error response example:
 ```json
-{"error": "interface not found"}
+{"error": "interface_not_found"}
 ```
 
 ### edit-interface
@@ -1333,7 +1333,7 @@ Successfull response:
 
 Error response example:
 ```json
-{"error": "interface not found"}
+{"error": "interface_not_found"}
 ```
 
 ### list-active-leases
@@ -1418,7 +1418,7 @@ Successfull response example:
 
 Error response example:
 ```json
-{"error": "lease not found"}
+{"error": "lease_not_found"}
 ```
 
 ### delete-static-lease
@@ -1435,7 +1435,7 @@ Successfull response example:
 
 Error response example:
 ```json
-{"error": "lease not found"}
+{"error": "lease_not_found"}
 ```
 
 ### add-static-lease
@@ -1448,6 +1448,21 @@ api-cli ns.dhcp add-static-lease --data '{"ipaddr": "192.168.100.22", "macaddr":
 Successfull response example:
 ```json
 {"lease": "ns_d5facd89"}
+```
+
+If the mac address has already a reservation, a validation error is returned:
+```
+{
+  "validation": {
+    "errors": [
+      {
+        "parameter": "mac",
+        "message": "mac_already_reserved",
+        "value": "80:5e:c0:d9:c6:9b"
+      }
+    ]
+  }
+}
 ```
 
 ### edit-static-lease
@@ -1464,8 +1479,10 @@ Successfull response example:
 
 Error response example:
 ```json
-{"error": "lease not found"}
+{"error": "lease_not_found"}
 ```
+
+This API can also raise a validation error like the `add-static-lease` API.
 
 ## ns.dns
 
@@ -1538,7 +1555,7 @@ Successful response example:
 
 Error response example:
 ```json
-{"error": "record not found"}
+{"error": "record_not_found"}
 ```
 
 ### delete-record
@@ -1555,7 +1572,7 @@ Successful response example:
 
 Error response example:
 ```json
-{"error": "record not found"}
+{"error": "record_not_found"}
 ```
 
 ### get-config

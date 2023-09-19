@@ -11,6 +11,7 @@ import sys
 import json
 import subprocess
 from datetime import datetime
+from nethsec import utils
 
 def register(secret):
     try:
@@ -23,14 +24,14 @@ def register(secret):
         subprocess.run(["/usr/sbin/register", "community", secret, '5'], check=True, capture_output=True)
         return {"result": "success"}
     except:
-        return {"error": "invalid secret or server not found"}
+        return utils.generic_error("invalid_secret_or_server_not_found")
 
 def unregister():
     try:
         subprocess.run(["/usr/sbin/unregister"], check=True, capture_output=True)
         return {"result": "success"}
     except:
-        return {"error": "unregister failure"}
+        return utils.generic_error("unregister_failure")
 
 def info():
     try:
@@ -38,7 +39,7 @@ def info():
         p = subprocess.run(["/usr/sbin/subscription-info"], check=True, capture_output=True)
         data = json.loads(p.stdout)
     except:
-        return {"error": "no subscription info found"}
+        return utils.generic_error("no_subscription_info_found")
 
     active = data["subscription"]["status"] == "valid"
     try:
@@ -64,5 +65,5 @@ elif cmd == 'call':
     elif action == "info":
         ret = info()
     else:
-        ret = {"error": "invalid action"}
+        ret = utils.generic_error("invalid_action")
     print(json.dumps(ret))
