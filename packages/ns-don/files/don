@@ -29,10 +29,17 @@ fi
 
 function cleanup
 {
+    # stop demons
     [ -f $sshd_pid ] && kill $(cat $sshd_pid)
     [ -f $vpn_pid ] && kill $(cat $vpn_pid)
     [ -d $base_dir ] && rm -rf $base_dir
+    # delete ubus nethsupport user
     uci -q delete rpcd.ns_don
+    # destroy ubus sessions
+    session=$(ubus call session list | jq -r '.ubus_rpc_session as $parent | .data.username | select(. == "nethsupport") | $parent')
+    if [ "$session" != "" ]; then
+        ubus call session destroy '{"ubus_rpc_session": "'$session'"}'
+    fi
 }
 
 function show_credentials
