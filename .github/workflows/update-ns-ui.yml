@@ -28,7 +28,7 @@ jobs:
       - name: Check if new UI commit is different
         run: |
           NEW_TAG=$(curl https://api.github.com/repos/NethServer/nethsecurity-ui/tags | jq -r .[0].name)
-          sed -i "s/PKG_VERSION:=.*/PKG_VERSION:=$NEW_TAG/g" packages/ns-api-server/Makefile
+          sed -i "s/PKG_VERSION:=.*/PKG_VERSION:=$NEW_TAG/g" packages/ns-ui/Makefile
       - name: Commit and create PR
         uses: peter-evans/create-pull-request@v5
         with:
