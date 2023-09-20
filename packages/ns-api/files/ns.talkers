@@ -11,13 +11,6 @@ import sys
 import json
 import socket
 
-def sfmt(num, suffix="B"):
-    for unit in ["", "K", "M", "G", "T", "P", "E", "Z"]:
-        if abs(num) < 1024.0:
-            return f"{num:3.1f} {unit}{suffix}/s"
-        num /= 1024.0
-    return f"{num:.1f} Y{suffix}/s"
-
 def list_talkers(limit = 20, stat_file="/tmp/netify-plugin-stats.json"):
     data = None
     stats = dict()
