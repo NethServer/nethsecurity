@@ -27,8 +27,8 @@ jobs:
         run: sudo apt-get install -y curl jq git
       - name: Check if new UI commit is different
         run: |
-          NEW_COMMIT=$(curl https://api.github.com/repos/NethServer/nethsecurity-ui/commits/main | jq -r .sha)
-          sed -i "s/UI_COMMIT=.*/UI_COMMIT=$NEW_COMMIT/g" packages/ns-ui/Makefile
+          NEW_TAG=$(curl https://api.github.com/repos/NethServer/nethsecurity-ui/tags | jq -r .[0].name)
+          sed -i "s/PKG_VERSION:=.*/PKG_VERSION:=$NEW_TAG/g" packages/ns-api-server/Makefile
       - name: Commit and create PR
         uses: peter-evans/create-pull-request@v5
         with:
