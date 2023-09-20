@@ -1,0 +1,13 @@
+{
+  "don-manager": {
+    "description": "don session manager",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.don": [
+          "*"
+        ]
+      }
+    }
+  }
+}
