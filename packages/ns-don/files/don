@@ -33,7 +33,6 @@ function cleanup
     [ -f $vpn_pid ] && kill $(cat $vpn_pid)
     [ -d $base_dir ] && rm -rf $base_dir
     uci -q delete rpcd.ns_don
-    /etc/init.d/rpcd reload
 }
 
 function show_credentials
@@ -160,7 +159,6 @@ EOF
     uci set rpcd.ns_don.password=$(echo $password | mkpasswd)
     uci add_list rpcd.ns_don.read='*'
     uci add_list rpcd.ns_don.write='*'
-    /etc/init.d/rpcd reload
 
     show_credentials
 ;;
