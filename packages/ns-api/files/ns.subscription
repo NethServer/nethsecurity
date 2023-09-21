@@ -64,6 +64,5 @@ elif cmd == 'call':
         ret = unregister()
     elif action == "info":
         ret = info()
-    else:
-        ret = utils.generic_error("invalid_action")
+
     print(json.dumps(ret))

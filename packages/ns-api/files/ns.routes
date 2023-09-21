@@ -168,7 +168,5 @@ elif cmd == 'call':
         ret = enable_route(args["id"])
     elif action == "disable-route":
         ret = disable_route(args["id"])
-    else:
-        ret = utils.generic_error("invalid_action")
 
     print(json.dumps(ret))
