@@ -30,9 +30,9 @@ fi
 function cleanup
 {
     # stop demons
-    [ -f $sshd_pid ] && kill $(cat $sshd_pid)
-    [ -f $vpn_pid ] && kill $(cat $vpn_pid)
-    [ -d $base_dir ] && rm -rf $base_dir
+    [ -f "$sshd_pid" ] && kill "$(cat $sshd_pid)"
+    [ -f "$vpn_pid" ] && kill "$(cat $vpn_pid)" && sleep 3 && [ -f "$vpn_pid" ] &&  kill -9 "$(cat $vpn_pid)"
+    [ -d "$base_dir" ] && rm -rf "$base_dir"
     # delete ubus nethsupport user
     uci -q delete rpcd.ns_don
     # destroy ubus sessions
@@ -40,6 +40,7 @@ function cleanup
     if [ "$session" != "" ]; then
         ubus call session destroy '{"ubus_rpc_session": "'$session'"}'
     fi
+    /usr/sbin/don-fw stop
 }
 
 function show_credentials
@@ -159,6 +160,8 @@ EOF
 
     /usr/sbin/sshd -f $sshd_conf
     cat $(uci -q get don.config.ssh_key) > $auth_keys
+
+    /usr/sbin/don-fw start
 
     # Enable UI access
     uci set rpcd.ns_don=login
