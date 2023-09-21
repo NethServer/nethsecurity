@@ -29,11 +29,18 @@ fi
 
 function cleanup
 {
-    [ -f $sshd_pid ] && kill $(cat $sshd_pid)
-    [ -f $vpn_pid ] && kill $(cat $vpn_pid)
-    [ -d $base_dir ] && rm -rf $base_dir
+    # stop demons
+    [ -f "$sshd_pid" ] && kill "$(cat $sshd_pid)"
+    [ -f "$vpn_pid" ] && kill "$(cat $vpn_pid)" && sleep 3 && [ -f "$vpn_pid" ] &&  kill -9 "$(cat $vpn_pid)"
+    [ -d "$base_dir" ] && rm -rf "$base_dir"
+    # delete ubus nethsupport user
     uci -q delete rpcd.ns_don
-    /etc/init.d/rpcd reload
+    # destroy ubus sessions
+    session=$(ubus call session list | jq -r '.ubus_rpc_session as $parent | .data.username | select(. == "nethsupport") | $parent')
+    if [ "$session" != "" ]; then
+        ubus call session destroy '{"ubus_rpc_session": "'$session'"}'
+    fi
+    /usr/sbin/don-fw stop
 }
 
 function show_credentials
@@ -154,13 +161,14 @@ EOF
     /usr/sbin/sshd -f $sshd_conf
     cat $(uci -q get don.config.ssh_key) > $auth_keys
 
+    /usr/sbin/don-fw start
+
     # Enable UI access
     uci set rpcd.ns_don=login
     uci set rpcd.ns_don.username=$user
     uci set rpcd.ns_don.password=$(echo $password | mkpasswd)
     uci add_list rpcd.ns_don.read='*'
     uci add_list rpcd.ns_don.write='*'
-    /etc/init.d/rpcd reload
 
     show_credentials
 ;;

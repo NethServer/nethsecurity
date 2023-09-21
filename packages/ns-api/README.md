@@ -1508,3 +1508,59 @@ Response example:
 {"server": "cfg01411c"}
 ```
 
+## ns-don
+
+Manage remote support sessions using `don` client.
+
+### start
+
+Start a support session:
+```
+api-cli ns.don start
+```
+The action can take a few seconds.
+
+Response example:
+```json
+{
+  "server_id": "Axxxxxxx-5xxx-4xx6-8xx4-481xxxxxxxx0",
+  "session_id": "bff8736a-c593-40ed-af90-10faa01abaf9"
+}
+```
+
+### stop
+
+Stop a support session:
+```
+api-cli ns.don stop
+```
+The action can take a few seconds.
+
+Response example:
+```json
+{
+  "result": "success"
+}
+```
+
+### status
+
+Retrieve info on don status:
+```
+api-cli ns.don status
+```
+
+Response example if don is running:
+```json
+{
+  "server_id": "Axxxxxxx-5xxx-4xx6-8xx4-481xxxxxxxx0",
+  "session_id": "bff8736a-c593-40ed-af90-10faa01abaf9"
+}
+```
+
+Response example if don is not running:
+```json
+{
+  "result": "no_session"
+}
+```

@@ -1,0 +1,49 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Manage don helpdesk session
+
+import sys
+import json
+import subprocess
+from nethsec import utils
+
+def start():
+    try:
+        p = subprocess.run(["/usr/sbin/don", "start", "-j"], check=True, capture_output=True, text=True)
+        return json.loads(p.stdout)
+    except:
+        return utils.generic_error("don_start_failed")
+
+def status():
+    try:
+        p = subprocess.run(["/usr/sbin/don", "status", "-j"], check=True, capture_output=True, text=True)
+        return json.loads(p.stdout)
+    except:
+        return {"result": "no_session"}
+
+def stop():
+    try:
+        p = subprocess.run(["/usr/sbin/don", "stop"], check=True)
+        return {"result": "success"}
+    except:
+        return utils.generic_error("don_stop_failed")
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({"start": {}, "stop": {}, "status":{}}))
+else:
+    action = sys.argv[2]
+    if action == "start":
+        ret = start()
+    elif action == "status":
+        ret = status()
+    elif action == "stop":
+        ret = stop()
+
+    print(json.dumps(ret))

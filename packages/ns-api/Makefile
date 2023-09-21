@@ -85,6 +85,8 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.dashboard.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.subscription $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.subscription.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.don $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.don.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.dhcp $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.dhcp.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.dns $(1)/usr/libexec/rpcd/
