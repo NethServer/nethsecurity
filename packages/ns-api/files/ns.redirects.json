@@ -1,0 +1,13 @@
+{
+  "redirect-manager": {
+    "description": "Manage redirects",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.redirects": [
+          "*"
+        ]
+      }
+    }
+  }
+}

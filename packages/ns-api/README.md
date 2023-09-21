@@ -1564,3 +1564,204 @@ Response example if don is not running:
   "result": "no_session"
 }
 ```
+
+## ns.redirects
+
+Manage redirects (port forwards).
+
+### list-redirects
+
+List existing redirects:
+```
+api-cli ns.redirects list-redirects
+```
+
+Response example:
+```json
+{
+  "redirects": {
+    "192.168.1.250": [
+      {
+        "dest_ip": "192.168.1.250",
+        "protocol": [
+          "tcp",
+          "udp",
+          "icmp"
+        ],
+        "source_port": "587",
+        "source_port_name": "submission",
+        "destination_port": "587",
+        "name": "Submission mail",
+        "wan": "1.2.3.4",
+        "enabled": true,
+        "id": "ns_pf1",
+        "restrict": []
+      },
+      {
+        "dest_ip": "192.168.1.250",
+        "protocol": [
+          "tcp"
+        ],
+        "source_port": "143",
+        "source_port_name": "imap2",
+        "destination_port": "143",
+        "name": "IMAP on mail server",
+        "wan": "1.2.3.5",
+        "enabled": true,
+        "id": "ns_pf2",
+        "restrict": [
+            "6.7.8.9"
+        ]
+      }
+    ]
+  }
+}
+```
+
+Redirects are grouped by destination (`dest_ip`).
+The `id` field can be used to edit or delete the record.
+
+### enable-redirect
+
+Enable the redirect rule and associated ipset (if any):
+```
+api-cli ns.redirects enable-redirect '{"id": "ns_pf40"}'
+```
+
+Success response:
+```json
+{
+  "id": "ns_pf40"
+}
+```
+### disable-redirect
+
+Disable the redirect rule and associated ipset (if any):
+```
+api-cli ns.redirects disable-redirect '{"id": "ns_pf40"}'
+```
+
+Success response:
+```json
+{
+  "id": "ns_pf40"
+}
+```
+
+### delete-redirect
+
+Delete the redirect rule and associated ipset (if any):
+```
+api-cli ns.redirects delete-redirect '{"id": "ns_pf40"}'
+```
+
+Success response:
+```json
+{
+  "id": "ns_pf40"
+}
+```
+
+Error response:
+```json
+{
+  "error": "redirect_not_found"
+}
+```
+
+### add-redirect
+
+Add a redirect rule:
+```
+api-cli ns.redirects add-redirect '{"name": "my pf", "dest_ip": "10.0.0.1", "proto": ["tcp"], "src_dport": "22", "reflection": "1", "log": "1",  "dest_port": "222", "restrict": ["1.2.3.4"], "src_dip": "4.5.6.7", "enabled": "1"}'
+```
+
+Fields description:
+- `enabled`: `1` means enabled, `0` means disabled
+- `name`: name of the port forward
+- `dest_ip`: destination address
+- `proto`:list of protocols
+- `src_dport`: source port 
+- `reflection`: hairpin nat flag, `1` means enabled, `0` means disabled
+- `log`: `1` means enabled, `0` means disabled
+- `dest_port`: destination port
+- `src_dip`: WAN IP
+- `restrict`: it is not empty, the API will automatically create an associated ipset.
+
+Success response:
+```json
+{
+  "id": "ns_pf40"
+}
+```
+
+### edit-redirect
+
+Add a redirect rule:
+```
+api-cli ns.redirects add-redirect '{"id": "ns_pf40", "name": "my pf", "dest_ip": "10.0.0.1", "proto": ["tcp"], "src_dport": "22", "reflection": "1", "log": "1",  "dest_port": "222", "restrict": [], "src_dip": "4.5.6.7", "enabled": "0"}'
+```
+
+Fields are the same as `add-redirect` API, plus the `id` field that identifies the rule.
+
+### list-protocols
+
+List supported protocols:
+```
+api-cli ns.redirects list-protocols
+```
+
+Response:
+```json
+{
+  "protocols": [
+    "tcp",
+    "udp",
+    "udplite",
+    "icmp",
+    "esp",
+    "ah",
+    "sctp",
+    "all"
+  ]
+}
+```
+
+### list-wans
+
+List interfaces inside the WAN zone:
+```
+api-cli ns.redirects list-wans
+```
+
+Response example:
+```json
+{
+  "wans": [
+    {
+      "device": "eth1",
+      "ipaddr": "192.168.122.49"
+    },
+    {
+      "device": "eth1",
+      "ipaddr": "fe80::5054:ff:fe20:82a6"
+    }
+  ]
+}
+```
+
+### list-zones
+
+List reflection zones:
+```
+api-cli ns.redirects list-zones
+```
+
+Response example:
+```
+{
+  "zones": [
+    "guest"
+  ]
+}
+```

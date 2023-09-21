@@ -91,6 +91,8 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.dhcp.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.dns $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.dns.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.redirects $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.redirects.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_CONF) files/msmtp.keep $(1)/lib/upgrade/keep.d/msmtp
 	$(LN) /usr/bin/msmtp $(1)/usr/sbin/sendmail
