@@ -1686,7 +1686,7 @@ Fields description:
 - `log`: `1` means enabled, `0` means disabled
 - `dest_port`: destination port
 - `src_dip`: WAN IP
-- `restrict`: it is not empty, the API will automatically create an associated ipset.
+- `restrict`: if it is not empty, the API will automatically create an associated ipset.
 
 Success response:
 ```json
@@ -1697,9 +1697,9 @@ Success response:
 
 ### edit-redirect
 
-Add a redirect rule:
+Edit a redirect rule:
 ```
-api-cli ns.redirects add-redirect '{"id": "ns_pf40", "name": "my pf", "dest_ip": "10.0.0.1", "proto": ["tcp"], "src_dport": "22", "reflection": "1", "log": "1",  "dest_port": "222", "restrict": [], "src_dip": "4.5.6.7", "enabled": "0"}'
+api-cli ns.redirects edit-redirect '{"id": "ns_pf40", "name": "my pf", "dest_ip": "10.0.0.1", "proto": ["tcp"], "src_dport": "22", "reflection": "1", "log": "1",  "dest_port": "222", "restrict": [], "src_dip": "4.5.6.7", "enabled": "0"}'
 ```
 
 Fields are the same as `add-redirect` API, plus the `id` field that identifies the rule.
