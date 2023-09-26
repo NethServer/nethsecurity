@@ -34,23 +34,15 @@ fi
 # Setup URLs
 case "$type" in
     community)
-        uci set ns-plug.config.type="community"
-        uci set ns-plug.config.alerts_url="https://my.nethserver.com/api/machine/"
-        uci set ns-plug.config.api_url="https://my.nethserver.com/api/"
-        uci set ns-plug.config.inventory_url="https://my.nethserver.com/api/machine/inventories/store/"
+        url="https://my.nethserver.com/api/"
         ;;
     enterprise)
-        uci set ns-plug.config.type="enterprise"
-        uci set ns-plug.config.alerts_url="https://my.nethesis.it/isa/"
-        uci set ns-plug.config.api_url="https://my.nethesis.it/api/"
-        uci set ns-plug.config.inventory_url="https://my.nethesis.it/isa/inventory/store/"
+        url="https://my.nethesis.it/api/"
        ;;
    *)
        exit_error "Invalid type '$type'"
       ;;
 esac
-
-url=$(uci -q get ns-plug.config.api_url | sed 's/\/$//')
 
 if [ "$type" = "enterprise" ]; then
     system_id=$(curl -s -m $timeout --retry 3 -L \
@@ -67,8 +59,23 @@ if [ "$system_id" == "null" ] || [ -z "$system_id" ]; then
     exit_error "System ID not found"
 fi
 
-
 # Save config
+
+case "$type" in
+    community)
+        uci set ns-plug.config.type="community"
+        uci set ns-plug.config.alerts_url="https://my.nethserver.com/api/machine/"
+        uci set ns-plug.config.api_url="$url"
+        uci set ns-plug.config.inventory_url="https://my.nethserver.com/api/machine/inventories/store/"
+        ;;
+    enterprise)
+        uci set ns-plug.config.type="enterprise"
+        uci set ns-plug.config.alerts_url="https://my.nethesis.it/isa/"
+        uci set ns-plug.config.api_url="$url"
+        uci set ns-plug.config.inventory_url="https://my.nethesis.it/isa/inventory/store/"
+       ;;
+esac
+
 uci set ns-plug.config.system_id="$system_id"
 uci set ns-plug.config.secret="$secret"
 uci commit ns-plug
