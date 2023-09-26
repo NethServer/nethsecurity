@@ -1,0 +1,239 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Manage port forwards (redirects)
+
+import re
+import sys
+import json
+import subprocess
+from euci import EUci
+from nethsec import utils
+
+def get_services():
+    services = {}
+    with open('/etc/services', 'r') as fp:
+        for line in fp.readlines():
+            line = line.strip()
+            if not line:
+                continue
+            tmp = re.split("\s+", line)
+            port = tmp[1][0:tmp[1].index("/")]
+            services[port] = tmp[0]
+    return services
+
+def list_redirects():
+    u = EUci()
+    ret = {"redirects": {}}
+    count = 1
+    services = get_services()
+    redirects = utils.get_all_by_type(u, 'firewall', 'redirect')
+    for section in redirects:
+        r = redirects[section]
+        redirect =  {}
+        try:
+            redirect["dest_ip"] = r["dest_ip"] # destination
+        except:
+            continue
+
+        if not redirect["dest_ip"] in ret["redirects"]:
+            ret["redirects"][redirect["dest_ip"]] = []
+
+        # always convert proto to an array
+        proto = r.get("proto", "")
+        if type(proto) == type("string"):
+            redirect["protocol"] = proto.split(" ")
+        else:
+            redirect["protocol"] = list(proto)
+
+        redirect["source_port"] = r.get("src_dport", "")  # source port
+        redirect["source_port_name"] = services.get(redirect["source_port"],"")  # source port
+        redirect["destination_port"] = r.get("dest_port", "") # destination port
+        redirect["name"] = r.get("name", f"PF{count}") # name
+        redirect["wan"] = r.get("src_dip", "any") # wan IP
+        redirect["enabled"] = r.get("enabled", "1") == "1" # status
+        redirect["id"] = section
+        redirect["restrict"] = r.get("ipset", [])
+        if redirect["restrict"]:
+            try:
+                ipset = u.get_all('firewall', redirect["restrict"])
+                redirect["restrict"] = ipset.get("entry", [])
+            except:
+                pass
+        ret["redirects"][redirect["dest_ip"]].append(redirect)
+        count = count + 1
+    return ret
+
+def enable_redirect(rid):
+    u = EUci()
+    try:
+        u.set("firewall", rid, "enabled", "1")
+        ipset = u.get("firewall", rid, "ipset", default="")
+        if ipset:
+            u.set("firewall", ipset, "enabled", "1")
+        u.save("firewall")
+        return {"id": rid}
+    except:
+        return utils.generic_error("redirect_not_enabled")
+
+def disable_redirect(rid):
+    u = EUci()
+    try:
+        u.set("firewall", rid, "enabled", "0")
+        ipset = u.get("firewall", rid, "ipset", default="")
+        if ipset:
+            u.set("firewall", ipset, "enabled", "0")
+        u.save("firewall")
+        return {"id": rid}
+    except:
+        return utils.generic_error("redirect_not_disabled")
+
+def delete_redirect(rid):
+    u = EUci()
+    try:
+        u.get("firewall", rid)
+        ipset = u.get("firewall", rid, "ipset", default="")
+        if ipset:
+            u.delete("firewall", ipset)
+        u.delete("firewall", rid)
+        u.save("firewall")
+        return {"id": rid}
+    except:
+        return utils.generic_error("redirect_not_found")
+
+def add_ipset(u, rname, restrict):
+    sname = f"{rname}_ipset"
+    # delete existing, if any
+    try:
+       u.delete('firewall', sname)
+    except:
+        pass
+    # create new ipset
+    u.set('firewall', sname, 'ipset')
+    u.set('firewall', sname, 'name', sname)
+    u.set('firewall', sname, 'match', 'src_net')
+    u.set('firewall', sname, 'enabled', '1')
+    u.set('firewall', sname, 'entry', restrict)
+    return sname
+
+
+def add_redirect(args):
+    u = EUci()
+    rname = utils.get_random_id()
+    try:
+        u.set('firewall', rname, 'redirect')
+        u.set('firewall', rname, 'src', 'wan')
+        u.set('firewall', rname, 'dest', 'lan')
+        u.set('firewall', rname, 'target', 'DNAT')
+        restrict = args.pop('restrict', '')
+        if restrict:
+            sname = add_ipset(u, rname, restrict)
+            u.set('firewall', rname, 'ipset', sname)
+        for a in args:
+            u.set('firewall', rname, a, args[a])
+        u.save("firewall")
+        return {"id": rname}
+    except:
+        return utils.generic_error("redirect_not_added")
+
+def edit_redirect(args):
+    u = EUci()
+    rname = args.pop('id')
+    restrict = args.pop('restrict', '')
+    if restrict:
+        sname = add_ipset(u, rname, restrict)
+        u.set('firewall', rname, 'ipset', sname)
+    else:
+        # delete existing, if any
+        try:
+           u.delete('firewall', f"{rname}_ipset")
+           u.delete("firewall", rname, "ipset")
+        except:
+            pass
+    try:
+        for a in args:
+            u.set('firewall', rname, a, args[a])
+        u.save("firewall")
+        return {"id": rname}
+    except:
+        return utils.generic_error("redirect_not_modified")
+
+def list_protocols():
+    return {"protocols": ["tcp", "udp", "udplite", "icmp", "esp", "ah", "sctp", "all"]}
+
+def get_device_ips():
+    ret = {}
+    p = subprocess.run(["/sbin/ip", "-j", "address"], check=True, text=True, capture_output=True)
+    data = json.loads(p.stdout)
+    for interface in data:
+        ipaddr = []
+        name = interface.get("ifname")
+        for addr in interface.get("addr_info", []):
+            if name not in ret:
+                ret[name] = []
+            ret[name].append(addr.get('local', ''))
+    return ret
+
+def list_zones():
+    ret = {"zones": []}
+    for z in utils.get_all_by_type(EUci(), 'firewall', 'zone').values():
+        name =  z.get('name', '')
+        if name and name not in ['wan', 'lan']:
+            ret['zones'].append(name)
+    return ret
+
+def list_wans():
+    ret = {"wans": []}
+    ips = get_device_ips()
+    wans = utils.get_all_wan_devices(EUci())
+    for device in ips.keys():
+        if device in wans:
+            for ip in ips[device]:
+                ret["wans"].append({"device": device, "ipaddr": ip})
+    return ret
+
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps(
+        {
+            "list-redirects": {"protocol": "ipv4"},
+            "add-redirect": {"name": "my pf", "dest_ip": "10.0.0.1", "proto": ["tcp"], "src_dport": "22", "reflection": "1", "log": "1",  "dest_port": "222", "src_dip": "4.5.6.7", "restrict": ["1.2.3.4"], "enabled": "1"},
+            "edit-redirect": {"id": "ns_redirect1", "name": "my pf", "dest_ip": "10.0.0.1", "proto": ["tcp"], "src_dport": "22", "reflection": "1", "log": "1",  "dest_port": "222","src_dip": "4.5.6.7", "restrict": ["1.2.3.4"], "enabled": "0"},
+            "delete-redirect": {"id": "ns_redirect1"},
+            "enable-redirect": {"id": "ns_redirect1"},
+            "disable-redirect": {"id": "ns_redirect1"},
+            "list-protocols": {},
+            "list-wans": {},
+            "list-zones": {}
+        }))
+elif cmd == 'call':
+    action = sys.argv[2]
+    if action == "list-redirects":
+        ret = list_redirects()
+    elif action == "list-protocols":
+        ret = list_protocols()
+    elif action == "list-wans":
+        ret = list_wans()
+    elif action == "list-zones":
+        ret = list_zones()
+    else:
+        args = json.loads(sys.stdin.read())
+
+    if action == "add-redirect":
+        ret = add_redirect(args)
+    elif action == "edit-redirect":
+        ret = edit_redirect(args)
+    elif action == "delete-redirect":
+        ret = delete_redirect(args["id"])
+    elif action == "enable-redirect":
+        ret = enable_redirect(args["id"])
+    elif action == "disable-redirect":
+        ret = disable_redirect(args["id"])
+
+    print(json.dumps(ret))
