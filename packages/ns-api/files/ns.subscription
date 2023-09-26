@@ -41,6 +41,9 @@ def info():
     except:
         return utils.generic_error("no_subscription_info_found")
 
+    if not data["uuid"]:
+        return {"systemd_id": ""}
+
     active = data["subscription"]["status"] == "valid"
     try:
         date =  datetime.strptime(data["subscription"]["valid_until"], '%Y-%m-%dT%H:%M:%S.%fZ')
