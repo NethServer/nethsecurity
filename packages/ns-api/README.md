@@ -1061,7 +1061,7 @@ Register the machine to the remote server.
 First, try to register an Enteprise subscription. If Enterprise subscription fails, try the Community one.
 Example:
 ```
-api-cli ns.subscription call register --data '{"secret": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}'
+api-cli ns.subscription register --data '{"secret": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}'
 ```
 
 Success response:
@@ -1078,7 +1078,7 @@ Error response:
 
 Unregister the machine from the remote server:
 ```
-api-cli ns.subscription call unregister
+api-cli ns.subscription unregister
 ```
 
 Success response:
@@ -1095,7 +1095,7 @@ Error response:
 
 Retrieve subscription information from remote server:
 ```
-api-cli ns.subscription call info
+api-cli ns.subscription info
 ```
 
 Success response:
