@@ -35,25 +35,23 @@ fi
 case "$type" in
     community)
         url="https://my.nethserver.com/api/"
-        ;;
-    enterprise)
-        url="https://my.nethesis.it/api/"
-       ;;
-   *)
-       exit_error "Invalid type '$type'"
-      ;;
-esac
 
-if [ "$type" = "enterprise" ]; then
-    system_id=$(curl -s -m $timeout --retry 3 -L \
-        -H "Content-Type: application/json" -H "Accept: application/json" \
-        -d '{"secret": "'$secret'"}' "$url/systems/info" | jq -r ".uuid" 2>/dev/null)
-else
-    system_id=$(curl -s -m $timeout --retry 3 -L \
+        system_id=$(curl -s -m $timeout --retry 3 -L \
         -H "Content-Type: application/json" -H "Accept: application/json" \
         -H "Authorization: token $secret" \
         "$url/machine/info" | jq -r ".uuid" 2>/dev/null)
-fi
+        ;;
+    enterprise)
+        url="https://my.nethesis.it/api/"
+
+        system_id=$(curl -s -m $timeout --retry 3 -L \
+        -H "Content-Type: application/json" -H "Accept: application/json" \
+        -d '{"secret": "'$secret'"}' "$url/systems/info" | jq -r ".uuid" 2>/dev/null)
+        ;;
+    *)
+        exit_error "Invalid type '$type'"
+        ;;
+esac
 
 if [ "$system_id" == "null" ] || [ -z "$system_id" ]; then
     exit_error "System ID not found"
@@ -73,7 +71,7 @@ case "$type" in
         uci set ns-plug.config.alerts_url="https://my.nethesis.it/isa/"
         uci set ns-plug.config.api_url="$url"
         uci set ns-plug.config.inventory_url="https://my.nethesis.it/isa/inventory/store/"
-       ;;
+        ;;
 esac
 
 uci set ns-plug.config.system_id="$system_id"
