@@ -12,6 +12,14 @@
 
 timeout=${1:-20}
 
+system_id=$(uci -q get ns-plug.config.system_id)
+
+if [ -z "$system_id" ]; then
+    # no subscription
+    echo '{"uuid": ""}'
+    exit 0
+fi
+
 type=$(uci -q get ns-plug.config.type)
 secret=$(uci -q get ns-plug.config.secret)
 url=$(uci -q get ns-plug.config.api_url | sed 's/\/$//')

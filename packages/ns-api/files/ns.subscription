@@ -13,7 +13,12 @@ import subprocess
 from datetime import datetime
 from nethsec import utils
 
-def register(secret):
+def register(args):
+    if "secret" not in args or not args["secret"]:
+        return utils.validation_error("secret", "required")
+
+    secret = args["secret"]
+
     try:
         subprocess.run(["/usr/sbin/register", "enterprise", secret, '5'], check=True, capture_output=True)
         return {"result": "success"}
@@ -41,6 +46,9 @@ def info():
     except:
         return utils.generic_error("no_subscription_info_found")
 
+    if not data["uuid"]:
+        return {"systemd_id": ""}
+
     active = data["subscription"]["status"] == "valid"
     try:
         date =  datetime.strptime(data["subscription"]["valid_until"], '%Y-%m-%dT%H:%M:%S.%fZ')
@@ -59,7 +67,7 @@ elif cmd == 'call':
     action = sys.argv[2]
     if action == "register":
         args = json.loads(sys.stdin.read())
-        ret = register(args["secret"])
+        ret = register(args)
     elif action == "unregister":
         ret = unregister()
     elif action == "info":
