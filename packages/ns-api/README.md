@@ -1625,7 +1625,7 @@ The `id` field can be used to edit or delete the record.
 
 Enable the redirect rule and associated ipset (if any):
 ```
-api-cli ns.redirects enable-redirect '{"id": "ns_pf40"}'
+api-cli ns.redirects enable-redirect --data '{"id": "ns_pf40"}'
 ```
 
 Success response:
@@ -1638,7 +1638,7 @@ Success response:
 
 Disable the redirect rule and associated ipset (if any):
 ```
-api-cli ns.redirects disable-redirect '{"id": "ns_pf40"}'
+api-cli ns.redirects disable-redirect --data '{"id": "ns_pf40"}'
 ```
 
 Success response:
@@ -1652,7 +1652,7 @@ Success response:
 
 Delete the redirect rule and associated ipset (if any):
 ```
-api-cli ns.redirects delete-redirect '{"id": "ns_pf40"}'
+api-cli ns.redirects delete-redirect --data '{"id": "ns_pf40"}'
 ```
 
 Success response:
@@ -1673,14 +1673,14 @@ Error response:
 
 Add a redirect rule:
 ```
-api-cli ns.redirects add-redirect '{"name": "my pf", "dest_ip": "10.0.0.1", "proto": ["tcp"], "src_dport": "22", "reflection": "1", "log": "1",  "dest_port": "222", "restrict": ["1.2.3.4"], "src_dip": "4.5.6.7", "enabled": "1"}'
+api-cli ns.redirects add-redirect --data '{"name": "my pf", "dest_ip": "10.0.0.1", "proto": ["tcp"], "src_dport": "22", "reflection": "1", "log": "1",  "dest_port": "222", "restrict": ["1.2.3.4"], "src_dip": "4.5.6.7", "enabled": "1"}'
 ```
 
 Fields description:
 - `enabled`: `1` means enabled, `0` means disabled
 - `name`: name of the port forward
 - `dest_ip`: destination address
-- `proto`:list of protocols
+- `proto`: list of protocols
 - `src_dport`: source port 
 - `reflection`: hairpin nat flag, `1` means enabled, `0` means disabled
 - `log`: `1` means enabled, `0` means disabled
@@ -1699,7 +1699,7 @@ Success response:
 
 Edit a redirect rule:
 ```
-api-cli ns.redirects edit-redirect '{"id": "ns_pf40", "name": "my pf", "dest_ip": "10.0.0.1", "proto": ["tcp"], "src_dport": "22", "reflection": "1", "log": "1",  "dest_port": "222", "restrict": [], "src_dip": "4.5.6.7", "enabled": "0"}'
+api-cli ns.redirects edit-redirect --data '{"id": "ns_pf40", "name": "my pf", "dest_ip": "10.0.0.1", "proto": ["tcp"], "src_dport": "22", "reflection": "1", "log": "1",  "dest_port": "222", "restrict": [], "src_dip": "4.5.6.7", "enabled": "0"}'
 ```
 
 Fields are the same as `add-redirect` API, plus the `id` field that identifies the rule.
