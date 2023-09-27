@@ -28,6 +28,14 @@ if cmd == 'list':
             'forwards_to': 'Array',
             'forwards_from': 'Array'
         },
+        'edit_zone': {
+            'name': 'String',
+            'input': 'String',
+            'forward': 'String',
+            'traffic_to_wan': 'Boolean',
+            'forwards_to': 'Array',
+            'forwards_from': 'Array'
+        },
         'delete_zone': {
             'config_name': 'String'
         }
@@ -45,14 +53,41 @@ elif cmd == 'call':
     elif action == 'create_zone':
         try:
             data = json.JSONDecoder().decode(sys.stdin.read())
-            firewall.add_zone(e_uci,
+            ret = firewall.add_zone(e_uci,
                               data['name'],
                               data['input'],
                               data['forward'],
                               data['traffic_to_wan'],
                               data['forwards_to'],
                               data['forwards_from'], )
-            print(json.dumps({"message": "success"}))
+
+            if type(ret) is tuple:
+                # success
+                print(json.dumps({"message": "success"}))
+            else:
+                # validation error
+                print(json.dumps(ret))
+        except KeyError:
+            print(json.dumps({"error": "missing data required fields"}))
+        except json.JSONDecodeError:
+            print(json.dumps({"error": "json given is invalid"}))
+    elif action == 'edit_zone':
+        try:
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            ret = firewall.edit_zone(e_uci,
+                              data['name'],
+                              data['input'],
+                              data['forward'],
+                              data['traffic_to_wan'],
+                              data['forwards_to'],
+                              data['forwards_from'])
+
+            if type(ret) is tuple:
+                # success
+                print(json.dumps({"message": "success"}))
+            else:
+                # validation error
+                print(json.dumps(ret))
         except KeyError:
             print(json.dumps({"error": "missing data required fields"}))
         except json.JSONDecodeError:

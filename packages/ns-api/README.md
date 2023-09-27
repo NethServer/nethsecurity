@@ -161,6 +161,22 @@ Response:
 }
 ```
 
+### edit zone
+
+Edit zone:
+
+```
+api-cli ns.firewall edit_zone --data '{"name": "cool_zone", "input": "ACCEPT", "forward": "REJECT", "traffic_to_wan": false, "forwards_to": ["lan"], "forwards_from": ["guest"]}'
+```
+
+Response:
+
+```json
+{
+  "message": "success"
+}
+```
+
 ### delete zone
 
 Delete zone:
