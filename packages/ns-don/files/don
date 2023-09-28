@@ -35,6 +35,8 @@ function cleanup
     [ -d "$base_dir" ] && rm -rf "$base_dir"
     # delete ubus nethsupport user
     uci -q delete rpcd.ns_don
+    # commit rpcd changes
+    uci commit rpcd
     # destroy ubus sessions
     session=$(ubus call session list | jq -r '.ubus_rpc_session as $parent | .data.username | select(. == "nethsupport") | $parent')
     if [ "$session" != "" ]; then
@@ -169,6 +171,8 @@ EOF
     uci set rpcd.ns_don.password=$(echo $password | mkpasswd)
     uci add_list rpcd.ns_don.read='*'
     uci add_list rpcd.ns_don.write='*'
+    # commit rpcd changes
+    uci commit rpcd
 
     show_credentials
 ;;
