@@ -1,0 +1,119 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import json
+import sys
+
+from euci import EUci
+from nethsec import mwan, utils
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({
+        'index_policies': {},
+        'store_policy': {
+            'name': 'String',
+            'interfaces': 'String'
+        },
+        'delete_policy': {
+            'name': 'String'
+        },
+        'edit_policy': {
+            'name': 'String',
+            'interfaces': 'String'
+        },
+        'index_rules': {},
+        'store_rule': {
+            'name': 'String',
+            'policy': 'String',
+            'protocol': 'String',
+            'source_address': 'String',
+            'source_port': 'String',
+            'destination_address': 'String',
+            'destination_port': 'String',
+        },
+        'order_rules': {
+            'rules': 'String'
+        },
+        'delete_rule': {
+            'name': 'String'
+        },
+        'edit_rule': {
+            'name': 'String',
+            'policy': 'String',
+            'label': 'String',
+            'protocol': 'String',
+            'source_address': 'String',
+            'source_port': 'String',
+            'destination_address': 'String',
+            'destination_port': 'String',
+        },
+    }))
+elif cmd == 'call':
+    action = sys.argv[2]
+    e_uci = EUci()
+    try:
+        if action == 'index_policies':
+            print(json.dumps({'values': mwan.index_policies(e_uci)}))
+        elif action == 'store_policy':
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            mwan.store_policy(e_uci, data['name'], data['interfaces'])
+            print(json.dumps({'message': 'success'}))
+        elif action == 'delete_policy':
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            mwan.delete_policy(e_uci, data['name'])
+            print({'message': 'success'})
+        elif action == 'edit_policy':
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            mwan.edit_policy(e_uci, data['name'], data['label'], data['interfaces'])
+            print(json.dumps({'message': 'success'}))
+        elif action == 'index_rules':
+            print(json.dumps({'values': mwan.index_rules(e_uci)}))
+        elif action == 'store_rule':
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            mwan.store_rule(
+                e_uci,
+                data['name'],
+                data['policy'],
+                data['protocol'],
+                data['source_address'],
+                data['source_port'],
+                data['destination_address'],
+                data['destination_port'],
+            )
+            print(json.dumps({'message': 'success'}))
+        elif action == 'order_rules':
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            mwan.order_rules(e_uci, data['rules'])
+            print(json.dumps({'message': 'success'}))
+        elif action == 'delete_rule':
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            mwan.delete_rule(e_uci, data['name'])
+            print(json.dumps({'message': 'success'}))
+        elif action == 'edit_rule':
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            mwan.edit_rule(
+                e_uci,
+                data['name'],
+                data['policy'],
+                data['label'],
+                data['protocol'],
+                data['source_address'],
+                data['source_port'],
+                data['destination_address'],
+                data['destination_port'],
+            )
+            print(json.dumps({'message': 'success'}))
+    except KeyError as e:
+        print(json.dumps(utils.validation_error(e.args[0], 'required')))
+    except json.JSONDecodeError:
+        print(json.dumps(utils.generic_error("json given is invalid")))
+    except utils.ValidationError as e:
+        print(json.dumps(utils.validation_error(e.parameter, e.message, e.value)))
+    except ValueError as e:
+        print(json.dumps(utils.generic_error(e)))
