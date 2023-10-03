@@ -1591,11 +1591,18 @@ Response example:
         "source_port": "587",
         "source_port_name": "submission",
         "destination_port": "587",
+        "dest": "lan",
         "name": "Submission mail",
         "wan": "1.2.3.4",
         "enabled": true,
         "id": "ns_pf1",
-        "restrict": []
+        "restrict": [],
+        "log": true,
+        "reflection": true,
+        "reflection_zone": [
+          "lan",
+          "wan"
+        ]
       },
       {
         "dest_ip": "192.168.1.250",
@@ -1605,13 +1612,16 @@ Response example:
         "source_port": "143",
         "source_port_name": "imap2",
         "destination_port": "143",
+        "dest": "lan",
         "name": "IMAP on mail server",
         "wan": "1.2.3.5",
         "enabled": true,
         "id": "ns_pf2",
         "restrict": [
             "6.7.8.9"
-        ]
+        ],
+        "log": false,
+        "reflection": false
       }
     ]
   }
@@ -1673,7 +1683,7 @@ Error response:
 
 Add a redirect rule:
 ```
-api-cli ns.redirects add-redirect --data '{"name": "my pf", "dest_ip": "10.0.0.1", "proto": ["tcp"], "src_dport": "22", "reflection": "1", "log": "1",  "dest_port": "222", "restrict": ["1.2.3.4"], "src_dip": "4.5.6.7", "enabled": "1"}'
+api-cli ns.redirects add-redirect --data '{"name": "my pf", "dest_ip": "10.0.0.1", "proto": ["tcp"], "src_dport": "22", "reflection": "1", "log": "1",  "dest_port": "222", "restrict": ["1.2.3.4"], "src_dip": "4.5.6.7", "dest": "lan", "reflection_zone": ["lan", "guest"], "enabled": "1"}'
 ```
 
 Fields description:
@@ -1687,6 +1697,8 @@ Fields description:
 - `dest_port`: destination port
 - `src_dip`: WAN IP
 - `restrict`: if it is not empty, the API will automatically create an associated ipset.
+- `dest`: destination zone
+- `reflection_zone`: list of hairpin NAT zones
 
 Success response:
 ```json
