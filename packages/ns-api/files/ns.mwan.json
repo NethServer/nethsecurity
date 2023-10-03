@@ -1,0 +1,13 @@
+{
+  "mwan-manager": {
+    "description": "Read and write mwan3 configuration",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.mwan": [
+          "*"
+        ]
+      }
+    }
+  }
+}
