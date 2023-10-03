@@ -56,8 +56,8 @@ def list_redirects():
         redirect["name"] = r.get("name", f"PF{count}") # name
         redirect["wan"] = r.get("src_dip", "any") # wan IP
         redirect["enabled"] = r.get("enabled", "1") == "1" # status
-        redirect["log"] = r.get("log", "1") == "1"
-        redirect["reflection"] = r.get("reflection", "1") == "1"
+        redirect["log"] = r.get("log", "0") == "1"
+        redirect["reflection"] = r.get("reflection", "0") == "1"
         redirect["reflection_zone"] = r.get("reflection_zone", [])
         redirect["dest"] = r.get("dest", "") # destination zone
         redirect["id"] = section
