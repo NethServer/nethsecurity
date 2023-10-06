@@ -604,17 +604,178 @@ Response example:
 
 Manage Dedalo hotspot
 
-### add-default-config
+### list-sessions
 
-Configure netwok and firewall for Dedalo:
+List hotspot client sessions
 ```
-api-cli ns.dedalo add-default-config
+api-cli ns.dedalo list-sessions
 ```
 
 Response example:
 ```json
-{ "success": true }
+{
+  "sessions": [
+    {
+      "macAddress": "00:11:22:33:44:",
+      "ipAddress": "1.2.3.4",
+      "status": "authenticated",
+      "sessionKey": "000000111111000",
+      "sessionTimeElapsed": 1456,
+      "idleTimeElapsed": 43,
+      "inputOctetsDownloaded": 6790,
+      "outputOctetsUploaded": 1230
+    },
+    {
+      "macAddress": "00:aa:bb:11:44:",
+      "ipAddress": "192.168.100.231",
+      "status": "not authenticated",
+      "sessionKey": "145646000000111111000",
+      "sessionTimeElapsed": 67841,
+      "idleTimeElapsed": 2,
+      "inputOctetsDownloaded": 98563,
+      "outputOctetsUploaded": 11867
+    }
+  ]
+}
 ```
+
+### list-parents
+
+List hotspot parents from remote hotspot manager:
+```
+api-cli ns.dedalo list-parents
+```
+
+Response example:
+```json
+{
+  "parents": [
+    {
+      "id": 1746,
+      "name": "nethsecurityng",
+      "description": "NethSecurity dev"
+    }
+  ]
+}
+```
+
+### list-devices
+
+List available newtork devices:
+```
+api-cli ns.dedalo list-devices
+```
+
+Response example:
+```json
+{
+  "devices": [
+    "eth3",
+    "eth4"
+  ]
+}
+```
+
+### login
+
+Login to remote hotspot manager:
+```
+api-cli ns.dedalo login --data '{"host": "my.nethspot.com", "username": "myuser", "password": "mypass}'
+```
+
+Successfull response example:
+```json
+{ "result": "success" }
+```
+
+Error response example:
+```json
+{ "error": "login_failed" }
+```
+
+### unregister
+
+Logout from remote hotspot manager and delete local config:
+```
+api-cli ns.dedalo unregister
+```
+
+Response example:
+```json
+{ "result": "success" }
+```
+
+### set-configuration
+
+Configure the hotspot:
+```
+api-cli ns.dedalo set-configuration --data '{"network": "192.168.182.0/24", "hotspot_id": "1234", "unit_name": "myunit", "unit_description": "my epic unit", "interface": "eth3", "max_clients": 253, "dhcp_start": "192.168.182.10", "dhcp_end": "192.168.182.100"}'
+```
+
+Response example:
+```json
+{ "result": "success" }
+```
+
+### get-configuration
+
+Get current configuration:
+```
+api-cli ns.dedalo get-configuration
+```
+
+Response example for non-configurated device:
+```json
+{
+  "configuration": {
+    "network": "192.168.182.0/24",
+    "hotspot_id": "",
+    "unit_name": "",
+    "unit_description": "",
+    "interface": "",
+    "dhcp_start": "",
+    "dhcp_end": "",
+    "max_clients": "",
+    "connected": true
+  }
+}
+```
+
+The `connected` field tells id the device is logged to the hotspot manager.
+If the device is not connected, you need to execute the `login` api to retrieve remote data.
+
+### get-dhcp-range
+
+Return the first and last IPs valid for the DHCP range, given a network CIDR:
+```
+api-cli ns.dedalo get-dhcp-range --data '{"network": "10.0.0.0/24"}'
+```
+
+Response example:
+```json
+{
+  "start": "192.168.0.2",
+  "end": "192.168.255.254",
+  "max_entries": 65533
+}
+```
+
+If the network is not valid, the API raises a validation error:
+```json
+{
+  "validation": {
+    "errors": [
+      {
+        "parameter": "network",
+        "message": "invalid_network",
+        "value": "192.168.0.0/164"
+      }
+    ]
+  }
+}
+```
+
+The `max_entries` field is the maximum number of IPs available inside the network CIDR.
 
 ## ns.power
 
