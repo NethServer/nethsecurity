@@ -66,8 +66,8 @@ def list_interfaces():
     dhcps = utils.get_all_by_type(u, 'dhcp', 'dhcp')
     for i in interfaces:
         record = {"device": "", "start": "", "end": "", "active": False, "options": {} }
-        # skip wans
-        if i == "loopback" or i in wans:
+        # skip loopback, wans and interfaces with no IP address (e.g. DHCP interfaces)
+        if i == "loopback" or i in wans or not ('ipaddr' in interfaces[i]):
             continue
 
         record['device'] = interfaces[i].get('device', '')
