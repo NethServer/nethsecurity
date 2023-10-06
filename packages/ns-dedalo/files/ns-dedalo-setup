@@ -26,7 +26,12 @@ def configure_fw():
 
 def setup_dedalo():
     u = EUci()
-    if  not configure_fw():
+    links = firewall.get_all_linked(u, "dedalo/config")
+    if links["firewall"]:
+        # already configured
+        return True
+
+    if not configure_fw():
         return False
 
     interface = "hotspot"
@@ -36,7 +41,8 @@ def setup_dedalo():
     u.set("network", interface, "device", f"tun-{interface}")
     u.set("network", interface, "ns_link", "dedalo/config")
     u.set("network", interface, "ns_tag", ["automated"])
-    u.save("network")
+    u.commit("network")
+    u.commit("firewall")
     return True
 
 if setup_dedalo():
