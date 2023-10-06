@@ -62,12 +62,15 @@ def remove_wildcard(u, ip, name):
 def add_wildcard(u, ip, name):
     remove_wildcard(u, ip, name)
     server = get_server(u)
+    address_list = []
     try:
-        addr = u.get('dhcp', server, 'address', list=True)
+        for addr in u.get("dhcp", server, "address", default=[], list=True):
+            address_list.append(addr)
     except:
-        addr = []
-    addr.append(f'/{name}/{ip}')
-    u.set('dhcp', server, 'address', addr)
+        pass
+
+    address_list.append(f'/{name}/{ip}')
+    u.set('dhcp', server, 'address', ",".join(address_list))
     u.save('dhcp')
 
 def edit_record(args):
