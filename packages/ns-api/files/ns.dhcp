@@ -125,7 +125,9 @@ def get_interface(args):
         interface = u.get_all("network", args["interface"])
     except:
         return utils.generic_error("interface_not_found")
-    (ret['first'], ret['last']) = conf_to_range(interface['ipaddr'], interface['netmask'], dhcp.get('start', 100), dhcp.get('limit', 150))
+
+    if 'ipaddr' in interface:
+        (ret['first'], ret['last']) = conf_to_range(interface['ipaddr'], interface['netmask'], dhcp.get('start', 100), dhcp.get('limit', 150))
     ret["leasetime"] = dhcp["leasetime"]
     ret["active"] = dhcp["dhcpv4"] == "server"
     if "dhcp_option" in dhcp:
