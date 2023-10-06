@@ -1463,7 +1463,8 @@ Response example:
       "ipaddr": "192.168.5.220",
       "hostname": "W80B-2",
       "interface": "blue",
-      "device": "eth2.1"
+      "device": "eth2.1",
+      "description": "description 1"
     },
     {
       "lease": "ns_lease2",
@@ -1471,7 +1472,8 @@ Response example:
       "ipaddr": "192.168.5.162",
       "hostname": "W90B-1",
       "interface": "blue",
-      "device": "eth2.1"
+      "device": "eth2.1",
+      "description": "description 2"
     }
   ]
 }
