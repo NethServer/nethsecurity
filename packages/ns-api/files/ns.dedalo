@@ -7,22 +7,210 @@
 
 # Setup Dedalo hotspot
 
+import os
 import sys
 import json
+import uuid
+import hashlib
+import ipaddress
 import subprocess
+from nethsec import utils
+from euci import EUci
 
-def setup_dedalo():
+tmp_dir = "/tmp/dedalo"
+token_file = f"{tmp_dir}/token"
+opts = ["network", "hotspot_id", "unit_name", "unit_description", "interface", "dhcp_start", "dhcp_end", "max_clients"]
+
+def _get_token():
     try:
-        subprocess.run(["/usr/sbin/ns-dedalo-setup"], check=True)
-        return {"success": True}
+        with open(token_file, 'r') as fp:
+            return fp.read()
+    except:
+        return None
+
+def login(args):
+    u = EUci()
+    try:
+        p = subprocess.run(['curl', '-L', '--url', f'https://{args["host"]}/api/login', '--header', 'Content-Type: application/json', '--data-binary', json.dumps(args)], check=True, capture_output=True, text=True)
+        resp = json.loads(p.stdout)
+        if 'token' in resp:
+            subprocess.run(["/usr/sbin/ns-dedalo-setup"], check=True)
+            u.set("dedalo", "config", "splash_page", f'http://{args["host"]}/wings')
+            u.set("dedalo", "config", "aaa_url", f'https://{args["host"]}/wax/aaa')
+            u.set("dedalo", "config", "api_url", f'https://{args["host"]}/api')
+            u.commit("dedalo")
+            os.makedirs(tmp_dir, exist_ok = True)
+            with open(token_file, "w") as fp:
+                fp.write(resp["token"])
+            return {"response": "success"}
+        else:
+            return utils.generic_error("login_failed")
     except:
         return {"success": False}
+
+def list_sessions():
+    process = subprocess.run(["/usr/bin/dedalo", "query", "list"], capture_output=True, text=True)
+    if not process.stdout:
+        return { 'sessions': [] }
+    else:
+        users = []
+
+        for line in process.stdout.strip().split("\n"):
+            tokens = line.strip().split()
+            mac_address = tokens[0]
+            ip_address = tokens[1]
+
+            status = tokens[2]
+            if status != 'dnat' and status != 'pass':
+                continue
+
+            session_key = tokens[3]
+            session_time = tokens[6]
+            session_time_elapsed = session_time.split("/")[0]
+
+            idle_time = tokens[7]
+            idle_time_elapsed = idle_time.split("/")[0]
+
+            input_octets = tokens[8]
+            input_octets_downloaded = input_octets.split("/")[0]
+            input_octets_limit = input_octets.split("/")[1]
+
+            output_octets = tokens[9]
+            output_octets_uploaded = output_octets.split("/")[0]
+            output_octets_limit = output_octets.split("/")[1]
+
+            swap_octets = tokens[11]
+            if swap_octets == "1":
+                # swap input and output octets
+                input_octets_downloaded, output_octets_uploaded = output_octets_uploaded, input_octets_downloaded
+                input_octets_limit, output_octets_limit = output_octets_limit, output_octets_limit
+
+            user = {
+                'macAddress': mac_address,
+                'ipAddress': ip_address,
+                'status': status,
+                'sessionKey': session_key,
+                'sessionTimeElapsed': session_time_elapsed,
+                'idleTimeElapsed': idle_time_elapsed,
+                'inputOctetsDownloaded': input_octets_downloaded,
+                'inputOctetsLimit': input_octets_limit,
+                'outputOctetsUploaded': output_octets_uploaded,
+                'outputOctetsLimit': output_octets_limit
+            }
+            users.append(user)
+
+        return { 'sessions': users }
+
+def list_devices():
+    return {"devices": ["eth3", "eth4"]}
+
+def list_parents():
+    parents = []
+    u = EUci()
+    try:
+        api_url = u.get("dedalo", "config", "api_url")
+        p = subprocess.run(['curl', '-L', '-s', '--url', f'{api_url}/hotspots', '--header', f"Token: {_get_token()}"], capture_output=True, text=True)
+        resp = json.loads(p.stdout)
+        for p in resp["data"]:
+            parents.append({"id": p["id"], "name": p["name"], "description": p["description"]})
+        return {"parents": parents}
+    except:
+        return {"parents": []}
+
+def unregister():
+    u = EUci()
+    try:
+        # the below command also set the disabled option
+        subprocess.run(["/usr/bin/unregister_dedalo", token_file], check=True, capture_output=True)
+
+        # cleanup firewall and network configuration
+        links = firewall.get_all_linked(u, "dedalo/config")
+        fw_changed = False
+        n_changed = False
+        for section in links["firewall"]:
+            u.delete("firewall", section)
+        for section in links["network"]:
+            u.delete("network", section)
+        if n_changed:
+            u.commit("network")
+        if fw_changed:
+            u.commit("firewall")
+    except:
+        return utils.generic_error("unregister_failed")
+    return {"result": "success"}
+
+def get_configuration():
+    ret = {}
+    u = EUci()
+    for opt in opts:
+        ret[opt] = u.get("dedalo", "config", opt, default="")
+    ret["connected"] = os.path.exists(token_file)
+    return {"configuration": ret}
+
+def set_configuration(args):
+    u = EUci()
+    for opt in opts:
+        if opt in args:
+            u.set("dedalo", "config", opt, args[opt])
+    u.set("dedalo", "config", "disabled", "0")
+    h = hashlib.md5(uuid.uuid4().hex.encode()).hexdigest()
+    u.set("dedalo", "config", "secret", h)
+    u.set("dedalo", "config", "unit_uuid", uuid.uuid4().hex)
+    n = ipaddress.IPv4Network(args["network"])
+    max_entries = int(n[-1]) - int(n[0]) - 2
+    u.set("dedalo", "config", "max_entries", max_entries)
+    u.commit("dedalo")
+    try:
+        subprocess.run(["/etc/init.d/dedalo", "reload"], check=True)
+        subprocess.run(["/usr/bin/dedalo", "register", "-t", _get_token()], check=True, capture_output=True)
+    except:
+        return utils.generic_error("registration_failed")
+    return {"result": "success"}
+
+def get_dhcp_range(args):
+    start = ""
+    end = ""
+    max_entries = "0"
+    try:
+        n = ipaddress.IPv4Network(args["network"])
+    except:
+        return utils.validation_error("network", "invalid_network", args["network"])
+    start, end = n[0] + 2, n[-2]
+    max_entries = int(n[-1]) - int(n[0]) - 2
+    return {"start": str(start), "end": str(end), "max_entries": max_entries}
 
 cmd = sys.argv[1]
 
 if cmd == 'list':
-    print(json.dumps({"add-default-config": {}}))
+    print(json.dumps({
+        "login": {"host": "my.nethspot.com", "user": "myuser", "password": "mypassword"},
+        "list-sessions": {},
+        "list-parents": {},
+        "list-devices": {},
+        "unregister": {},
+        "get-dhcp-range": {"network": "192.168.182.0/24"},
+        "get-configuration": {},
+        "set-configuration": {"network": "192.168.182.0/24", "hotspot_id": "1234", "unit_name": "myunit", "unit_description": "my epic unit", "interface": "eth3", "max_clients": 253, "dhcp_start": "192.168.182.10", "dhcp_end": "192.168.182.100"},
+        }))
 else:
     action = sys.argv[2]
-    if action == "add-default-config":
-        print(json.dumps(setup_dedalo()))
+    if action == "list-sessions":
+        ret = list_sessions()
+    elif action == "list-parents":
+        ret = list_parents()
+    elif action == "list-devices":
+        ret = list_devices()
+    elif action == "unregister":
+        ret = unregister()
+    elif action == "get-configuration":
+        ret = get_configuration()
+    elif action == "get-dhcp-range":
+        args = json.loads(sys.stdin.read())
+        ret = get_dhcp_range(args)
+    elif action == "login":
+        args = json.loads(sys.stdin.read())
+        ret = login(args)
+    elif action == "set-configuration":
+        args = json.loads(sys.stdin.read())
+        ret = set_configuration(args)
+    print(json.dumps(ret))
