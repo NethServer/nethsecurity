@@ -680,10 +680,10 @@ Response example:
 
 Login to remote hotspot manager:
 ```
-api-cli ns.dedalo login --data '{"host": "my.nethspot.com", "username": "myuser", "password": "mypass}'
+api-cli ns.dedalo login --data '{"host": "my.nethspot.com", "username": "myuser", "password": "mypass"}'
 ```
 
-Successfull response example:
+Successful response example:
 ```json
 { "result": "success" }
 ```
@@ -741,7 +741,7 @@ Response example for non-configurated device:
 }
 ```
 
-The `connected` field tells id the device is logged to the hotspot manager.
+The `connected` field tells if the device is logged to the hotspot manager.
 If the device is not connected, you need to execute the `login` api to retrieve remote data.
 
 ### get-dhcp-range
