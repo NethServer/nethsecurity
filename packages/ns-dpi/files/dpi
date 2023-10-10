@@ -1,0 +1,31 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# there might be tables to cleanup at startup
+if nft list tables inet | grep -q "table inet dpi"; then
+  nft delete table inet dpi
+fi
+
+# To enable CT labels, create an iptables rule (similar rules on nftables do not enable CT labels).
+for c in INPUT OUTPUT FORWARD; do
+  if ! iptables -t mangle -C $c -m connlabel --label dummy -m comment --comment "Init CT labels" 2>/dev/null; then
+    iptables -t mangle -A $c -m connlabel --label dummy -m comment --comment "Init CT labels";
+  fi
+done
+
+# Setup CT label for nftables which uses a different path than iptables
+ln -sf /etc/xtables/connlabel.conf /etc
+
+# Generate netify flow actions config file
+/usr/sbin/dpi-config
+# reload netifyd daemon
+/etc/init.d/netifyd reload
+
+# in case of filtering enabled, add nft tables, otherwise do nothing
+if [ "$(uci get dpi.config.enabled)" = "1" ]; then
+  /usr/sbin/dpi-nft | nft -f -
+fi

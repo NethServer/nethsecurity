@@ -80,17 +80,47 @@ for section in u.get_all('dpi'):
     if rule['action'] not in valid_actions or not rule['enabled']:
         continue
 
-    criteria = rule['criteria'].replace('"',"'")
-    if 'user_src' in rule:
-        criteria = f"({user_to_criteria(u, rule['user_src'])}) and ({criteria.strip(';')});"
-    elif 'group_src' in rule:
-        criteria = f"({group_to_criteria(u, rule['group_src'])}) and ({criteria.strip(';')});"
+    if 'criteria' in rule:
+        # criteria has precedence over sources, protocol, category and application
+        criteria = rule['criteria'].replace('"',"'")
+    else:
+        # generate criteria from source, protocol, category and application
+        sources = []
+        for source in rule.get('source', []):
+            if source.startswith("user:"):
+                usr = user_to_criteria(u, source[5:])
+                if usr:
+                    sources.append(usr)
+            elif source.startswith("group:"):
+                grp = group_to_criteria(u, source[5:])
+                if grp:
+                    sources.append(grp)
+            else: # custom local IPs
+                sources.append(f'local_ip == {source}')
+
+        applications = []
+        for app in rule.get('application', []):
+            applications.append(f"app == '{app}'")
+        for proto in rule.get('protocol', []):
+            applications.append(f"proto == '{proto.lower()}'")
+        for cat in rule.get('category', []):
+            applications.append(f"category == '{cat.lower()}'")
+
+        sources_s = ' or '.join(sources)
+        applications_s = ' or '.join(applications)
+        if len(sources) < 1:
+            criteria = f'({applications_s}) ;'
+        elif len(applications) < 1:
+            criteria = f'({sources_s}) ;'
+        else:
+            criteria = f'({sources_s}) && ({applications_s}) ;'
 
     config["actions"][f"rule{rcount}"] = {
         "enabled": rule['enabled'] == '1',
-        "interface": "*",
+        "interface": rule.get('interface', '*'),
         "criteria": criteria,
-        "targets": [rule['action']]
+        "targets": [rule['action']],
+        "exemptions": rule.get('exemption', [])
     }
     config["targets"][rule['action']] = {
         "target_type": "ctlabel",
