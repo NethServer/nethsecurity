@@ -40,7 +40,8 @@ def is_wildcard(u, ip, name):
         cur = u.get('dhcp', get_server(u), 'address', list=True)
     except:
         return False
-    for addr in cur:
+
+    for addr in cur[0].split(","):
         if f'/{name}/{ip}' == addr:
             return True
     return False
