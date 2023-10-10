@@ -1947,10 +1947,218 @@ api-cli ns.redirects list-zones
 ```
 
 Response example:
-```
+```json
 {
   "zones": [
     "guest"
   ]
+}
+```
+
+## ns.dpi
+
+Manage netifyd DPI engine.
+
+### list-applications
+
+List application and protocols:
+
+```bash
+api-cli ns.dpi list-applications
+```
+
+Filtering is provided out of the box, searching in both name and category:
+
+```bash
+api-cli ns.dpi list-applications --data '{"search": "apple"}'
+```
+
+Data can be limited and paginated by using the `limit` and `page` parameters:
+
+```bash
+api-cli ns.dpi list-applications --data '{"limit": 10, "page": 3}'
+```
+
+**PLEASE NOTE**: `category` field can be missing in some applications/protocols.
+
+Example response:
+```json
+{
+  "values": [
+    {
+      "id": 10392,
+      "name": "netify.apple-siri",
+      "type": "application",
+      "category": {
+        "id": 5,
+        "name": "business"
+      }
+    },
+    {
+      "id": 10706,
+      "name": "netify.apple-id",
+      "type": "application"
+    },
+    {
+      "id": 10152,
+      "name": "netify.appnexus",
+      "type": "application",
+      "category": {
+        "id": 3,
+        "name": "advertiser"
+      }
+    },
+    {
+      "id": 142,
+      "name": "WhatsApp",
+      "type": "protocol",
+      "category": {
+        "id": 24,
+        "name": "messaging"
+      }
+    },
+    {
+      "id": 238,
+      "name": "Apple/Push",
+      "type": "protocol"
+    },
+    {
+      "id": 246,
+      "name": "WhatsApp/Call",
+      "type": "protocol",
+      "category": {
+        "id": 20,
+        "name": "voip"
+      }
+    }
+  ]
+}
+```
+
+### list-rules
+
+List created rules:
+
+```bash
+api-cli ns.dpi list-rules
+```
+
+Example response:
+
+```json
+{
+  "values": [
+    {
+      "config-name": "ns_3869dc35",
+      "enabled": true,
+      "interface": "eth4",
+      "action": "block",
+      "criteria": [
+        {
+          "id": 156,
+          "name": "netify.spotify",
+          "type": "application",
+          "category": {
+            "id": 29,
+            "name": "streaming-media"
+          }
+        },
+        {
+          "id": 10119,
+          "name": "netify.adobe",
+          "type": "application",
+          "category": {
+            "id": 5,
+            "name": "business"
+          }
+        }
+      ]
+    },
+    {
+      "config-name": "ns_f1c6e9e0",
+      "enabled": false,
+      "interface": "eth4",
+      "action": "block",
+      "criteria": [
+        {
+          "id": 196,
+          "name": "HTTP/S",
+          "type": "protocol",
+          "category": {
+            "id": 22,
+            "name": "web"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+### add-rule
+
+Add DPI rule:
+
+```bash
+api-cli ns.dpi add-rule --data '{"enabled": false, "interface": "eth4", "applications": [], "protocols": ["HTTP/S"]}'
+```
+
+Rundown of required parameters:
+
+- `enabled`: `true` or `false`
+- `interface`: device name, e.g. `eth4`
+- `applications`: list of application names, e.g. `["netify.spotify", "netify.adobe"]`, refer to `list-applications`
+  api.
+- `protocols`: list of protocol names, e.g. `["HTTP/S"]`, refer to `list-applications` api.
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### delete-rule
+
+Delete DPI rule:
+
+```bash
+api-cli nd.dpi delete-rule --data '{"config-name": "ns_f1c6e9e0"}'
+```
+
+Required parameters:
+
+- `config-name`: rule name, refer to `list-rules` api.
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### edit-rule
+
+Edit DPI rule:
+
+```bash
+api-cli ns.dpi edit-rule --data '{"config-name": "ns_f1c6e9e0", "enabled": true, "interface": "eth4", "applications": ["netify.spotify", "netify.adobe"], "protocols": []}'
+```
+
+Rundown of required parameters:
+- `config-name`: rule name, refer to `list-rules` api.
+- `enabled`: `true` or `false`
+- `interface`: device name, e.g. `eth4`
+- `applications`: list of application names, e.g. `["netify.spotify", "netify.adobe"]`, refer to `list-applications`
+  api.
+- `protocols`: list of protocol names, e.g. `["HTTP/S"]`, refer to `list-applications` api.
+
+Example response:
+
+```json
+{
+   "message": "success"
 }
 ```
