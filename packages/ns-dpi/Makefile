@@ -59,7 +59,7 @@ define Package/ns-dpi/install
 	$(INSTALL_DIR) $(1)/etc/xtables
 	$(INSTALL_CONF) ./files/connlabel.conf $(1)/etc/xtables
 	$(INSTALL_BIN) ./files/dpi.init $(1)/etc/init.d/dpi
-	$(INSTALL_BIN) ./files/dpi-start $(1)/usr/sbin/
+	$(INSTALL_BIN) ./files/dpi $(1)/usr/sbin/
 	$(INSTALL_BIN) ./files/dpi-nft $(1)/usr/sbin/
 	$(INSTALL_BIN) ./files/dpi-config $(1)/usr/sbin/
 	$(INSTALL_BIN) ./files/dpi-update $(1)/usr/sbin/

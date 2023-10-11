@@ -1,0 +1,71 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import json
+import sys
+
+from euci import EUci
+from nethsec import dpi, utils
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({
+        'list-applications': {
+            'search': 'str',
+            'limit': 32,
+            'page': 32
+        },
+        'list-rules': {},
+        'add-rule': {
+            'enabled': False,
+            'interface': 'str',
+            'applications': 'str',
+            'protocols': 'str'
+        },
+        'delete-rule': {
+            'config-name': 'str'
+        },
+        'edit-rule': {
+            'config-name': 'str',
+            'enabled': False,
+            'interface': 'str',
+            'applications': 'str',
+            'protocols': 'str'
+        }
+    }))
+elif cmd == 'call':
+    action = sys.argv[2]
+    e_uci = EUci()
+    try:
+        if action == 'list-applications':
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            result = dpi.list_applications(data.get('search', None), data.get('limit', None), data.get('page', 1))
+            print(json.dumps({'values': result}))
+        elif action == 'list-rules':
+            print(json.dumps({'values': dpi.list_rules(e_uci)}))
+        elif action == 'add-rule':
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            dpi.add_rule(e_uci, data['enabled'], data['interface'], 'block', data['applications'], data['protocols'])
+            print(json.dumps({'message': 'success'}))
+        elif action == 'delete-rule':
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            dpi.delete_rule(e_uci, data['config-name'])
+            print(json.dumps({'message': 'success'}))
+        elif action == 'edit-rule':
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            dpi.edit_rule(e_uci, data['config-name'], data['enabled'], data['interface'], 'block', data['applications'],
+                          data['protocols'])
+            print(json.dumps({'message': 'success'}))
+    except KeyError as e:
+        print(json.dumps(utils.validation_error(e.args[0], 'required')))
+    except json.JSONDecodeError:
+        print(json.dumps(utils.generic_error("json given is invalid")))
+    except utils.ValidationError as e:
+        print(json.dumps(utils.validation_error(e.parameter, e.message, e.value)))
+    except ValueError as e:
+        print(json.dumps(utils.generic_error(e)))

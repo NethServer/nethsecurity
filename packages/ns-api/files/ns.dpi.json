@@ -1,0 +1,13 @@
+{
+  "dpi-manager": {
+    "description": "DPI manager",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.dpi": [
+          "*"
+        ]
+      }
+    }
+  }
+}
