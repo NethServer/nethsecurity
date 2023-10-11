@@ -2262,3 +2262,93 @@ Example response:
 }
 ```
 
+## ns.storage
+
+Manage data storage.
+
+### list-devices
+
+Retrieve the list of not-mounted disk with read-write access:
+```
+api-cli ns.storage list-devices
+```
+
+Response example:
+```json
+{
+  "devices": [
+    {
+      "name": "sda",
+      "size": "1G",
+      "path": "/dev/sda",
+      "model": "QEMU HARDDISK",
+      "vendor": "QEMU"
+    }
+  ]
+}
+```
+
+Please note that model and vendor could be empty on some hardware.
+
+### add-storage
+
+Configure the device to be used as extra data storage:
+```
+api-cli ns.storage add-storage --data '{"device": "/dev/sdb"}'
+```
+
+Successful response example:
+```json
+{"result": "success"}
+```
+
+Error response example:
+```json
+{"error": "command_failed"}
+```
+
+### remove-storage
+
+Unmount the storage:
+```
+api-cli ns.storage remove-storage
+```
+
+Successful response example:
+```json
+{"result": "success"}
+```
+
+Error response example:
+```json
+{"error": "command_failed"}
+```
+
+### get-configuration
+
+Get current configuration
+```
+api-cli ns.storage get-configuration
+```
+
+If the storage is not configured, the output will be:
+```json
+{
+  "name": null,
+  "size": null,
+  "path": null,
+  "model": null,
+  "vendor": null
+}
+```
+
+If the storage is configured, the response will be like:
+```json
+{
+  "name": "sda",
+  "size": "1G",
+  "path": "/dev/sda",
+  "model": "QEMU HARDDISK",
+  "vendor": "QEMU"
+}
+```

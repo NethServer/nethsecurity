@@ -1,0 +1,13 @@
+{
+  "storage-manager": {
+    "description": "Storage manager",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.storage": [
+          "*"
+        ]
+      }
+    }
+  }
+}
