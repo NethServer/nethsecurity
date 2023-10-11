@@ -2164,6 +2164,31 @@ Example response:
 }
 ```
 
+### list-devices
+
+List available devices to be added to DPI rules:
+
+```bash
+api-cli ns.dpi list-devices
+```
+
+Example response:
+
+```json
+{
+  "values": [
+    {
+      "interface": "GREEN_1",
+      "device": "eth0"
+    },
+    {
+      "interface": "GREEN_2",
+      "device": "eth4"
+    }
+  ]
+}
+```
+
 ## ns.flashstart
 
 Manage Flashstart service configuration.
