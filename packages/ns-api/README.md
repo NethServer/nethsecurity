@@ -2162,3 +2162,77 @@ Example response:
    "message": "success"
 }
 ```
+
+## ns.flashstart
+
+Manage Flashstart service configuration.
+
+### get-config
+
+Prints configuration of Flashstart service:
+
+```bash
+api-cli ns.flashstart get-config
+```
+
+Example response:
+
+```json
+{
+   "values": {
+      "enabled": false,
+      "username": "user",
+      "password": "password",
+      "zones": [
+         "lan"
+      ],
+      "bypass": [
+         "192.168.1.1"
+      ]
+   }
+}
+
+```
+
+### set-config
+
+Sets configuration of Flashstart service, **BEWARE** this commits directly the uci changes due to the need to restart
+flashstart service. The automatic uci commit is made inside `dhcp` and `flashstart` config.
+
+```bash
+api-cli ns.flashstart set-config --data '{"enabled": true, "username": "user", "password": "password", "zones": ["lan"], "bypass": ["192.168.1.1"]}'
+```
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### list-zones
+
+List available zones to apply Flashstart service:
+
+```bash
+api-cli ns.flashstart list-zones
+```
+
+Example response:
+
+```json
+{
+  "values": [
+    {
+      "id": "ns_lan",
+      "label": "lan"
+    },
+    {
+      "id": "ns_guest",
+      "label": "guest"
+    }
+  ]
+}
+```
+

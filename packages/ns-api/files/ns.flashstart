@@ -1,0 +1,104 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import json
+import subprocess
+import sys
+
+import nethsec.firewall
+from euci import EUci
+from nethsec.utils import ValidationError, validation_error, get_all_by_type, generic_error
+
+
+def __fetch_data(e_uci):
+    return {
+        'enabled': e_uci.get('flashstart', 'global', 'enabled', dtype=bool, default=False),
+        'username': e_uci.get('flashstart', 'global', 'username', default=''),
+        'password': e_uci.get('flashstart', 'global', 'password', default=''),
+        'zones': [zone for zone in e_uci.get('flashstart', 'global', 'zones', list=True, default=[])
+                  if zone != ''],
+        'bypass': [bypass for bypass in e_uci.get('flashstart', 'global', 'bypass', list=True, default=[])
+                   if bypass != '']
+    }
+
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({
+        'list-zones': {},
+        'set-config': {
+            'enabled': False,
+            'username': 'str',
+            'password': 'str',
+            'zones': 'str',
+            'bypass': 'str'
+        },
+        'get-config': {}
+    }))
+elif cmd == 'call':
+    action = sys.argv[2]
+    e_uci = EUci()
+    if action == 'set-config':
+        try:
+            # fetch previous config
+            previous_config = __fetch_data(e_uci)
+            # decode data
+            data = json.JSONDecoder().decode(sys.stdin.read())
+
+            # if flashstart changes activation status
+            if previous_config['enabled'] != bool(data['enabled']):
+                # flashstart will be enabled
+                if bool(data['enabled']):
+                    # backup old DNS servers
+                    for dnsmasq in get_all_by_type(e_uci, 'dhcp', 'dnsmasq'):
+                        # supporting at the moment only one dhcp
+                        e_uci.set('flashstart', 'ns_old_conf', 'dnsmasq')
+                        e_uci.set('flashstart', 'ns_old_conf', 'server',
+                                  e_uci.get('dhcp', dnsmasq, 'server', list=True))
+                        # add flashstart as only DNS
+                        e_uci.set('dhcp', dnsmasq, 'server', ['127.0.0.1#5300'])
+
+                # flashstart will be disabled
+                else:
+                    # restore old DNS servers
+                    for dhcp in get_all_by_type(e_uci, 'dhcp', 'dnsmasq'):
+                        # supporting at the moment only one dhcp
+                        e_uci.set('dhcp', dhcp, 'server',
+                                  e_uci.get('flashstart', 'ns_old_conf', 'server', list=True))
+                    # deleting old conf
+                    e_uci.delete('flashstart', 'ns_old_conf')
+
+            # save data
+            e_uci.set('flashstart', 'global', 'enabled', bool(data['enabled']))
+            e_uci.set('flashstart', 'global', 'username', data['username'])
+            e_uci.set('flashstart', 'global', 'password', data['password'])
+            e_uci.set('flashstart', 'global', 'zones', data['zones'])
+            e_uci.set('flashstart', 'global', 'bypass', data['bypass'])
+
+            e_uci.commit('dhcp')
+            e_uci.commit('flashstart')
+            subprocess.run(['flashstart-apply'], check=True)
+
+            print(json.dumps({"message": "success"}))
+
+        except KeyError as e:
+            print(json.dumps(validation_error(e.args[0], 'required')))
+        except ValidationError as e:
+            print(json.dumps(validation_error(e.parameter, e.message, e.value)))
+        except subprocess.CalledProcessError:
+            print(json.dumps(generic_error('flashstart-apply failed')))
+    elif action == 'get-config':
+        print(json.dumps({
+            'values': __fetch_data(e_uci)
+        }))
+    elif action == 'list-zones':
+        print(json.dumps({
+            'values': [{'id': zone_id, 'label': zone['name']}
+                       for zone_id, zone in nethsec.firewall.list_zones(e_uci).items()
+                       if zone['name'] != 'wan']
+        }))
