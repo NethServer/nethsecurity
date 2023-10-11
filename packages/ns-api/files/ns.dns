@@ -53,11 +53,11 @@ def remove_wildcard(u, ip, name):
         cur = u.get('dhcp', server, 'address', list=True)
     except:
         return
-    for addr in cur:
+    for addr in cur[0].split(","):
         if f'/{name}/{ip}' == addr:
             continue
         new.append(addr)
-    u.set('dhcp', server, 'address', new)
+    u.set('dhcp', server, 'address', ",".join(new))
     u.save('dhcp')
 
 def add_wildcard(u, ip, name):
