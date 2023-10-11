@@ -2051,7 +2051,8 @@ Example response:
     {
       "config-name": "ns_3869dc35",
       "enabled": true,
-      "interface": "eth4",
+      "device": "eth4",
+      "interface": "GREEN_1",
       "action": "block",
       "criteria": [
         {
@@ -2100,13 +2101,13 @@ Example response:
 Add DPI rule:
 
 ```bash
-api-cli ns.dpi add-rule --data '{"enabled": false, "interface": "eth4", "applications": [], "protocols": ["HTTP/S"]}'
+api-cli ns.dpi add-rule --data '{"enabled": false, "device": "eth4", "applications": [], "protocols": ["HTTP/S"]}'
 ```
 
 Rundown of required parameters:
 
 - `enabled`: `true` or `false`
-- `interface`: device name, e.g. `eth4`
+- `device`: device name, e.g. `eth4`
 - `applications`: list of application names, e.g. `["netify.spotify", "netify.adobe"]`, refer to `list-applications`
   api.
 - `protocols`: list of protocol names, e.g. `["HTTP/S"]`, refer to `list-applications` api.
@@ -2144,13 +2145,13 @@ Example response:
 Edit DPI rule:
 
 ```bash
-api-cli ns.dpi edit-rule --data '{"config-name": "ns_f1c6e9e0", "enabled": true, "interface": "eth4", "applications": ["netify.spotify", "netify.adobe"], "protocols": []}'
+api-cli ns.dpi edit-rule --data '{"config-name": "ns_f1c6e9e0", "enabled": true, "device": "eth4", "applications": ["netify.spotify", "netify.adobe"], "protocols": []}'
 ```
 
 Rundown of required parameters:
 - `config-name`: rule name, refer to `list-rules` api.
 - `enabled`: `true` or `false`
-- `interface`: device name, e.g. `eth4`
+- `device`: device name, e.g. `eth4`
 - `applications`: list of application names, e.g. `["netify.spotify", "netify.adobe"]`, refer to `list-applications`
   api.
 - `protocols`: list of protocol names, e.g. `["HTTP/S"]`, refer to `list-applications` api.
