@@ -23,7 +23,7 @@ if cmd == 'list':
         'list-rules': {},
         'add-rule': {
             'enabled': False,
-            'interface': 'str',
+            'device': 'str',
             'applications': 'str',
             'protocols': 'str'
         },
@@ -33,7 +33,7 @@ if cmd == 'list':
         'edit-rule': {
             'config-name': 'str',
             'enabled': False,
-            'interface': 'str',
+            'device': 'str',
             'applications': 'str',
             'protocols': 'str'
         }
@@ -50,7 +50,7 @@ elif cmd == 'call':
             print(json.dumps({'values': dpi.list_rules(e_uci)}))
         elif action == 'add-rule':
             data = json.JSONDecoder().decode(sys.stdin.read())
-            dpi.add_rule(e_uci, data['enabled'], data['interface'], 'block', data['applications'], data['protocols'])
+            dpi.add_rule(e_uci, data['enabled'], data['device'], 'block', data['applications'], data['protocols'])
             print(json.dumps({'message': 'success'}))
         elif action == 'delete-rule':
             data = json.JSONDecoder().decode(sys.stdin.read())
@@ -58,7 +58,7 @@ elif cmd == 'call':
             print(json.dumps({'message': 'success'}))
         elif action == 'edit-rule':
             data = json.JSONDecoder().decode(sys.stdin.read())
-            dpi.edit_rule(e_uci, data['config-name'], data['enabled'], data['interface'], 'block', data['applications'],
+            dpi.edit_rule(e_uci, data['config-name'], data['enabled'], data['device'], 'block', data['applications'],
                           data['protocols'])
             print(json.dumps({'message': 'success'}))
     except KeyError as e:

@@ -117,7 +117,7 @@ for section in u.get_all('dpi'):
 
     config["actions"][f"rule{rcount}"] = {
         "enabled": rule['enabled'] == '1',
-        "interface": rule.get('interface', '*'),
+        "interface": rule.get('device', '*'),
         "criteria": criteria,
         "targets": [rule['action']],
         "exemptions": rule.get('exemption', [])
