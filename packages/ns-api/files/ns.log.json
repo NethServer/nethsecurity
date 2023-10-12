@@ -1,0 +1,13 @@
+{
+  "log-manager": {
+    "description": "View and search system logs",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.log": [
+          "*"
+        ]
+      }
+    }
+  }
+}
