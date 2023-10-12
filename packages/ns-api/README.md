@@ -2352,3 +2352,34 @@ If the storage is configured, the response will be like:
   "vendor": "QEMU"
 }
 ```
+
+## ns.log
+
+Show and filter logs.
+
+### get-log
+
+```bash
+api-cli ns.log get-log --data '{"limit": 10, "search: "mwan"}'
+```
+
+Parameter list:
+
+- `limit`: number of lines to show
+- `search`: search string, uses `grep` syntax
+
+Both parameters are _optional_
+
+Example response:
+
+```json
+{
+   "values": [
+      "Oct 12 08:56:55 NethSec dropbear[21682]: Exit (root) from <W.X.Y.Z:00000>: Disconnect received",
+      "Oct 12 09:00:00 NethSec crond[4002]: USER root pid 22583 cmd sleep $(( RANDOM % 60 )); /usr/sbin/send-heartbeat",
+      "..."
+   ]
+}
+```
+
+**Notes**: returning strings are syslog formatted, be aware of it if any parsing is needed.

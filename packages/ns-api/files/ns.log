@@ -1,0 +1,53 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import json
+import subprocess
+import sys
+from json import JSONDecodeError
+
+from nethsec import utils
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({
+        'get-log': {
+            'search': 'String',
+            'limit': 32
+        }
+    }))
+elif cmd == 'call':
+    action = sys.argv[2]
+    if action == 'get-log':
+        try:
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            # parse params
+            limit = data['limit'] if 'limit' in data else 100
+            search = data['search'] if 'search' in data else None
+
+            # search in log
+            if search is not None:
+                result = subprocess.run(['grep', search, '/var/log/messages'], capture_output=True, check=True).stdout
+            else:
+                result = subprocess.run(['cat', '/var/log/messages'], capture_output=True, check=True).stdout
+
+            result = subprocess.run(['tail', '-n', str(limit)], input=result, capture_output=True, check=True).stdout
+
+            print(json.dumps({
+                'values': result.decode('utf-8').split('\n')[:-1]
+            }))
+        except JSONDecodeError as ex:
+            print(json.dumps(utils.generic_error('Invalid JSON')))
+        except subprocess.CalledProcessError as ex:
+            decoded_error: str = ex.stderr.decode('utf-8').strip('\n')
+            if ex.cmd[0] == 'grep':
+                print(json.dumps(utils.validation_error('search', decoded_error.removesuffix('grep: '))))
+            elif ex.cmd[0] == 'tail':
+                print(json.dumps(utils.validation_error('limit', decoded_error.removesuffix('tail: '))))
+            else:
+                print(json.dumps(utils.generic_error(decoded_error)))
