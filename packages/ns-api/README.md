@@ -2262,3 +2262,124 @@ Example response:
 }
 ```
 
+## ns.storage
+
+Manage data storage.
+
+### list-devices
+
+Retrieve the list of not-mounted disk with read-write access:
+```
+api-cli ns.storage list-devices
+```
+
+Response example:
+```json
+{
+  "devices": [
+    {
+      "name": "sda",
+      "size": "1G",
+      "path": "/dev/sda",
+      "model": "QEMU HARDDISK",
+      "vendor": "QEMU"
+    }
+  ]
+}
+```
+
+Please note that model and vendor could be empty on some hardware.
+
+### add-storage
+
+Configure the device to be used as extra data storage:
+```
+api-cli ns.storage add-storage --data '{"device": "/dev/sdb"}'
+```
+
+Successful response example:
+```json
+{"result": "success"}
+```
+
+Error response example:
+```json
+{"error": "command_failed"}
+```
+
+### remove-storage
+
+Unmount the storage:
+```
+api-cli ns.storage remove-storage
+```
+
+Successful response example:
+```json
+{"result": "success"}
+```
+
+Error response example:
+```json
+{"error": "command_failed"}
+```
+
+### get-configuration
+
+Get current configuration
+```
+api-cli ns.storage get-configuration
+```
+
+If the storage is not configured, the output will be:
+```json
+{
+  "name": null,
+  "size": null,
+  "path": null,
+  "model": null,
+  "vendor": null
+}
+```
+
+If the storage is configured, the response will be like:
+```json
+{
+  "name": "sda",
+  "size": "1G",
+  "path": "/dev/sda",
+  "model": "QEMU HARDDISK",
+  "vendor": "QEMU"
+}
+```
+
+## ns.log
+
+Show and filter logs.
+
+### get-log
+
+```bash
+api-cli ns.log get-log --data '{"limit": 10, "search: "mwan"}'
+```
+
+Parameter list:
+
+- `limit`: number of lines to show
+- `search`: search string, uses `grep` syntax
+
+Both parameters are _optional_
+
+Example response:
+
+```json
+{
+   "values": [
+      "Oct 12 08:56:55 NethSec dropbear[21682]: Exit (root) from <W.X.Y.Z:00000>: Disconnect received",
+      "Oct 12 09:00:00 NethSec crond[4002]: USER root pid 22583 cmd sleep $(( RANDOM % 60 )); /usr/sbin/send-heartbeat",
+      "..."
+   ]
+}
+```
+
+**Notes**: returning strings are syslog formatted, be aware of it if any parsing is needed.

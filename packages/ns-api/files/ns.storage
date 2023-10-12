@@ -1,0 +1,85 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Reboot and shutdown
+
+import sys
+import json
+import subprocess
+from nethsec import utils
+from euci import EUci
+
+def run(cmd):
+    try:
+        subprocess.run(cmd.split(" "), check=True, capture_output=True)
+        return {"result": "success"}
+    except:
+        return utils.generic_error("command_failed")
+
+def list_devices():
+    devices = []
+    p = subprocess.run(["/usr/bin/lsblk", "--json", "--output-all"], check=True, capture_output=True, text=True)
+    data = json.loads(p.stdout)
+    for device in data["blockdevices"]:
+        if device['type'] == 'disk':
+            mounted = False
+            if 'children' in device:
+                for child in device['children']:
+                    for mount in child['mountpoints']:
+                        if mount is not None:
+                            mounted = True
+            if not mounted and not device['ro']:
+                item = {"name": device['name'], "size": device["size"], "path": device["path"], "model": None, "vendor": None}
+                if device["model"] is not None:
+                    item["model"] = device["model"].strip()
+                if device["vendor"] is not None:
+                    item["vendor"] = device["vendor"].strip()
+                devices.append(item)
+    return {"devices": devices}
+
+
+def get_configuration():
+    u = EUci()
+    ret = {"name": None, "size": None, "path": None, "model": None, "vendor": None}
+    try:
+        info = u.get_all("fstab", "ns_data")
+        p = subprocess.run(["/usr/bin/lsblk", "--json", "--output-all"], check=True, capture_output=True, text=True)
+        data = json.loads(p.stdout)
+        cur = None
+        for device in data["blockdevices"]:
+            if 'children' in device:
+                for child in device['children']:
+                    if child['uuid'] == info["uuid"]:
+                        cur = device
+        if cur:
+            ret["name"] = cur['name']
+            ret["size"] = cur["size"]
+            ret["path"] = cur["path"]
+            if cur["model"] is not None:
+                ret["model"] = cur["model"].strip()
+            if cur["vendor"] is not None:
+                ret["vendor"] = cur["vendor"].strip()
+    except:
+        pass
+    return ret
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({"list-devices": {}, "add-storage": {"device": "/dev/sdb"}, "remove-storage": {}, "get-configuration": {}}))
+elif cmd == 'call':
+    action = sys.argv[2]
+    if action == "list-devices":
+        ret = list_devices()
+    elif action == "add-storage":
+        args = json.loads(sys.stdin.read())
+        ret = run(f"/usr/sbin/add-storage {args['device']}")
+    elif action == "remove-storage":
+        ret = run("/usr/sbin/remove-storage")
+    elif action == "get-configuration":
+        ret = get_configuration()
+    print(json.dumps(ret))
