@@ -32,6 +32,12 @@ else
 fi
 
 /sbin/uci set dedalo.config.disabled=1
+/sbin/uci delete dedalo.config.hotspot_id
+/sbin/uci delete dedalo.config.interface
+/sbin/uci delete dedalo.config.unit_name
+/sbin/uci delete dedalo.config.unit_description
+/sbin/uci delete dedalo.config.secret
+/sbin/uci delete dedalo.config.unit_uuid
 /sbin/uci commit dedalo
 
 # Disable dedalo services
