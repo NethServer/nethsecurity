@@ -122,19 +122,6 @@ def unregister():
     try:
         # the below command also set the disabled option
         subprocess.run(["/usr/bin/unregister_dedalo", token_file], check=True, capture_output=True)
-
-        # cleanup firewall and network configuration
-        links = firewall.get_all_linked(u, "dedalo/config")
-        fw_changed = False
-        n_changed = False
-        for section in links["firewall"]:
-            u.delete("firewall", section)
-        for section in links["network"]:
-            u.delete("network", section)
-        if n_changed:
-            u.commit("network")
-        if fw_changed:
-            u.commit("firewall")
     except:
         return utils.generic_error("unregister_failed")
     return {"result": "success"}
