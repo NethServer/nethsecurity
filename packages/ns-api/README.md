@@ -709,7 +709,7 @@ Response example:
 
 Configure the hotspot:
 ```
-api-cli ns.dedalo set-configuration --data '{"network": "192.168.182.0/24", "hotspot_id": "1234", "unit_name": "myunit", "unit_description": "my epic unit", "interface": "eth3", "max_clients": 253, "dhcp_start": "192.168.182.10", "dhcp_end": "192.168.182.100"}'
+api-cli ns.dedalo set-configuration --data '{"network": "192.168.182.0/24", "hotspot_id": "1234", "unit_name": "myunit", "unit_description": "my epic unit", "interface": "eth3", "dhcp_start": "192.168.182.10", "dhcp_end": "192.168.182.100"}'
 ```
 
 Response example:

@@ -19,7 +19,7 @@ from euci import EUci
 
 tmp_dir = "/tmp/dedalo"
 token_file = f"{tmp_dir}/token"
-opts = ["network", "hotspot_id", "unit_name", "unit_description", "interface", "dhcp_start", "dhcp_end", "max_clients"]
+opts = ["network", "hotspot_id", "unit_name", "unit_description", "interface", "dhcp_start", "dhcp_end"]
 
 def _get_token():
     try:
@@ -158,7 +158,7 @@ def set_configuration(args):
     u.set("dedalo", "config", "unit_uuid", uuid.uuid4().hex)
     n = ipaddress.IPv4Network(args["network"])
     max_entries = int(n[-1]) - int(n[0]) - 2
-    u.set("dedalo", "config", "max_entries", max_entries)
+    u.set("dedalo", "config", "max_clients", max_entries)
     u.commit("dedalo")
     try:
         subprocess.run(["/etc/init.d/dedalo", "reload"], check=True)
