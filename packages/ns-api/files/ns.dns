@@ -101,7 +101,8 @@ def get_record(args):
 def delete_record(args):
     u = EUci()
     try:
-        u.get('dhcp', args['record'])
+        record = u.get_all('dhcp', args['record'])
+        remove_wildcard(u, record.get("ip", ''), record.get('name', ''))
         u.delete('dhcp', args['record'])
         u.save('dhcp')
     except:
