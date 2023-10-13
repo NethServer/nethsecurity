@@ -17,7 +17,7 @@ title: NethSecurity
 description: NethSecurity - A firewall from NethServer family
 remote_theme: pmarsceill/just-the-docs@v0.3.3
 
-version: 22.03.5
+version: 23.05.0
 
 permalink: pretty
 exclude: [vendor]
