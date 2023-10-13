@@ -2037,6 +2037,55 @@ Example response:
 }
 ```
 
+### list-popular
+
+List popular applications and protocols:
+
+```bash
+api-cli ns.dpi list-popular
+```
+
+Data can be limited and paginated by using the `limit` and `page` parameters:
+
+```bash
+api-cli ns.dpi list-popular --data '{"limit": 3, "page": 2}'
+```
+
+**PLEASE NOTE**: `category` field can be missing in some applications/protocols.
+
+Example response:
+
+```json
+{
+   "values": [
+      {
+         "id": 10392,
+         "name": "netify.apple-siri",
+         "type": "application",
+         "category": {
+            "id": 5,
+            "name": "business"
+         }
+      },
+      {
+         "id": 142,
+         "name": "WhatsApp",
+         "type": "protocol",
+         "category": {
+            "id": 24,
+            "name": "messaging"
+         }
+      },
+      {
+         "id": 238,
+         "name": "Apple/Push",
+         "type": "protocol"
+      }
+   ]
+}
+```
+
+
 ### list-rules
 
 List created rules:
