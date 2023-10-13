@@ -22,6 +22,7 @@ Global options:
 - `log_blocked`: can be `0` or `1`, if set to `1` blocked connections will be logged
 - `firewall_exemption`: can be `0` or `1`, if set to `1` all firewall IP addresses will be
   added to global exemption list and will not match DPI rules
+- `popular_filters`: list of filters that will be returned to from `api-cli ns.dpi list-popular` call.
 
 Rule options:
 
@@ -47,6 +48,12 @@ config main 'config'
 	option log_blocked '1'
 	option enabled '1'
 	option firewall_exemption '1'
+	list popular_filters 'netify.netflix'
+	list popular_filters 'netify.telegram'
+	list popular_filters 'DoT'
+	list popular_filters 'netify.twitch'
+	list popular_filters 'netify.teamviewer'
+	list popular_filters 'DoH'
 
 config rule
 	option action 'block'
