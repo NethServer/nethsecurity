@@ -709,7 +709,7 @@ Response example:
 
 Configure the hotspot:
 ```
-api-cli ns.dedalo set-configuration --data '{"network": "192.168.182.0/24", "hotspot_id": "1234", "unit_name": "myunit", "unit_description": "my epic unit", "interface": "eth3", "max_clients": 253, "dhcp_start": "192.168.182.10", "dhcp_end": "192.168.182.100"}'
+api-cli ns.dedalo set-configuration --data '{"network": "192.168.182.0/24", "hotspot_id": "1234", "unit_name": "myunit", "unit_description": "my epic unit", "interface": "eth3", "dhcp_start": "192.168.182.10", "dhcp_end": "192.168.182.100"}'
 ```
 
 Response example:
@@ -1947,10 +1947,439 @@ api-cli ns.redirects list-zones
 ```
 
 Response example:
-```
+```json
 {
   "zones": [
     "guest"
   ]
 }
 ```
+
+## ns.dpi
+
+Manage netifyd DPI engine.
+
+### list-applications
+
+List application and protocols:
+
+```bash
+api-cli ns.dpi list-applications
+```
+
+Filtering is provided out of the box, searching in both name and category:
+
+```bash
+api-cli ns.dpi list-applications --data '{"search": "apple"}'
+```
+
+Data can be limited and paginated by using the `limit` and `page` parameters:
+
+```bash
+api-cli ns.dpi list-applications --data '{"limit": 10, "page": 3}'
+```
+
+**PLEASE NOTE**: `category` field can be missing in some applications/protocols.
+
+Example response:
+```json
+{
+  "values": [
+    {
+      "id": 10392,
+      "name": "netify.apple-siri",
+      "type": "application",
+      "category": {
+        "id": 5,
+        "name": "business"
+      }
+    },
+    {
+      "id": 10706,
+      "name": "netify.apple-id",
+      "type": "application"
+    },
+    {
+      "id": 10152,
+      "name": "netify.appnexus",
+      "type": "application",
+      "category": {
+        "id": 3,
+        "name": "advertiser"
+      }
+    },
+    {
+      "id": 142,
+      "name": "WhatsApp",
+      "type": "protocol",
+      "category": {
+        "id": 24,
+        "name": "messaging"
+      }
+    },
+    {
+      "id": 238,
+      "name": "Apple/Push",
+      "type": "protocol"
+    },
+    {
+      "id": 246,
+      "name": "WhatsApp/Call",
+      "type": "protocol",
+      "category": {
+        "id": 20,
+        "name": "voip"
+      }
+    }
+  ]
+}
+```
+
+### list-rules
+
+List created rules:
+
+```bash
+api-cli ns.dpi list-rules
+```
+
+Example response:
+
+```json
+{
+  "values": [
+    {
+      "config-name": "ns_3869dc35",
+      "enabled": true,
+      "device": "eth4",
+      "interface": "GREEN_1",
+      "action": "block",
+      "criteria": [
+        {
+          "id": 156,
+          "name": "netify.spotify",
+          "type": "application",
+          "category": {
+            "id": 29,
+            "name": "streaming-media"
+          }
+        },
+        {
+          "id": 10119,
+          "name": "netify.adobe",
+          "type": "application",
+          "category": {
+            "id": 5,
+            "name": "business"
+          }
+        }
+      ]
+    },
+    {
+      "config-name": "ns_f1c6e9e0",
+      "enabled": false,
+      "interface": "eth4",
+      "action": "block",
+      "criteria": [
+        {
+          "id": 196,
+          "name": "HTTP/S",
+          "type": "protocol",
+          "category": {
+            "id": 22,
+            "name": "web"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+### add-rule
+
+Add DPI rule:
+
+```bash
+api-cli ns.dpi add-rule --data '{"enabled": false, "device": "eth4", "applications": [], "protocols": ["HTTP/S"]}'
+```
+
+Rundown of required parameters:
+
+- `enabled`: `true` or `false`
+- `device`: device name, e.g. `eth4`
+- `applications`: list of application names, e.g. `["netify.spotify", "netify.adobe"]`, refer to `list-applications`
+  api.
+- `protocols`: list of protocol names, e.g. `["HTTP/S"]`, refer to `list-applications` api.
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### delete-rule
+
+Delete DPI rule:
+
+```bash
+api-cli nd.dpi delete-rule --data '{"config-name": "ns_f1c6e9e0"}'
+```
+
+Required parameters:
+
+- `config-name`: rule name, refer to `list-rules` api.
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### edit-rule
+
+Edit DPI rule:
+
+```bash
+api-cli ns.dpi edit-rule --data '{"config-name": "ns_f1c6e9e0", "enabled": true, "device": "eth4", "applications": ["netify.spotify", "netify.adobe"], "protocols": []}'
+```
+
+Rundown of required parameters:
+- `config-name`: rule name, refer to `list-rules` api.
+- `enabled`: `true` or `false`
+- `device`: device name, e.g. `eth4`
+- `applications`: list of application names, e.g. `["netify.spotify", "netify.adobe"]`, refer to `list-applications`
+  api.
+- `protocols`: list of protocol names, e.g. `["HTTP/S"]`, refer to `list-applications` api.
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### list-devices
+
+List available devices to be added to DPI rules:
+
+```bash
+api-cli ns.dpi list-devices
+```
+
+Example response:
+
+```json
+{
+  "values": [
+    {
+      "interface": "GREEN_1",
+      "device": "eth0"
+    },
+    {
+      "interface": "GREEN_2",
+      "device": "eth4"
+    }
+  ]
+}
+```
+
+## ns.flashstart
+
+Manage Flashstart service configuration.
+
+### get-config
+
+Prints configuration of Flashstart service:
+
+```bash
+api-cli ns.flashstart get-config
+```
+
+Example response:
+
+```json
+{
+   "values": {
+      "enabled": false,
+      "username": "user",
+      "password": "password",
+      "zones": [
+         "lan"
+      ],
+      "bypass": [
+         "192.168.1.1"
+      ]
+   }
+}
+
+```
+
+### set-config
+
+Sets configuration of Flashstart service, **BEWARE** this commits directly the uci changes due to the need to restart
+flashstart service. The automatic uci commit is made inside `dhcp` and `flashstart` config.
+
+```bash
+api-cli ns.flashstart set-config --data '{"enabled": true, "username": "user", "password": "password", "zones": ["lan"], "bypass": ["192.168.1.1"]}'
+```
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### list-zones
+
+List available zones to apply Flashstart service:
+
+```bash
+api-cli ns.flashstart list-zones
+```
+
+Example response:
+
+```json
+{
+  "values": [
+    {
+      "id": "ns_lan",
+      "label": "lan"
+    },
+    {
+      "id": "ns_guest",
+      "label": "guest"
+    }
+  ]
+}
+```
+
+## ns.storage
+
+Manage data storage.
+
+### list-devices
+
+Retrieve the list of not-mounted disk with read-write access:
+```
+api-cli ns.storage list-devices
+```
+
+Response example:
+```json
+{
+  "devices": [
+    {
+      "name": "sda",
+      "size": "1G",
+      "path": "/dev/sda",
+      "model": "QEMU HARDDISK",
+      "vendor": "QEMU"
+    }
+  ]
+}
+```
+
+Please note that model and vendor could be empty on some hardware.
+
+### add-storage
+
+Configure the device to be used as extra data storage:
+```
+api-cli ns.storage add-storage --data '{"device": "/dev/sdb"}'
+```
+
+Successful response example:
+```json
+{"result": "success"}
+```
+
+Error response example:
+```json
+{"error": "command_failed"}
+```
+
+### remove-storage
+
+Unmount the storage:
+```
+api-cli ns.storage remove-storage
+```
+
+Successful response example:
+```json
+{"result": "success"}
+```
+
+Error response example:
+```json
+{"error": "command_failed"}
+```
+
+### get-configuration
+
+Get current configuration
+```
+api-cli ns.storage get-configuration
+```
+
+If the storage is not configured, the output will be:
+```json
+{
+  "name": null,
+  "size": null,
+  "path": null,
+  "model": null,
+  "vendor": null
+}
+```
+
+If the storage is configured, the response will be like:
+```json
+{
+  "name": "sda",
+  "size": "1G",
+  "path": "/dev/sda",
+  "model": "QEMU HARDDISK",
+  "vendor": "QEMU"
+}
+```
+
+## ns.log
+
+Show and filter logs.
+
+### get-log
+
+```bash
+api-cli ns.log get-log --data '{"limit": 10, "search: "mwan"}'
+```
+
+Parameter list:
+
+- `limit`: number of lines to show
+- `search`: search string, uses `grep` syntax
+
+Both parameters are _optional_
+
+Example response:
+
+```json
+{
+   "values": [
+      "Oct 12 08:56:55 NethSec dropbear[21682]: Exit (root) from <W.X.Y.Z:00000>: Disconnect received",
+      "Oct 12 09:00:00 NethSec crond[4002]: USER root pid 22583 cmd sleep $(( RANDOM % 60 )); /usr/sbin/send-heartbeat",
+      "..."
+   ]
+}
+```
+
+**Notes**: returning strings are syslog formatted, be aware of it if any parsing is needed.

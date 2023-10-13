@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-api
-PKG_VERSION:=0.0.5
+PKG_VERSION:=0.0.10
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-api-$(PKG_VERSION)
@@ -71,6 +71,10 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.smtp.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.firewall $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.firewall.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.flashstart $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.log.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.log $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.flashstart.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.dpireport $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.dpireport.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.templates $(1)/usr/libexec/rpcd/
@@ -95,6 +99,10 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.redirects.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.mwan $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.mwan.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.dpi $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.dpi.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.storage $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.storage.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_CONF) files/msmtp.keep $(1)/lib/upgrade/keep.d/msmtp
 	$(LN) /usr/bin/msmtp $(1)/usr/sbin/sendmail

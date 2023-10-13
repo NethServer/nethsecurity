@@ -19,7 +19,7 @@ from euci import EUci
 
 tmp_dir = "/tmp/dedalo"
 token_file = f"{tmp_dir}/token"
-opts = ["network", "hotspot_id", "unit_name", "unit_description", "interface", "dhcp_start", "dhcp_end", "max_clients"]
+opts = ["network", "hotspot_id", "unit_name", "unit_description", "interface", "dhcp_start", "dhcp_end"]
 
 def _get_token():
     try:
@@ -122,19 +122,6 @@ def unregister():
     try:
         # the below command also set the disabled option
         subprocess.run(["/usr/bin/unregister_dedalo", token_file], check=True, capture_output=True)
-
-        # cleanup firewall and network configuration
-        links = firewall.get_all_linked(u, "dedalo/config")
-        fw_changed = False
-        n_changed = False
-        for section in links["firewall"]:
-            u.delete("firewall", section)
-        for section in links["network"]:
-            u.delete("network", section)
-        if n_changed:
-            u.commit("network")
-        if fw_changed:
-            u.commit("firewall")
     except:
         return utils.generic_error("unregister_failed")
     return {"result": "success"}
@@ -158,7 +145,7 @@ def set_configuration(args):
     u.set("dedalo", "config", "unit_uuid", uuid.uuid4().hex)
     n = ipaddress.IPv4Network(args["network"])
     max_entries = int(n[-1]) - int(n[0]) - 2
-    u.set("dedalo", "config", "max_entries", max_entries)
+    u.set("dedalo", "config", "max_clients", max_entries)
     u.commit("dedalo")
     try:
         subprocess.run(["/etc/init.d/dedalo", "reload"], check=True)

@@ -1,0 +1,13 @@
+{
+  "flashstart-manager": {
+    "description": "Flashstart config manager",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.flashstart": [
+          "*"
+        ]
+      }
+    }
+  }
+}
