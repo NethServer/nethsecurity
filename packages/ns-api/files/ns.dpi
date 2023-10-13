@@ -37,7 +37,11 @@ if cmd == 'list':
             'applications': 'str',
             'protocols': 'str'
         },
-        'list-devices': {}
+        'list-devices': {},
+        'list-popular': {
+            'limit': 32,
+            'page': 32
+        }
     }))
 elif cmd == 'call':
     action = sys.argv[2]
@@ -64,6 +68,10 @@ elif cmd == 'call':
             print(json.dumps({'message': 'success'}))
         elif action == 'list-devices':
             print(json.dumps({'values': dpi.list_devices(e_uci)}))
+        elif action == 'list-popular':
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            result = dpi.list_popular(e_uci, data.get('limit', None), data.get('page', 1))
+            print(json.dumps({'values': result}))
     except KeyError as e:
         print(json.dumps(utils.validation_error(e.args[0], 'required')))
     except json.JSONDecodeError:
