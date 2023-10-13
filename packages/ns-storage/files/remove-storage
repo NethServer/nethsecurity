@@ -14,6 +14,7 @@ echo "ok"
 
 echo -n "Configuring rsyslog..."
 uci delete rsyslog.ns_data
+uci commit rsyslog
 /etc/init.d/rsyslog restart
 echo "ok"
 
@@ -24,5 +25,5 @@ echo ok
 
 echo -n "Umounting data device..."
 umount -f /mnt/data
-rmdir /mnt/data
+rm -rf /mnt/data
 echo "ok"
