@@ -7,7 +7,7 @@
 
 set -e
 
-OWRT_VERSION="22.03.5"
+OWRT_VERSION="23.05.0"
 repobase="ghcr.io/nethserver"
 reponame="nethsecurity-builder"
 
