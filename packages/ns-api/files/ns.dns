@@ -37,9 +37,10 @@ def add_record(args):
 
 def is_wildcard(u, ip, name):
     try:
-        cur = u.get('dhcp', get_server(u), 'address', list=True)
+        cur = list(u.get('dhcp', get_server(u), 'address', list=True))
     except:
         return False
+
     for addr in cur:
         if f'/{name}/{ip}' == addr:
             return True
@@ -49,7 +50,7 @@ def remove_wildcard(u, ip, name):
     server = get_server(u)
     new = []
     try:
-        cur = u.get('dhcp', server, 'address', list=True)
+        cur = list(u.get('dhcp', server, 'address', list=True))
     except:
         return
     for addr in cur:
@@ -63,9 +64,10 @@ def add_wildcard(u, ip, name):
     remove_wildcard(u, ip, name)
     server = get_server(u)
     try:
-        addr = u.get('dhcp', server, 'address', list=True)
+        addr = list(u.get('dhcp', server, 'address', list=True))
     except:
         addr = []
+
     addr.append(f'/{name}/{ip}')
     u.set('dhcp', server, 'address', addr)
     u.save('dhcp')
@@ -99,7 +101,8 @@ def get_record(args):
 def delete_record(args):
     u = EUci()
     try:
-        u.get('dhcp', args['record'])
+        record = u.get_all('dhcp', args['record'])
+        remove_wildcard(u, record.get("ip", ''), record.get('name', ''))
         u.delete('dhcp', args['record'])
         u.save('dhcp')
     except:
