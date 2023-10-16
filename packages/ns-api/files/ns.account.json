@@ -1,0 +1,13 @@
+{
+  "account-manager": {
+    "description": "Account Manager",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.account": [
+          "*"
+        ]
+      }
+    }
+  }
+}
