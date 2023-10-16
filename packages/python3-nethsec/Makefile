@@ -16,6 +16,8 @@ PKG_SOURCE:=python3-nethsec-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://codeload.github.com/nethserver/python3-nethsec/tar.gz/$(PKG_VERSION)?
 PKG_HASH:=skip
 
+PYTHON3_PKG_WHEEL_NAME=nethsec
+
 include $(INCLUDE_DIR)/package.mk
 include $(TOPDIR)/feeds/packages/lang/python/python3-package.mk
  
