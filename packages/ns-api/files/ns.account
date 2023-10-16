@@ -1,0 +1,59 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import json
+import subprocess
+import sys
+
+from euci import EUci
+from nethsec import utils
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({
+        'set-password': {
+            'username': 'str',
+            'password': 'str'
+        }
+    }))
+elif cmd == 'call':
+    action = sys.argv[2]
+    e_uci = EUci()
+    if action == 'set-password':
+        try:
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            user_list = utils.get_all_by_type(e_uci, 'rpcd', 'login')
+            # check if username is inside config
+            if data['username'] not in [user['username'] for user in user_list.values()]:
+                raise utils.ValidationError('username', 'invalid', data['username'])
+
+            # if user is not root, change rpcd config
+            if data['username'] != 'root':
+                for user_key, user in user_list.items():
+                    if user['username'] == data['username']:
+                        password_hash = subprocess.run(['uhttpd', '-m', data['password']], check=True,
+                                                       capture_output=True)
+                        e_uci.set('rpcd', user_key, 'password', password_hash.stdout.decode('utf-8').strip('\n'))
+                        e_uci.save('rpcd')
+                        e_uci.commit('rpcd')
+                        break
+
+            else:
+                # otherwise, change `passwd` file using pre-existing ubus call
+                subprocess.run(['ubus', 'call', 'luci', 'setPassword', json.dumps({
+                    'username': data['username'],
+                    'password': data['password']
+                })], capture_output=True, check=True)
+
+            print(json.dumps({'message': 'success'}))
+        except KeyError as ex:
+            print(json.dumps(utils.validation_error(ex.args[0], 'required')))
+        except utils.ValidationError as ex:
+            print(json.dumps(utils.validation_error(ex.parameter, ex.message, ex.value)))
+        except subprocess.CalledProcessError as ex:
+            print(json.dumps(utils.generic_error(f'subprocess {ex.cmd[0]} failed')))

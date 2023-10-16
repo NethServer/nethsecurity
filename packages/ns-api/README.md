@@ -2434,3 +2434,23 @@ Example response:
 ```
 
 **Notes**: returning strings are syslog formatted, be aware of it if any parsing is needed.
+
+## ns.account
+
+Manage accounts.
+
+### set-password
+
+Allow to change the user password.
+
+**WARNING**: due to how OpenWRT handles loging, if you change the password to the `root` user, you will also change the
+password for the shell access.
+
+```bash
+api-cli ns.account set-password --data '{"username": "john", "password": "CoolNewPassword123!!"}'
+```
+
+Parameter list:
+
+- `username`: target to change the password to, must be present inside `rpcd` configuration
+- `password`: password to set to the user
