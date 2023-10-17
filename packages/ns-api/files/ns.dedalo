@@ -102,7 +102,12 @@ def list_sessions():
         return { 'sessions': users }
 
 def list_devices():
-    return {"devices": ["eth3", "eth4"]}
+    u = EUci()
+    devices = utils.get_unassigned_devices(u)
+    cur = u.get("dedalo", "config", "interface", default="")
+    if cur:
+        devices.append(cur)
+    return {"devices": devices}
 
 def list_parents():
     parents = []
