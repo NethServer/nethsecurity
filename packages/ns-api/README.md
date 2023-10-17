@@ -1986,54 +1986,60 @@ api-cli ns.dpi list-applications --data '{"limit": 10, "page": 3}'
 Example response:
 ```json
 {
-  "values": [
-    {
-      "id": 10392,
-      "name": "netify.apple-siri",
-      "type": "application",
-      "category": {
-        "id": 5,
-        "name": "business"
+   "values": {
+      "data": [
+         {
+            "id": 10392,
+            "name": "netify.apple-siri",
+            "type": "application",
+            "category": {
+               "id": 5,
+               "name": "business"
+            }
+         },
+         {
+            "id": 10706,
+            "name": "netify.apple-id",
+            "type": "application"
+         },
+         {
+            "id": 10152,
+            "name": "netify.appnexus",
+            "type": "application",
+            "category": {
+               "id": 3,
+               "name": "advertiser"
+            }
+         },
+         {
+            "id": 142,
+            "name": "WhatsApp",
+            "type": "protocol",
+            "category": {
+               "id": 24,
+               "name": "messaging"
+            }
+         },
+         {
+            "id": 238,
+            "name": "Apple/Push",
+            "type": "protocol"
+         },
+         {
+            "id": 246,
+            "name": "WhatsApp/Call",
+            "type": "protocol",
+            "category": {
+               "id": 20,
+               "name": "voip"
+            }
+         }
+      ],
+      "meta": {
+         "last_page": 2,
+         "total": 12
       }
-    },
-    {
-      "id": 10706,
-      "name": "netify.apple-id",
-      "type": "application"
-    },
-    {
-      "id": 10152,
-      "name": "netify.appnexus",
-      "type": "application",
-      "category": {
-        "id": 3,
-        "name": "advertiser"
-      }
-    },
-    {
-      "id": 142,
-      "name": "WhatsApp",
-      "type": "protocol",
-      "category": {
-        "id": 24,
-        "name": "messaging"
-      }
-    },
-    {
-      "id": 238,
-      "name": "Apple/Push",
-      "type": "protocol"
-    },
-    {
-      "id": 246,
-      "name": "WhatsApp/Call",
-      "type": "protocol",
-      "category": {
-        "id": 20,
-        "name": "voip"
-      }
-    }
-  ]
+   }
 }
 ```
 
@@ -2051,37 +2057,53 @@ Data can be limited and paginated by using the `limit` and `page` parameters:
 api-cli ns.dpi list-popular --data '{"limit": 3, "page": 2}'
 ```
 
-**PLEASE NOTE**: `category` field can be missing in some applications/protocols.
+**PLEASE NOTE**:
+
+- `category` field can be missing in some applications/protocols.
+- `missing` field is true when the application/protocol is not available in the current netifyd database.
 
 Example response:
 
 ```json
 {
-   "values": [
-      {
-         "id": 10392,
-         "name": "netify.apple-siri",
-         "type": "application",
-         "category": {
-            "id": 5,
-            "name": "business"
+   "values": {
+      "data": [
+         {
+            "id": 10392,
+            "name": "netify.apple-siri",
+            "type": "application",
+            "category": {
+               "id": 5,
+               "name": "business"
+            },
+            "missing": false
+         },
+         {
+            "id": 142,
+            "name": "WhatsApp",
+            "type": "protocol",
+            "category": {
+               "id": 24,
+               "name": "messaging"
+            },
+            "missing": false
+         },
+         {
+            "name": "whatsapp",
+            "missing": true
+         },
+         {
+            "id": 238,
+            "name": "Apple/Push",
+            "type": "protocol",
+            "missing": false
          }
-      },
-      {
-         "id": 142,
-         "name": "WhatsApp",
-         "type": "protocol",
-         "category": {
-            "id": 24,
-            "name": "messaging"
-         }
-      },
-      {
-         "id": 238,
-         "name": "Apple/Push",
-         "type": "protocol"
+      ],
+      "meta": {
+         "last_page": 3,
+         "total": 8
       }
-   ]
+   }
 }
 ```
 
