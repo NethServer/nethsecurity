@@ -21,14 +21,16 @@ function wrong_command {
 }
 
 function install() {
-    echo "Downloading image ... "
-    img=$(/usr/bin/ns-download -l)
-    if [ -z "$img" ]; then
-        echo "Aborted: download failed"
-	exit 1
-    fi
+    # Find boot device and umount it
+    part=$(mount | grep boot | uniq | awk '{print $1}')
+    device=${part::-1}
+    umount /boot
+    umount /boot
+    umount /overlay
+    umount /rom
+    sleep 1
     echo "Writing image ... "
-    zcat $img | dd of=$1 bs=1M iflag=fullblock conv=fsync 2>/dev/null
+    dd if=$device of=$1 bs=1M iflag=fullblock conv=fsync 2>/dev/null
 }
 
 function print_help {
@@ -111,13 +113,12 @@ if [ -b $target ]; then
         check $target && install $target
         if [ $? -eq 0 ]; then
             echo -e "Installation completed"
+            cp /sbin/reboot /tmp
             sync
-            mount -o remount,ro /boot
-            mount -o remount,ro /
             sleep 1
             reset
             read -rp "$(color_white 'Remove install medium and press enter to reboot')" reboot;
-            reboot
+            /tmp/reboot
         fi
    fi
 else
