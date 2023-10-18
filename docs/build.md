@@ -81,7 +81,21 @@ Change the version inside the following files:
 
 - `builder/build-builder`
 - `config/branding.conf`
-- `docs/_config.yml`
+
+Prepare a new Luci branch with NethSecurity customizations:
+```
+git remote add openwrt https://github.com/openwrt/luci.git
+git fetch openwrt
+git checkout -b openwrt-23.05 openwrt/openwrt-23.05
+git push origin openwrt-23.05
+git checkout -b nethsec-23.05
+```
+
+Now cherry-pick the commits from old branch (like `nethserc-22.03`)
+Then, push the changes:
+```
+git push origin nethsec-23.05
+```
 
 After changing the the upstream release:
 

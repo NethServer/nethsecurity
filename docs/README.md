@@ -15,7 +15,7 @@ dnf install ruby-devel
 Install jekyll and all dependencies:
 ```
 bundle config set --local path 'vendor/bundle'
-bundle install --path vendor
+bundle install
 ```
 
 Build and serve the site locally:

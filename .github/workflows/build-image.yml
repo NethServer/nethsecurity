@@ -46,8 +46,8 @@ jobs:
       - uses: actions/upload-artifact@v3
         name: Publish images as temporary artifacts
         with:
-          name: ext4-x86_64-image
-          path: bin/targets/x86/64/nethsecurity-*-x86-64-generic-ext4-combined-efi.img.gz
+          name: x86_64-image
+          path: bin/targets/x86/64/nethsecurity-*-x86-64-generic-*-combined-efi.img.gz
       - uses: BetaHuhn/do-spaces-action@v2
         name: Publish packages inside the repository
         if: ${{ github.ref == 'refs/heads/main' }}
