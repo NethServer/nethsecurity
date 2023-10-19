@@ -8,21 +8,11 @@ nav_order: 25
 
 You can create custom images using [Image Builder](https://openwrt.org/docs/guide-user/additional-software/imagebuilder).
 
-Since Image Builder is not built by default, you will need to build it:
-
-1. setup a local [build environment](../build)
-2. enable Image Builder
-   ```
-   cat << EOF > config/image_builder.conf
-   CONFIG_IB=y
-   CONFIG_IB_STANDALONE=y
-   EOF
-   ```
-3. run the build process:
-   ```
-   ./run
-   ```
-4. you will find the Image Builder inside `bin/targets/x86/64/nethsecurity-imagebuilder->version>-x86-64.Linux-x86_64.tar.xz`
+Download the image builder from:
+```
+https://updates.nethsecurity.nethserver.org/<version>/targets/x86/64/nethsecurity-imagebuilder-<version>-x86-64.Linux-x86_64.tar.xz
+```
+Replace `version` with the latest release, like `23.05.06`.
 
 ## Using Image Builder inside CentOS 7
 
