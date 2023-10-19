@@ -1,0 +1,200 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import base64
+import json
+import os
+import shutil
+import subprocess
+import sys
+
+from nethsec import utils
+
+BACKUP_PATH = '/tmp/backup.tar.gz'
+PASSPHRASE_PATH = '/etc/backup.pass'
+
+
+def create_backup():
+    try:
+        # run sysupgrade to create backup file
+        subprocess.run(['/sbin/sysupgrade', '-b', BACKUP_PATH], check=True, capture_output=True)
+        # if passphrase is present, encrypt backup file
+        passphrase = fetch_passphrase()
+        if passphrase is not None:
+            subprocess.run([
+                '/usr/bin/gpg',
+                '--symmetric',
+                '--batch',
+                '--passphrase', passphrase,
+                '--output', f'{BACKUP_PATH}.gpg',
+                '--yes',
+                BACKUP_PATH
+            ], check=True, capture_output=True)
+            shutil.move(f'{BACKUP_PATH}.gpg', BACKUP_PATH)
+
+    except subprocess.CalledProcessError as error:
+        if error.cmd[0] == '/usr/bin/gpg':
+            raise RuntimeError('encryption failed')
+        elif error.cmd[0] == '/sbin/sysupgrade':
+            raise RuntimeError('backup failed')
+
+
+def restore_backup(passphrase=None):
+    try:
+        if passphrase is not None:
+            subprocess.run([
+                '/usr/bin/gpg',
+                '--decrypt',
+                '--batch',
+                '--passphrase', passphrase,
+                '--output', f'{BACKUP_PATH}.decrypted',
+                '--yes',
+                BACKUP_PATH
+            ], check=True, capture_output=True)
+            shutil.move(f'{BACKUP_PATH}.decrypted', BACKUP_PATH)
+
+        # run sysupgrade to restore backup file
+        subprocess.run(['/sbin/sysupgrade', '-r', BACKUP_PATH], check=True, capture_output=True)
+
+    except subprocess.CalledProcessError as error:
+        if error.cmd[0] == '/usr/bin/gpg':
+            raise RuntimeError('decryption failed')
+        elif error.cmd[0] == '/sbin/sysupgrade':
+            raise RuntimeError('restore failed')
+
+
+def fetch_passphrase():
+    try:
+        passphrase = None
+        if os.path.exists(PASSPHRASE_PATH):
+            passphrase = open(PASSPHRASE_PATH, 'r').read().strip()
+
+        return passphrase
+    except IOError:
+        raise RuntimeError('failed to read passphrase')
+
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({
+        'backup': { },
+        'restore': {
+            'backup': 'str',
+            'passphrase': 'str'
+        },
+        'set-passphrase': {
+            'passphrase': 'str'
+        },
+        'registered-list-backups': {},
+        'registered-backup': {},
+        'registered-restore': {
+            'file': 'str',
+            'passphrase': 'str'
+        },
+        'registered-download-backup': {
+            'file': 'str'
+        }
+    }))
+elif cmd == 'call':
+    action = sys.argv[2]
+    if action == 'backup':
+        try:
+            # decode input, generate backup
+            create_backup()
+            # encode backup in base64 and removed used file
+            backup_encoded = base64.b64encode(open(BACKUP_PATH, 'rb').read()).decode('utf-8')
+            os.remove(BACKUP_PATH)
+            # return content
+            print(json.dumps({'backup': backup_encoded}))
+        except RuntimeError as error:
+            print(json.dumps(utils.generic_error(error.args[0])))
+
+    elif action == 'restore':
+        try:
+            # decode input, write backup in default path
+            data = json.load(sys.stdin)
+            open(BACKUP_PATH, 'wb').write(base64.b64decode(data['backup']))
+            # restore backup
+            restore_backup(data.get('passphrase', None))
+            # restore successful, restart the system
+            subprocess.run(['/sbin/reboot'], check=True, capture_output=True)
+            # reboot takes a few seconds to complete, enough to send the response
+            print(json.dumps({'message': 'success'}))
+        except RuntimeError as error:
+            print(json.dumps(utils.generic_error(error.args[0])))
+
+    elif action == 'set-passphrase':
+        try:
+            # read passphrase, write into default file
+            data = json.load(sys.stdin)
+            if data['passphrase'] == '':
+                os.remove(PASSPHRASE_PATH)
+            else:
+                open(PASSPHRASE_PATH, 'w').write(data['passphrase'])
+            print(json.dumps({'message': 'success'}))
+        except IOError as error:
+            print(json.dumps(utils.generic_error(f'passphrase write failed')))
+        except KeyError as error:
+            print(json.dumps(utils.validation_error('passphrase', 'required')))
+
+    elif action == 'registered-list-backups':
+        try:
+            # list remote backups, the return is a string, so it gets decoded and encoded to generate a formatted json
+            completed_process = subprocess.run(['/usr/sbin/remote-backup', 'list'], check=True, capture_output=True,
+                                               text=True)
+            print(json.dumps({'values': json.loads(completed_process.stdout)}))
+        except subprocess.CalledProcessError as error:
+            print(json.dumps(utils.generic_error(f'remote list failed')))
+
+    elif action == 'registered-backup':
+        try:
+            # create backup
+            create_backup()
+            # upload backup to server and remove it from filesystem
+            completed_process = subprocess.run(['/usr/sbin/remote-backup', 'upload', BACKUP_PATH], check=True,
+                                               capture_output=True)
+            os.remove(BACKUP_PATH)
+            print(json.dumps({'message': 'success'}))
+        except subprocess.CalledProcessError as error:
+            print(json.dumps(utils.generic_error(f'remote upload failed')))
+        except RuntimeError as error:
+            print(json.dumps(utils.generic_error(error.args[0])))
+
+    elif action == 'registered-restore':
+        try:
+            # fetch file from remote server
+            data = json.load(sys.stdin)
+            subprocess.run(['/usr/sbin/remote-backup', 'download', data['file'], BACKUP_PATH],
+                           check=True, capture_output=True)
+            # fetch completed successfully, restore system
+            restore_backup(data.get('passphrase', None))
+            # restore successful, restart the system
+            subprocess.run(['/sbin/reboot'], check=True, capture_output=True)
+            # reboot takes a few seconds to complete, enough to send the response
+            print(json.dumps({'message': 'success'}))
+        except subprocess.CalledProcessError as error:
+            print(json.dumps(utils.generic_error('remote backup download failed')))
+        except KeyError as error:
+            print(json.dumps(utils.validation_error('file', 'required')))
+        except RuntimeError as error:
+            print(json.dumps(utils.generic_error(error.args[0])))
+
+    elif action == 'registered-download-backup':
+        try:
+            # fetch file from remote server
+            data = json.load(sys.stdin)
+            subprocess.run(['/usr/sbin/remote-backup', 'download', data['file'], BACKUP_PATH],
+                           check=True, capture_output=True)
+            backup_encoded = base64.b64encode(open(BACKUP_PATH, 'rb').read()).decode('utf-8')
+            os.remove(BACKUP_PATH)
+            # return content
+            print(json.dumps({'backup': backup_encoded}))
+        except subprocess.CalledProcessError as error:
+            print(json.dumps(utils.generic_error('remote backup download failed')))
+        except KeyError as error:
+            print(json.dumps(utils.validation_error('file', 'required')))

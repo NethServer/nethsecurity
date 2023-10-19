@@ -2476,3 +2476,169 @@ Parameter list:
 
 - `username`: target to change the password to, must be present inside `rpcd` configuration
 - `password`: password to set to the user
+
+## ns.backup
+
+Allows the backup/restore of the system, some features are only available to subscribed users. Please refer
+to `ns.subscription` for more info.
+
+### set-passphrase
+
+Set encryption passphrase to be used to encrypt/decrypt backups.
+
+Required parameters:
+
+- `passphrase`: passphrase to be saved in the machine
+
+```bash
+api-cli ns.backup set-passphrase --data='{"passphrase": "another-very-cool-passphrase"}'
+```
+
+To delete the passphrase, just set it to an empty string:
+
+```bash
+api-cli ns.backup set-passphrase --data='{"passphrase": ""}'
+```
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### backup
+
+Runs a backup of the system, returning a `base64` encoding of the result file, the backup will be encoded with the passphrase set with `set-passphrase` API.
+
+```bash
+api-cli ns.backup backup
+```
+
+Example response:
+
+```json
+{
+   "backup": "H4sIAAAAAAAAA+w9a3PbNr..."
+}
+```
+
+### restore
+
+Restore the system with the given backup, once successful, restarts the system.
+
+Required parameters:
+
+- `backup`: contains the backup to restore, must be a `base64` encoded string
+
+```bash
+api-cli ns.backup restore --data '{"backup": "H4sIAAAAAAAAA+w9a3PbNr..."}' 
+```
+
+Optional `passphrase` can be given to decrypt the file:
+
+```bash
+api-cli ns.backup restore --data '{"backup": "H4sIAAAAAAAAA+w9a3PbNr...", "passphrase": "very-cool-passphrase"}'
+```
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### registered-list-backups
+
+List backups stored on remote server.
+
+```bash 
+api-cli ns.backup registered-list-backups
+```
+
+Example response:
+
+```json
+{
+   "values": [
+      {
+         "file": "882e399c4e6562da3cfa43e886d82454c1b6311392608100801ad0e19307e8b3.bin",
+         "name": "Cool backup"
+      },
+      {
+         "file": "2fc23dae2cfa1ac1aafe074f7662cb0a2fc23dae2cfa1ac1aafe074f7662cb0a.bin",
+         "name": "Not so cool backup"
+      },
+      {
+         "file": "83174ecdae5e5de26942c026c37d30b31793b667d35a8bb62794da153853c8f0.bin",
+         "name": "Very old backup"
+      }
+   ]
+}
+```
+
+### registered-backup
+
+Manually run a backup and send it to remote server, the backup will be encoded with the passphrase set with `set-passphrase` API.
+
+```bash
+api-cli ns.backup registered-backup
+```
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### registered-restore
+
+Restore a backup from the remote server.
+
+Required parameters:
+
+- `file`: contains the name of the backup to restore, can be retrieved from `registered-list-backups` API
+
+```bash
+api-cli ns.backup registered-restore --data '{"file": "882e399c4e6562da3cfa43e886d82454c1b6311392608100801ad0e19307e8b3.bin"}'
+```
+
+Optional parameters:
+
+- `passphrase`: passphrase to decrypt the backup if needed
+
+```bash
+api-cli ns.backup registered-restore --data '{"file": "882e399c4e6562da3cfa43e886d82454c1b6311392608100801ad0e19307e8b3.bin", "passphrase": "very-cool-passphrase"}'
+```
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### registered-download-backup
+
+Download a backup from the remote server.
+
+Required parameters:
+
+- `file`: contains the name of the backup to download, can be retrieved from `registered-list-backups` API
+
+```bash
+api-cli ns.backup registered-download-backup --data '{"file": "882e399c4e6562da3cfa43e886d82454c1b6311392608100801ad0e19307e8b3.bin"}'
+```
+
+Example response:
+
+```json
+{
+   "backup": "H4sIAAAAAAAAA+w9a3PbNr..."
+}
+```

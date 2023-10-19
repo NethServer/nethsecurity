@@ -1,0 +1,13 @@
+{
+  "backup-manager": {
+    "description": "Manages community and enterprise backups",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.backup": [
+          "*"
+        ]
+      }
+    }
+  }
+}
