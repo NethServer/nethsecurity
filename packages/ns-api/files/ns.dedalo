@@ -175,7 +175,7 @@ cmd = sys.argv[1]
 
 if cmd == 'list':
     print(json.dumps({
-        "login": {"host": "my.nethspot.com", "user": "myuser", "password": "mypassword"},
+        "login": {"host": "my.nethspot.com", "username": "myuser", "password": "mypassword"},
         "list-sessions": {},
         "list-parents": {},
         "list-devices": {},
