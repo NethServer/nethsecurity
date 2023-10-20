@@ -69,7 +69,7 @@ elif cmd == 'call':
                     for dhcp in get_all_by_type(e_uci, 'dhcp', 'dnsmasq'):
                         # supporting at the moment only one dhcp
                         e_uci.set('dhcp', dhcp, 'server',
-                                  e_uci.get('flashstart', 'ns_old_conf', 'server', list=True))
+                                  e_uci.get('flashstart', 'ns_old_conf', 'server', list=True, default=""))
                     # deleting old conf
                     e_uci.delete('flashstart', 'ns_old_conf')
 
