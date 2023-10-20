@@ -136,6 +136,9 @@ def get_configuration():
     u = EUci()
     for opt in opts:
         ret[opt] = u.get("dedalo", "config", opt, default="")
+    if ret['unit_name'] == "":
+        with open('/proc/sys/kernel/hostname', 'r') as fp:
+            ret["unit_name"] = fp.read().strip()
     ret["connected"] = os.path.exists(token_file)
     return {"configuration": ret}
 
