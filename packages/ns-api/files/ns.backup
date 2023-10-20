@@ -98,7 +98,8 @@ if cmd == 'list':
         },
         'registered-download-backup': {
             'file': 'str'
-        }
+        },
+        'is-passphrase-set': { }
     }))
 elif cmd == 'call':
     action = sys.argv[2]
@@ -198,3 +199,6 @@ elif cmd == 'call':
             print(json.dumps(utils.generic_error('remote backup download failed')))
         except KeyError as error:
             print(json.dumps(utils.validation_error('file', 'required')))
+
+    elif action == 'is-passphrase-set':
+        print(json.dumps({'values': {'set': os.path.exists(PASSPHRASE_PATH)}}))

@@ -2642,3 +2642,21 @@ Example response:
    "backup": "H4sIAAAAAAAAA+w9a3PbNr..."
 }
 ```
+
+### is-passphrase-set
+
+Check if a passphrase is set.
+
+```bash
+api-cli ns.backup is-passphrase-set
+```
+
+Example response:
+
+```json
+{
+  "values": {
+    "set": true
+  }
+}
+ ```
