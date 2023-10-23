@@ -21,6 +21,7 @@ if [ "$enabled" = "1" ]; then
 
     if [ "$dnsdist" = 0 ]; then
         /sbin/uci set dnsdist.general.enabled=1
+        /sbin/uci commit dnsdist
         /etc/init.d/dnsdist start
     else
         /etc/init.d/dnsdist restart
@@ -34,6 +35,7 @@ else
     instances=$(find /etc/dnsdist.conf.d/ -type f | wc -l)
     if [ "$instances" = "0" ]; then
         /sbin/uci set dnsdist.general.enabled=0
+        /sbin/uci commit dnsdist
         /etc/init.d/dnsdist stop
     else
         if [ "$dnsdist" = "1" ]; then
