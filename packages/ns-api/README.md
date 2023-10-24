@@ -1993,7 +1993,6 @@ Example response:
             "name": "netify.apple-siri",
             "type": "application",
             "category": {
-               "id": 5,
                "name": "business"
             }
          },
@@ -2007,7 +2006,6 @@ Example response:
             "name": "netify.appnexus",
             "type": "application",
             "category": {
-               "id": 3,
                "name": "advertiser"
             }
          },
@@ -2016,7 +2014,6 @@ Example response:
             "name": "WhatsApp",
             "type": "protocol",
             "category": {
-               "id": 24,
                "name": "messaging"
             }
          },
@@ -2030,7 +2027,6 @@ Example response:
             "name": "WhatsApp/Call",
             "type": "protocol",
             "category": {
-               "id": 20,
                "name": "voip"
             }
          }
@@ -2073,7 +2069,6 @@ Example response:
             "name": "netify.apple-siri",
             "type": "application",
             "category": {
-               "id": 5,
                "name": "business"
             },
             "missing": false
@@ -2083,7 +2078,6 @@ Example response:
             "name": "WhatsApp",
             "type": "protocol",
             "category": {
-               "id": 24,
                "name": "messaging"
             },
             "missing": false
@@ -2133,7 +2127,6 @@ Example response:
           "name": "netify.spotify",
           "type": "application",
           "category": {
-            "id": 29,
             "name": "streaming-media"
           }
         },
@@ -2142,7 +2135,6 @@ Example response:
           "name": "netify.adobe",
           "type": "application",
           "category": {
-            "id": 5,
             "name": "business"
           }
         }
@@ -2159,7 +2151,6 @@ Example response:
           "name": "HTTP/S",
           "type": "protocol",
           "category": {
-            "id": 22,
             "name": "web"
           }
         }
