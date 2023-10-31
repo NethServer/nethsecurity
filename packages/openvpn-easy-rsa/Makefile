@@ -9,11 +9,11 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=openvpn-easy-rsa
 
-PKG_VERSION:=3.0.8
+PKG_VERSION:=3.0.9
 PKG_RELEASE:=4
 PKG_SOURCE_URL:=https://codeload.github.com/OpenVPN/easy-rsa/tar.gz/v$(PKG_VERSION)?
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
-PKG_HASH:=fd6b67d867c3b8afd53efa2ca015477f6658a02323e1799432083472ac0dd200
+PKG_HASH:=42f0dcae88c41fb7951d618404421067fe09fce4360339c49f34d09bb270cbc2
 
 # For git snapshots
 #PKG_SOURCE_PROTO:=git
