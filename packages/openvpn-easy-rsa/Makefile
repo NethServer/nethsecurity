@@ -35,7 +35,7 @@ define Package/openvpn-easy-rsa
   CATEGORY:=Network
   URL:=http://openvpn.net
   SUBMENU:=VPN
-  DEPENDS:=+openssl-util
+  DEPENDS:=+openssl-util +coreutils-stty +coreutils-date
   PKGARCH:=all
 endef
 
