@@ -1,0 +1,13 @@
+{
+  "ipsectunnel-manager": {
+    "description": "Read and write IPSec tunnels",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.ipsectunnel": [
+          "*"
+        ]
+      }
+    }
+  }
+}
