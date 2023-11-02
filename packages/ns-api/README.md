@@ -380,21 +380,196 @@ Example:
 
 ## ns.ovpntunnel
 
-### add-server
+## list-tunnels
 
-Add a tunnel server with subnet topology:
+List existing tunnels:
 ```
-api-cli ns.ovpntunnel add-server --data '{"name": "server1", "lport": "2001", "proto": "tcp-server", "topology": "subnet", "server": "10.96.84.0/24", "public_ip": ["1.2.3.4"], "locals": ["192.168.102.0/24"], "remotes": ["192.168.5.0/24"]}'
-``` 
-
-Add a tunnel server with p2p topology:
-```
-api-cli ns.ovpntunnel add-server --data '{"name": "server1", "lport": "2001", "proto": "udp", "topology": "p2p", "ifconfig": "10.96.83.1 10.96.83.2", "public_ip": ["192.168.122.49"], "locals": ["192.168.102.0/24"], "remotes": ["192.168.5.0/24"]}'
+api-cli ns.ovpntunnel list-tunnels
 ```
 
 Response example:
 ```json
-{ "section": "ns_server1" }
+{
+  "servers": [
+    {
+      "id": "ns_tunp2p",
+      "ns_name": "mytun",
+      "topology": "p2p",
+      "enabled": true,
+      "port": "1202",
+      "local_network": [],
+      "remote_network": [],
+      "vpn_network": "10.87.32.1 - 10.87.32.2"
+    },
+    {
+      "id": "ns_tunsubnet",
+      "ns_name": "",
+      "topology": "subnet",
+      "enabled": true,
+      "port": "1200",
+      "local_network": [
+        "192.168.100.0/24"
+      ],
+      "remote_network": [
+        "192.168.200.0/24"
+      ],
+      "vpn_network": "10.36.125.0/24"
+    }
+  ],
+  "clients": [
+    {
+      "ns_name": "clientsubent",
+      "id": "ns_1234",
+      "topology": "subnet",
+      "enabled": true,
+      "port": "1200",
+      "remote_host": "185.96.130.33",
+      "remote_network": []
+    },
+    {
+      "ns_name": "c1",
+      "id": "ns_333",
+      "topology": "p2p",
+      "enabled": true,
+      "port": "1122",
+      "remote_host": "1.2.3.4",
+      "remote_network": [
+        "10.0.1.0/24"
+      ]
+    }
+  ]
+}
+```
+
+### add-client
+
+Add a tunnel client with subnet topology:
+```
+api-cli ns.ovpntunnel add-client --data '{"ns_name": "client", "port": "2001", "proto": "tcp", "dev_type": "tun", "remote": ["192.168.5.1"], "compress": "", "auth": "", "cipher": "", "certificate": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANxxxx\n-----END CERTIFICATE-----\n", "enabled": "1", "username": "myuser", "password": "mypass"}'
+```
+
+Add a tunnel client with p2p topology:
+```
+api-cli ns.ovpntun add-client --data '{"ns_name": "client", "port": "2001", "proto": "tcp", "dev_type": "tun", "remote": ["192.168.5.1"], "compress": "", "auth": "", "cipher": "", "secret": "#\n-----END OpenVPN Static key V1-----", "enabled": "1", "ifconfig_local": "10.0.0.1", "ifconfig_remote": "10.0.0.2", "route": ["192.168.78.0/24"]}'
+```
+
+The following fields are aoptionals:
+- username
+- password
+- compress
+- auth
+- cipher
+
+Response example:
+```json
+{ "id": "ns_client1" }
+```
+
+The `id` return by the response can be used to reference the tunnel inside other API calls.
+
+### edit-client
+
+Edit a tunnel client with subnet topology:
+```
+api-cli ns.ovpntunnel edit-client --data '{"id": "ns_client1", "ns_name": "client1", "port": "2001", "proto": "tcp", "dev_type": "tun", "remote": ["192.168.5.1"], "compress": "", "auth": "", "cipher": "", "certificate": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANxxxx\n-----END CERTIFICATE-----\n", "enabled": "1", "username": "myuser", "password": "mypass"}'
+```
+
+Edit a tunnel client with p2p topology:
+```
+api-cli ns.ovpntun edit-client --data '{"id": "ns_client1", "ns_name": "client1", "port": "2001", "proto": "tcp", "dev_type": "tun", "remote": ["192.168.5.1"], "compress": "", "auth": "", "cipher": "", "secret": "#\n-----END OpenVPN Static key V1-----", "enabled": "1", "ifconfig_local": "10.0.0.1", "ifconfig_remote": "10.0.0.2", "route": ["192.168.78.0/24"]}'
+```
+
+### add-server
+
+Add a tunnel server with subnet topology:
+```
+api-cli ns.ovpntunnel add-server --data '{"ns_name": "server1", "port": "2001", "topology": "subnet", "proto": "tcp", "local": ["192.168.100.0/24"], "remote": ["192.168.5.0/24"], "compress": "", "auth": "", "cipher": "", "ns_public_ip": ["1.2.3.4"], "tls_version_min": "1.2", "server": "192.168.4.0/24"}'
+``` 
+
+Add a tunnel server with p2p topology:
+```
+api-cli ns.ovpntunnel add-server --data '{"ns_name": "server2", "port": "2003", "topology": "p2p", "proto": "tcp", "local": ["192.168.100.0/24"], "remote": ["192.168.5.0/24"], "secret": "#\n# 2048 bit OpenVPN static key\n#\n-----BEGIN OpenVPN Static key V1-----....----END OpenVPN Static key V1-----\n", "compress": "", "auth": "", "cipher": "", "ns_public_ip": ["1.2.3.4"], "tls_version_min": "1.2", "ifconfig_local": "192.168.3.1", "ifconfig_remote": "192.168.3.2"}'
+```
+
+Response example:
+```json
+{ id"": "ns_server1" }
+```
+
+### edit-server
+
+Edit a tunnel server. The API takes the same object passed to the `add-client`, plus the `id` field:
+```
+api-cli ns.ovpntunnel edit-server --data '{"id": "ns_server1", "ns_name": "server1", "port": "2002", "topology": "subnet", "proto": "tcp", "local": ["192.168.100.0/24"], "remote": ["192.168.5.0/24"], "compress": "", "auth": "", "cipher": "", "ns_public_ip": ["1.2.3.4"], "tls_version_min": "1.2", "server": "192.168.4.0/24"}'
+``` 
+
+Response example:
+```json
+{ id"": "ns_server1" }
+```
+
+### get-tunnel-client
+
+Get tunnel client configuration:
+```
+api-cli ns.ovpntunnel get-tunnel-client --data '{"id": "ns_502e84af"}'
+```
+
+Format returned is the same object passed to the `add-client`, plus the `id` field.
+
+Response example:
+```json
+{
+  "ns_name": "client1",
+  "port": "2002",
+  "remote": [
+    "192.168.5.1"
+  ],
+  "proto": "udp",
+  "dev_type": "tun",
+  "enabled": "1",
+  "route": [
+    "192.168.78.0/24"
+  ],
+  "id": "ns_502e84af",
+  "secret": "#\n-----END OpenVPN Static key V1-----",
+  "ifconfig_local": "10.0.0.1",
+  "ifconfig_remote": "10.0.0.2"
+}
+```
+
+# get-tunnel-server
+
+Get tunnel server configuration:
+```
+api-cli ns.ovpntunnel get-tunnel-server '{"id": "ns_502e84af"}'
+```
+
+Format returned is the same object passed to the `add-server`, plus the `id` field.
+
+Response example:
+```json
+{
+  "enabled": "1",
+  "proto": "tcp",
+  "topology": "p2p",
+  "tls_version_min": "1.2",
+  "ns_public_ip": [
+    "1.2.3.4"
+  ],
+  "ns_name": "server2",
+  "id": "ns_server2",
+  "port": "2003",
+  "secret": "#\n# 2048 bit OpenVPN............-----END OpenVPN Static key V1-----",
+  "remote": [
+    "192.168.5.0/24"
+  ],
+  "local": [
+    "192.168.100.0/24"
+  ],
+  "ifconfig_local": "192.168.3.1",
+  "ifconfig_remote": "192.168.3.2"
+}
 ```
 
 ### import-client
@@ -408,7 +583,7 @@ cat client.json | api-cli ns.ovpntunnel import-client --data -
 
 Export a tunnel client as NS7 json file:
 ```
-api-cli ns.ovpntunnel export-client --data '{"name": "ns_server1"}'
+api-cli ns.ovpntunnel export-client --data '{"id": "ns_server1"}'
 ```
 
 Response example:
@@ -428,6 +603,146 @@ Response example:
   "RemoteNetworks": "192.168.5.0/24",
   "AuthMode": "certificate",
   "Crt": "-----BEGI..."
+}
+```
+
+### disable-tunnel
+
+Disable the given tunnel:
+```
+api-cli ns.ovpntunnel disable-tunnel '{"id": "tun1"}'
+```
+
+It can raise a `tunnel_not_found` validation error.
+
+Success response example:
+```json
+{"result": "success"}
+```
+
+Error response example:
+```json
+{"error": "tunnel_not_disabled"}
+```
+
+### enable-tunnel
+
+Enable the given tunnel:
+```
+api-cli ns.ovpntunnel enable-tunnel '{"id": "tun1"}'
+```
+
+It can raise a `tunnel_not_found` validation error.
+
+Success response example:
+```json
+{"result": "success"}
+```
+
+Error response example:
+```json
+{"error": "tunnel_not_enabled"}
+```
+
+### delete-tunnel
+
+Disable the given tunnel:
+```
+api-cli ns.ovpntunnel delete-tunnel '{"id": "tun1"}'
+```
+
+It can raise a `tunnel_not_found` validation error.
+
+Success response example:
+```json
+{"result": "success"}
+```
+
+Error response example:
+```json
+{"error": "tunnel_not_deleted"}
+```
+
+### list-cipher
+
+List available ciphers:
+```
+api-cli ns.ovpntun list-cipher
+```
+
+The value of the `name` field can be used inside the `cipher` field of edit and add APIs.
+
+Response example:
+```json
+{
+  "ciphers": [
+    {
+      "name": "AES-128-CBC",
+      "description": "weak"
+    },
+    {
+      "name": "AES-128-CFB",
+      "description": "weak"
+    },
+      "name": "AES-128-OFB",
+      "description": "weak"
+    },
+    {
+      "name": "AES-192-CBC",
+      "description": "strong"
+    }
+  ]
+}
+```
+
+### list-digest
+
+List available digest:
+```
+api-cli ns.ovpntun list-digest
+```
+
+The value of the `name` field can be used inside the `auth` field of edit and add APIs.
+
+Response example:
+```json
+{
+  "digests": [
+    {
+      "name": "SHA3-224",
+      "description": "strong"
+    },
+    {
+      "name": "SHA512",
+      "description": "strong"
+    }
+  ]
+}
+```
+
+### get-defaults
+
+Retrieve server defaults:
+```
+api-cli ns.ovpntun get-defaults
+```
+
+Response example:
+```json
+{
+  "secret": "#\n# 2048 bit OpenVPN static key\n#\n-----BEGIN OpenVPN Static key V1-----\n...xxxxxx...\nEND OpenVPN Static key V1-----",
+  "port": 1203,
+  "server": "10.191.228.0/24",
+  "ifconfig_local": "10.191.228.1",
+  "ifconfig_remote": "10.191.228.2",
+  "route": [
+    "192.168.3.0/24",
+    "192.168.6.0/24"
+  ],
+  "remote": [
+    "1.2.3.4",
+    "5.6.7.8"
+  ]
 }
 ```
 
