@@ -2966,3 +2966,75 @@ Example response:
   }
 }
  ```
+
+## ns.migration
+
+Manage migration from NS7
+
+### list-devices
+
+List existing devices:
+```
+api-clit ns.migration list-devices
+```
+
+Response example:
+```json
+{
+  "devices": [
+    {
+      "name": "eth0",
+      "hwaddr": "52:54:00:6a:50:bf",
+      "role": null,
+      "ipaddr": null
+    },
+    {
+      "name": "eth1",
+      "hwaddr": "52:54:00:20:82:a6",
+      "role": "wan",
+      "ipaddr": "192.168.122.49"
+    }
+  ]
+}
+```
+
+### upload
+
+Upload a NS7 migration archive:
+```
+api-cli ns.migration upload --data '{"archive": "H4sIAAAAAAAAA+w9a3PbNr..."}' 
+```
+
+This API can return a validation error if the given file is not a valid NS7 migration export archive.
+
+Response example:
+```json
+{
+  "devices": [
+    {
+      "name": "enp1s0",
+      "hwaddr": "xx:yy:xx",
+      "ipaddr": "1.2.3.4",
+      "role": "green"
+    },
+    {
+      "name": "en1",
+      "hwaddr": "xx:zz:zz",
+      "ipaddr": "4.5.6.7",
+      "role": "red"
+    }
+  ]
+}
+```
+
+### migrate
+
+Execute the migration:
+```
+api-cli ns.migration migrate --data '{"mappings": [{"old": "52:54:00:75:1C:C1", "new": "53:54:44:75:1A:AA"}]}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
