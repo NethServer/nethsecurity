@@ -1,0 +1,90 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import base64
+import json
+import os
+import shutil
+import subprocess
+import sys
+from euci import EUci
+
+from nethsec import utils
+
+MIGRATE_DIR = '/tmp/migration'
+MIGRATE_PATH = f'{MIGRATE_DIR}/export.tar.gz'
+
+def get_ip(device):
+    try:
+        data = json.loads(subprocess.run(["ip", "--json", "address", "show", "dev", device], capture_output=True, text=True, check=True).stdout)
+        if len(data) > 0:
+            for addr in data[0].get('addr_info', []):
+                if addr.get('family', '') == 'inet' and addr.get("local", None):
+                    return  addr.get("local")
+    except:
+        return None
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({
+        'upload': {
+            'archive': 'str',
+        },
+        'list-devices': {},
+        'migrate': { "mappings": [{"old": "52:54:00:75:1C:C1", "new": "53:54:44:75:1A:AA"}] }
+    }))
+elif cmd == 'call':
+    action = sys.argv[2]
+    if action == 'migrate':
+        try:
+            data = json.load(sys.stdin)
+            cmd = ['/usr/sbin/ns-import', MIGRATE_PATH]
+            for m in data['mappings']:
+                cmd.append("-m")
+                cmd.append(f'{m["old"]}={m["new"]}')
+            subprocess.run(cmd, check=True, capture_output=True)
+            # return success
+            print(json.dumps({'result': 'success'}))
+        except RuntimeError as error:
+            print(json.dumps(utils.generic_error(error.args[0])))
+
+    elif action == 'upload':
+        ret = []
+        try:
+            # read input and prepare the paths
+            data = json.load(sys.stdin)
+            if os.path.exists(MIGRATE_DIR):
+                shutil.rmtree(MIGRATE_DIR, ignore_errors=True)
+            os.makedirs(MIGRATE_DIR, exist_ok=True)
+            # write the archive and explode it
+            open(MIGRATE_PATH, 'wb').write(base64.b64decode(data['archive']))
+            subprocess.run(['/bin/tar', 'xzf', MIGRATE_PATH, '-C', MIGRATE_DIR], check=True)
+            with open(f'{MIGRATE_DIR}/export/network.json', 'r') as fp:
+                data = json.load(fp)
+            # return the list of interfaces from the archive
+            for i in data['interfaces']:
+                ret.append({"name": i.get('name'), "hwaddr": i.get('hwaddr'), "ipaddr": i.get('ipaddr'), "role": i.get("role")})
+            print(json.dumps({'devices': ret}))
+        except RuntimeError as error:
+            print(json.dumps(utils.generic_error(error.args[0])))
+
+    elif action == 'list-devices':
+        u = EUci()
+        ret = []
+        try:
+            data = json.loads(subprocess.run(["/sbin/ip", "--json", "link"], check=True, capture_output=True, text=True).stdout)
+            for i in data:
+                if i['ifname'] == "lo" or i['ifname'].startswith('br-') or i['ifname'].startswith('tun-') or  i['ifname'].startswith('ifb-'):
+                    continue
+                ret.append({'name': i['ifname'], 'hwaddr': i['address'], "role": utils.get_interface_from_device(u, i['ifname']), 'ipaddr': get_ip(i['ifname'])})
+
+            print(json.dumps({'devices': ret}))
+        except KeyError as error:
+            print(error)
+            print(json.dumps(utils.validation_error('passphrase', 'required')))
+

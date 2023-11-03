@@ -1,0 +1,13 @@
+{
+  "migration-manager": {
+    "description": "Manages migration",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.migration": [
+          "*"
+        ]
+      }
+    }
+  }
+}
