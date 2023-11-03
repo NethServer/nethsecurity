@@ -1,0 +1,46 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesi3 S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Read and set fping configuration for netdata
+
+import sys
+import json
+
+# FIXME: set real path /etc/netdata/fping.conf
+conf_file = "/tmp/fping.conf"
+
+def get_config():
+    hosts = []
+    try:
+        with open(conf_file, 'r') as fp:
+            for line in fp:
+                hosts.append(line.rstrip())
+    except:
+        pass
+    return {"hosts": hosts, "path": "/netdata"}
+
+def set_config(config):
+    # FIXME: enable fping plugin on netdata 
+    try:
+        with open(conf_file, 'w') as fp:
+            for h in config['hosts']:
+                fp.write(f"{h}\n")
+        return {"success": True}
+    except:
+        return {"success": False}
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({"get-configuration": {}, "set-hosts": {"hosts": ["1.1.1.1", "google.com"]}}))
+else:
+    action = sys.argv[2]
+    if action == "get-configuration":
+        print(json.dumps(get_config()))
+    elif action == "set-hosts":
+        args = json.loads(sys.stdin.read())
+        print(json.dumps(set_config(args)))
