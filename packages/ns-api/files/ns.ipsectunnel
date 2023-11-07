@@ -12,7 +12,7 @@ import sys
 import json
 import subprocess
 from euci import EUci
-from nethsec import utils, firewall
+from nethsec import utils, firewall, ipsec
 
 ## Utils
 
@@ -40,61 +40,6 @@ def next_id():
         except:
             continue
     return max_id + 1
-
-def open_firewall_ports(u):
-    esp_accepted = False
-    ike_accepted = False
-    nat_accepted = False
-    esp = {"src": "wan", "dest_port": "", "proto": "esp", "target": "ACCEPT"}
-    ike = {"src": "wan", "dest_port": "500", "proto": "udp", "target": "ACCEPT"}
-    nat = {"src": "wan", "dest_port": "4500", "proto": "udp", "target": "ACCEPT"}
-    # search for existing rules
-    for r in utils.get_all_by_type(u, 'firewall', 'rule'):
-        tmp = dict()
-        for opt in ['src', 'dest', 'dest_port', 'proto', 'target']:
-              tmp[opt] = u.get('firewall', r, opt, default='')
-        # check if tmp is the esp rule
-        if all((tmp.get(k) == v for k, v in esp.items())):
-            esp_accepted = True
-        # check if tmp is the ike rule
-        if all((tmp.get(k) == v for k, v in ike.items())):
-            ike_accepted = True
-        # check if tmp is the nat rule
-        if all((tmp.get(k) == v for k, v in ike.items())):
-            nat_accepted = True
-
-    if not ike_accepted:
-        firewall.add_template_rule(u, 'ns_ipsec_ike')
-
-    if not esp_accepted:
-        firewall.add_template_rule(u, 'ns_ipsec_esp')
- 
-    if not nat_accepted:
-        firewall.add_template_rule(u, 'ns_ipsec_nat')
-
-def remove_from_zone(u, interface):
-    for z in utils.get_all_by_type(u, 'firewall', 'zone'):
-        if u.get('firewall', z, 'name') == 'ipsec':
-            try:
-                networks = list(u.get_all("firewall", z, "network"))
-            except:
-                networks = []
-            if interface in networks:
-                networks.remove(interface)
-                u.set("firewall", z, "network", networks)
-                u.save("firewall")
-
-def add_to_zone(u, interface):
-    for z in utils.get_all_by_type(u, 'firewall', 'zone'):
-        if u.get('firewall', z, 'name') == 'ipsec':
-            try:
-                networks = list(u.get_all("firewall", z, "network"))
-            except:
-                networks = []
-            if interface not in networks:
-                networks.append(interface)
-                u.set("firewall", z, "network", networks)
-                u.save("firewall")
 
 def is_connected(id):
     p = subprocess.run(["swanctl", "--list-sas", "--ike", id], capture_output=True, text=True, check=True)
@@ -137,15 +82,16 @@ def setup_tunnel(u, iname, args):
     esp_p = f'{iname}_esp'
     tunnel = f'{iname}_tunnel'
 
+    link = f'ipsec/{iname}'
     # create proposals
     u.set('ipsec', ike_p, 'crypto_proposal')
     for opt in ['encryption_algorithm', 'hash_algorithm', 'dh_group']:
         u.set('ipsec', ike_p, opt, args['ike'][opt])
-    u.set('ipsec', ike_p, 'ns_link', iname)
+    u.set('ipsec', ike_p, 'ns_link', link)
     u.set('ipsec', esp_p, 'crypto_proposal')
     for opt in ['encryption_algorithm', 'hash_algorithm', 'dh_group']:
         u.set('ipsec', esp_p, opt, args['esp'][opt])
-    u.set('ipsec', esp_p, 'ns_link', iname)
+    u.set('ipsec', esp_p, 'ns_link', link)
 
     # create tunnel
     u.set('ipsec', tunnel, 'tunnel')
@@ -158,7 +104,7 @@ def setup_tunnel(u, iname, args):
     u.set('ipsec', tunnel, 'startaction', 'start')
     if_id = next_id()
     u.set('ipsec', tunnel, 'if_id', if_id)
-    u.set('ipsec', tunnel, 'ns_link', iname)
+    u.set('ipsec', tunnel, 'ns_link', link)
 
     # create remote
     u.set('ipsec', iname, 'remote')
@@ -181,7 +127,7 @@ def setup_tunnel(u, iname, args):
     u.set('network', dname, 'proto', 'xfrm')
     u.set('network', dname, 'multicast', 'true')
     u.set('network', dname, 'tunlink', 'wan')
-    u.set('network', dname, 'ns_link', iname)
+    u.set('network', dname, 'ns_link', link)
 
     # create route
     subnets = 1
@@ -190,20 +136,17 @@ def setup_tunnel(u, iname, args):
         u.set('network', rname, 'route')
         u.set('network', rname, 'target', net)
         u.set('network', rname, 'interface', dname)
-        u.set('network', rname, 'ns_link', iname)
+        u.set('network', rname, 'ns_link', link)
         u.set('network', rname, 'disabled', '0')
         subnets = subnets + 1
 
     u.save('network')
-    # Add trusted zone, if needed
-    if firewall.zone_exists(u, 'ipsec'):
-        add_to_zone(u, dname)
-    else:
-        firewall.add_trusted_zone(u, 'ipsec', [dname])
+
+    # Add interface to trusted zone
+    ipsec.add_trusted_interface(u, dname)
 
     # Open firewall ports only if required
-    open_firewall_ports(u)
-    u.save('firewall')
+    ipsec.open_firewall_ports(u)
 
     return {"id": iname}
 
@@ -224,8 +167,8 @@ def delete_tunnel(id):
     except:
         return utils.generic_error('cant_delete_tunnel')
 
-    firewall.delete_linked_sections(u, id)
-    remove_from_zone(u, f'ipsec{if_id}')
+    firewall.delete_linked_sections(u, f'ipsec/{id}')
+    firewall.remove_interface_from_zone(u, ipsec.IPSEC_ZONE, f'ipsec{if_id}')
     return {"result": "success"}
 
 def disable_tunnel(id):
@@ -240,7 +183,7 @@ def disable_tunnel(id):
 
         # disable route
         for r in utils.get_all_by_type(u, 'network', 'route'):
-            if u.get('network', r, 'ns_link', default='') == id:
+            if u.get('network', r, 'ns_link', default='') == f'ipsec/{id}':
                 u.set('network', r, 'disabled', '1')
                 u.save('network')
 
@@ -260,7 +203,7 @@ def enable_tunnel(id):
 
         # disable route
         for r in utils.get_all_by_type(u, 'network', 'route'):
-            if u.get('network', r, 'ns_link', default='') == id:
+            if u.get('network', r, 'ns_link', default='') == f'ipsec/{id}':
                 u.set('network', r, 'disabled', '0')
                 u.save('network')
 
@@ -354,18 +297,7 @@ def list_algs():
 cmd = sys.argv[1]
 
 # Make sure the config file exists
-if not os.path.isfile('/etc/config/ipsec'):
-    with open('/etc/config/ipsec', 'a'):
-        pass
-
-    u = EUci()
-    # Setup global options
-    gsettings = utils.get_id("ipsec_global")
-    u.set("ipsec", gsettings, "ipsec")
-    u.set("ipsec", gsettings, "debug", '0')
-    u.set("ipsec", gsettings, "zone", 'ipsec')
-    u.set("ipsec", gsettings, "interface", ['wan'])
-    u.commit('ipsec')
+ipsec.init_ipsec(EUci())
 
 if cmd == 'list':
     print(json.dumps({
