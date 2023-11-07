@@ -6,7 +6,7 @@
 #
 
 import nsmigration
-from nethsec import firewall, utils
+from nethsec import firewall, utils, ipsec
 import os
 import sys
 
@@ -25,17 +25,8 @@ def find_first_wan():
     return None
 
 # Create config files if not exists
-if not os.path.isfile('/etc/config/ipsec'):
-    with open('/etc/config/ipsec', 'a'):
-        pass
-
-# Setup global options
-gsettings = utils.get_id("ipsec_global")
-nsmigration.vprint(f'Settings IPSec {gsettings}')
-u.set("ipsec", gsettings, "ipsec")
-u.set("ipsec", gsettings, "debug", '0')
-u.set("ipsec", gsettings, "zone", 'ipsec')
-u.set("ipsec", gsettings, "interface", ['wan'])
+ipsec.init_ipsec(u)
+ipsec.open_firewall_ports(u)
 
 for p in data['proposals']:
     name = p.pop('name')
@@ -86,11 +77,7 @@ for i in data['interfaces']:
     else:
         u.set("network", iname, "tunlink",  find_first_wan())
 
-    # Add trusted zone, if needed
-    if firewall.zone_exists(u, i['zone']):
-        firewall.add_to_zone(u, iname, i['zone'])
-    else:
-        firewall.add_trusted_zone(u, i['zone'], [iname])
+    ipsec.add_trusted_interface(u, iname)
 
 # Save configuration
 u.commit("ipsec")
