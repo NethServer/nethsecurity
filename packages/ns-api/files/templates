@@ -110,6 +110,28 @@ config template_forwarding 'ns_lan2guest'
 	option src 'lan'
 	option dest 'guest'
 
+# IPSec
+
+config template_rule 'ns_ipsec_esp'
+	option name 'Allow-IPSec-ESP'
+	option src 'wan'
+	option proto 'esp'
+	option target 'ACCEPT'
+
+config template_rule 'ns_ipsec_ike'
+	option name 'Allow-IPSec-IKE'
+	option src 'wan'
+	option dest_port '500'
+	option proto 'udp'
+	option target 'ACCEPT'
+
+config template_rule 'ns_ipsec_nat'
+	option name 'Allow-IPSec-NAT'
+	option src 'wan'
+	option dest_port '500'
+	option proto 'udp'
+	option target 'ACCEPT'
+
 # Service groups
 
 config template_service_group 'ns_web_secure'

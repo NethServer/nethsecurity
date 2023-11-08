@@ -1,0 +1,371 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Manage IPSec tunnels
+
+import os
+import sys
+import json
+import subprocess
+from euci import EUci
+from nethsec import utils, firewall, ipsec
+
+## Utils
+
+def get_device_ips():
+    ret = {}
+    p = subprocess.run(["/sbin/ip", "-j", "address"], check=True, text=True, capture_output=True)
+    data = json.loads(p.stdout)
+    for interface in data:
+        ipaddr = []
+        name = interface.get("ifname")
+        for addr in interface.get("addr_info", []):
+            if name not in ret:
+                ret[name] = []
+            ret[name].append(addr.get('local', ''))
+    return ret
+
+
+def next_id():
+    max_id = 0
+    u = EUci()
+    for t in utils.get_all_by_type(u, 'ipsec', 'tunnel'):
+        try:
+            if_id = int(u.get('ipsec', t, 'if_id', default=-1))
+            max_id = max(if_id, max_id)
+        except:
+            continue
+    return max_id + 1
+
+def is_connected(id):
+    p = subprocess.run(["swanctl", "--list-sas", "--ike", id], capture_output=True, text=True, check=True)
+    for l in p.stdout.split("\n"):
+        if 'ESTABLISHED' in l:
+            return True
+    return False
+
+## APIs
+
+def list_tunnels():
+    ret = []
+    u = EUci()
+    for r in utils.get_all_by_type(u, 'ipsec', 'remote'):
+        try:
+            tunnels = u.get_all('ipsec', r, 'tunnel')
+            for t in tunnels:
+                t_config = u.get_all('ipsec', t)
+                if t_config:
+                    ret.append({
+                        'id': r,
+                        'name': u.get('ipsec', r, 'ns_name', default=r),
+                        'local': list(t_config.get('local_subnet', ())),
+                        'remote': list(t_config.get('remote_subnet', ())),
+                        'enabled': u.get('ipsec', r, 'enabled', default='1'),
+                        'connected': is_connected(r)
+                    })
+        except:
+            return {"tunnel": []}
+
+    return {"tunnels": ret}
+
+def add_tunnel(args):
+    u = EUci()
+    iname = utils.get_random_id()
+    return setup_tunnel(u, iname, args)
+
+def setup_tunnel(u, iname, args):
+    ike_p = f'{iname}_ike'
+    esp_p = f'{iname}_esp'
+    tunnel = f'{iname}_tunnel'
+
+    link = f'ipsec/{iname}'
+    # create proposals
+    u.set('ipsec', ike_p, 'crypto_proposal')
+    for opt in ['encryption_algorithm', 'hash_algorithm', 'dh_group']:
+        u.set('ipsec', ike_p, opt, args['ike'][opt])
+    u.set('ipsec', ike_p, 'ns_link', link)
+    u.set('ipsec', esp_p, 'crypto_proposal')
+    for opt in ['encryption_algorithm', 'hash_algorithm', 'dh_group']:
+        u.set('ipsec', esp_p, opt, args['esp'][opt])
+    u.set('ipsec', esp_p, 'ns_link', link)
+
+    # create tunnel
+    u.set('ipsec', tunnel, 'tunnel')
+    for opt in ['ipcomp', 'dpdaction', 'remote_subnet', 'local_subnet']:
+        u.set('ipsec', tunnel, opt, args[opt])
+
+    u.set('ipsec', tunnel, 'rekeytime', args['esp']['rekeytime'])
+    u.set('ipsec', tunnel, 'crypto_proposal', [esp_p])
+    u.set('ipsec', tunnel, 'closeaction', 'none')
+    u.set('ipsec', tunnel, 'startaction', 'start')
+    if_id = next_id()
+    u.set('ipsec', tunnel, 'if_id', if_id)
+    u.set('ipsec', tunnel, 'ns_link', link)
+
+    # create remote
+    u.set('ipsec', iname, 'remote')
+    u.set('ipsec', iname, 'ns_name', args['ns_name'])
+    u.set('ipsec', iname, 'authentication_method', 'psk')
+    for opt in ['gateway', 'keyexchange', 'local_identifier', 'local_ip', 'enabled', 'remote_identifier', 'pre_shared_key']:
+        u.set('ipsec', iname, opt, args[opt])
+    u.set('ipsec', iname, 'crypto_proposal', [ike_p])
+    u.set('ipsec', iname, 'rekeytime', args['ike']['rekeytime'])
+    u.set('ipsec', iname, 'tunnel', [tunnel])
+
+    u.save('ipsec')
+
+    # create interface
+    dname = f'ipsec{if_id}'
+    u.set('network', dname, 'interface')
+    u.set('network', dname, 'ifid', if_id)
+    u.set('network', dname, 'mtu', '1438')
+    u.set('network', dname, 'zone', 'ipsec')
+    u.set('network', dname, 'proto', 'xfrm')
+    u.set('network', dname, 'multicast', 'true')
+    u.set('network', dname, 'tunlink', 'wan')
+    u.set('network', dname, 'ns_link', link)
+
+    # create route
+    subnets = 1
+    for net in args['remote_subnet']:
+        rname = f'{iname}_route_{subnets}'
+        u.set('network', rname, 'route')
+        u.set('network', rname, 'target', net)
+        u.set('network', rname, 'interface', dname)
+        u.set('network', rname, 'ns_link', link)
+        u.set('network', rname, 'disabled', '0')
+        subnets = subnets + 1
+
+    u.save('network')
+
+    # Add interface to trusted zone
+    ipsec.add_trusted_interface(u, dname)
+
+    # Open firewall ports only if required
+    ipsec.open_firewall_ports(u)
+
+    return {"id": iname}
+
+def edit_tunnel(args):
+    ret = delete_tunnel(args['id'])
+    if 'result' in ret:
+        return add_tunnel(args)
+    else:
+        return utils.generic_error('cant_edit_tunnel')
+
+def delete_tunnel(id):
+    u = EUci()
+    if_id = ''
+    try:
+        if_id = u.get('ipsec', f'{id}_tunnel', 'if_id')
+        u.delete('ipsec', id)
+        u.save('ipsec')
+    except:
+        return utils.generic_error('cant_delete_tunnel')
+
+    firewall.delete_linked_sections(u, f'ipsec/{id}')
+    firewall.remove_interface_from_zone(u, ipsec.IPSEC_ZONE, f'ipsec{if_id}')
+    return {"result": "success"}
+
+def disable_tunnel(id):
+    u = EUci()
+    try:
+        u.get("ipsec", id)
+    except:
+        return utils.validation_error("tunnel_not_found")
+    try:
+        u.set('ipsec', id, 'enabled', '0')
+        u.save('ipsec')
+
+        # disable route
+        for r in utils.get_all_by_type(u, 'network', 'route'):
+            if u.get('network', r, 'ns_link', default='') == f'ipsec/{id}':
+                u.set('network', r, 'disabled', '1')
+                u.save('network')
+
+        return {"result": "success"}
+    except:
+        return utils.generic_error("tunnel_not_disabled")
+
+def enable_tunnel(id):
+    u = EUci()
+    try:
+        u.get("ipsec", id)
+    except:
+        return utils.validation_error("tunnel_not_found")
+    try:
+        u.set('ipsec', id, 'enabled', '1')
+        u.save('ipsec')
+
+        # disable route
+        for r in utils.get_all_by_type(u, 'network', 'route'):
+            if u.get('network', r, 'ns_link', default='') == f'ipsec/{id}':
+                u.set('network', r, 'disabled', '0')
+                u.save('network')
+
+        return {"result": "success"}
+    except:
+        return utils.generic_error("tunnel_not_enabled")
+
+def get_tunnel(id):
+    u = EUci()
+    try:
+        u.get("ipsec", id)
+    except:
+        return utils.validation_error("tunnel_not_found")
+ 
+    ike_p = f'{id}_ike'
+    esp_p = f'{id}_esp'
+    tunnel = f'{id}_tunnel'
+    ret = {'ike': {}, 'esp': {}}
+    for opt in ['encryption_algorithm', 'hash_algorithm', 'dh_group']:
+        ret['ike'][opt] = u.get('ipsec', ike_p, opt, default="")
+    for opt in ['encryption_algorithm', 'hash_algorithm', 'dh_group']:
+        ret['esp'][opt] = u.get('ipsec', esp_p, opt, default="")
+
+    for opt in ['ipcomp', 'dpdaction']:
+        ret[opt] = u.get('ipsec', tunnel, opt, default="")
+    for opt in ['remote_subnet', 'local_subnet']:
+        ret[opt] = u.get('ipsec', tunnel, opt, default=[], list=True)
+
+    ret['esp']['rekeytime'] = u.get('ipsec', tunnel, 'rekeytime')
+    ret['ns_name'] = u.get('ipsec', id, 'ns_name', default="")
+    for opt in ['gateway', 'keyexchange', 'local_identifier', 'local_ip', 'enabled', 'remote_identifier', 'pre_shared_key']:
+        ret[opt] = u.get('ipsec', id, opt, default="")
+    ret['ike']['rekeytime'] = u.get('ipsec', id, 'rekeytime', default='')
+
+    return ret
+
+def list_wans():
+    ret = {"wans": []}
+    ips = get_device_ips()
+    wans = utils.get_all_wan_devices(EUci())
+    for device in ips.keys():
+        if device in wans:
+            for ip in ips[device]:
+                ret["wans"].append({"device": device, "ipaddr": ip})
+    return ret
+
+def get_defaults():
+    u = EUci()
+    num = 1
+    for r in utils.get_all_by_type(u, 'ipsec', 'remote'):
+        num = num + 1
+    local = f"@tun{num}.local"
+    remote = f"@tun{num}.local"
+    key = subprocess.run(["openssl", "rand", "-base64", "33"], capture_output=True, text=True).stdout.rstrip()
+    return {"pre_shared_key": key, "local_identifier": local, "remote_identifier": remote}
+
+def list_algs():
+    ret = {
+       "encryption" : [
+            {"name": "AES 128", "id": "aes128"},
+            {"name": "AES 192", "id": "aes192"},
+            {"name": "AES 256", "id": "aes256"},
+            {"name": "3DES", "id": "3des"},
+            {"name": "128 bit Blowfish-CBC", "id": "blowfish"}
+        ],
+       "integrity" : [
+            {"name": "MD5", "id": "md5"},
+            {"name": "SHA1", "id": "sha1"},
+            {"name": "SHA256", "id": "sha256"},
+            {"name": "SHA384", "id": "sha384"},
+            {"name": "SHA512", "id": "sha512"},
+            {"name": "AES CMAC", "id": "aescmac"},
+            {"name": "AES XCBX", "id": "aesxcbc"},
+
+        ],
+        "dh" : [
+            {"name": "-", "id": ""},
+            {"name": "1024 bit (DH-2)", "id": "modp1024"},
+            {"name": "1536 bit (DH-5)", "id": "modp1536"},
+            {"name": "2048 bit (DH-14)", "id": "modp2048"},
+            {"name": "3072 bit (DH-15)", "id": "modp3072"},
+            {"name": "4096 bit (DH-16)", "id": "modp4096"},
+            {"name": "6144 bit (DH-17)", "id": "modp6144"},
+            {"name": "8192 bit (DH-18)", "id": "modp8192"},
+            {"name": "Curve 25519", "id": "curve25519"},
+            {"name": "Newhope 128", "id": "newhope"},
+        ]
+    }
+    return ret
+
+cmd = sys.argv[1]
+
+# Make sure the config file exists
+ipsec.init_ipsec(EUci())
+
+if cmd == 'list':
+    print(json.dumps({
+        "list-tunnels": {},
+        "get-defaults": {},
+        "list-wans": {},
+        "list-algs": {},
+        "add-tunnel": {
+            "ns_name": "tun1",
+            "ike": {"encryption_algorithm": "3des", "hash_algorithm": "md5", "encryption_algorithm": "3des", "dh_group": "mod1024", "rekeytime": "3600"},
+            "esp": {"encryption_algorithm": "3des", "hash_algorithm": "md5", "encryption_algorithm": "3des", "dh_group": "mod1024", "rekeytime": "3600"},
+            "pre_shared_key": "xxxxxxxxxxxxxxxxxxx",
+            "local_identifier": "@ipsec1.local",
+            "remote_identifier": "@ipsec1.remote",
+            "local_subnet": ["192.168.120.0/24"],
+            "remote_subnet": ["192.168.100.0/24"],
+            "enabled": "1",
+            "local_ip": "10.10.0.200",
+            "keyexchange": "ike", # ike, ikev1, ikev2
+            "ipcomp": "false", # compression
+            "dpdaction": "restart",
+            "gateway": "1.2.3.4" # remote server
+        },
+        "edit-tunnel": {
+            "id": "ns_tun1",
+            "ns_name": "tun1",
+            "ike": {"encryption_algorithm": "3des", "hash_algorithm": "md5", "encryption_algorithm": "3des", "dh_group": "mod1024", "rekeytime": "3600"},
+            "esp": {"encryption_algorithm": "3des", "hash_algorithm": "md5", "encryption_algorithm": "3des", "dh_group": "mod1024", "rekeytime": "3600"},
+            "pre_shared_key": "xxxxxxxxxxxxxxxxxxx",
+            "local_identifier": "@ipsec1.local",
+            "remote_identifier": "@ipsec1.remote",
+            "local_subnet": ["192.168.120.0/24"],
+            "remote_subnet": ["192.168.100.0/24"],
+            "enabled": "1",
+            "local_ip": "10.10.0.200",
+            "keyexchange": "ike", # ike, ikev1, ikev2
+            "ipcomp": "false", # compression
+            "dpdaction": "restart",
+            "gateway": "1.2.3.4" # remote server
+        },
+        "enable-tunnel": {"id": "ns_tun1"},
+        "disable-tunnel": {"id": "ns_tun1"},
+        "delete-tunnel": {"id": "ns_tun1"},
+        "get-tunnel": {"id": "ns_tun1"}
+    }))
+else:
+    action = sys.argv[2]
+    if action == "list-tunnels":
+        ret = list_tunnels()
+    elif action == "get-defaults":
+        ret = get_defaults()
+    elif action == "list-wans":
+        ret = list_wans()
+    elif action == "list-algs":
+        ret = list_algs()
+    else:
+        args = json.loads(sys.stdin.read())
+
+    if action == "add-tunnel":
+        ret = add_tunnel(args)
+    elif action == "edit-tunnel":
+        ret = edit_tunnel(args)
+    elif action == "enable-tunnel":
+        ret = enable_tunnel(args["id"])
+    elif action == "disable-tunnel":
+        ret = disable_tunnel(args["id"])
+    elif action == "delete-tunnel":
+        ret = delete_tunnel(args["id"])
+    elif action == "get-tunnel":
+        ret = get_tunnel(args["id"])
+    print(json.dumps(ret))

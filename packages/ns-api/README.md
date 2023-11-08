@@ -3038,3 +3038,212 @@ Response example:
 ```json
 {"result": "success"}
 ```
+
+## ns.ipsectunnel
+
+### list-tunnels
+
+List existing tunnels:
+```
+api-cli ns.ipsectunnel list-tunnels
+```
+
+Response example:
+```json
+{
+  "tunnels": [
+    {
+      "id": "ns_81df3995",
+      "name": "tun1",
+      "local": [
+        "192.168.100.0/24"
+      ],
+      "remote": [
+        "192.168.200.0/24"
+      ],
+      "enabled": "1",
+      "connected": false
+    }
+  ]
+}
+```
+
+### list-wans
+
+List available wans:
+```
+api-cli ns.ipsectunnel list-wans
+```
+
+Response example:
+```json
+{
+  "wans": [
+    {
+      "device": "eth1",
+      "ipaddr": "192.168.122.49"
+    },
+    {
+      "device": "eth1",
+      "ipaddr": "fe80::5054:ff:fe20:82a6"
+    }
+  ]
+}
+```
+
+### get-defaults
+
+Get tunnel defaults:
+```
+api-cli ns.ipsectunnel get-defaults
+```
+
+Response example:
+```json
+{
+  "pre_shared_key": "gFWPtHR38XaAWrT4GjeFOS0aOtGJnVksvbVcGdJ1EYWB",
+  "local_identifier": "@tun2.local",
+  "remote_identifier": "@tun2.local"
+}
+
+```
+
+### get-tunnel
+
+Retrieve tunnel info:
+```
+api-cli ns.ipsectunnel get-tunnel --data '{"id": "ns_81df3995"}'
+```
+
+Response example:
+```json
+{
+  "ike": {
+    "encryption_algorithm": "3des",
+    "hash_algorithm": "md5",
+    "dh_group": "modp1024",
+    "rekeytime": "3600"
+  },
+  "esp": {
+    "encryption_algorithm": "3des",
+    "hash_algorithm": "md5",
+    "dh_group": "modp1024",
+    "rekeytime": "3600"
+  },
+  "ipcomp": "false",
+  "dpdaction": "restart",
+  "remote_subnet": "192.168.200.0/24",
+  "local_subnet": "192.168.100.0/24",
+  "ns_name": "tun1",
+  "gateway": "10.10.0.172",
+  "keyexchange": "ike",
+  "local_identifier": "@ipsec1.local",
+  "local_ip": "192.168.122.49",
+  "enabled": "1",
+  "remote_identifier": "@ipsec1.remote",
+  "pre_shared_key": "xxxxxxxxxxxxxxxxxxx"
+}
+```
+
+### add-tunnel
+
+Create a tunnel:
+```
+api-cli ns.ipsectunnel add-tunnel --data '{"ns_name": "tun1", "ike": {"hash_algorithm": "md5", "encryption_algorithm": "3des", "dh_group": "modp1024", "rekeytime": "3600"}, "esp": {"hash_algorithm": "md5", "encryption_algorithm": "3des", "dh_group": "modp1024", "rekeytime": "3600"}, "pre_shared_key": "xxxxxxxxxxxxxxxxxxx", "local_identifier": "@ipsec1.local", "remote_identifier": "@ipsec1.remote", "local_subnet": ["192.168.100.0/24"], "remote_subnet": ["192.168.200.0/24"], "enabled": "1", "local_ip": "192.168.122.49", "keyexchange": "ike", "ipcomp": "false", "dpdaction": "restart", "gateway": "10.10.0.172"}'
+```
+
+Response example:
+```json
+{"id": "ns_81df3995"}
+```
+
+### edit-tunnel
+
+Edit a tunnel:
+```
+api-cli ns.ipsectunnel add-tunnel --data '{"id": "ns_81df3995", "ns_name": "tun1", "ike": {"hash_algorithm": "md5", "encryption_algorithm": "3des", "dh_group": "modp1024", "rekeytime": "3600"}, "esp": {"hash_algorithm": "md5", "encryption_algorithm": "3des", "dh_group": "modp1024", "rekeytime": "3600"}, "pre_shared_key": "xxxxxxxxxxxxxxxxxxx", "local_identifier": "@ipsec1.local", "remote_identifier": "@ipsec1.remote", "local_subnet": ["192.168.100.0/24"], "remote_subnet": ["192.168.200.0/24"], "enabled": "1", "local_ip": "192.168.122.49", "keyexchange": "ike", "ipcomp": "false", "dpdaction": "restart", "gateway": "10.10.0.172"}'
+```
+
+Response example:
+```json
+{"id": "ns_81df3995"}
+```
+
+### enable-tunnel
+
+Enable a tunnel:
+```
+api-cli ns.ipsectunnel enable-tunnel --data '{"id": "ns_81df3995"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+### disable-tunnel
+
+Disable a tunnel:
+```
+api-cli ns.ipsectunnel disable-tunnel --data '{"id": "ns_81df3995"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+### delete-tunnel
+
+Delete a tunnel all associated configurations like routes and interfaces:
+```
+api-cli ns.ipsectunnel delete-tunnel --data '{"id": "ns_81df3995"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+### list-algs
+
+List available algorithms:
+```
+api-cli ns.ipsectunnel list-algs
+```
+
+Result example:
+```json
+{
+  "encryption": [
+    {
+      "name": "AES 128",
+      "id": "aes128"
+    },
+    {
+      "name": "128 bit Blowfish-CBC",
+      "id": "blowfish"
+    }
+  ],
+  "integrity": [
+    {
+      "name": "MD5",
+      "id": "md5"
+    },
+    {
+      "name": "AES XCBX",
+      "id": "aesxcbc"
+    }
+  ],
+  "dh": [
+    {
+      "name": "1024 bit (DH-2)",
+      "id": "modp1024"
+    },
+    {
+      "name": "Newhope 128",
+      "id": "newhope"
+    }
+  ]
+}
+```
