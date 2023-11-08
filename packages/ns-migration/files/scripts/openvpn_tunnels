@@ -45,7 +45,7 @@ def import_tunnel(u, tunnel, ttype):
     for option in tunnel:
         u.set("openvpn", iname, option, tunnel[option])
 
-    if ttype == 'server':
+    if ttype == 'server' and tunnel['topology'] != 'p2p':
         # Setup dynamic config for iroute:
         # OpenVPN on NethSec requires an iroute directive for the remote network
         u.set("openvpn", iname, 'client_connect', f'"/usr/libexec/ns-openvpn/openvpn-connect {iname}"')
@@ -55,9 +55,15 @@ def import_tunnel(u, tunnel, ttype):
         proto = tunnel['proto'].removesuffix('-server')
         firewall.add_service(u, f'ovpn{name}', tunnel['lport'], proto)
 
+    # Setup the device
+    device = f'tun{name}'
+    u.set("openvpn", iname, 'dev', device)
     # Add interface to LAN
-    ovpn_interface = firewall.add_vpn_interface(u, 'openvpn', tunnel['dev'])
-    ovpn_zone = firewall.add_trusted_zone(u, "openvpn", [ovpn_interface])
+    ovpn_interface = firewall.add_vpn_interface(u, name, device, link=f'openvpn/{iname}')
+    if not firewall.zone_exists(u, 'openvpn'):
+        firewall.add_trusted_zone(u, "openvpn", [ovpn_interface])
+    else:
+        firewall.add_device_to_zone(u, device, 'openvpn')
 
 
 (u, data, nmap) = nsmigration.init("openvpn_tunnels.json")
