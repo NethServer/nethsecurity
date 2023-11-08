@@ -60,7 +60,7 @@ def import_tunnel(u, tunnel, ttype):
 
         # Open OpenVPN port
         proto = tunnel['proto'].removesuffix('-server')
-        firewall.add_service(u, f'ovpn{name}', tunnel['lport'], proto)
+        firewall.add_service(u, f'ovpn{name}', tunnel['lport'], proto, link=f'openvpn/{iname}')
 
     if 'auth' in tunnel and not is_supported(tunnel['auth']):
         nsmigration.vprint(f"Disabling OpenVPN tunnel {name}: auth {tunnel['auth']} not supported")
@@ -69,6 +69,8 @@ def import_tunnel(u, tunnel, ttype):
         nsmigration.vprint(f"Disabling OpenVPN tunnel {name}: cipher {tunnel['cipher']} not supported")
         u.set("openvpn", iname, 'enabled', '0')
 
+    # Add management socket
+    u.set("openvpn", iname, 'management', f'/var/run/openvpn_{iname}.socket unix')
     # Setup the device
     device = f'tun{name}'
     u.set("openvpn", iname, 'dev', device)
