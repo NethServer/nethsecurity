@@ -14,6 +14,13 @@ import nsmigration
 import subprocess
 from nethsec import firewall, utils
 
+def is_supported(cipher):
+    try:
+        p = subprocess.run(["/usr/sbin/openvpn", "--show-digests", "--show-ciphers"], capture_output=True, text=True, check=True)
+        return cipher.lower() in p.stdout.lower()
+    except:
+        return False
+
 def save_cert(path, data):
     # setup rw permissions only for nobody user
     os.umask(0o077)
@@ -45,7 +52,7 @@ def import_tunnel(u, tunnel, ttype):
     for option in tunnel:
         u.set("openvpn", iname, option, tunnel[option])
 
-    if ttype == 'server':
+    if ttype == 'server' and tunnel['topology'] != 'p2p':
         # Setup dynamic config for iroute:
         # OpenVPN on NethSec requires an iroute directive for the remote network
         u.set("openvpn", iname, 'client_connect', f'"/usr/libexec/ns-openvpn/openvpn-connect {iname}"')
@@ -53,11 +60,26 @@ def import_tunnel(u, tunnel, ttype):
 
         # Open OpenVPN port
         proto = tunnel['proto'].removesuffix('-server')
-        firewall.add_service(u, f'ovpn{name}', tunnel['lport'], proto)
+        firewall.add_service(u, f'ovpn{name}', tunnel['lport'], proto, link=f'openvpn/{iname}')
 
+    if 'auth' in tunnel and not is_supported(tunnel['auth']):
+        nsmigration.vprint(f"Disabling OpenVPN tunnel {name}: auth {tunnel['auth']} not supported")
+        u.set("openvpn", iname, 'enabled', '0')
+    if 'cipher' in tunnel and not is_supported(tunnel['cipher']):
+        nsmigration.vprint(f"Disabling OpenVPN tunnel {name}: cipher {tunnel['cipher']} not supported")
+        u.set("openvpn", iname, 'enabled', '0')
+
+    # Add management socket
+    u.set("openvpn", iname, 'management', f'/var/run/openvpn_{iname}.socket unix')
+    # Setup the device
+    device = f'tun{name}'
+    u.set("openvpn", iname, 'dev', device)
     # Add interface to LAN
-    ovpn_interface = firewall.add_vpn_interface(u, 'openvpn', tunnel['dev'])
-    ovpn_zone = firewall.add_trusted_zone(u, "openvpn", [ovpn_interface])
+    ovpn_interface = firewall.add_vpn_interface(u, name, device, link=f'openvpn/{iname}')
+    if not firewall.zone_exists(u, 'openvpn'):
+        firewall.add_trusted_zone(u, "openvpn", [ovpn_interface])
+    else:
+        firewall.add_device_to_zone(u, device, 'openvpn')
 
 
 (u, data, nmap) = nsmigration.init("openvpn_tunnels.json")
