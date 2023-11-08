@@ -153,6 +153,7 @@ def import_client(tunnel):
     u.set("openvpn", iname, "enabled", 1)
     u.set("openvpn", iname, "nobind", "1")
     u.set("openvpn", iname, "dev", tun)
+    u.set("openvpn", iname, "ns_client", "1")
     
     if tunnel['Topology'] == 'p2p':
         psk = f"{cert_dir}psk.key"
@@ -181,10 +182,10 @@ def import_client(tunnel):
         u.set("openvpn", iname, "compress", tunnel['Compression'])
 
     if tunnel.get('Digest',''):
-        u.set("openvpn", iname, "digest", tunnel['Digest'])
+        u.set("openvpn", iname, "auth", tunnel['Digest'])
 
     if tunnel.get('Cipher',''):
-        u.set("openvpn", iname, "digest", tunnel['Cipher'])
+        u.set("openvpn", iname, "cipher", tunnel['Cipher'])
 
     if tunnel.get('TlsVersionMin', ''):
         u.set("openvpn", iname, "tls_version_min", tunnel['TlsVersionMin'])
@@ -372,9 +373,11 @@ def list_tunnels():
             remote = []
             if vpn.get("ifconfig", "") != "":
                 record["topology"] = "p2p"
-            if record["topology"] == "p2p":
+            try:
                 for r in u.get_all("openvpn", section, "route"):
-                    remote.append(opt2cidr(r)) 
+                    remote.append(opt2cidr(r))
+            except:
+                pass
             client = record | {
                 "port": vpn.get("port", ""),
                 "remote_host": vpn.get("remote", ""),
