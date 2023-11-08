@@ -244,8 +244,8 @@ def setup_server(u, iname, tunnel):
         # generate only on create
         if not os.path.exists(f"{cert_dir}issued/server.crt"):
             try:
-                subprocess.run(["/usr/sbin/ns-openvpnrw-init-pki", iname])
-                subprocess.run(["/usr/sbin/ns-openvpntunnel-add-client", iname])
+                subprocess.run(["/usr/sbin/ns-openvpnrw-init-pki", iname], check=True)
+                subprocess.run(["/usr/sbin/ns-openvpntunnel-add-client", iname], check=True)
             except:
                 utils.generic_error("pki_not_initialized")
         u.set("openvpn", iname, "dh", f"{cert_dir}dh.pem")
@@ -318,7 +318,7 @@ def export_client(name):
         "status": "enabled",
         "Compression": u.get("openvpn", name, "compress", default=""),
         "RemotePort": u.get("openvpn", name, "lport", default=""),
-        "RemoteHost": u.get("openvpn", name, "public_ip", default=""),
+        "RemoteHost": u.get("openvpn", name, "ns_public_ip", default=""),
         "Digest": u.get("openvpn", name, "digest", default=""),
         "Cipher": u.get("openvpn", name, "cipher", default=""),
         "Topology": u.get("openvpn", name, "topology", default=""),
