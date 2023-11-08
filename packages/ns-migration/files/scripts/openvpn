@@ -70,6 +70,7 @@ u.set("openvpn", iname, 'crl_verify', os.path.join(cert_dir, 'crl.pem'))
 
 u.set("openvpn", iname, 'client_connect', f'"/usr/libexec/ns-openvpn/openvpn-connect {iname}"')
 u.set("openvpn", iname, 'client_disconnect', f'"/usr/libexec/ns-openvpn/openvpn-disconnect {iname}"')
+u.set("openvpn", iname, 'management', f'/var/run/openvpn_{iname}.socket unix')
 
 if data['rw']['ldap']:
     auth_script = '/usr/libexec/ns-openvpn/openvpn-remote-auth'
@@ -100,10 +101,14 @@ for user in data["users"]:
     save_cert(os.path.join(cert_dir, f'issued/{sname}.crt'), user['crt'])
 
 # Add interface to LAN
-ovpn_interface = firewall.add_vpn_interface(u, 'rwopenvpn', data['rw']['options']['dev'])
-ovpn_zone = firewall.add_trusted_zone(u, "rwopenvpn", [ovpn_interface])
+ovpn_interface = firewall.add_vpn_interface(u, 'rwopenvpn', data['rw']['options']['dev'], link=f'openvpn/{sname}')
+if not firewall.zone_exists(u, 'rwopenvpn'):
+    firewall.add_trusted_zone(u, "rwopenvpn", [ovpn_interface])
+else:
+    firewall.add_device_to_zone(u, data['rw']['options']['dev'], 'rwopenvpn')
+
 # Open OpenVPN port
-firewall.add_service(u, 'OpenVPNRW', data['rw']['options']['port'], data['rw']['options']['proto'])
+firewall.add_service(u, 'OpenVPNRW', data['rw']['options']['port'], data['rw']['options']['proto'], link=f'openvpn/{sname}')
 
 # Save configuration
 u.commit("openvpn")
