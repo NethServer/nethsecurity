@@ -131,6 +131,13 @@ def get_public_addresses():
                         pass
     return ret
 
+def setup_firewall(u, name, device, link):
+    ovpn_interface = firewall.add_vpn_interface(u, name, device, link=link)
+    if not firewall.zone_exists(u, 'openvpn'):
+        firewall.add_trusted_zone(u, "openvpn", [ovpn_interface])
+    else:
+        firewall.add_device_to_zone(u, device, 'openvpn')
+
 # APIs
 
 def import_client(tunnel):
@@ -182,11 +189,13 @@ def import_client(tunnel):
     if tunnel.get('TlsVersionMin', ''):
         u.set("openvpn", iname, "tls_version_min", tunnel['TlsVersionMin'])
 
+    # Add management socket
+    u.set("openvpn", iname, 'management', f'/var/run/openvpn_{iname}.socket unix')
+
     u.save('openvpn')
-    # Add interface to LAN
-    olink = f"openvpn/{iname}"
-    ovpn_interface = firewall.add_vpn_interface(u, 'openvpn', tun, link=olink)
-    ovpn_zone = firewall.add_trusted_zone(u, "openvpn", [ovpn_interface], link=olink)
+    
+    setup_firewall(u, name, tun, f"openvpn/{iname}")
+
     return {"id": iname}
 
 def edit_server(args):
@@ -281,6 +290,9 @@ def setup_server(u, iname, tunnel):
         u.set("openvpn", iname, 'client_connect', f'"/usr/libexec/ns-openvpn/openvpn-connect {iname}"')
         u.set("openvpn", iname, 'client_disconnect', f'"/usr/libexec/ns-openvpn/openvpn-disconnect {iname}"')
 
+    # Add management socket
+    u.set("openvpn", iname, 'management', f'/var/run/openvpn_{iname}.socket unix')
+ 
     u.save('openvpn')
 
     # Open OpenVPN port
@@ -288,9 +300,8 @@ def setup_server(u, iname, tunnel):
     olink = f"openvpn/{iname}"
     firewall.add_service(u, f'ovpn{name}', tunnel['port'], proto, link=olink)
 
-    # Add interface to LAN
-    ovpn_interface = firewall.add_vpn_interface(u, 'openvpn', tun, link=olink)
-    ovpn_zone = firewall.add_trusted_zone(u, "openvpn", [ovpn_interface], link=olink)
+    setup_firewall(u, name, tun, olink)
+
     return {"id": iname}
 
 def export_client(name):
@@ -655,12 +666,12 @@ def setup_client(u, iname, args):
             routes.append(f"route {ip} {to_netmask(prefix)}")
         u.set('openvpn', iname, 'route', routes) 
 
-    # Add interface to LAN
-    olink = f"openvpn/{iname}"
-    ovpn_interface = firewall.add_vpn_interface(u, 'openvpn', dev_name, link=olink)
-    ovpn_zone = firewall.add_trusted_zone(u, "openvpn", [ovpn_interface], link=olink)
- 
+    # Add management socket
+    u.set("openvpn", iname, 'management', f'/var/run/openvpn_{iname}.socket unix')
+
     u.save('openvpn')
+
+    setup_firewall(u, args['ns_name'], dev_name, olink)
  
 
 def edit_client(args):
