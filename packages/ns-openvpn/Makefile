@@ -35,6 +35,7 @@ endef
 
 define Package/ns-openvpn/install
 	$(INSTALL_DIR) $(1)/usr/sbin
+	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_DIR) $(1)/usr/libexec/ns-openvpn/connect-scripts
 	$(INSTALL_DIR) $(1)/usr/libexec/ns-openvpn/disconnect-scripts
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
@@ -55,6 +56,7 @@ define Package/ns-openvpn/install
 	$(INSTALL_BIN) ./files/80-save-connection $(1)/usr/libexec/ns-openvpn/connect-scripts
 	$(INSTALL_BIN) ./files/80-save-disconnection $(1)/usr/libexec/ns-openvpn/disconnect-scripts
 	$(INSTALL_BIN) ./files/99_ns-openvpn $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/openvpn-status $(1)/usr/bin
 endef
 
 define Package/ns-openvpn/postinst

@@ -1,0 +1,88 @@
+#!/usr/bin/python
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Read OpenVPN status from management socket
+
+import os
+import sys
+import json
+import time
+import socket
+import argparse
+import datetime
+import subprocess
+
+def since2ts(since):
+    return int(time.mktime(datetime.datetime.strptime(since, "%Y-%m-%d %H:%M:%S").timetuple()))
+
+parser = argparse.ArgumentParser(prog='openvpn-status',  description='Read OpenVPN status from management socket')
+parser.add_argument("socket_path")
+parser.add_argument("-d", "--debug", action="store_true")
+parser.add_argument("-c", "--client", action="store_true")
+parser.add_argument("-t", "--topology", choices=["subnet", "p2p"])
+args = parser.parse_args()
+
+if not os.path.exists(args.socket_path):
+    print(f"File not found: {socket_path}", file=sys.stderr)
+    exit(1)
+
+try:
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as tsock:
+        tsock.connect(args.socket_path)
+        fp = tsock.makefile(mode='r', newline='\n')
+
+        results = {}
+        greetings = fp.readline()
+        if greetings:
+            tsock.sendall(b"status 3\n")
+        else:
+            exit(1)
+
+        while True:
+            msg = fp.readline()
+            if args.debug:
+                print(msg, file=sys.stderr)
+            if "ERROR" in msg:
+                exit(1)
+            if "END" in msg:
+                break
+
+            if args.topology == 'subnet':
+                if msg.startswith("CLIENT_LIST"):
+                    _, cn, real_address, virtual_ipv4, _, bytes_received, bytes_sent, since, _, _, _, _, _ = msg.split('\t')
+                    if cn == 'UNDEF':
+                        continue
+
+                    ip_addr, port_addr = real_address.split(':')
+
+                    results[cn] = {
+                        'real_address': ip_addr,
+                        'virtual_address': virtual_ipv4,
+                        'bytes_received': bytes_received,
+                        'bytes_sent': bytes_sent,
+                        'since': since2ts(since)
+                    }
+
+            if args.topology == 'p2p' or args.client:
+                if not 'stats' in results:
+                    results['stats'] = {"since": 0, 'bytes_received': 0, 'bytes_sent': 0}
+                if msg.startswith("Updated,"):
+                    results['stats']['since'] = since2ts(msg.split(',')[1].rstrip())
+                elif "read bytes," in msg:
+                    results['stats']['bytes_received'] = results['stats'].get('bytes_received', 0) + int(msg.split(',')[1])
+                elif "write bytes," in msg:
+                    results['stats']['bytes_sent'] = results['stats'].get('bytes_sent', 0) + int(msg.split(',')[1])
+
+        json_results = json.dumps(results)
+        print(json_results)
+        exit(0)
+
+except Exception as e:
+    print("An error occurred:", e)
+    import traceback
+    traceback.print_exc()
+    exit(1)
