@@ -418,8 +418,11 @@ def delete_tunnel(name):
     except:
         return utils.validation_error("tunnel_not_found")
     try:
+        dev = u.get("openvpn", name, 'dev')
         u.delete('openvpn', name)
         u.save('openvpn')
+        firewall.delete_linked_sections(u, f'openvpn/{name}')
+        firewall.remove_device_from_zone(u, dev, 'openvpn')
         base_dir = f"/etc/openvpn/{name}/"
         # cleanup certs and secretes
         if os.path.exists(base_dir):
