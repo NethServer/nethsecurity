@@ -17,9 +17,9 @@ import subprocess
 from nethsec import utils
 from euci import EUci
 
-tmp_dir = "/tmp/dedalo"
-token_file = f"{tmp_dir}/token"
-opts = ["network", "hotspot_id", "unit_name", "unit_description", "interface", "dhcp_start", "dhcp_end"]
+tmp_dir = "/var/run/"
+token_file = f"{tmp_dir}/dedalo_token"
+opts = ["network", "hotspot_id", "unit_name", "unit_description", "interface"]
 
 def _get_token():
     try:
@@ -136,6 +136,10 @@ def get_configuration():
     u = EUci()
     for opt in opts:
         ret[opt] = u.get("dedalo", "config", opt, default="")
+    n = ipaddress.IPv4Network(ret["network"])
+    start = str(n[2]).split(".")[3]
+    ret["dhcp_start"] = str(n[2])
+    ret["dhcp_limit"] = u.get("dedalo", "config", "dhcp_end", default='253')
     if ret['unit_name'] == "":
         with open('/proc/sys/kernel/hostname', 'r') as fp:
             ret["unit_name"] = fp.read().strip()
@@ -154,12 +158,30 @@ def set_configuration(args):
     n = ipaddress.IPv4Network(args["network"])
     max_entries = int(n[-1]) - int(n[0]) - 2
     u.set("dedalo", "config", "max_clients", max_entries)
+    start = str(n[2]).split(".")[3]
+    u.set("dedalo", "config", "dhcp_start", start)
+    u.set("dedalo", "config", "dhcp_end", args["dhcp_limit"])
     u.commit("dedalo")
     try:
-        subprocess.run(["/etc/init.d/dedalo", "reload"], check=True)
-        subprocess.run(["/usr/bin/dedalo", "register", "-t", _get_token()], check=True, capture_output=True)
+        subprocess.run(["/etc/init.d/dedalo", "reload"], check=True, capture_output=True)
     except:
-        return utils.generic_error("registration_failed")
+        return utils.generic_error("configuration_reload_failed")
+    
+    # register only if needed
+    if not u.get("dedalo", "config", "secret", default=None):
+        try:
+            subprocess.run(["/usr/bin/dedalo", "register", "-t", _get_token()], check=True, capture_output=True)
+        except:
+            return utils.generic_error("registration_failed")
+
+    p = subprocess.run(["/etc/init.d/dedalo", "status"], capture_output=True)
+    if p.returncode == 0:
+        subprocess.run(["/etc/init.d/dedalo", "restart"], capture_output=True)
+        subprocess.run(["/etc/init.d/dedalo_users_auth", "restart"], capture_output=True)
+    else:
+        subprocess.run(["/etc/init.d/dedalo", "start"], capture_output=True)
+        subprocess.run(["/etc/init.d/dedalo_users_auth", "start"], capture_output=True)
+
     return {"result": "success"}
 
 def get_dhcp_range(args):
@@ -172,7 +194,7 @@ def get_dhcp_range(args):
         return utils.validation_error("network", "invalid_network", args["network"])
     start, end = n[0] + 2, n[-2]
     max_entries = int(n[-1]) - int(n[0]) - 2
-    return {"start": str(start), "end": str(end), "max_entries": max_entries}
+    return {"start": str(start), "end": max_entries - 1, "max_entries": max_entries}
 
 cmd = sys.argv[1]
 
@@ -185,7 +207,7 @@ if cmd == 'list':
         "unregister": {},
         "get-dhcp-range": {"network": "192.168.182.0/24"},
         "get-configuration": {},
-        "set-configuration": {"network": "192.168.182.0/24", "hotspot_id": "1234", "unit_name": "myunit", "unit_description": "my epic unit", "interface": "eth3", "max_clients": 253, "dhcp_start": "192.168.182.10", "dhcp_end": "192.168.182.100"},
+        "set-configuration": {"network": "192.168.182.0/24", "hotspot_id": "1234", "unit_name": "myunit", "unit_description": "my epic unit", "interface": "eth3", "max_clients": 253, "dhcp_limit": "100"},
         }))
 else:
     action = sys.argv[2]

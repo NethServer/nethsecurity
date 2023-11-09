@@ -1024,7 +1024,7 @@ Response example:
 
 Configure the hotspot:
 ```
-api-cli ns.dedalo set-configuration --data '{"network": "192.168.182.0/24", "hotspot_id": "1234", "unit_name": "myunit", "unit_description": "my epic unit", "interface": "eth3", "dhcp_start": "192.168.182.10", "dhcp_end": "192.168.182.100"}'
+api-cli ns.dedalo set-configuration --data '{"network": "192.168.182.0/24", "hotspot_id": "1234", "unit_name": "myunit", "unit_description": "my epic unit", "interface": "eth3", "dhcp_limit": "150"}'
 ```
 
 Response example:
@@ -1044,13 +1044,13 @@ Response example for non-configurated device:
 {
   "configuration": {
     "network": "192.168.182.0/24",
-    "hotspot_id": "",
-    "unit_name": "",
-    "unit_description": "",
-    "interface": "",
-    "dhcp_start": "",
-    "dhcp_end": "",
-    "max_clients": "",
+    "hotspot_id": "2",
+    "unit_name": "NethSec",
+    "unit_description": "My hotspot",
+    "interface": "eth2",
+    "dhcp_start": "192.168.182.2",
+    "dhcp_limit": "100",
+    "max_clients": "255",
     "connected": true
   }
 }
@@ -1063,15 +1063,15 @@ If the device is not connected, you need to execute the `login` api to retrieve 
 
 Return the first and last IPs valid for the DHCP range, given a network CIDR:
 ```
-api-cli ns.dedalo get-dhcp-range --data '{"network": "10.0.0.0/24"}'
+api-cli ns.dedalo get-dhcp-range --data '{"network": "192.168.0.0/24"}'
 ```
 
 Response example:
 ```json
 {
   "start": "192.168.0.2",
-  "end": "192.168.255.254",
-  "max_entries": 65533
+  "end": "252",
+  "max_entries": 253
 }
 ```
 
