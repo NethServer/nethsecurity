@@ -13,6 +13,7 @@
 username=$1
 password=${2:-""}
 
+token_file="/var/run/dedalo_token"
 api_url=$(uci get dedalo.config.api_url)
 
 if [ -z "$username" ]; then
@@ -21,8 +22,8 @@ fi
 
 if [ -z "$password" ]; then
     # read the token from a file
-    if [ -f "$username" ]; then
-        token=$(cat /tmp/dedalo/token)
+    if [ -f "$token_file" ]; then
+        token=$(cat $token_file)
     else
         exit 3
     fi
