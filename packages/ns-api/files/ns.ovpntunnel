@@ -131,6 +131,13 @@ def get_public_addresses():
                         pass
     return ret
 
+def setup_firewall(u, name, device, link):
+    ovpn_interface = firewall.add_vpn_interface(u, name, device, link=link)
+    if not firewall.zone_exists(u, 'openvpn'):
+        firewall.add_trusted_zone(u, "openvpn", [ovpn_interface])
+    else:
+        firewall.add_device_to_zone(u, device, 'openvpn')
+
 # APIs
 
 def import_client(tunnel):
@@ -146,6 +153,7 @@ def import_client(tunnel):
     u.set("openvpn", iname, "enabled", 1)
     u.set("openvpn", iname, "nobind", "1")
     u.set("openvpn", iname, "dev", tun)
+    u.set("openvpn", iname, "ns_client", "1")
     
     if tunnel['Topology'] == 'p2p':
         psk = f"{cert_dir}psk.key"
@@ -174,19 +182,21 @@ def import_client(tunnel):
         u.set("openvpn", iname, "compress", tunnel['Compression'])
 
     if tunnel.get('Digest',''):
-        u.set("openvpn", iname, "digest", tunnel['Digest'])
+        u.set("openvpn", iname, "auth", tunnel['Digest'])
 
     if tunnel.get('Cipher',''):
-        u.set("openvpn", iname, "digest", tunnel['Cipher'])
+        u.set("openvpn", iname, "cipher", tunnel['Cipher'])
 
     if tunnel.get('TlsVersionMin', ''):
         u.set("openvpn", iname, "tls_version_min", tunnel['TlsVersionMin'])
 
+    # Add management socket
+    u.set("openvpn", iname, 'management', f'/var/run/openvpn_{iname}.socket unix')
+
     u.save('openvpn')
-    # Add interface to LAN
-    olink = f"openvpn/{iname}"
-    ovpn_interface = firewall.add_vpn_interface(u, 'openvpn', tun, link=olink)
-    ovpn_zone = firewall.add_trusted_zone(u, "openvpn", [ovpn_interface], link=olink)
+    
+    setup_firewall(u, name, tun, f"openvpn/{iname}")
+
     return {"id": iname}
 
 def edit_server(args):
@@ -234,8 +244,8 @@ def setup_server(u, iname, tunnel):
         # generate only on create
         if not os.path.exists(f"{cert_dir}issued/server.crt"):
             try:
-                subprocess.run(["/usr/sbin/ns-openvpnrw-init-pki", iname])
-                subprocess.run(["/usr/sbin/ns-openvpntunnel-add-client", iname])
+                subprocess.run(["/usr/sbin/ns-openvpnrw-init-pki", iname], check=True)
+                subprocess.run(["/usr/sbin/ns-openvpntunnel-add-client", iname], check=True)
             except:
                 utils.generic_error("pki_not_initialized")
         u.set("openvpn", iname, "dh", f"{cert_dir}dh.pem")
@@ -281,6 +291,9 @@ def setup_server(u, iname, tunnel):
         u.set("openvpn", iname, 'client_connect', f'"/usr/libexec/ns-openvpn/openvpn-connect {iname}"')
         u.set("openvpn", iname, 'client_disconnect', f'"/usr/libexec/ns-openvpn/openvpn-disconnect {iname}"')
 
+    # Add management socket
+    u.set("openvpn", iname, 'management', f'/var/run/openvpn_{iname}.socket unix')
+ 
     u.save('openvpn')
 
     # Open OpenVPN port
@@ -288,9 +301,8 @@ def setup_server(u, iname, tunnel):
     olink = f"openvpn/{iname}"
     firewall.add_service(u, f'ovpn{name}', tunnel['port'], proto, link=olink)
 
-    # Add interface to LAN
-    ovpn_interface = firewall.add_vpn_interface(u, 'openvpn', tun, link=olink)
-    ovpn_zone = firewall.add_trusted_zone(u, "openvpn", [ovpn_interface], link=olink)
+    setup_firewall(u, name, tun, olink)
+
     return {"id": iname}
 
 def export_client(name):
@@ -306,7 +318,7 @@ def export_client(name):
         "status": "enabled",
         "Compression": u.get("openvpn", name, "compress", default=""),
         "RemotePort": u.get("openvpn", name, "lport", default=""),
-        "RemoteHost": u.get("openvpn", name, "public_ip", default=""),
+        "RemoteHost": u.get("openvpn", name, "ns_public_ip", default=""),
         "Digest": u.get("openvpn", name, "digest", default=""),
         "Cipher": u.get("openvpn", name, "cipher", default=""),
         "Topology": u.get("openvpn", name, "topology", default=""),
@@ -361,9 +373,11 @@ def list_tunnels():
             remote = []
             if vpn.get("ifconfig", "") != "":
                 record["topology"] = "p2p"
-            if record["topology"] == "p2p":
+            try:
                 for r in u.get_all("openvpn", section, "route"):
-                    remote.append(opt2cidr(r)) 
+                    remote.append(opt2cidr(r))
+            except:
+                pass
             client = record | {
                 "port": vpn.get("port", ""),
                 "remote_host": vpn.get("remote", ""),
@@ -404,8 +418,11 @@ def delete_tunnel(name):
     except:
         return utils.validation_error("tunnel_not_found")
     try:
+        dev = u.get("openvpn", name, 'dev')
         u.delete('openvpn', name)
         u.save('openvpn')
+        firewall.delete_linked_sections(u, f'openvpn/{name}')
+        firewall.remove_device_from_zone(u, dev, 'openvpn')
         base_dir = f"/etc/openvpn/{name}/"
         # cleanup certs and secretes
         if os.path.exists(base_dir):
@@ -423,6 +440,12 @@ def disable_tunnel(name):
     try:
         u.set('openvpn', name, 'enabled', '0')
         u.save('openvpn')
+        # disable rule
+        if u.get("openvpn", name, "server", default=None) or u.get("openvpn", name, "ifconfig", default=None):
+            for r in utils.get_all_by_type(u, 'firewall', 'rule'):
+                if u.get('firewall', r, 'ns_link', default='') == f'openvpn/{name}':
+                    u.set('firewall', r, 'enabled', '0')
+                    u.save('firewall')
         return {"result": "success"}
     except:
         return utils.generic_error("tunnel_not_disabled")
@@ -436,6 +459,12 @@ def enable_tunnel(name):
     try:
         u.set('openvpn', name, 'enabled', '1')
         u.save('openvpn')
+        # enable rule
+        if u.get("openvpn", name, "server", default=None) or u.get("openvpn", name, "ifconfig", default=None):
+            for r in utils.get_all_by_type(u, 'firewall', 'rule'):
+                if u.get('firewall', r, 'ns_link', default='') == f'openvpn/{name}':
+                    u.set('firewall', r, 'enabled', '1')
+                    u.save('firewall')
         return {"result": "success"}
     except:
         return utils.generic_error("tunnel_not_enabled")
@@ -655,12 +684,12 @@ def setup_client(u, iname, args):
             routes.append(f"route {ip} {to_netmask(prefix)}")
         u.set('openvpn', iname, 'route', routes) 
 
-    # Add interface to LAN
-    olink = f"openvpn/{iname}"
-    ovpn_interface = firewall.add_vpn_interface(u, 'openvpn', dev_name, link=olink)
-    ovpn_zone = firewall.add_trusted_zone(u, "openvpn", [ovpn_interface], link=olink)
- 
+    # Add management socket
+    u.set("openvpn", iname, 'management', f'/var/run/openvpn_{iname}.socket unix')
+
     u.save('openvpn')
+
+    setup_firewall(u, args['ns_name'], dev_name, olink)
  
 
 def edit_client(args):
