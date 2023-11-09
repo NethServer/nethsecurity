@@ -440,6 +440,12 @@ def disable_tunnel(name):
     try:
         u.set('openvpn', name, 'enabled', '0')
         u.save('openvpn')
+        # disable rule
+        if u.get("openvpn", name, "server", default=None) or u.get("openvpn", name, "ifconfig", default=None):
+            for r in utils.get_all_by_type(u, 'firewall', 'rule'):
+                if u.get('firewall', r, 'ns_link', default='') == f'openvpn/{name}':
+                    u.set('firewall', r, 'enabled', '0')
+                    u.save('firewall')
         return {"result": "success"}
     except:
         return utils.generic_error("tunnel_not_disabled")
@@ -453,6 +459,12 @@ def enable_tunnel(name):
     try:
         u.set('openvpn', name, 'enabled', '1')
         u.save('openvpn')
+        # enable rule
+        if u.get("openvpn", name, "server", default=None) or u.get("openvpn", name, "ifconfig", default=None):
+            for r in utils.get_all_by_type(u, 'firewall', 'rule'):
+                if u.get('firewall', r, 'ns_link', default='') == f'openvpn/{name}':
+                    u.set('firewall', r, 'enabled', '1')
+                    u.save('firewall')
         return {"result": "success"}
     except:
         return utils.generic_error("tunnel_not_enabled")
