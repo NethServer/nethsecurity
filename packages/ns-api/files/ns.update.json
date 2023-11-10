@@ -1,0 +1,13 @@
+{
+  "update": {
+    "description": "Manage packages and system updates",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.update": [
+          "*"
+        ]
+      }
+    }
+  }
+}

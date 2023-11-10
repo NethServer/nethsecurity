@@ -1,0 +1,160 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Manage packages and system updates
+
+import os
+import sys
+import json
+import time
+import urllib
+import subprocess
+import urllib.request
+from nethsec import utils
+
+# Utilities
+
+def last_package_check():
+    try:
+        return int(os.path.getmtime("/tmp/opkg-lists/"))
+    except:
+        return 0
+
+def get_system_version():
+    with open('/etc/os-release', 'r') as f:
+        for line in f.readlines():
+            if line.startswith("VERSION"):
+                return line[line.index('=')+2:-2]
+    return ''
+
+
+def get_update_schedule():
+    try:
+        p = subprocess.run(["/usr/libexec/ns-api/schedule-system-update", "check"], check=True, capture_output=True, text=True)
+        return int(p.stdout.strip())
+    except:
+        return -1
+
+# APIs
+
+def check_package_updates():
+    ret = []
+    try:
+        # download metadata only if they are older than 5 minutes
+        if (time.time() - last_package_check()) > 300:
+            subprocess.run(["/bin/opkg", "update"], check=True, capture_output=True)
+    except Exception as e:
+        print(e, file=sys.stderr)
+        return utils.generic_error("opkg_update_failed")
+    p = subprocess.run(["/bin/opkg", "list-upgradable"], check=True, capture_output=True, text=True)
+    for line in p.stdout.split("\n"):
+        if not line:
+            continue
+        tmp = line.split(" - ")
+        ret.append({"package": tmp[0], "currentVersion": tmp[1], "latesetVersion": tmp[2]})
+
+    return {"updates": ret}
+
+def get_package_updates_lat_check():
+    return {"lastCheck": last_package_check()}
+
+def install_package_updates():
+    try:
+        out = subprocess.check_output("/bin/opkg list-upgradable | /usr/bin/cut -f 1 -d ' ' | /usr/bin/xargs -r opkg upgrade", shell=True)
+    except Exception as e:
+        print(e, file=sys.stderr)
+        return utils.generic_error("opkg_ugrade_failed")
+    return {"result": "success"}
+
+def check_system_update():
+    ret = {"currentVersion": f'NethSecurity {get_system_version()}', "lastVersion": "", "scheduledAt": get_update_schedule()}
+    try:
+        with urllib.request.urlopen("https://updates.nethsecurity.nethserver.org/latest_release") as resp:
+            version = resp.read().decode().rstrip()
+            ret["lastVersion"] = f'NethSecurity {version}'
+    except Exception as e:
+        print(e, file=sys.stderr)
+    return ret
+
+def schedule_system_update(timestamp):
+    if timestamp < 0:
+        try:
+            subprocess.run(["/usr/libexec/ns-api/schedule-system-update", "remove"], check=True)
+        except Exception as e:
+            print(e, file=sys.stderr)
+            return utils.generic_error("update_schedule_not_removed")
+    else: 
+        try:
+            subprocess.run(["/usr/libexec/ns-api/schedule-system-update", "add", f'{timestamp}'], check=True)
+        except Exception as e:
+            print(e, file=sys.stderr)
+            return utils.generic_error("update_not_scheduled")
+    return {"result": "success"}
+
+def update_system():
+    try:
+        subprocess.run(["/usr/sbin/ns-upgrade"], check=True, capture_output=True)
+    except:
+        return utils.generic_error("update_failed")
+    return {"result": "success"}
+
+def install_uploaded_image(image):
+    image = f'/var/run/ns-api-server/uploads/{image}'
+    if not os.path.exists(image):
+        return utils.generic_error("uploaded_file_not_found")
+
+    try:
+        subprocess.run(["/sbin/sysupgrade", "-T", image], check=True, capture_output=True)
+    except Exception as e:
+        print(e, file=sys.stderr)
+        return utils.generic_error("uploaded_file_not_valid")
+
+    try:
+        subprocess.run(["/sbin/sysupgrade", "-k", "-q", image], check=True, capture_output=True)
+    except Exception as e:
+        print(e, file=sys.stderr)
+        return utils.generic_error("sysupgrade_faled")
+    # The server is too quick: this success result probably will never reach the client.
+    return {"result": "success"}
+
+cmd = sys.argv[1]
+
+if cmd == "list":
+    print(
+        json.dumps(
+            {
+                "check-package-updates": {},
+                "get-package-updates-last-check": {},
+                "install-package-updates": {},
+                "check-system-update": {},
+                "schedule-system-update": {"scheduleAt": 1699615827},
+                "update-system": {},
+                "install-uploaded-image": {
+                    "image": "uploaded-xxxx"
+                },
+            }
+        )
+    )
+elif cmd == "call":
+    action = sys.argv[2]
+    if action == "check-package-updates":
+        ret = check_package_updates()
+    elif action == "get-package-updates-last-check":
+        ret = get_package_updates_lat_check()
+    elif action == "install-package-updates":
+        ret = install_package_updates()
+    elif action == "check-system-update":
+        ret = check_system_update()
+    elif action == "schedule-system-update":
+        args = json.loads(sys.stdin.read())
+        ret = schedule_system_update(args["scheduleAt"])
+    elif action == "update-system":
+        ret = update_system()
+    elif action == "install-uploaded-image":
+        args = json.loads(sys.stdin.read())
+        ret = install_uploaded_image(args["image"])
+    print(json.dumps(ret))
