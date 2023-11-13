@@ -1,0 +1,27 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Factory reset firmware
+
+import sys
+import json
+import subprocess
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({"reset": {}}))
+elif cmd == 'call':
+    action = sys.argv[2]
+    if action == "reset":
+        try:
+            p = subprocess.run(["/sbin/firstboot", "-y"], check=True)
+            p = subprocess.run(["/sbin/reboot"], check=True)
+            ret = {"result": "success"}
+        except:
+            ret = {"result": "false"}
+    print(json.dumps(ret))
