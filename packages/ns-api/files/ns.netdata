@@ -1,0 +1,66 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesi3 S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Read and set fping configuration for netdata
+
+import os
+import sys
+import json
+import subprocess
+import configparser
+
+fping_conf_file = "/etc/netdata/fping.conf"
+netdata_conf_file = "/etc/netdata/netdata.conf"
+
+def get_config():
+    hosts = []
+    # create a simpligied fping.conf if not exists
+    # the file must contain only one line: hosts=""
+    if not os.path.exists(fping_conf_file):
+        with open(fping_conf_file, 'w') as fp:
+            fp.write('hosts=""\n')
+    # parse the simplified config file
+    try:
+        with open(fping_conf_file, 'r') as fp:
+            line = fp.readline()
+            line = line[7:-2]
+            hosts = line.split(" ")
+    except:
+       pass
+    return {"hosts": hosts}
+
+def set_config(config):
+    # Enable and disable fping plugin on netdata
+    nparser = configparser.ConfigParser()
+    nparser.read(netdata_conf_file)
+    if len(config['hosts']) > 0:
+        nparser['plugins']['fping'] = 'yes'
+    else:
+        nparser['plugins']['fping'] = 'no'
+    with open(netdata_conf_file, 'w') as fpc:
+        nparser.write(fpc)
+
+    try:
+        with open(fping_conf_file, 'w') as fp:
+            hosts = " ".join(config['hosts'])
+            fp.write(f'hosts="{hosts}"\n')
+            subprocess.run(["/etc/init.d/netdata", "restart"], check=True)
+        return {"success": True}
+    except:
+        return {"success": False}
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({"get-configuration": {}, "set-hosts": {"hosts": ["1.1.1.1", "google.com"]}}))
+else:
+    action = sys.argv[2]
+    if action == "get-configuration":
+        print(json.dumps(get_config()))
+    elif action == "set-hosts":
+        args = json.loads(sys.stdin.read())
+        print(json.dumps(set_config(args)))
