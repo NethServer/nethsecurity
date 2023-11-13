@@ -13,6 +13,8 @@ WORK_DIR=/var/run/ns-api-server
 TOKENS_DIR=${WORK_DIR}/tokens
 STATIC_DIR=${WORK_DIR}/static
 SECRETS_DIR=/etc/ns-api-server
+UPLOAD_FILE_PATH=${WORK_DIR}/uploads
+UPLOAD_FILE_MAX_SIZE=64 # 64MB
 
 start_service() {
     procd_open_instance
@@ -28,7 +30,9 @@ start_service() {
         ISSUER_2FA=${issuer_2fa} \
         SECRETS_DIR=${SECRETS_DIR} \
         TOKENS_DIR=${TOKENS_DIR} \
-        STATIC_DIR=${STATIC_DIR}
+        STATIC_DIR=${STATIC_DIR} \
+        UPLOAD_FILE_PATH=${UPLOAD_FILE_PATH} \
+        UPLOAD_FILE_MAX_SIZE=${UPLOAD_FILE_MAX_SIZE}
 
     procd_set_param stdout 1
     procd_set_param stderr 1
