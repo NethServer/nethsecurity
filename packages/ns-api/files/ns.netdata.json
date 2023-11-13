@@ -1,0 +1,13 @@
+{
+  "netdata-manager": {
+    "description": "Read and set netdata configuration",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.netdata": [
+          "*"
+        ]
+      }
+    }
+  }
+}
