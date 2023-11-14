@@ -257,7 +257,7 @@ def get_defaults():
         num = num + 1
     local = f"@tun{num}.local"
     remote = f"@tun{num}.remote"
-    key = subprocess.run(["openssl", "rand", "-base64", "33"], capture_output=True, text=True).stdout.rstrip()
+    key = subprocess.run(["openssl", "rand", "-base64", "66"], capture_output=True, text=True).stdout.rstrip().replace('\n','')
     return {"pre_shared_key": key, "local_identifier": local, "remote_identifier": remote}
 
 def list_algs():
