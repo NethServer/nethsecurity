@@ -209,7 +209,6 @@ The `openvpn` script will import:
 - LDAP configuration for remote authentication
 
 The following NS7 features are still not migrated:
-- authentication certificate and One Time password (OTP)
 - mail notification
 
 Existing data from connection database are not imported.

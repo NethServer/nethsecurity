@@ -87,6 +87,9 @@ if data['rw']['auth'] == 'password':
 elif data['rw']['auth'] == 'password-certificate':
     u.set("openvpn", iname, 'auth_user_pass_verify', f'{auth_script} via-env')
     u.set("openvpn", iname, 'script_security', '3')
+elif data['rw']['auth'] == 'certificate-otp':
+    u.set("openvpn", iname, 'auth_user_pass_verify', '/usr/libexec/ns-openvpn/openvpn-otp-auth via-env')
+    u.set("openvpn", iname, 'script_security', '3')
 
 # Create user entries
 for user in data["users"]:
@@ -96,7 +99,10 @@ for user in data["users"]:
     u.set("openvpn", sname, "instance", iname)
     u.set("openvpn", sname, "ipaddr", user["ipaddr"])
     u.set("openvpn", sname, "enabled", user["enabled"])
-    u.set("openvpn", sname, "password", user["password"])
+    if 'password' in user:
+        u.set("openvpn", sname, "password", user["password"])
+    if '2fa' in user:
+        u.set("openvpn", sname, "2fa", user["2fa"])
     save_cert(os.path.join(cert_dir, f'private/{sname}.key'), user['key'])
     save_cert(os.path.join(cert_dir, f'issued/{sname}.crt'), user['crt'])
 
