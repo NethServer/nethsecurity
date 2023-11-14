@@ -18,7 +18,6 @@ Supported authentications:
 
 Not supported:
 
-- authentication based on certificate + otp
 - mail notification about connect/disconnect events
 
 Supported authentication methods:
@@ -28,6 +27,7 @@ Supported authentication methods:
 - local users with password and certificate
 - remote LDAP users with password
 - remote LDAP users with password and certificate
+- authentication based on certificate + otp
 
 Network and firewall configuration:
 
@@ -177,6 +177,31 @@ Create a local user named `giacomo` with password `nethesis` and certificate:
 ```
 ns-openvpnrw-add ns_roadwarrior giacomo
 uci set openvpn.giacomo.password=$(echo -e 'nethesis' | mkpasswd -m sha512 -S "$(uuidgen | md5sum | cut -c 0-15)")
+uci commit openvpn
+```
+
+#### Local users with certificate + OTP
+
+A client can connect to the server if:
+
+- there is a valid certificate inside with the same CN
+- the user belongs to the `ns_roadwarrior` server instance and is marked as enabled inside `openvpn` database
+- the provided user OTP matches the one generated using `oathtool` from the 2FA secret saved inside `2fa` option
+
+Enable user and certificate + OTP authentication:
+```
+uci set openvpn.ns_roadwarrior.auth_user_pass_verify='/usr/libexec/ns-openvpn/openvpn-otp-auth via-env'
+uci delete openvpn.ns_roadwarrior.verify_client_cert
+uci delete openvpn.ns_roadwarrior.username_as_common_name
+uci set openvpn.ns_roadwarrior.script_security=3
+uci commit openvpn
+/etc/init.d/openvpn restart
+```
+
+Create a local user named `giacomo` with OTP 2FA secret and certificate:
+```
+ns-openvpnrw-add ns_roadwarrior giacomo
+uci set openvpn.giacomo.2fa=$(euuidgen | sha256sum | awk '{print $1}")
 uci commit openvpn
 ```
 
