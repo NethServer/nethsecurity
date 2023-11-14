@@ -325,12 +325,9 @@ def export_client(name):
         "Protocol": proto,
     }
     remotes = []
-    for r in u.get("openvpn", name, "route", default=[], list=True):
-        try:
-            (ip, mask) = r.split(" ")
-            remotes.append(f"{ip}/{to_cidr(mask)}")
-        except:
-            continue
+    for r in u.get("openvpn", name, "push", default=[], list=True):
+        if r.startswith("route"):
+            remotes.append(opt2cidr(r.removeprefix("route ")))
 
     client["RemoteNetworks"] = ",".join(remotes)
     if u.get("openvpn", name, "topology", default="") == "p2p":
