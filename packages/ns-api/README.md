@@ -3535,3 +3535,230 @@ Output example:
 ```json
 {'keys': '\nssh-rsa AAAAB3N...6m5 test@nethserver.org\n'}
 ```
+
+## ns.reverseproxy
+
+Allows to configure a reverse proxy through the nginx web server.
+
+### list-certificates
+
+List available certificates, the `_lan` certificate is the one used by the default web interface:
+
+```bash
+api-cli ns.reverseproxy list-certificates
+```
+
+Response example:
+
+```json
+{
+   "values": [
+      "_lan",
+      "test"
+   ]
+}
+```
+
+### add-path
+
+Adds a path to the default server. This action will commit the `nginx` uci configuration and restart the `nginx` service.
+
+Required parameters:
+
+- `path`: path to be added, e.g. `/test`
+- `destination`: url to be proxied, e.g. `http://10.1.2.3:4000`
+- `description`: user-friendly description of the path
+
+Optional parameters:
+
+- `allow`: array of CIDR to filter access to this path
+
+```bash
+api-cli ns.reverseproxy add-path --data '{"path": "/test", "destination": "10.0.0.3:3000", "allow": ["127.0.0.1", "10.24.0.1/24"], "description": "testing rule"}'
+```
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### add-domain
+
+Adds a domain reverse proxy. This action will commit the `nginx` uci configuration and restart the `nginx` service.
+
+Required parameters:
+
+- `domain`: domain to be proxied, e.g. `test.example.com`
+- `destination`: url to be proxied, e.g. `http://10.0.0.1/24`
+- `description`: user-friendly description of the domain
+- `certificate`: certificate to be used, list is provided in `list-certificates`
+
+Optional parameters:
+
+- `allow`: array of CIDR to filter access to this path
+
+```bash
+api-cli ns.reverseproxy add-path --data '{"domain": "test.example.com", "destination": "http://10.0.0.1/24", "description": "testing rule", "certificate": "test", "allow": ["10.0.2.0/12", "10.0.1.0/12"]}'
+```
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### delete-proxy
+
+Delete a path or domain reverse proxy. This action will commit the `nginx` uci configuration and restart the `nginx`
+service.
+
+Required parameters:
+
+- `id`: id of the proxy to be deleted
+
+```bash
+api-cli ns.reverseproxy delete-proxy --data '{"id": "ns_81df3995"}'
+```
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### list-proxies
+
+List configured paths and domains:
+
+```bash
+api-cli ns.reverseproxy list-proxies
+```
+
+Example response:
+
+```json
+{
+  "data": [
+    {
+      "id": "ns_87f9ea98",
+      "type": "location",
+      "description": "Cool Location",
+      "location": "/cool",
+      "destination": "http://10.0.0.1"
+    },
+    {
+      "id": "ns_8af9va38",
+      "type": "location",
+      "description": "Another location but cooler",
+      "location": "/cooler",
+      "destination": "http://102.30.41.5",
+      "allow": [
+        "10.3.4.0/24",
+        "1.0.0.2/32"
+      ]
+    },
+    {
+      "id": "ns_de64he34",
+      "type": "domain",
+      "description": "cool domain",
+      "domain": "cool.domain",
+      "certificate": "cool_certificate", 
+      "destination": "http://10.24.42.1",
+      "location": "/",
+      "allow": [
+        "192.168.1.0/24",
+        "3.4.6.7/32"
+      ]
+    }
+  ]
+}
+```
+
+### edit-domain
+
+Edit a domain reverse proxy. This action will commit the `nginx` uci configuration and restart the `nginx` service.
+
+Required parameters:
+
+- `id`: id of the proxy to be edited
+- `domain`: domain to be proxied, e.g. `test.example.com`
+- `destination`: url to be proxied, e.g. `http://10.0.0.1/24`
+- `description`: user-friendly description of the domain
+- `certificate`: certificate to be used, list is provided in `list-certificates`
+
+Optional parameters:
+
+- `allow`: array of CIDR to filter access to this path
+
+```bash
+api-cli ns.reverseproxy edit-domain --data '{"id": "ns_8af9va38", "domain": "edit.example.com", "destination": "http://11.1.1.1", "description": "edited rule", "certificate": "test", "allow": ["10.0.2.0/12"]}'
+```
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### edit-path
+
+Edit a path reverse proxy. This action will commit the `nginx` uci configuration and restart the `nginx` service.
+
+Required parameters:
+
+- `id`: id of the proxy to be edited
+- `path`: path to be added, e.g. `/test`
+- `destination`: url to be proxied, e.g. `http://10.1.2.3:4000`
+- `description`: user-friendly description of the path
+
+Optional parameters:
+
+- `allow`: array of CIDR to filter access to this path
+
+```bash
+api-cli ns.reverseproxy edit-path --data '{"id": "ns_4he2hgi2", "path": "/edited", "destination": "http://11.1.1.1", "description": "description edited", "allow": ["1.1.1.1/24"]}'
+```
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### check-config
+
+Checks the configuration using `nginx -t -c /etc/nginx/uci.conf`, this call returns the output of the command in case of
+failure. Run this call after you've committed the configuration to check if it's valid. This command will return invalid
+configuration only when `nginx` is unable to start with the given configuration.
+
+```bash
+api-cli ns.reverseproxy check-config
+```
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+Invalid configuration response:
+
+```json
+{
+   "status": "invalid",
+   "output": "nginx: [emerg] \"server\" directive is not allowed here in /etc/nginx/uci.conf:1\nnginx: configuration file /etc/nginx/uci.conf test failed\n"
+}
+```
