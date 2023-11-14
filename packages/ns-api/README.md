@@ -3280,3 +3280,19 @@ Response example:
 ```json
 {"result": "success"}
 ```
+
+## ns.factoryreset
+
+### reset
+
+Perform a factory reset of the firmware:
+```
+api-cli ns.factoryreset reset
+```
+
+Response example:
+```json
+{
+  "result": "success"
+}
+```

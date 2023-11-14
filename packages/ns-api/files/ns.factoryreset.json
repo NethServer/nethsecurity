@@ -1,0 +1,13 @@
+{
+  "factoryreset": {
+    "description": "Factory reset firmware",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.factoryreset": [
+          "*"
+        ]
+      }
+    }
+  }
+}
