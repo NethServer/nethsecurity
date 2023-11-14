@@ -43,10 +43,11 @@ elif cmd == 'call':
     if action == 'migrate':
         try:
             data = json.load(sys.stdin)
-            cmd = ['/usr/sbin/ns-import', MIGRATE_PATH]
+            cmd = ['/usr/sbin/ns-import']
             for m in data['mappings']:
                 cmd.append("-m")
                 cmd.append(f'{m["old"]}={m["new"]}')
+            cmd.append(MIGRATE_PATH)
             subprocess.run(cmd, check=True, capture_output=True)
             # return success
             print(json.dumps({'result': 'success'}))
