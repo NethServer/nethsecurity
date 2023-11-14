@@ -3103,7 +3103,10 @@ Response example:
 {
   "pre_shared_key": "gFWPtHR38XaAWrT4GjeFOS0aOtGJnVksvbVcGdJ1EYWB",
   "local_identifier": "@tun2.local",
-  "remote_identifier": "@tun2.local"
+  "remote_identifier": "@tun2.local",
+  "local_networks": [
+    "192.168.100.0/24"
+  ]
 }
 
 ```
