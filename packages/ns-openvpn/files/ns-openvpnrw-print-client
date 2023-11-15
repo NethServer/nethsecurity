@@ -32,7 +32,12 @@ else:
     print("proto tcp-client")
 
 print(f"port {u.get('openvpn', instance, 'port')}")
-print(f"remote {socket.getfqdn()}")
+try:
+    remote = u.get_all("openvpn", instance, 'ns_public_ip')
+    for r in remote:
+        print(f"remote {r}")
+except:
+    print(f"remote {socket.getfqdn()}")
 
 print(f'<ca>{slurp(os.path.join(cert_dir, "ca.crt"))}</ca>')
 print(f'<cert>{slurp(os.path.join(cert_dir, f"issued/{user}.crt"))}</cert>')
