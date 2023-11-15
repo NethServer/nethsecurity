@@ -31,6 +31,10 @@ if u.get("openvpn", instance, "proto") == "udp":
 else:
     print("proto tcp-client")
 
+if u.get("openvpn", instance, "auth_user_pass_verify", default=""):
+    print("auth-user-pass")
+    print("auth-nocache")
+
 print(f"port {u.get('openvpn', instance, 'port')}")
 try:
     remote = u.get_all("openvpn", instance, 'ns_public_ip')
