@@ -31,12 +31,21 @@ if u.get("openvpn", instance, "proto") == "udp":
 else:
     print("proto tcp-client")
 
-print(f"port {u.get('openvpn', instance, 'port')}")
-print(f"remote {socket.getfqdn()}")
+if u.get("openvpn", instance, "auth_user_pass_verify", default=""):
+    print("auth-user-pass")
+    print("auth-nocache")
 
-print(f'<ca>{slurp(os.path.join(cert_dir, "ca.crt"))}</ca>')
-print(f'<cert>{slurp(os.path.join(cert_dir, f"issued/{user}.crt"))}</cert>')
-print(f'<key>{slurp(os.path.join(cert_dir, f"private/{user}.key"))}</key>')
+print(f"port {u.get('openvpn', instance, 'port')}")
+try:
+    remote = u.get_all("openvpn", instance, 'ns_public_ip')
+    for r in remote:
+        print(f"remote {r}")
+except:
+    print(f"remote {socket.getfqdn()}")
+
+print(f'<ca>\n{slurp(os.path.join(cert_dir, "ca.crt"))}\n</ca>')
+print(f'<cert>\n{slurp(os.path.join(cert_dir, f"issued/{user}.crt"))}\n</cert>')
+print(f'<key>\n{slurp(os.path.join(cert_dir, f"private/{user}.key"))}\n</key>')
 
 for option in ["auth", "digest"]:
     try:
@@ -51,3 +60,5 @@ print("persist-key")
 print("persist-tun")
 print("nobind")
 print("passtos")
+# allow compression protocol to be pushed by the server, default is disabled
+print("compress")

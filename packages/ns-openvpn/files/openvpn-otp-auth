@@ -1,0 +1,40 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Used env variables:
+# - username
+# - password (this is the OTP)
+# - config
+
+. /lib/functions.sh
+cur_instance=$(echo $config | sed -e 's/openvpn\-//' -e 's/\.conf//')
+
+config_load 'openvpn'
+
+config_get enabled "$username" enabled 0
+config_get user_instance "$username" instance ''
+config_get secret "$username" 2fa ''
+
+if [ "$cur_instance" != "$user_instance" ]; then
+    exit 2
+fi
+
+if [ "$enabled" = "0" ]; then
+    exit 3
+fi
+
+if [ -z "$secret" ]; then
+    exit 4
+fi
+
+otp=$(/usr/bin/oathtool --totp=SHA1 "$secret")
+
+if [ "$otp" = "$password" ]; then
+    exit 0
+fi
+
+exit 1
