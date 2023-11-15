@@ -16,7 +16,7 @@ def write_locations(locations, fpath):
     with open(fpath, 'w') as fp:
         for location in locations:
             path = location.pop('location')
-            desc = location.pop('description', '')
+            desc = location.pop('uci_description', '')
             if desc:
                 fp.write('# %s\n' % desc)
             fp.write('location %s {\n' % path)

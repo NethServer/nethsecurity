@@ -16,7 +16,7 @@ The `location` object can contain any `nginx` directive, plus the following spec
 
 - `location`: URI of the location, it accepts [nginx syntax](http://nginx.org/en/docs/http/ngx_http_core_module.html#location)
 - `uci_server`: it binds the location to a `server` object with the same name; if set to `_lan`,  the location will be added inside the default virtual host
-- `description`: (optional) description of the rule, it's converted to a comment inside the configuration file
+- `uci_description`: (optional) description of the rule, it's converted to a comment inside the configuration file
 - `allow`: (optional) an array of allowed IP addresses; if present, all other addresses will be automatically denied
 
 If a directive can be used multiple times, it's represented as a UCI list.
@@ -41,7 +41,7 @@ Example of a path rule for the default virtual host:
 config location 'ns_location1'
 	option uci_server '_lan'
 	option proxy_pass 'https://192.168.100.234'
-	option description 'Reverse proxy with path'
+	option uci_description 'Reverse proxy with path'
 	option proxy_ssl_verify 'off'
 	option location '/test'
 ```
