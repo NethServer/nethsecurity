@@ -1,0 +1,36 @@
+#!/bin/bash
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+#
+# Schedule system update
+#
+
+action=${1:-"check"}
+timestamp=$2
+
+remove() {
+    crontab -l | grep -v "/usr/sbin/ns-upgrade" | sort | uniq | crontab -
+}
+
+if [ "$action" == "add" ]; then
+    if [ -z "$timestamp" ]; then
+        echo "Invalid timestamp"
+        exit 2
+    fi
+    remove
+    cron_time=$(/bin/date -d @$timestamp +"%M %H %d %m %Y")
+    crontab -l | grep -q '/usr/sbin/ns-upgrade' || echo "$cron_time /usr/sbin/ns-upgrade" >> /etc/crontabs/root
+elif [ "$action" == "remove" ]; then
+    remove
+else
+    parsed=$(crontab -l | grep '/usr/sbin/ns-upgrade' | awk '{print $5"-"$4"-"$3" "$2":"$1":00"}')
+    if [ ! -z "$parsed" ]; then
+        date -d "$parsed" +%s
+    else
+        echo -1
+    fi
+fi

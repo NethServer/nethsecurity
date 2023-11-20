@@ -1,0 +1,16 @@
+#!/bin/bash
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+#
+# Upgrade the system with latest available image
+#
+
+set -e
+
+image=$(/usr/bin/ns-download -f -l)
+/sbin/sysupgrade -T "$image"
+/sbin/sysupgrade -k "$image"

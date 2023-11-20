@@ -3299,3 +3299,127 @@ Response example:
   "result": "success"
 }
 ```
+
+## ns.update
+
+### check-package-updates
+
+Check if there are any package updates:
+```
+api-cli ns.update check-package-updates
+```
+
+Response example:
+```json
+{
+  "updates": [
+    {
+      "package": "ns-api",
+      "currentVersion": "1.0.2",
+      "lastVersion": "1.0.3",
+    },
+    {
+      "package": "ns-openvpn",
+      "currentVersion": "1.1.7",
+      "lastVersion": "1.2.0",
+    }
+  ]
+}
+```
+
+### get-package-updates-last-check
+
+Get the timestamp of the last check of package updates:
+```
+api-cli ns.update get-package-updates-last-check
+```
+
+Response example:
+```json
+{
+  "lastCheck": 1699615827
+}
+```
+
+### install-package-updates
+
+Install all available package updates:
+```
+api-cli ns.update install-package-updates
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+### check-system-update
+
+Check if there is a system update available:
+```
+api-cli ns.update check-system-update
+```
+
+Response example - system update available:
+```json
+{
+  "currentVersion": "NethSecurity 23.05.0",
+  "lastVersion": "NethSecurity 23.05.1",
+  "scheduleAt": -1
+}
+```
+
+Response example - system update available and scheduled:
+```json
+{
+  "currentVersion": "NethSecurity 23.05.0",
+  "lastVersion": "NethSecurity 23.05.1",
+  "scheduleAt": 1699615827
+}
+```
+
+### schedule-system-update
+
+Schedule a system update:
+```
+api-cli ns.update schedule-system-update --data '{"scheduleAt": 1699615827}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+Cancel the schedule of a system update:
+```
+api-cli ns.update schedule-system-update --data '{"scheduleAt": -1}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+### update-system
+
+Install the latest system update available immediately and reboot the unit:
+```
+api-cli ns.update update-system
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+### install-uploaded-image
+
+Install a previously uploaded image inside `/var/run/ns-api-server/` and reboot the unit:
+```
+api-cli ns.update install-uploaded-image --data '{"image": "upload-204be0f3-4bb2-4cb8-ba28-4ac8e41ac697"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
