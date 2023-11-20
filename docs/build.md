@@ -105,6 +105,7 @@ After changing the the upstream release:
   podman volume rm nethsecurity-build_dir nethsecurity-staging_dir
   ```
 - rebuild the image using latest builder container image
+- rebuild the documentation to update the download link: https://readthedocs.org/projects/nethsecurity-docs/
 
 ## Image configuration
 
