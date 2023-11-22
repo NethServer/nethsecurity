@@ -119,12 +119,15 @@ def edit_interface(args):
 
 def get_interface(args):
     u = EUci()
-    ret = {"interface": args["interface"], "options": []}
+    ret = {"interface": args["interface"], "options": [], "first": "", "last": "", "active": False}
     try:
         dhcp = u.get_all("dhcp", args["interface"])
+    except:
+        dhcp = {"start": 100, "limit": 150, "leasetime": "12h", "dhcpv4": "disabled", "dhcp_option": []}
+    try:
         interface = u.get_all("network", args["interface"])
     except:
-        return utils.generic_error("interface_not_found")
+        interface = {}
 
     if 'ipaddr' in interface:
         (ret['first'], ret['last']) = conf_to_range(interface['ipaddr'], interface['netmask'], dhcp.get('start', 100), dhcp.get('limit', 150))
