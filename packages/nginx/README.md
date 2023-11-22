@@ -1,7 +1,7 @@
-# ns-reverse-proxy
+# nginx
 
-Use nginx to act as a reverse proxy.
-The reverse proxy forwards web requests to another HTTP server and serves responses in behalf of it. 
+This is a fork of the [official OpenWrt nginx package](https://github.com/openwrt/packages/tree/master/net/nginx).
+It adds the location reverse proxy, which is not available in the official package.
 
 The reverse proxy supports the following rules:
 

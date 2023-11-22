@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
+import ipaddress
 import json
 import os
 import subprocess
@@ -15,38 +16,21 @@ from nethsec import utils
 from nethsec.utils import ValidationError
 
 
-def __write_changes(uci):
-    # first commit allowing nginx-proxy to generate location files
-    e_uci.commit('nginx')
-    # generate location files
-    try:
-        subprocess.run(['nginx-proxy'], check=True)
-    except subprocess.CalledProcessError:
-        raise RuntimeError('Failed to generate nginx configuration')
-    # append _lan proxy to nginx if exists and not already included otherwise remove it
-    includes = list(e_uci.get('nginx', '_lan', 'include', list=True))
-    if os.path.isfile('/etc/nginx/conf.d/_lan.proxy'):
-        if 'conf.d/_lan.proxy' not in includes:
-            includes.append('conf.d/_lan.proxy')
-    else:
-        if 'conf.d/_lan.proxy' in includes:
-            includes.remove('conf.d/_lan.proxy')
-    e_uci.set('nginx', '_lan', 'include', includes)
-    # commit changes to include _lan proxy
-    uci.commit('nginx')
-    # reload nginx
-    try:
-        subprocess.run(['/etc/init.d/nginx', 'reload'], check=True)
-    except subprocess.CalledProcessError:
-        raise RuntimeError('Failed to reload nginx')
-
-
 def __create_location(uci, uci_server, location, proxy_pass):
     location_id = utils.get_random_id()
     uci.set('nginx', location_id, 'location')
     uci.set('nginx', location_id, 'uci_server', uci_server)
     uci.set('nginx', location_id, 'location', location)
-    uci.set('nginx', location_id, 'proxy_pass', proxy_pass)
+    prefix = proxy_pass.split('://')[0]
+    address = proxy_pass.split('://')[1]
+    try:
+        ipaddress.ip_address(address)
+        e_uci.set('nginx', location_id, 'proxy_pass', proxy_pass)
+    except ValueError:
+        e_uci.set('nginx', location_id, 'resolver', '127.0.0.1')
+        e_uci.set('nginx', location_id, 'set', f'$upstream {address}')
+        e_uci.set('nginx', location_id, 'proxy_pass', f'{prefix}://$upstream')
+
     return location_id
 
 
@@ -120,6 +104,8 @@ elif cmd == 'call':
                     raise ValidationError('path', 'unique', data['path'])
                 if 'destination' not in data:
                     raise ValidationError('destination', 'required')
+                if not data['destination'].startswith('http://') and not data['destination'].startswith('https://'):
+                    raise ValidationError('destination', 'invalid', data['destination'])
                 if 'description' not in data or data['description'] == '':
                     raise ValidationError('description', 'required')
                 if 'allow' in data and not isinstance(data['allow'], list):
@@ -133,11 +119,11 @@ elif cmd == 'call':
                     e_uci.set('nginx', location, 'allow', data['allow'])
                 # add location to _lan server
                 includes = list(e_uci.get('nginx', '_lan', 'include', list=True))
-                if 'conf.d/_lan.proxy' not in includes:
+                if 'conf.d/_lan[.]proxy' not in includes:
                     includes.append('conf.d/_lan[.]proxy')
                     e_uci.set('nginx', '_lan', 'include', includes)
                 # submit changes
-                __write_changes(e_uci)
+                e_uci.save('nginx')
                 print(json.dumps({'message': 'success'}))
 
             elif action == 'add-domain':
@@ -147,6 +133,8 @@ elif cmd == 'call':
                     raise ValidationError('domain', 'required')
                 if 'destination' not in data:
                     raise ValidationError('destination', 'required')
+                if not data['destination'].startswith('http://') and not data['destination'].startswith('https://'):
+                    raise ValidationError('destination', 'invalid', data['destination'])
                 if 'description' not in data or data['description'] == '':
                     raise ValidationError('description', 'required')
                 if 'certificate' not in data:
@@ -159,7 +147,7 @@ elif cmd == 'call':
                 server_name = utils.get_random_id()
                 e_uci.set('nginx', server_name, 'server')
                 # create default location
-                location_ids = __create_location(e_uci, server_name, '/', data['destination'])
+                __create_location(e_uci, server_name, '/', data['destination'])
                 # defaults
                 e_uci.set('nginx', server_name, 'proxy_ssl_verify', 'off')
                 e_uci.set('nginx', server_name, 'ssl_session_timeout', '64m')
@@ -177,7 +165,7 @@ elif cmd == 'call':
                 if 'allow' in data:
                     e_uci.set('nginx', server_name, 'allow', data['allow'])
                 # submit changes
-                __write_changes(e_uci)
+                e_uci.save('nginx')
                 print(json.dumps({'message': 'success'}))
 
             elif action == 'delete-proxy':
@@ -208,7 +196,7 @@ elif cmd == 'call':
                 else:
                     e_uci.delete('nginx', data['id'])
                 # submit changes
-                __write_changes(e_uci)
+                e_uci.save('nginx')
                 print(json.dumps({'message': 'success'}))
 
             elif action == 'list-proxies':
@@ -286,7 +274,7 @@ elif cmd == 'call':
                 if 'allow' in data:
                     e_uci.set('nginx', data['id'], 'allow', data['allow'])
                 # submit changes
-                __write_changes(e_uci)
+                e_uci.save('nginx')
                 print(json.dumps({'message': 'success'}))
 
             elif action == 'edit-domain':
@@ -321,7 +309,7 @@ elif cmd == 'call':
                 if 'allow' in data:
                     e_uci.set('nginx', data['id'], 'allow', data['allow'])
                 # submit changes
-                __write_changes(e_uci)
+                e_uci.save('nginx')
                 print(json.dumps({'message': 'success'}))
 
             elif action == 'check-config':

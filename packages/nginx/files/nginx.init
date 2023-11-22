@@ -53,6 +53,7 @@ nginx_init() {
 
 	rm -f "$(readlink "${UCI_CONF}")"
 	${NGINX_UTIL} init_lan
+	/usr/sbin/nginx-proxy-gen
 
 	if [ -f $UCI_CONF_TEMPLATE ]; then
 		nginx_check_luci_template
@@ -103,6 +104,7 @@ reload_service() {
 
 service_triggers() {
 	procd_add_raw_trigger acme.renew 5000 /etc/init.d/nginx reload
+	procd_add_reload_trigger nginx
 }
 
 
