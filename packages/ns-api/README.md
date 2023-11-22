@@ -1707,11 +1707,6 @@ Each element of the `options` array is a key-value object.
 The key is the DHCP option name or number, the value is the option value.
 Multiple values can be comma-separated.
 
-Error response example:
-```json
-{"error": "interface_not_found"}
-```
-
 ### edit-interface
 
 Change or add the DHCPv4 configuration for a given interface:

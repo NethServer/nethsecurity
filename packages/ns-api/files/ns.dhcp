@@ -98,6 +98,10 @@ def edit_interface(args):
     u.set("dhcp", args['interface'], 'dhcp')
     ipaddr = u.get('network', args['interface'], 'ipaddr')
     netmask = u.get('network', args['interface'], 'netmask')
+    args['first'] = args['first'].strip()
+    args['last'] = args['last'].strip()
+    if ip2int(args['first']) > ip2int(args['last']):
+        return utils.validation_error("last", "last_must_be_greater_than_first", args["last"])
     (start, limit) = range_to_conf(ipaddr, netmask, args["first"].strip(), args["last"].strip())
     if args['active']:
         u.set("dhcp", args['interface'], 'dhcpv4', 'server')
@@ -119,12 +123,15 @@ def edit_interface(args):
 
 def get_interface(args):
     u = EUci()
-    ret = {"interface": args["interface"], "options": []}
+    ret = {"interface": args["interface"], "options": [], "first": "", "last": "", "active": False}
     try:
         dhcp = u.get_all("dhcp", args["interface"])
+    except:
+        dhcp = {"start": 100, "limit": 150, "leasetime": "12h", "dhcpv4": "disabled", "dhcp_option": []}
+    try:
         interface = u.get_all("network", args["interface"])
     except:
-        return utils.generic_error("interface_not_found")
+        interface = {}
 
     if 'ipaddr' in interface:
         (ret['first'], ret['last']) = conf_to_range(interface['ipaddr'], interface['netmask'], dhcp.get('start', 100), dhcp.get('limit', 150))
