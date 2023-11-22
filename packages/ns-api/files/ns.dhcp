@@ -98,6 +98,10 @@ def edit_interface(args):
     u.set("dhcp", args['interface'], 'dhcp')
     ipaddr = u.get('network', args['interface'], 'ipaddr')
     netmask = u.get('network', args['interface'], 'netmask')
+    args['first'] = args['first'].strip()
+    args['last'] = args['last'].strip()
+    if ip2int(args['first']) > ip2int(args['last']):
+        return utils.validation_error("last", "last_must_be_greater_than_first", args["last"])
     (start, limit) = range_to_conf(ipaddr, netmask, args["first"].strip(), args["last"].strip())
     if args['active']:
         u.set("dhcp", args['interface'], 'dhcpv4', 'server')
