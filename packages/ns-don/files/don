@@ -160,6 +160,7 @@ AuthorizedKeysFile $auth_keys
 StrictModes no
 EOF
 
+    mkdir -m 0700 -p /var/empty
     /usr/sbin/sshd -f $sshd_conf
     cat $(uci -q get don.config.ssh_key) > $auth_keys
 
