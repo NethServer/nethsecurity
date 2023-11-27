@@ -28,7 +28,10 @@ for location in data['locations']:
     u.set('nginx', loc, 'location')
     u.set('nginx', loc, 'uci_server', '_lan')
     for o in location:
-        u.set('nginx', loc, o, location[o])
+        if o == 'description':
+            u.set('nginx', loc, 'uci_description', location[o])
+        else:
+            u.set('nginx', loc, o, location[o])
     lcount = lcount-1
 
 # handle host-bases reverse proxy
@@ -59,7 +62,10 @@ for server in data['servers']:
         u.set('nginx', loc, 'location')
         u.set('nginx', loc, 'uci_server', s)
         for o in location:
-            u.set('nginx', loc, o, location[o])
+            if o == 'description':
+                u.set('nginx', loc, 'uci_description', location[o])
+            else:
+                u.set('nginx', loc, o, location[o])
 
         lcount = lcount-1
 
