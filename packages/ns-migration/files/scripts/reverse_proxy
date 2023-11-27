@@ -19,8 +19,8 @@ lcount = len(data['locations'])
 if lcount > 0:
     # enable reverse proxy for default _lan server
     includes = list(u.get('nginx', '_lan', 'include', list=True, default=list()))
-    if 'conf.d/_lan.proxy' not in includes:
-        includes.append('conf.d/_lan.proxy')
+    if 'conf.d/_lan[.]proxy' not in includes:
+        includes.append('conf.d/_lan[.]proxy')
     u.set('nginx', '_lan', 'include', includes)
 for location in data['locations']:
     loc = utils.get_id(f'location{lcount}')
