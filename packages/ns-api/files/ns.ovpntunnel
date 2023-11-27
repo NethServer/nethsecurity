@@ -688,6 +688,7 @@ def setup_client(u, iname, args):
 
     u.save('openvpn')
 
+    olink = f"openvpn/{iname}"
     setup_firewall(u, args['ns_name'], dev_name, olink)
  
 
