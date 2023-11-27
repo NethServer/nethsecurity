@@ -142,9 +142,11 @@ def setup_firewall(u, name, device, link):
 
 def import_client(tunnel):
     u = EUci()
-    name = tunnel.pop('name')
+    name = utils.sanitize(tunnel.pop('name'))
     iname = utils.get_id(name)
     tun = f'tun{name}'
+    # max network interface len is 15 chars
+    tun = tun[0:14]
     cert_dir=f"/etc/openvpn/{iname}/pki/"
     os.makedirs(cert_dir, exist_ok=True)
 
@@ -686,6 +688,7 @@ def setup_client(u, iname, args):
 
     u.save('openvpn')
 
+    olink = f"openvpn/{iname}"
     setup_firewall(u, args['ns_name'], dev_name, olink)
  
 
