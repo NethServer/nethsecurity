@@ -21,6 +21,8 @@ function wrong_command {
 }
 
 function install() {
+    # Make sure the system is clean
+    /sbin/firstboot -y
     # Find boot device and umount it
     part=$(mount | grep boot | uniq | awk '{print $1}')
     device=${part::-1}
