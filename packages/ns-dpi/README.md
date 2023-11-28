@@ -40,6 +40,12 @@ Rule options:
 - `description`: an optional rule description
 - `enabled`: can be `0` or `1`, if set to `1` the rule will be enabled
 
+Global exemptions options:
+
+- `criteria`: global exemption criteria, usually it's an IP address
+- `enabled`: can be `0` or `1`, if set to `1` enable the exemption
+- `description`: an optional exemption description
+
 All enabled rules are always evaluated by netifyd, the rule order doesn't matter.
 
 Example of `/etc/config/dpi`:
@@ -81,6 +87,10 @@ config rule
 	option description 'Block Twitter and Instagrm for group vip'
 	option enabled 1
 
+config exemption
+	option criteria '192.168.1.22'
+	option description 'Important host'
+	option enabled '1'
 ```
 
 QoS rules do not have any effect if qosify is not enabled.
