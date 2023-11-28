@@ -2563,6 +2563,107 @@ Example response:
 }
 ```
 
+### list-exemptions
+
+List configured global exemptions:
+
+```bash
+api-cli ns.dpi list-exemptions
+```
+
+Example response:
+```json
+{
+  "values": [
+    {
+      "config-name": "cfg024ffe",
+      "enabled": true,
+      "criteria": "192.168.1.1",
+      "description": "my ex"
+    }
+  ]
+}
+```
+### add-exemption
+
+Add global exemption:
+
+```bash
+api-cli ns.dpi add-rule --data '{"criteria": "192.168.1.1", "description": "my host", "enabled": true}'
+```
+
+Rundown of required parameters:
+
+- `enabled`: `true` or `false`
+- `critera`: an IP address like `192.168.1.1`
+- `description`: an optional description
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+It can raise a validation error if the criteria is duplicated. Example:
+
+```json
+{
+  "validation": {
+    "errors": [
+      {
+        "parameter": "criteria",
+        "message": "criteria_already_exists",
+        "value": "192.168.1.3"
+      }
+    ]
+  }
+}
+```
+
+### delete-exemption
+
+Delete global exemption rule:
+
+```bash
+api-cli nd.dpi delete-exemption --data '{"config-name": "ns_f1c6e9e0"}'
+```
+
+Required parameters:
+
+- `config-name`: exemption name, refer to `list-exemptions` api.
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### edit-rule
+
+Edit global exemption:
+
+```bash
+api-cli ns.dpi edit-rule --data '{"config-name": "ns_f1c6e9e0", "criteria": "192.168.1.1", "description": "my host", "enabled": true}'
+```
+
+Rundown of required parameters:
+- `config-name`: rule name, refer to `list-rules` api.
+- `enabled`: `true` or `false`
+- `critera`: an IP address like `192.168.1.1`
+- `description`: an optional description
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
 ## ns.flashstart
 
 Manage Flashstart service configuration.
