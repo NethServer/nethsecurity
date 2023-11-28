@@ -65,6 +65,7 @@ define Package/ns-plug/install
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
+	$(INSTALL_DIR) $(1)/etc/netdata
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_BIN) ./files/ns-plug.init $(1)/etc/init.d/ns-plug
 	$(INSTALL_BIN) ./files/ns-plug $(1)/usr/sbin/ns-plug
@@ -77,8 +78,12 @@ define Package/ns-plug/install
 	$(INSTALL_BIN) ./files/subscription-info $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/inventory $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/20_ns-plug $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/30_ns-plug_alerts $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/netadata_enable_alerts $(1)/usr/share/ns-plug/hooks/register
+	$(INSTALL_BIN) ./files/netadata_disable_alerts $(1)/usr/share/ns-plug/hooks/unregister
 	$(INSTALL_CONF) ./files/config $(1)/etc/config/ns-plug
 	$(INSTALL_CONF) files/ns-plug.keep $(1)/lib/upgrade/keep.d/ns-plug
+	$(INSTALL_CONF) files/health_alarm_notify.conf $(1)/etc/netdata
 endef
  
 $(eval $(call BuildPackage,ns-plug))

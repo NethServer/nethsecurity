@@ -1,0 +1,5 @@
+#!/bin/sh
+
+# Enable netdata alerts
+sed -i 's/enabled = no/enabled = yes/' /etc/netdata/netdata.conf
+/etc/init.d/netdata restart

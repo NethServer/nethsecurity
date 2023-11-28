@@ -1,0 +1,34 @@
+#!/bin/sh
+
+# Custom disk alerts
+disks_f="/etc/netdata/health.d/disks.conf"
+if [ ! -f "$disks_f" ]; then
+    cat << EOF > "$disks_f"
+template: disk_space_usage
+       on: disk.space
+    class: Utilization
+     type: System
+component: Disk
+       os: linux freebsd
+    hosts: *
+ families: !/dev !/dev/* !/run !/run/* *
+     calc: \$used * 100 / (\$avail + \$used)
+    units: %
+    every: 1m
+     warn: \$this > ((\$status >= \$WARNING ) ? (80) : (90))
+     crit: \$this > ((\$status == \$CRITICAL) ? (90) : (98))
+    delay: up 1m down 15m multiplier 1.5 max 1h
+     info: disk $family space utilization
+       to: sysadmin
+EOF
+fi
+
+# Disable unwanted alerts
+files="cpu disks entropy ipc load memory net netfilter processes ram softnet tcp_conn tcp_listen tcp_mem tcp_orphans tcp_resets timex udp_errors"
+for f in $files
+do
+    file="/etc/netdata/health.d/${f}.conf"
+    if [ ! -f $file ]; then
+        > $file
+    fi
+done
