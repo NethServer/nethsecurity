@@ -10,6 +10,7 @@
 import sys
 import json
 import subprocess
+from euci import EUci
 
 def add_default_instance():
     try:
@@ -18,11 +19,22 @@ def add_default_instance():
     except:
         return {"success": False}
 
+def get_server_configuration():
+    u = Euci()
+
+
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
-    print(json.dumps({"add-default-instance": {}}))
+    print(json.dumps({"add-default-instance": {}, "get-server-configuration": {}, "list-connected-clients": {}}))
 else:
     action = sys.argv[2]
     if action == "add-default-instance":
-        print(json.dumps(add_default_instance()))
+        ret = add_default_instance()
+    elif action == "get-server-configuration":
+        ret = get_server_configuration()
+    elif action == "list-connected-clients":
+        ret = list_connected_clients()
+
+print(json.dumps(ret))
