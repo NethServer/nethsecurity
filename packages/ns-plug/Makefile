@@ -21,7 +21,7 @@ define Package/ns-plug
 	CATEGORY:=NethSecurity
 	TITLE:=NethSecurity controller client
 	URL:=https://github.com/NethServer/nethsecurity-controller/
-	DEPENDS:=+openvpn +lscpu +python3-nethsec
+	DEPENDS:=+openvpn +lscpu +python3-nethsec +python3-yaml
 	PKGARCH:=all
 endef
  
