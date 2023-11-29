@@ -13,7 +13,7 @@ import json
 import ipaddress
 import subprocess
 from euci import EUci
-from nethsec import utils, firewall, ipsec
+from nethsec import utils, firewall, ipsec, ovpn
 
 ## Utils
 
@@ -51,21 +51,6 @@ def is_connected(id):
     except:
         return False
     return False
-
-def get_local_networks():
-    u = EUci()
-    ret = []
-    for l in utils.get_all_lan_devices(u):
-        try:
-            data = json.loads(subprocess.run(["ip", "--json", "address", "show", "dev", l], capture_output=True, text=True, check=True).stdout)
-            if len(data) > 0:
-                for addr in data[0].get('addr_info', []):
-                    if addr.get("local", None) and addr.get("family", None) == "inet": # ipv4 only
-                        net = ipaddress.ip_interface(f'{addr.get("local")}/{addr.get("prefixlen")}').network
-                        ret.append(f'{net}')
-        except:
-            continue
-    return ret
 
 
 ## APIs
@@ -279,7 +264,7 @@ def get_defaults():
     local = f"@tun{num}.local"
     remote = f"@tun{num}.remote"
     key = subprocess.run(["openssl", "rand", "-base64", "66"], capture_output=True, text=True).stdout.rstrip().replace('\n','')
-    return {"pre_shared_key": key, "local_identifier": local, "remote_identifier": remote, "local_networks": get_local_networks()}
+    return {"pre_shared_key": key, "local_identifier": local, "remote_identifier": remote, "local_networks": ovpn.get_local_networks(u)}
 
 def list_algs():
     ret = {
