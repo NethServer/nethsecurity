@@ -37,6 +37,21 @@ if cmd == 'list':
             'applications': 'str',
             'protocols': 'str'
         },
+        'add-exemption': {
+            'criteria': 'str',
+            'description': 'str',
+            'enabled': False
+        },
+        'delete-exemption': {
+            'config-name': 'str'
+        },
+        'edit-exemption': {
+            'config-name': 'str',
+            'criteria': 'str',
+            'description': 'str',
+            'enabled': False
+        },
+        'list-exemptions': {},
         'list-devices': {},
         'list-popular': {
             'limit': 32,
@@ -66,6 +81,20 @@ elif cmd == 'call':
             dpi.edit_rule(e_uci, data['config-name'], data['enabled'], data['device'], 'block', data['applications'],
                           data['protocols'])
             print(json.dumps({'message': 'success'}))
+        elif action == 'add-exemption':
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            dpi.add_exemption(e_uci, data['criteria'], data['description'], data['enabled'])
+            print(json.dumps({'message': 'success'}))
+        elif action == 'delete-exemption':
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            dpi.delete_exemption(e_uci, data['config-name'])
+            print(json.dumps({'message': 'success'}))
+        elif action == 'edit-exemption':
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            dpi.edit_exemption(e_uci, data['config-name'], data['criteria'], data['description'], data['enabled'])
+            print(json.dumps({'message': 'success'}))
+        elif action == 'list-exemptions':
+            print(json.dumps({'values': dpi.list_exemptions(e_uci)}))
         elif action == 'list-devices':
             print(json.dumps({'values': dpi.list_devices(e_uci)}))
         elif action == 'list-popular':

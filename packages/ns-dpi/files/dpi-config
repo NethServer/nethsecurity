@@ -71,6 +71,15 @@ if u.get('dpi', 'config', 'firewall_exemption', default=0) == '1':
             if ip_addrs:
                 config["exemptions"] = config["exemptions"] + ip_addrs
 
+# Add custom global exemptions
+exemptions = utils.get_all_by_type(u, 'dpi', 'exemption')
+for ex_name in exemptions:
+    exemption = exemptions[ex_name]
+    criteria = exemption.get('criteria', '')
+    enabled = exemption.get('enabled', '1')
+    if enabled == '1' and criteria:
+        config["exemptions"].append(criteria)
+
 rcount = 0
 valid_actions = ['block', 'bulk', 'best_effort', 'video', 'voice']
 for section in u.get_all('dpi'):
