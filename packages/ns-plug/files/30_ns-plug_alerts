@@ -32,3 +32,33 @@ do
         > $file
     fi
 done
+
+# Enable mwan chart
+sed -i 's/python.d = no/python.d = yes/' /etc/netdata/netdata.conf
+python_f="/etc/netdata/python.d.conf"
+if [ ! -f "$python_f" ]; then
+    cat << EOF > "$python_f"
+enabled: yes
+gc_run: yes
+gc_interval: 300
+apache_cache: no
+chrony: no
+example: no
+go_expvar: no
+gunicorn_log: no
+hpssa: no
+logind: no
+nginx_log: no
+EOF
+fi
+
+# Create mwan alert
+cat << EOF > /etc/netdata/health.d/mwan.conf
+template: wan_status
+    on: mwan.score
+lookup: min -1m foreach *
+ every: 1m
+  warn: \$this < 5
+  crit: \$this <= 1
+  info: The score of the WAN, 0 means down
+EOF
