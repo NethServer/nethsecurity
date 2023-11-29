@@ -1,0 +1,13 @@
+{
+  "ssh-manager": {
+    "description": "Read SSH keys",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.ssh": [
+          "*"
+        ]
+      }
+    }
+  }
+}

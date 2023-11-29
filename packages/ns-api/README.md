@@ -3418,3 +3418,19 @@ Response example:
 ```json
 {"result": "success"}
 ```
+
+## ns.ssh
+
+Read SSH keys
+
+### list-keys
+
+Return the content of `/etc/dropbear/authorized_keys` file:
+```
+api-cli ns.ssh list-keys
+```
+
+Output example:
+```json
+{'keys': '\nssh-rsa AAAAB3N...6m5 test@nethserver.org\n'}
+```
