@@ -1,0 +1,27 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Read SSH authorized keys
+
+import os
+import sys
+import json
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({"list-keys": {}}))
+else:
+    action = sys.argv[2]
+    if action == "list-keys":
+        keys = '/etc/dropbear/authorized_keys'
+        if os.path.exists(keys):
+            with open(keys, 'r') as fp:
+                print({"keys": fp.read()})
+        else:
+            print({"keys": ""})
+
