@@ -109,8 +109,10 @@ The script will:
 
 Execute:
 ```
-ns-openvpnrw-add <instance> <user>
+ns-openvpnrw-add <instance> <user> <certificate_expiration>
 ```
+
+Default `certificate_expiration` is `3600` days.
 
 Example:
 ```
