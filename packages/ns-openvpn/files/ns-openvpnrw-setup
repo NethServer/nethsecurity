@@ -48,7 +48,7 @@ except:
     u.set('openvpn', instance, 'crl_verify', f'/etc/openvpn/{instance}/pki/crl.pem')
     u.set('openvpn', instance, 'key', f'/etc/openvpn/{instance}/pki/private/server.key')
     u.set('openvpn', instance, 'ns_description', "Default OpenVPN RoadWarrior instance")
-    u.set("openvpn", instance, 'management', f'/var/run/openvpn_{iname}.socket unix')
+    u.set("openvpn", instance, 'management', f'/var/run/openvpn_{instance}.socket unix')
     u.set('openvpn', instance, 'ns_tag', ["automated"])
     u.save('openvpn')
 
