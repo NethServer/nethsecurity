@@ -903,17 +903,390 @@ Response:
 
 Manage OpenVPN Road Warrior server.
 
-### add-default-instance
+### get-configuration
 
-Create basic instance with network and firewall configuration:
+Get current server configuration:
 ```
-api-cli ns.ovpnrw add-default-instance
+api-cli ns.ovpnrw get-configuration
+```
+
+Response example for a server in routed mode:
+```json
+{
+  "proto": "udp",
+  "port": "1194",
+  "dev_type": "tun",
+  "topology": "subnet",
+  "enabled": "1",
+  "client_to_client": "0",
+  "auth": "SHA256",
+  "cipher": "AES-256-GCM",
+  "tls_version_min": "1.2",
+  "ns_auth_mode": "certificate",
+  "ns_bridge": "lan",
+  "server": "192.168.101.0/24",
+  "ns_public_ip": [
+    "192.168.100.238"
+  ],
+  "ns_redirect_gateway": "0",
+  "ns_local": [
+    "192.168.101.0/24",
+    "192.168.100.0/24"
+  ],
+  "ns_dhcp_options": []
+}
+```
+
+Response example for a server in bridged mode:
+```json
+{
+  "proto": "udp",
+  "port": "1194",
+  "dev_type": "tap",
+  "topology": "subnet",
+  "enabled": "1",
+  "client_to_client": "0",
+  "auth": "SHA256",
+  "cipher": "AES-256-GCM",
+  "tls_version_min": "1.2",
+  "ns_auth_mode": "certificate",
+  "ns_bridge": "lan",
+  "ns_public_ip": [
+    "192.168.100.238"
+  ],
+  "server": "",
+  "ns_redirect_gateway": "0",
+  "ns_local": [
+    "192.168.100.0/24"
+  ],
+  "ns_dhcp_options": [
+    {
+      "option": "NBDD",
+      "value": "1.2.3.4"
+    }
+  ],
+  "ns_pool_start": "192.168.100.240",
+  "ns_pool_end": "192.168.100.242"
+}
+```
+### list-users
+
+List existing users with their status:
+```
+api-cli ns.ovpnrw list-users
 ```
 
 Response example:
 ```json
-{ "success": true }
+{
+  "users": [
+    {
+      "enabled": "1",
+      "instance": "ns_roadwarrior",
+      "username": "giacomo",
+      "password": "mypass",
+      "connected": false,
+      "ipaddr": "1.2.3.4",
+      "expiration": 2012460421,
+      "expired": false,
+    },
+    {
+      "instance": "ns_roadwarrior",
+      "enabled": "1",
+      "password": "mypass",
+      "ipaddr": "192.168.101.44",
+      "2fa": "eeea7e12f45c48709525a21985d9a2605f13a451b9ec342521d2fd53dd22f5ec",
+      "username": "giacomo2",
+      "connected": true,
+      "real_address": "192.168.100.1",
+      "virtual_address": "192.168.101.44",
+      "bytes_received": "3703",
+      "bytes_sent": "3091",
+      "since": 1701701676,
+      "expiration": 2012741635,
+      "expired": false
+    }
+  ]
+}
 ```
+
+The following fields may not be present:
+- `password`
+- `ipaddr`
+
+If `connected` field is `true`, the user object should contain also:
+- `real_address`, the remote address
+- `virtual_address`
+- `bytes_received`
+- `bytes_sent`
+- `since`, connected since the given timestamp
+
+### list-auth-modes
+
+List authentication modes:
+```
+api-cli ns.ovpnrw list-auth-modes
+```
+
+Response example:
+```json
+{
+  "options": [
+    "username_password",
+    "certificate",
+    "username_password_certificate",
+    "username_otp_certificate"
+  ]
+}
+```
+
+### list-cipher
+
+List all available ciphers to be used inthe the `cipher` option:
+```
+api-cli ns.ovpnrw list-cipher
+```
+
+Response example:
+```json
+{
+  "ciphers": [
+    {
+      "name": "AES-128-CBC",
+      "description": "weak"
+    }
+  ]
+}
+```
+
+### list-digest
+
+List availalble digests to be used inside the `auth` option:
+```
+api-cli ns.ovpnrw list-digest
+```
+
+Response example:
+```json
+{
+  "digests": [
+    {
+      "name": "SHA3-224",
+      "description": "strong"
+    }
+  ]
+}
+```
+
+### list-dhcp-options
+
+List available DHCP options:
+```
+api-cli ns.ovpnrw list-dhcp-options
+```
+
+Response example:
+```json
+{
+  "options": [
+    "DNS",
+    "WINS",
+    "NBDD",
+    "NBT",
+    "NBS",
+    "DISABLE-NBT"
+  ]
+}
+```
+
+### list-bridges
+
+```
+api-cli ns.ovpnrw list-bridges
+```
+Response example:
+```json
+{
+  "bridges": [
+    "lan"
+  ]
+}
+```
+
+### set-configuration
+
+Configure a routed server:
+```
+api-cli ns.ovpnrw set-configuration --data '{"proto":"udp","port":"1194","dev_type":"tun","topology":"subnet","enabled":"1","client_to_client":"0","auth":"SHA256","cipher":"AES-256-GCM","tls_version_min":"1.2","ns_auth_mode":"certificate","ns_public_ip":["192.168.100.238"],"server":"192.168.101.0/24","ns_redirect_gateway":"0","ns_local":["192.168.22.0/24","192.168.100.0/24"],"ns_dhcp_options":[{"option": "NBDD", "value": "1.2.3.4"}],"ns_pool_start":"","ns_pool_end":"","ns_bridge":""}}'
+```
+
+Configure a bridged server: 
+```
+api-cli ns.ovpnrw set-configuration --data '{"proto":"udp","port":"1194","dev_type":"tap","topology":"subnet","enabled":"1","client_to_client":"0","auth":"SHA256","cipher":"AES-256-GCM","tls_version_min":"1.2","ns_auth_mode":"certificate","ns_public_ip":["192.168.100.238"],"server":"","ns_redirect_gateway":"0","ns_local":["192.168.22.0/24","192.168.100.0/24"],"ns_dhcp_options":[],"ns_pool_start":"192.168.100.239","ns_pool_end":"192.168.100.240","ns_bridge":"lan"}'
+```
+
+Valid values for `proto` field are: `udp` and `tcp-server`
+
+Required fields for routed mode:
+- `dev_type` field must be set to `tun`
+- `server` field must contain a valid CIDR
+- `ns_pool_start`, `ns_pool_end` and `ns_brdige` fields should be empty
+
+Required fields for bridged mode:
+- `dev_type` field must be set to `tap`
+- `ns_pool_start`, `ns_pool_end` must contain a valid IP addresses; both address should be inside the bridge network, start must be greater than end
+- `ns_brdige` field must contain a bridge obtained from `list-bridges` API
+- `server` should be empty
+
+The API may raise the following validation errors:
+- bridge_not_found
+- start_not_in_network
+- end_not_in_network
+- ip_already_used
+- start_must_be_greater_then_end
+
+### add-user
+
+Create a user and generate a certficate for it:
+```
+api-cli ns.ovpnrw add-user --data '{"enabled": "1", "username": "myuser", "password": "mypass", "expiration": "3650", "ipaddr": "1.2.3.4"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+The APIs can raise the following validation errors:
+- user_already_exists
+- user_add_failed
+- reserved_ip_must_be_in_server_network
+- reserverd_ip_already_used
+- reserved_ip_must_be_in_server_network
+
+### edit-user
+
+Edit a user and generate a certficate for it:
+```
+api-cli ns.ovpnrw add-user --data '{"enabled": "1", "username": "myuser", "password": "mypass", "expiration": "3650", "ipaddr": "1.2.3.4"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+The APIs can raise the following validation errors:
+- user_not_found
+- user_add_failed
+- reserved_ip_must_be_in_server_network
+- reserverd_ip_already_used
+- reserved_ip_must_be_in_server_network
+
+
+### disable-user
+
+Disable ab existing user:
+```
+api-cli ns.ovpnrw disable-user --data '{"username": "myuser"}''
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+Throws a validation error if the user is not found.
+
+### enable-user
+
+Enable an existing user:
+```
+api-cli ns.ovpnrw enable-user --data '{"username": "myuser"}''
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+Throws a validation error if the user is not found.
+
+
+### delete-user
+
+Delete an existing user:
+```
+api-cli ns.ovpnrw delete-user --data '{"username": "myuser"}''
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+Throws a validation error if the user is not found.
+
+### regenerate-user-certificate
+
+Delete current user certificate and create a new one:
+```
+api-cli ns.ovpnrw regenerate-user-certificate --data '{"username": "myuser", "expiration": "3650"}''
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+Throws a validation error if the user is not found.
+
+### download-user-certificate
+
+Download the certificate chain for the given user:
+```
+api-cli ns.ovpnrw download-user-certificate --data '{"username": "myuser"}'
+```
+
+Response example:
+```json
+{
+  "data": "-----BEGIN CERTIFICATE-----\nMII...\n-----END PRIVATE KEY-----\n\n"}
+```
+
+Throws a validation error if the user is not found.
+
+### download-user-configuration
+
+Download the OpenVPN configuration with embedded certificates for the given user:
+```
+api-cli ns.ovpnrw download-user-configuration --data '{"username": "myuser"}''
+```
+
+Response example:
+```json
+{
+  "data": "dev tun\nproto udp\..\ncompress\n"
+}
+```
+
+Throws a validation error if the user is not found.
+
+### download-user-2fa
+
+Download the 2FA secret, the secret is encoded inside a QR code in a SVG file:
+```
+api-cli ns.ovpnrw download-user-2fa --data '{"username": "myuser"}''
+```
+
+Response example:
+```json
+{
+  "data": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<!-- Created with qrencode 4.1.1 (https://fukuchi.org/works/qrencode/index.html) -->\n<svg width=\"4.34cm\..." 
+}
+```
+
+Throws a validation error if the user is not found.
 
 ## ns.dedalo
 
