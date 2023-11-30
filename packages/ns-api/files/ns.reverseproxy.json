@@ -1,0 +1,13 @@
+{
+  "reverse-proxy": {
+    "description": "Manage nginx reverse proxies",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.reverseproxy": [
+          "*"
+        ]
+      }
+    }
+  }
+}

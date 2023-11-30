@@ -5,18 +5,23 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
+"""
+This script generates location entries for nginx, find more info in the README.md file.
+"""
+
 import os
-import sys
 from glob import glob
+
 from euci import EUci
 
 u = EUci()
+
 
 def write_locations(locations, fpath):
     with open(fpath, 'w') as fp:
         for location in locations:
             path = location.pop('location')
-            desc = location.pop('description', '')
+            desc = location.pop('uci_description', '')
             if desc:
                 fp.write('# %s\n' % desc)
             fp.write('location %s {\n' % path)
@@ -31,6 +36,7 @@ def write_locations(locations, fpath):
                     fp.write('  deny all;\n')
 
             fp.write('}\n')
+
 
 # cleanup existing configuration
 for pfile in glob('/etc/nginx/conf.d/*.proxy'):

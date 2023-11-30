@@ -19,8 +19,8 @@ lcount = len(data['locations'])
 if lcount > 0:
     # enable reverse proxy for default _lan server
     includes = list(u.get('nginx', '_lan', 'include', list=True, default=list()))
-    if 'conf.d/_lan.proxy' not in includes:
-        includes.append('conf.d/_lan.proxy')
+    if 'conf.d/_lan[.]proxy' not in includes:
+        includes.append('conf.d/_lan[.]proxy')
     u.set('nginx', '_lan', 'include', includes)
 for location in data['locations']:
     loc = utils.get_id(f'location{lcount}')
@@ -28,7 +28,10 @@ for location in data['locations']:
     u.set('nginx', loc, 'location')
     u.set('nginx', loc, 'uci_server', '_lan')
     for o in location:
-        u.set('nginx', loc, o, location[o])
+        if o == 'description':
+            u.set('nginx', loc, 'uci_description', location[o])
+        else:
+            u.set('nginx', loc, o, location[o])
     lcount = lcount-1
 
 # handle host-bases reverse proxy
@@ -59,7 +62,10 @@ for server in data['servers']:
         u.set('nginx', loc, 'location')
         u.set('nginx', loc, 'uci_server', s)
         for o in location:
-            u.set('nginx', loc, o, location[o])
+            if o == 'description':
+                u.set('nginx', loc, 'uci_description', location[o])
+            else:
+                u.set('nginx', loc, o, location[o])
 
         lcount = lcount-1
 

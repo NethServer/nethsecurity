@@ -1,7 +1,7 @@
-# ns-reverse-proxy
+# nginx
 
-Use nginx to act as a reverse proxy.
-The reverse proxy forwards web requests to another HTTP server and serves responses in behalf of it. 
+This is a fork of the [official OpenWrt nginx package](https://github.com/openwrt/packages/tree/master/net/nginx).
+It adds the location reverse proxy, which is not available in the official package.
 
 The reverse proxy supports the following rules:
 
@@ -16,7 +16,7 @@ The `location` object can contain any `nginx` directive, plus the following spec
 
 - `location`: URI of the location, it accepts [nginx syntax](http://nginx.org/en/docs/http/ngx_http_core_module.html#location)
 - `uci_server`: it binds the location to a `server` object with the same name; if set to `_lan`,  the location will be added inside the default virtual host
-- `description`: (optional) description of the rule, it's converted to a comment inside the configuration file
+- `uci_description`: (optional) description of the rule, it's converted to a comment inside the configuration file
 - `allow`: (optional) an array of allowed IP addresses; if present, all other addresses will be automatically denied
 
 If a directive can be used multiple times, it's represented as a UCI list.
@@ -41,7 +41,7 @@ Example of a path rule for the default virtual host:
 config location 'ns_location1'
 	option uci_server '_lan'
 	option proxy_pass 'https://192.168.100.234'
-	option description 'Reverse proxy with path'
+	option uci_description 'Reverse proxy with path'
 	option proxy_ssl_verify 'off'
 	option location '/test'
 ```
