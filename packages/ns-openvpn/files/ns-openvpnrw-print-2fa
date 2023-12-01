@@ -1,0 +1,35 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import sys
+import subprocess
+from euci import EUci
+
+def slurp(path):
+    with open(path) as fp:
+        return fp.read()
+
+instance=sys.argv[1]
+user=sys.argv[2]
+
+u = EUci()
+cert_dir=f"/etc/openvpn/{instance}/pki"
+
+try:
+    user_obj = u.get_all("openvpn", user)
+except:
+    sys.exit(2)
+
+if user_obj.get("instance") != instance:
+    sys.exit(3)
+
+secret = u.get("openvpn", user, "2fa", default="")
+if secret:
+    p = subprocess.run(["/usr/bin/qrencode", "-t", "svg", secret], capture_output=True, text=True)
+    print(p.stdout)
+else:
+    sys.exit(4)
