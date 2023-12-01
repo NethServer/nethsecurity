@@ -8,7 +8,7 @@
 # Create a user certificate
 instance=$1
 user=$2
-expiration=${3:-3600}
+expiration=${3:-3650}
 if [ -z "$instance" ] || [ -z "$user" ]; then
     exit 1
 fi

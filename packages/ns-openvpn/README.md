@@ -112,7 +112,7 @@ Execute:
 ns-openvpnrw-add <instance> <user> <certificate_expiration>
 ```
 
-Default `certificate_expiration` is `3600` days.
+Default `certificate_expiration` is `3650` days (1 year).
 
 Example:
 ```
