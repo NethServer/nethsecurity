@@ -286,7 +286,10 @@ uci commit openvpn
 
 Create and enable the user inside the local database:
 ```
-ns-openvpnrw-add ns_roadwarrior giacomo
+uci set openvpn <user> user
+uci set openvpn instance ns_roadwarrior
+uci set openvpn enabled 1
+ns-openvpnrw-add ns_roadwarrior <user>
 ```
 
 ### IP static lease
@@ -306,20 +309,18 @@ uci commit openvpn
 ```
 ### Remove a user
 
-The `ns-openvpnrw-revoke` script will:
+The revoke API will:
 
 - revoke the certificate and delete the user key
 - remove entry from `openvpn` UCI database
 
 Execute:
 ```
+uci delete openvpn.<user>
+uci commit openvpn
 ns-openvpnrw-revoke <instance> <user>
 ```
 
-Example:
-```
-ns-openvpnrw-revoke ns_roadwarrior giacomo
-```
 
 ### Accounting
 
@@ -341,6 +342,21 @@ ns-openvpnrw-print-client <instance> <user>
 Example:
 ```
 ns-openvpnrw-print-client ns_roadwarrior giacomo > giacomo.ovpn
+```
+
+To download user certificates in pem file, execute:
+```
+ns-openvpnrw-print-pem <instance> <user> > <user>.pem
+```
+
+To download user 2FA secret inside the QR code use:
+```
+ns-openvpnrw-print-2fa <instance> <user> > <user>.svg
+```
+
+To regenerate the user certificate:
+```
+ns-openvpnrw-regenerate <instance> <user> <expiration>
 ```
 
 ## OpenVPN tunnels
