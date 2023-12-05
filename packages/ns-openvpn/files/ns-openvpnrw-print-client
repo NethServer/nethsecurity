@@ -60,5 +60,3 @@ print("persist-key")
 print("persist-tun")
 print("nobind")
 print("passtos")
-# allow compression protocol to be pushed by the server, default is disabled
-print("compress")
