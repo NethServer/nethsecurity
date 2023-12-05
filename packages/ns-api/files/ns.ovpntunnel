@@ -20,7 +20,7 @@ import shutil
 import ipaddress
 import subprocess
 from euci import EUci
-from nethsec import utils, firewall
+from nethsec import utils, firewall, ovpn
 
 # Utils
 
@@ -32,12 +32,6 @@ def read_file(file_name):
     except:
         return ''
 
-def to_cidr(netmask):
-    return sum([bin(int(x)).count('1') for x in netmask.split('.')])
-
-def to_netmask(prefix):
-    return socket.inet_ntoa(struct.pack(">I", (0xffffffff << (32 - int(prefix))) & 0xffffffff))
-
 def save_cert(path, data):
     # setup rw permissions only for nobody user
     os.umask(0o077)
@@ -47,13 +41,6 @@ def save_cert(path, data):
     uid = pwd.getpwnam("nobody").pw_uid
     gid = grp.getgrnam("nogroup").gr_gid
     os.chown(path, uid, gid)
-
-def opt2cidr(opt):
-    try:
-        tmp = opt.split(" ")
-        return f'{tmp[0]}/{to_cidr(tmp[1])}'
-    except:
-        return ""
 
 def generate_key():
     try:
@@ -69,24 +56,6 @@ def generate_random_port(limit_min, limit_max):
         port = random.randint(limit_min, limit_max)
     return port
 
-def generate_random_network():
-    network = random_ip()
-    while is_used_network(network):
-        network = random_ip()
-    return network
-
-def random_ip():
-    return f"10.{random.randint(0, 254)}.{random.randint(0, 254)}.0/24"
-
-def is_used_network(network):
-    u = EUci()
-    for v in u.get_all('openvpn'):
-        ifconfig = opt2cidr(u.get('openvpn', v, 'ifconfig', default=""))
-        server = opt2cidr(u.get('openvpn', v, 'server', default=""))
-        if network == ifconfig or network == server:
-            return True
-    return False
-
 def is_used_port(port):
     u = EUci()
     for v in u.get_all('openvpn'):
@@ -95,41 +64,6 @@ def is_used_port(port):
         if port == rport or port == lport:
             return True
     return False
-
-def get_local_networks():
-    u = EUci()
-    ret = []
-    for l in utils.get_all_lan_devices(u):
-        try:
-            data = json.loads(subprocess.run(["ip", "--json", "address", "show", "dev", l], capture_output=True, text=True, check=True).stdout)
-            if len(data) > 0:
-                for addr in data[0].get('addr_info', []):
-                    if addr.get("local", None) and addr.get("family", None) == "inet": # ipv4 only
-                        net = ipaddress.ip_interface(f'{addr.get("local")}/{addr.get("prefixlen")}').network
-                        ret.append(f'{net}')
-        except:
-            continue
-    return ret
-
-
-def get_public_addresses():
-    u = EUci()
-    ret = []
-    for w in utils.get_all_wan_devices(u):
-        try:
-             data = json.loads(subprocess.run(["ip", "--json", "address", "show", "dev", w], capture_output=True, text=True, check=True).stdout)
-        except:
-            continue
-        if len(data) > 0:
-            for addr in data[0].get('addr_info', []):
-                if addr.get("local", None):
-                    try:
-                        cmd = f"/usr/bin/dig -b {addr.get('local')} +short +time=1 myip.opendns.com @resolver1.opendns.com".split(" ")
-                        output = subprocess.check_output(cmd, timeout=5)
-                        ret.append(output.decode().strip())
-                    except:
-                        pass
-    return ret
 
 def setup_firewall(u, name, device, link):
     ovpn_interface = firewall.add_vpn_interface(u, name, device, link=link)
@@ -176,7 +110,7 @@ def import_client(tunnel):
     for route in tunnel['RemoteNetworks'].split(","):
         if "/" in route:
             (ip, prefix) = route.split("/")
-            routes.append(f"{ip} {to_netmask(prefix)}")
+            routes.append(f"{ip} {ovpn.to_netmask(prefix)}")
     u.set("openvpn", iname, "route", routes)
     u.set("openvpn", iname, "remote", tunnel['RemoteHost'].split(","))
 
@@ -255,7 +189,7 @@ def setup_server(u, iname, tunnel):
         u.set("openvpn", iname, "cert", f"{cert_dir}issued/server.crt")
         u.set("openvpn", iname, "key", f"{cert_dir}private/server.key")
         (ip, prefix) = tunnel['server'].split("/")
-        u.set("openvpn", iname, "server", f"{ip} {to_netmask(prefix)}")
+        u.set("openvpn", iname, "server", f"{ip} {ovpn.to_netmask(prefix)}")
     else:
         with open(f"{cert_dir}client.psk", "w") as fp:
             fp.write(tunnel['secret'])
@@ -270,13 +204,13 @@ def setup_server(u, iname, tunnel):
     push = [f"topology {tunnel['topology']}"]
     for r in tunnel['local']:
         (ip, prefix) = r.split("/")
-        push.append(f"route {ip} {to_netmask(prefix)}")
+        push.append(f"route {ip} {ovpn.to_netmask(prefix)}")
     u.set("openvpn", iname, "push", push)
 
     routes = []
     for r in tunnel['remote']:
         (ip, prefix) = r.split("/")
-        routes.append(f"{ip} {to_netmask(prefix)}")
+        routes.append(f"{ip} {ovpn.to_netmask(prefix)}")
     u.set("openvpn", iname, "route", routes)
 
     for opt in ['cipher', 'compress', 'auth', 'tls_version_min']:
@@ -329,7 +263,7 @@ def export_client(name):
     remotes = []
     for r in u.get("openvpn", name, "push", default=[], list=True):
         if r.startswith("route"):
-            remotes.append(opt2cidr(r.removeprefix("route ")))
+            remotes.append(ovpn.opt2cidr(r.removeprefix("route ")))
 
     client["RemoteNetworks"] = ",".join(remotes)
     if u.get("openvpn", name, "topology", default="") == "p2p":
@@ -374,7 +308,7 @@ def list_tunnels():
                 record["topology"] = "p2p"
             try:
                 for r in u.get_all("openvpn", section, "route"):
-                    remote.append(opt2cidr(r))
+                    remote.append(ovpn.opt2cidr(r))
             except:
                 pass
             client = record | {
@@ -388,15 +322,15 @@ def list_tunnels():
             remote = []
             if vpn.get('route'):
                 for r in vpn.get('route'):
-                    remote.append(opt2cidr(r.removeprefix("route ")))
+                    remote.append(ovpn.opt2cidr(r.removeprefix("route ")))
 
             if vpn.get('push'):
                 for r in vpn.get('push'):
                     if r.startswith("route"):
-                        local.append(opt2cidr(r.removeprefix("route ")))
+                        local.append(ovpn.opt2cidr(r.removeprefix("route ")))
 
             if topology == "subnet":
-                net = opt2cidr(vpn.get("server"," "))
+                net = ovpn.opt2cidr(vpn.get("server"," "))
             else:
                 net = vpn.get("ifconfig", "").replace(" ", " - ")
 
@@ -468,47 +402,6 @@ def enable_tunnel(name):
     except:
         return utils.generic_error("tunnel_not_enabled")
 
-def list_cipher():
-    ret = []
-    try:
-        result = subprocess.run(['/usr/sbin/openvpn', '--show-ciphers'], capture_output=True, text=True, check=True)
-        output_lines = result.stdout.splitlines()
-
-        for line in output_lines:
-            if '(' in line:
-                description = 'weak'
-                tmp = line.split()
-                cipher_name = tmp[0]
-                try:
-                    bits = int(cipher_name.split("-")[1])
-                except:
-                    bits = 0
-                if bits in [192, 256, 384, 512]:
-                    description = 'strong'
-                ret.append({'name': cipher_name, 'description': description})
-    except:
-        return {"ciphers": []}
-    return {"ciphers": ret}
-
-def list_digest():
-    ret = []
-    try:
-        result = subprocess.run(['/usr/sbin/openvpn', '--show-digests'], capture_output=True, text=True, check=True)
-        output_lines = result.stdout.splitlines()
-
-        for line in output_lines:
-            if 'bit' in line:
-                description = 'weak'
-                tmp = line.split()
-                if tmp[1] in ['224', '256', '384', '512', 'whirlpool']:
-                    description = 'strong'
-                ret.append({'name': tmp[0], 'description': description})
-    except:
-        return {"digests": []}
-    return {"digests": ret}
-
-
-
 def get_defaults():
     u = EUci()
     count = 0
@@ -517,7 +410,7 @@ def get_defaults():
 
     limit_min = 1200
     limit_max = limit_min + count + 1
-    net = generate_random_network()
+    net = ovpn.generate_random_network(u)
 
     defaults = {
         "secret": generate_key(),
@@ -525,8 +418,8 @@ def get_defaults():
         "server": net,
         "ifconfig_local": str(ipaddress.ip_interface(net).network.network_address + 1),
         "ifconfig_remote": str(ipaddress.ip_interface(net).network.network_address + 2),
-        'route': get_local_networks(),
-        'remote': get_public_addresses()
+        'route': ovpn.get_local_networks(u),
+        'remote': ovpn.get_public_addresses(u)
     }
 
     return defaults
@@ -562,7 +455,7 @@ def get_tunnel_client(id):
     if tunnel.get('route'):
         routes = []
         for r in tunnel.get('route'):
-            routes.append(opt2cidr(r.removeprefix("route ")))
+            routes.append(ovpn.opt2cidr(r.removeprefix("route ")))
         tunnel['route'] = routes
 
     if tunnel.get('ifconfig'):
@@ -588,7 +481,7 @@ def get_tunnel_server(id):
     tunnel['port'] = port
 
     if tunnel.get('server'):
-        tunnel['server'] = opt2cidr(tunnel.get('server'))
+        tunnel['server'] = ovpn.opt2cidr(tunnel.get('server'))
 
     if tunnel.get('secret'):
         secret_f = tunnel.pop('secret')
@@ -597,14 +490,14 @@ def get_tunnel_server(id):
     if tunnel.get('route'):
         routes = []
         for r in tunnel.pop('route'):
-            routes.append(opt2cidr(r.removeprefix("route ")))
+            routes.append(ovpn.opt2cidr(r.removeprefix("route ")))
         tunnel['remote'] = routes
 
     if tunnel.get('push'):
         local = []
         for r in tunnel.pop('push'):
             if r.startswith("route"):
-                 local.append(opt2cidr(r.removeprefix("route ")))
+                 local.append(ovpn.opt2cidr(r.removeprefix("route ")))
         tunnel['local'] = local
 
     if tunnel.get('ifconfig'):
@@ -680,7 +573,7 @@ def setup_client(u, iname, args):
         routes = []
         for r in args.get('route'):
             (ip, prefix) = r.split("/")
-            routes.append(f"route {ip} {to_netmask(prefix)}")
+            routes.append(f"route {ip} {ovpn.to_netmask(prefix)}")
         u.set('openvpn', iname, 'route', routes) 
 
     # Add management socket

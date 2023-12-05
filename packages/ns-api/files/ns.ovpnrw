@@ -7,22 +7,481 @@
 
 # Setup default OpenVPN roadwarrior instance
 
+import os
 import sys
 import json
+import pyotp
+import ipaddress
 import subprocess
+from euci import EUci
+from nethsec import utils, ovpn
+from datetime import datetime, timezone
 
-def add_default_instance():
+## Utils
+
+def is_bridge(name):
+    u = EUci()
+    devices = utils.get_all_by_type(u, "network", "device")
+    for d in devices:
+        device = devices[d]
+        if device.get("name") == name and device.get("type") == "bridge":
+            return True
+    return False
+
+def get_bridge_by_ip(ip):
+    u = EUci()
+    for section in utils.get_all_by_type(u, "network", "interface"):
+        if u.get("network", section, "proto", default="") == "static":
+            device = u.get("network", section, "device", default="")
+            if is_bridge(device) and u.get("network", section, "ipaddr", default="") == ip:
+                return section
+    return None
+
+def get_ip_and_mask(bridge):
+    u = EUci()
+    interfaces = utils.get_all_by_type(u, "network", "interface")
+    for i in interfaces:
+        interface = interfaces[i]
+        if i == bridge and interface.get("proto") == "static" and is_bridge(interface.get("device")):
+            return (interface.get("ipaddr"), interface.get("netmask"))
+    return (None, None)
+
+def is_valid_ip(ip):
+    u = EUci()
+    instance = u.get_all("openvpn", "ns_roadwarrior")
+    if instance.get("dev_type") == "tap":
+        (server_ip, mask, start, end) = instance.get("server_bridge").split(" ")
+        ipnet = ipaddress.IPv4Network(f"{server_ip}/{mask}", strict=False).network_address
+        return ip != server_ip and ipaddress.ip_address(ip) in ipaddress.ip_network(f'{ipnet}/{mask}')
+    else:
+        (server_net, server_mask) = instance.get("server").split(" ")
+        return ipaddress.ip_address(ip) in ipaddress.ip_network(f'{server_net}/{server_mask}')
+
+def is_free_ip(ip):
+    u = EUci()
+    instance = u.get_all("openvpn", "ns_roadwarrior")
+    # check against server ip
     try:
-        subprocess.run(["/usr/sbin/ns-openvpnrw-setup"], check=True)
-        return {"success": True}
+        if instance.get("dev_type") == "tap":
+            (server_ip, mask, start, end) = instance.get("server_bridge").split(" ")
+            ipnet = ipaddress.IPv4Network(f"{server_ip}/{mask}", strict=False).network_address
+            if ip == server_ip:
+                return False
+            else:
+                (server_net, server_mask) = instance.get("server", "").split(" ")
+                net = ipaddress.ip_network(f'{server_net}/{server_mask}', strict=False)
+                if ip == f'{net.hosts()[1]}':
+                    return False
     except:
-        return {"success": False}
+        pass
+    # check against reserved IP for users
+    users = utils.get_all_by_type(u, "openvpn", "user")
+    for u in users:
+        user = users[u]
+        if user.get("instance") == "ns_roadwarrior" and user.get("ipaddr") == ip:
+            return False
+    return True
+
+def list_connected_clients():
+    try:
+        p = subprocess.run(["/usr/bin/openvpn-status", "-t", "subnet", "/var/run/openvpn_ns_roadwarrior.socket"], check=True, capture_output=True, text=True)
+    except Exception as e:
+        print(e, file=sys.stderr)
+        return {}
+    return json.loads(p.stdout)
+
+def list_user_expirations():
+    ret = {}
+    with open("/etc/openvpn/ns_roadwarrior/pki/index.txt", "r") as fp:
+        lines = fp.readlines()
+        for line in lines:
+            (status, expiration, revocation, serial, filename, name) = line.split("\t")
+            # remove /CN= from name
+            dt = datetime.strptime(expiration, "%y%m%d%H%M%SZ")
+            name = name.strip()[4:]
+            ret[name] = dt.timestamp()
+    return ret
+
+def generate_2fa_secret():
+    return pyotp.random_base32()
+
+## APIs
+
+def list_bridges():
+    u = EUci()
+    ret = []
+    interfaces = utils.get_all_by_type(u, "network", "interface")
+    for i in interfaces:
+        interface = interfaces[i]
+        if interface.get("proto") == "static":
+            if is_bridge(interface.get("device")):
+                ret.append(i)
+    return {"bridges": ret}
+
+def get_configuration():
+    # Make sure the configuration is set up
+    subprocess.run(["/usr/sbin/ns-openvpnrw-setup"], check=True)
+    u = EUci()
+    ret = u.get_all("openvpn", 'ns_roadwarrior')
+
+    for opt in ['dev', 'float', 'nobind', 'passtos', 'verb', 'keepalive', 'crl_verify', 'management', 'ns_tag', 'dh', 'ca', 'cert', 'key', 'client_connect', 'client_disconnect', 'persist_tun', 'multihome', 'ping_timer_rem', 'persist_key', 'ns_description']:
+        ret.pop(opt, None)
+
+    ret['server'] = ovpn.opt2cidr(ret.get('server'))
+    ret["ns_redirect_gateway"] = "0"
+    ret["ns_local"] = ovpn.get_local_networks(u)
+    ret["ns_dhcp_options"] = []
+
+    if ret.get('push'):
+        local = []
+        dhcp_options = []
+        for r in ret.pop('push'):
+            if r.startswith("route"):
+                 local.append(ovpn.opt2cidr(r.removeprefix("route ")))
+            elif r.startswith("redirect-gateway"):
+                ret['ns_redirect_gateway'] = "1"
+            elif r.startswith("dhcp-option"):
+                opt = r.removeprefix("dhcp-option ").split(" ")
+                dhcp_options.append({"option": opt[0], "value": " ".join(opt[1:])})
+        if local:
+            ret['ns_local'] = local
+        ret['ns_dhcp_options'] = dhcp_options
+
+    if ret['dev_type'] == "tap":
+        (ip, mask, ret['ns_pool_start'], ret['ns_pool_end']) = ret.pop("server_bridge").split(" ")
+        ret['ns_bridge'] = get_bridge_by_ip(ip)
+
+    if 'ns_public_ip' not in ret:
+        ret['ns_public_ip'] = ovpn.get_public_addresses(u)
+
+    return ret
+
+def set_configuration(args):
+    u = EUci()
+    push_options = []
+    u.set("openvpn", "ns_roadwarrior", "enabled", args["enabled"])
+    if args["ns_redirect_gateway"] == "1":
+        push_options.append("redirect-gateway")
+    for opt in args["ns_dhcp_options"]:
+        push_options.append(f"dhcp-option {opt['option']} {opt['value']}")
+    for route in args["ns_local"]:
+        push_options.append(f"route {route}")
+    u.set("openvpn", "ns_roadwarrior", "push", push_options)
+    u.set("openvpn", "ns_roadwarrior", "ns_public_ip", args["ns_public_ip"])
+
+    if args["dev_type"] == "tap":
+        u.set("openvpn", "ns_roadwarrior", "dev", "taprw")
+        u.set("openvpn", "ns_roadwarrior", "ns_bridge", args["ns_bridge"])
+        (ip, mask) = get_ip_and_mask(args["ns_bridge"])
+        if not ip or not mask:
+            return utils.validation_error("ns_bridge", "bridge_not_found", args["ns_bridge"])
+        ipnet = ipaddress.IPv4Network(f"{ip}/{mask}", strict=False).network_address
+        if ipaddress.ip_address(args['ns_pool_start']) not in ipaddress.ip_network(f'{ipnet}/{mask}'):
+            return utils.validation_error("ns_pool_start", "start_not_in_network", args['ns_pool_start'])
+        if ipaddress.ip_address(args['ns_pool_end']) not in ipaddress.ip_network(f'{ipnet}/{mask}'):
+            return utils.validation_error("ns_pool_end", "end_not_in_network", args['ns_pool_end'])
+        if not is_free_ip(args['ns_pool_start']):
+            return utils.validation_error("ns_pool_start", "ip_already_used", args['ns_pool_start'])
+        if not is_free_ip(args['ns_pool_end']):
+            return utils.validation_error("ns_pool_end", "ip_already_used", args['ns_pool_end'])
+        if ipaddress.ip_address(args['ns_pool_start']) >= ipaddress.ip_address(args['ns_pool_end']):
+            return utils.validation_error("ns_pool_start", "start_must_be_greater_then_end", args['ns_pool_start'])
+        u.set("openvpn", "ns_roadwarrior", "server_bridge", f"{ip} {mask} {args['ns_pool_start']} {args['ns_pool_end']}")
+        try:
+            u.delete("openvpn", "ns_roadwarrior", "client_connect")
+            u.delete("openvpn", "ns_roadwarrior", "client_disconnect")
+            u.delete("openvpn", "ns_roadwarrior", "server")
+        except:
+            pass
+    else:
+        (server_net, server_mask) = args["server"].split("/")
+        u.set("openvpn", "ns_roadwarrior", "server", f"{server_net} {ovpn.to_netmask(server_mask)}")
+        u.set("openvpn", "ns_roadwarrior", "client_connect", "\"/usr/libexec/ns-openvpn/openvpn-connect ns_roadwarrior\"")
+        u.set("openvpn", "ns_roadwarrior", "client_disconnect", "\"/usr/libexec/ns-openvpn/openvpn-connect ns_roadwarrior\"")
+        u.set("openvpn", "ns_roadwarrior", "dev", "tunrw")
+        try:
+            u.delete("openvpn", "ns_roadwarrior", "server_bridge")
+        except:
+            pass
+
+    for opt in ["client_to_client", "dev_type", "ns_public_ip", "ns_auth_mode", "proto"]:
+        u.set("openvpn", "ns_roadwarrior", opt, args[opt])
+
+    if args["ns_auth_mode"] == "username_password":
+        u.set("openvpn", "ns_roadwarrior", "auth_user_pass_verify", "/usr/libexec/ns-openvpn/openvpn-local-auth via-env")
+        u.set("openvpn", "ns_roadwarrior", "verify_client_cert", "none")
+        u.set("openvpn", "ns_roadwarrior", "username_as_common_name", "1")
+        u.set("openvpn", "ns_roadwarrior", "script_security", "3")
+    elif args["ns_auth_mode"] == "certificate":
+        try:
+            u.delete("openvpn", "ns_roadwarrior", "auth_user_pass_verify")
+            u.delete("openvpn", "ns_roadwarrior", "verify_client_cert")
+            u.delete("openvpn", "ns_roadwarrior", "username_as_common_name")
+            u.delete("openvpn", "ns_roadwarrior", "script_security")
+        except:
+            pass
+    elif args["ns_auth_mode"] == "username_otp_certificate":
+        u.set("openvpn", "ns_roadwarrior", "auth_user_pass_verify", "/usr/libexec/ns-openvpn/openvpn-otp-auth via-env")
+        u.set("openvpn", "ns_roadwarrior", "script_security", "3")
+        try:
+            u.delete("openvpn", "ns_roadwarrior", "verify_client_cert")
+            u.delete("openvpn", "ns_roadwarrior", "username_as_common_name")
+        except:
+            pass
+    elif args["ns_auth_mode"] == "username_password_certificate":
+        u.set("openvpn", "ns_roadwarrior", "auth_user_pass_verify", "/usr/libexec/ns-openvpn/openvpn-local-auth via-env")
+        u.set("openvpn", "ns_roadwarrior", "script_security", "3")
+        try:
+            u.delete("openvpn", "ns_roadwarrior", "verify_client_cert")
+            u.delete("openvpn", "ns_roadwarrior", "username_as_common_name")
+        except:
+            pass
+    u.save("openvpn")
+
+    return {"result": "success"}
+
+def list_auth_modes():
+    return {"options": ["username_password", "certificate", "username_password_certificate", "username_otp_certificate"]}
+
+def list_dhcp_options():
+    return {"options": ["DNS", "WINS", "NBDD", "NBT", "NBS", "DISABLE-NBT"]}
+
+def list_users():
+    u = EUci()
+    ret = []
+    connected = list_connected_clients()
+    expirations = list_user_expirations()
+    users = utils.get_all_by_type(u, "openvpn", "user")
+    for u in users:
+        user = users[u]
+        if user.get("instance") == "ns_roadwarrior":
+            user["username"] = u
+            if u in connected:
+                user["connected"] = True
+                user = user | connected[u]
+            else:
+                user["connected"] = False
+            user["expiration"] = ""
+            user["expired"] = False
+            if u in expirations:
+                user["expiration"] = expirations[u]
+                if user["expiration"] < int(datetime.now(timezone.utc).timestamp()):
+                    user["expired"] = True
+            ret.append(user)
+    return {"users": ret}
+
+def disable_user(user):
+    u = EUci()
+    users = utils.get_all_by_type(u, "openvpn", "user")
+    for username in users:
+        if users[username].get("instance") == "ns_roadwarrior" and username == user:
+            u.set("openvpn", username, "enabled", "0")
+            u.save("openvpn")
+            return {"result": "success"}
+    return utils.validation_error("user", "user_not_found", user)
+
+def enable_user(user):
+    u = EUci()
+    users = utils.get_all_by_type(u, "openvpn", "user")
+    for username in users:
+        if users[username].get("instance") == "ns_roadwarrior" and username == user:
+            u.set("openvpn", username, "enabled", "1")
+            u.save("openvpn")
+            return {"result": "success"}
+    return utils.validation_error("user", "user_not_found", user)
+
+def add_user(args):
+    u = EUci()
+    users = utils.get_all_by_type(u, "openvpn", "user")
+    for username in users:
+        if users[username].get("instance") == "ns_roadwarrior" and username == args["username"]:
+            return utils.validation_error("username", "user_already_exists", args["username"])
+        if os.path.exists(f"/etc/openvpn/ns_roadwarrior/pki/issued/{args['username']}.crt"):
+            return utils.validation_error("username", "user_certificate_already_exists", args["username"])
+    if args["ipaddr"]:
+        if not is_valid_ip(args["ipaddr"]):
+            return utils.validation_error("ipaddr", "reserved_ip_must_be_in_server_network", args["ipaddr"])
+        if not is_free_ip(args["ipaddr"]):
+            return utils.validation_error("ipaddr", "reserved_ip_already_used", args["ipaddr"])
+    try:
+        subprocess.run(["/usr/sbin/ns-openvpnrw-add", "ns_roadwarrior", args["username"], args["expiration"]], check=True, capture_output=True)
+    except Exception as e:
+        print(e, file=sys.stderr)
+        return utils.validation_error("username", "user_add_failed", args["username"])
+    u.set("openvpn", args["username"], "user")
+    u.set("openvpn", args["username"], "instance", "ns_roadwarrior")
+    u.set("openvpn", args["username"], "enabled", "1")
+    if "password" in args:
+        u.set("openvpn", args["username"], "password", args["password"])
+    if "ipaddr" in args:
+        u.set("openvpn", args["username"], "ipaddr", args["ipaddr"])
+    u.set("openvpn", args["username"], "2fa", generate_2fa_secret())
+    u.save("openvpn")
+    return {"result": "success"}
+
+def edit_user(args):
+    u = EUci()
+    users = utils.get_all_by_type(u, "openvpn", "user")
+    for username in users:
+        if users[username].get("instance") == "ns_roadwarrior" and username == args["username"]:
+            if args["ipaddr"] and users[username].get("ipaddr") != args["ipaddr"]:
+                if not is_valid_ip(args["ipaddr"]):
+                    return utils.validation_error("ipaddr", "reserved_ip_must_be_in_server_network", args["ipaddr"])
+                if not is_valid_ip(args["ipaddr"]):
+                    return utils.validation_error("ipaddr", "reserved_ip_must_be_in_server_network", args["ipaddr"])
+                if not is_free_ip(args["ipaddr"]):
+                    return utils.validation_error("ipaddr", "reserverd_ip_already_used", args["ipaddr"])
+            u.set("openvpn", username, "ipaddr", args["ipaddr"])
+            u.set("openvpn", username, "enabled", args["enabled"])
+            if "password" in args:
+                u.set("openvpn", username, "password", args["password"])
+            u.save("openvpn")
+            return {"result": "success"}
+    return utils.validation_error("username", "user_not_found", args["username"])
+
+def delete_user(user):
+    u = EUci()
+    users = utils.get_all_by_type(u, "openvpn", "user")
+    for username in users:
+        if users[username].get("instance") == "ns_roadwarrior" and username == user:
+            u.delete("openvpn", username)
+            u.save("openvpn")
+            try:
+                subprocess.run(["/usr/sbin/ns-openvpnrw-revoke", "ns_roadwarrior", args["username"]], check=True, capture_output=True)
+            except Exception as e:
+                print(e, file=sys.stderr)
+                return utils.validation_error("username", "user_delete_failed", args["username"])
+            return {"result": "success"}
+    return utils.validation_error("user", "user_not_found", user)
+
+def regenerate_user_certificate(user, expiration):
+    u = EUci()
+    users = utils.get_all_by_type(u, "openvpn", "user")
+    for username in users:
+        if users[username].get("instance") == "ns_roadwarrior" and username == user:
+            try:
+                subprocess.run(["/usr/sbin/ns-openvpnrw-regenerate", "ns_roadwarrior", user, f'{expiration}'], check=True, capture_output=True)
+            except Exception as e:
+                print(e, file=sys.stderr)
+                return utils.validation_error("username", "certificate_generation_failed", user)
+            return {"result": "success"}
+    return utils.validation_error("user", "user_not_found", user)
+
+def download_user_certificate(user):
+    u = EUci()
+    users = utils.get_all_by_type(u, "openvpn", "user")
+    for username in users:
+        if users[username].get("instance") == "ns_roadwarrior" and username == user:
+            try:
+                p = subprocess.run(["/usr/sbin/ns-openvpnrw-print-pem", "ns_roadwarrior", user], check=True, capture_output=True, text=True)
+            except Exception as e:
+                print(e, file=sys.stderr)
+                return utils.validation_error("username", "certificate_download_failed", user)
+            return {"data": p.stdout}
+    return utils.validation_error("user", "user_not_found", user)
+
+def download_user_configuration(user):
+    u = EUci()
+    users = utils.get_all_by_type(u, "openvpn", "user")
+    for username in users:
+        if users[username].get("instance") == "ns_roadwarrior" and username == user:
+            try:
+                p = subprocess.run(["/usr/sbin/ns-openvpnrw-print-client", "ns_roadwarrior", user], check=True, capture_output=True, text=True)
+            except Exception as e:
+                print(e, file=sys.stderr)
+                return utils.validation_error("username", "configuration_download_failed", user)
+            return {"data": p.stdout}
+    return utils.validation_error("user", "user_not_found", user)
+
+def download_user_2fa(user):
+    u = EUci()
+    users = utils.get_all_by_type(u, "openvpn", "user")
+    for username in users:
+        if users[username].get("instance") == "ns_roadwarrior" and username == user:
+            try:
+                p = subprocess.run(["/usr/sbin/ns-openvpnrw-print-2fa", "ns_roadwarrior", user], check=True, capture_output=True, text=True)
+            except Exception as e:
+                print(e, file=sys.stderr)
+                return utils.validation_error("username", "2fa_download_failed", user)
+            return {"data": p.stdout}
+    return utils.validation_error("user", "user_not_found", user)
 
 cmd = sys.argv[1]
 
 if cmd == 'list':
-    print(json.dumps({"add-default-instance": {}}))
+    print(json.dumps({
+        "get-configuration": {},
+        "list-users": {},
+        "list-auth-modes": {},
+        "list-cipher": {},
+        "list-digest": {},
+        "list-dhcp-options": {},
+        "list-bridges": {},
+        "set-configuration": {
+            "proto": "udp", 
+            "port": "1194", 
+            "dev_type": "tun", "topology": "subnet",
+            "enabled": "1",
+            "server": "10.166.54.0/24",
+            "client_to_client": "0",
+            "auth": "SHA256",
+            "cipher": "AES-256-GCM",
+            "tls_version_min": "1.2",
+            "ns_auth_mode": "certificate",
+            "ns_redirect_gateway": False,
+            "ns_local": [],
+            "ns_dhcp_options": [],
+            "ns_public_ip": ["1.2.3.4"]
+            },
+        "add-user": {"enabled": "1", "username": "myuser", "password": "mypass", "expiration": "3650", "ipaddr": "1.2.3.4"},
+        "edit-user": {"enabled": "1", "username": "myuser", "password": "mypass", "expiration": "3650", "ipaddr": "1.2.3.4"},
+        "disable-user": {"username": "myuser"},
+        "enable-user": {"username": "myuser"},
+        "delete-user": {"username": "myuser"},
+        "regenerate-user-certificate": {"username": "myuser", "expiration": "3650"},
+        "download-user-certificate": {"username": "myuser"},
+        "download-user-configuration": {"username": "myuser"},
+        }))
 else:
     action = sys.argv[2]
-    if action == "add-default-instance":
-        print(json.dumps(add_default_instance()))
+    if action == "get-configuration":
+        ret = get_configuration()
+    elif action == "list-users":
+        ret = list_users()
+    elif action == "list-auth-modes":
+        ret = list_auth_modes()
+    elif action == "list-dhcp-options":
+        ret = list_dhcp_options()
+    elif action == "list-bridges":
+        ret = list_bridges()
+    elif action == "list-cipher":
+        ret = ovpn.list_cipher()
+    elif action == "list-digest":
+        ret = ovpn.list_digest()
+    else:
+        args = json.loads(sys.stdin.read())
+
+    if action == "set-configuration":
+        ret = set_configuration(args)
+    elif action == "disable-user":
+        ret = disable_user(args["username"])
+    elif action == "enable-user":
+        ret = enable_user(args["username"])
+    elif action == "add-user":
+        ret = add_user(args)
+    elif action == "edit-user":
+        ret = edit_user(args)
+    elif action == "delete-user":
+        ret = delete_user(args["username"])
+    elif action == "regenerate-user-certificate":
+        ret = regenerate_user_certificate(args["username"], args["expiration"])
+    elif action == "download-user-certificate":
+        ret = download_user_certificate(args["username"])
+    elif action == "download-user-configuration":
+        ret = download_user_configuration(args["username"])
+    elif action == "download-user-2fa":
+        ret = download_user_2fa(args["username"])
+
+
+
+    print(json.dumps(ret))

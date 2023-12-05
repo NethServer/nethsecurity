@@ -5,16 +5,13 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-# Create a user and a certificate
+# Create a user certificate
 instance=$1
 user=$2
+expiration=${3:-3650}
 if [ -z "$instance" ] || [ -z "$user" ]; then
     exit 1
 fi
 
 cd /etc/openvpn/$instance
-EASYRSA_BATCH=1 /usr/bin/easyrsa build-client-full "$user" nopass
-uci set openvpn."$user"=user
-uci set openvpn."$user".enabled=1
-uci set openvpn."$user".instance=$instance
-uci commit openvpn
+EASYRSA_CERT_EXPIRE=$expiration EASYRSA_BATCH=1 /usr/bin/easyrsa build-client-full "$user" nopass
