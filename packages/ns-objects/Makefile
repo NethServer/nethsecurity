@@ -39,8 +39,8 @@ endef
 
 define Package/ns-objects/install
 	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_DIR) $(1)/etc/uci-defaults
-	$(INSTALL_CONF) ./files/config $(1)/etc/config/objects
+	$(INSTALL_CONF) ./files/objects $(1)/etc/config/
+	$(INSTALL_CONF) ./files/users $(1)/etc/config/
 endef
  
 $(eval $(call BuildPackage,ns-objects))
