@@ -31,7 +31,7 @@ if [ -z "$secret" ]; then
     exit 4
 fi
 
-otp=$(/usr/bin/oathtool --totp=SHA1 "$secret")
+otp=$(/usr/bin/oathtool -b --totp=SHA1 "$secret")
 
 if [ "$otp" = "$password" ]; then
     exit 0

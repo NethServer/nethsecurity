@@ -21,7 +21,7 @@ define Package/ns-openvpn
 	CATEGORY:=NethSecurity
 	TITLE:=NethSecurity OpenVPN extensions
 	URL:=https://github.com/NethServer/nethsecurity/
-	DEPENDS:=+openvpn +openvpn-easy-rsa +python3-sqlite3 +python3-nethsec +openldap-utils +qrencode
+	DEPENDS:=+openvpn +openvpn-easy-rsa +python3-sqlite3 +python3-nethsec +openldap-utils +qrencode +python3-pyotp
 	PKGARCH:=all
 endef
  

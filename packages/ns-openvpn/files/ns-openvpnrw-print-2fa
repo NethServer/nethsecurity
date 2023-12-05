@@ -6,12 +6,18 @@
 #
 
 import sys
+import pyotp
 import subprocess
 from euci import EUci
 
 def slurp(path):
     with open(path) as fp:
         return fp.read()
+
+def hostname():
+    with open('/proc/sys/kernel/hostname', 'r') as fp:
+        return fp.read().strip()
+
 
 instance=sys.argv[1]
 user=sys.argv[2]
@@ -28,8 +34,9 @@ if user_obj.get("instance") != instance:
     sys.exit(3)
 
 secret = u.get("openvpn", user, "2fa", default="")
+uri = pyotp.totp.TOTP(secret).provisioning_uri(name=f"{user}@{hostname()}", issuer_name="OpenVPN")
 if secret:
-    p = subprocess.run(["/usr/bin/qrencode", "-t", "svg", secret], capture_output=True, text=True)
+    p = subprocess.run(["/usr/bin/qrencode", "-t", "svg", uri], capture_output=True, text=True)
     print(p.stdout)
 else:
     sys.exit(4)
