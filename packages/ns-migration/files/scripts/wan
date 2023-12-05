@@ -71,7 +71,7 @@ for p in data['providers']:
     # The policy will be used for divert rules
     ponly = utils.get_id(f'{iname}', length = 15)
     u.set("mwan3", ponly, "policy")
-    u.set("mwan3", ponly, "use_member", mname)
+    u.set("mwan3", ponly, "use_member", list(mname))
     u.set("mwan3", ponly, "last_resort", "default")
     divert_policies[p["name"]] = ponly
 
