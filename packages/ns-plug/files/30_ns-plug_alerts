@@ -11,7 +11,7 @@ template: disk_space_usage
 component: Disk
        os: linux freebsd
     hosts: *
- families: !/dev !/dev/* !/run !/run/* *
+ families: !/dev !/dev/* !/run !/run/* !/overlay *
      calc: \$used * 100 / (\$avail + \$used)
     units: %
     every: 1m
