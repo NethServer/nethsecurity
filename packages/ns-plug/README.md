@@ -105,3 +105,27 @@ Download the latest encrypted backup and restore it:
 echo <your_passphrase> > /etc/backup.pass
 remote-backup download $(remote-backup list | jq -r .[0].file) - | gpg --batch --passphrase-file /etc/backup.pass -d | sysupgrade -r -
 ```
+
+## Alerts
+
+All system alerts are handled by netdata, including those from the multiwan monitoring.
+Alerts are disabled by default and enabled only if the machine has a valid subscription.
+In this case, alerts are automatically sent to the remote server (either my.nethesis.it or my.nethserver.com) using a
+custom sender (`/etc/netdata/health_alarm_notify.conf`).
+Alerts are also logged to `/var/log/messages` and are visible within the netdata UI.
+
+Only the following alerts are sent to the remote system:
+
+- disk space occupation
+- WAN down events
+
+When an alert is resolved, netdata will also send a clear command to remote server.
+
+## mwan3 netdata plugin
+
+The `/usr/lib/netdata/python.d/mwan.chart.py` file implements a netdata plugin for mwan3.
+The plugin tracks the score of each WAN using mwan3track status directory.
+When a WAN reaches a score equal to 1, an alert is triggered.
+
+Please note that mwan3track minumum score is `0` which is mapped to `1` inside netdata,
+otherwise the `0` value is not plotted within the chart.

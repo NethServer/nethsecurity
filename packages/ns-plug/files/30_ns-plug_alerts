@@ -1,0 +1,64 @@
+#!/bin/sh
+
+# Custom disk alerts
+disks_f="/etc/netdata/health.d/disks.conf"
+if [ ! -f "$disks_f" ]; then
+    cat << EOF > "$disks_f"
+template: disk_space_usage
+       on: disk.space
+    class: Utilization
+     type: System
+component: Disk
+       os: linux freebsd
+    hosts: *
+ families: !/dev !/dev/* !/run !/run/* !/overlay *
+     calc: \$used * 100 / (\$avail + \$used)
+    units: %
+    every: 1m
+     warn: \$this > ((\$status >= \$WARNING ) ? (80) : (90))
+     crit: \$this > ((\$status == \$CRITICAL) ? (90) : (98))
+    delay: up 1m down 15m multiplier 1.5 max 1h
+     info: disk $family space utilization
+       to: sysadmin
+EOF
+fi
+
+# Disable unwanted alerts
+files="cpu disks entropy ipc load memory net netfilter processes ram softnet tcp_conn tcp_listen tcp_mem tcp_orphans tcp_resets timex udp_errors"
+for f in $files
+do
+    file="/etc/netdata/health.d/${f}.conf"
+    if [ ! -f $file ]; then
+        > $file
+    fi
+done
+
+# Enable mwan chart
+sed -i 's/python.d = no/python.d = yes/' /etc/netdata/netdata.conf
+python_f="/etc/netdata/python.d.conf"
+if [ ! -f "$python_f" ]; then
+    cat << EOF > "$python_f"
+enabled: yes
+gc_run: yes
+gc_interval: 300
+apache_cache: no
+chrony: no
+example: no
+go_expvar: no
+gunicorn_log: no
+hpssa: no
+logind: no
+nginx_log: no
+EOF
+fi
+
+# Create mwan alert
+cat << EOF > /etc/netdata/health.d/mwan.conf
+template: wan_status
+    on: mwan.score
+lookup: min -1m foreach *
+ every: 1m
+  warn: \$this < 5
+  crit: \$this <= 1
+  info: The score of the WAN, 0 means down
+EOF

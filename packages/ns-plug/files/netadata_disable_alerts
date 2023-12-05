@@ -1,0 +1,5 @@
+#!/bin/sh
+
+# Disable netdata alerts
+sed -i 's/enabled = yes/enabled = no/' /etc/netdata/netdata.conf
+/etc/init.d/netdata restart
