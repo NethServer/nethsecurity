@@ -287,7 +287,6 @@ def enable_user(user):
         if users[username].get("instance") == "ns_roadwarrior" and username == user:
             u.set("openvpn", username, "enabled", "1")
             u.save("openvpn")
-            # FIXME: commit openvpn?
             return {"result": "success"}
     return utils.validation_error("user", "user_not_found", user)
 
@@ -299,16 +298,16 @@ def add_user(args):
             return utils.validation_error("username", "user_already_exists", args["username"])
         if os.path.exists(f"/etc/openvpn/ns_roadwarrior/pki/issued/{args['username']}.crt"):
             return utils.validation_error("username", "user_certificate_already_exists", args["username"])
+    if args["ipaddr"]:
+        if not is_valid_ip(args["ipaddr"]):
+            return utils.validation_error("ipaddr", "reserved_ip_must_be_in_server_network", args["ipaddr"])
+        if not is_free_ip(args["ipaddr"]):
+            return utils.validation_error("ipaddr", "reserved_ip_already_used", args["ipaddr"])
     try:
         subprocess.run(["/usr/sbin/ns-openvpnrw-add", "ns_roadwarrior", args["username"], args["expiration"]], check=True, capture_output=True)
     except Exception as e:
         print(e, file=sys.stderr)
         return utils.validation_error("username", "user_add_failed", args["username"])
-
-    if not is_valid_ip(args["ipaddr"]):
-        return utils.validation_error("ipaddr", "reserved_ip_must_be_in_server_network", args["ipaddr"])
-    if not is_free_ip(args["ipaddr"]):
-        return utils.validation_error("ipaddr", "reserved_ip_already_used", args["ipaddr"])
     u.set("openvpn", args["username"], "user")
     u.set("openvpn", args["username"], "instance", "ns_roadwarrior")
     u.set("openvpn", args["username"], "enabled", "1")
@@ -325,17 +324,17 @@ def edit_user(args):
     users = utils.get_all_by_type(u, "openvpn", "user")
     for username in users:
         if users[username].get("instance") == "ns_roadwarrior" and username == args["username"]:
-            if not is_valid_ip(args["ipaddr"]):
-                 return utils.validation_error("ipaddr", "reserved_ip_must_be_in_server_network", args["ipaddr"])
-            u.set("openvpn", username, "enabled", args["enabled"])
-            if "password" in args:
-                u.set("openvpn", username, "password", args["password"])
-            if "ipaddr" in args and users[username].get("ipaddr") != args["ipaddr"]:
+            if args["ipaddr"] and users[username].get("ipaddr") != args["ipaddr"]:
+                if not is_valid_ip(args["ipaddr"]):
+                    return utils.validation_error("ipaddr", "reserved_ip_must_be_in_server_network", args["ipaddr"])
                 if not is_valid_ip(args["ipaddr"]):
                     return utils.validation_error("ipaddr", "reserved_ip_must_be_in_server_network", args["ipaddr"])
                 if not is_free_ip(args["ipaddr"]):
                     return utils.validation_error("ipaddr", "reserverd_ip_already_used", args["ipaddr"])
-                u.set("openvpn", username, "ipaddr", args["ipaddr"])
+            u.set("openvpn", username, "ipaddr", args["ipaddr"])
+            u.set("openvpn", username, "enabled", args["enabled"])
+            if "password" in args:
+                u.set("openvpn", username, "password", args["password"])
             u.save("openvpn")
             return {"result": "success"}
     return utils.validation_error("username", "user_not_found", args["username"])
