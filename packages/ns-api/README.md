@@ -4136,260 +4136,318 @@ Invalid configuration response:
 }
 ```
 
-## ns.devices
+## ns.users
 
-Manages network devices and interfaces.
+### list-users
 
-### list-devices
-
-List configured and unconfigured network interfaces and devices, organized by zone.
-
-```bash
-api-cli ns.devices list-devices
+List configured users
+```
+api-cli ns.users list-users --data '{"database": "main"}'
 ```
 
-Response example:
-
+Response example for a local database:
 ```json
 {
-  "devices_by_zone": [
-    { "name": "lan", "devices": ["br-lan"] },
-    { "name": "wan", "devices": ["eth1"] },
-    { "name": "unassigned", "devices": ["eth2", "eth3"] }
-  ],
-  "all_devices": [
+  "users": [
     {
-      "ipaddrs": [
-        { "address": "192.168.122.144/24", "broadcast": "192.168.122.255" }
-      ],
-      "ip6addrs": [{ "address": "fe80::5054:ff:fe5b:1506/64" }],
-      "link_type": "ether",
-      "mac": "52:54:00:5b:15:06",
-      "mtu": 1500,
-      "name": "eth1",
-      "up": true,
-      "stats": {
-        "collisions": 0,
-        "multicast": 0,
-        "rx_bytes": 12253535,
-        "rx_dropped": 0,
-        "rx_errors": 0,
-        "rx_packets": 119400,
-        "tx_bytes": 66034,
-        "tx_dropped": 0,
-        "tx_errors": 0,
-        "tx_packets": 665
-      },
-      "speed": 1000
-    },
-    {
-      "name": "br-lan",
-      "type": "bridge",
-      "ports": ["eth0"],
-      ".name": "cfg020f15",
-      ".type": "device",
-      "ipaddrs": [
-        { "address": "192.168.122.30/24", "broadcast": "192.168.122.255" }
-      ],
-      "ip6addrs": [{ "address": "fe80::5054:ff:fe28:d273/64" }],
-      "link_type": "ether",
-      "mac": "52:54:00:28:d2:73",
-      "mtu": 1500,
-      "up": true,
-      "stats": {
-        ...
-      },
-      "speed": -1
-    },
-    ...
+      "local": true,
+      "database": "main",
+      "name": "user",
+      "password": "$6$nu00HaYNNF/rxGV4$nWpG3j5ydXy6anlK1x0DjNDN3PGC78YSxUvgEiFaW/3mWjyWP62iTp+IdBf7tynQueHl4zBBD+9JN3Ws+HMT7w==",
+      "description": "User",
+      "id": "ns_652b6c80"
+    }
   ]
 }
 ```
 
-### configure-device
-
-Create or configure an unconfigured device, or edit its configuration. What happens exactly in the configuration process depends on the input parameters. Anyway, as a rule of thumb the configuration of a device executes one or more of the following steps:
-- creation of a network interface
-- association of the device to the newly created interface
-- configuration of some attributes of the network interface
-- association of the network interface to a firewall zone
-
-Required parameters:
-
-- The set of other required parameters depends on the specific device configuration
-
-All parameters:
-
-- `interface_name`: network interface name to assign to the device
-- `device_name`: name of the device to create
-- `device_type`: can be `physical` or `logical`
-- `protocol`: can be `static`, `dhcp`, `dhcpv6` or `pppoe`
-- `zone`: can be any configured firwall zone name, e.g. `lan`, `wan`...
-- `logical_type`: can be `bridge` or `bond`
-- `interface_to_edit`: name of the network interface to edit
-- `ip4_address`: an IPv4 address in CIDR notation (e.g. 10.20.30.40/24)
-- `ip4_gateway`: an IPv4 gateway
-- `ip4_mtu`: IPv4 maximum transmission unit
-- `ip6_enabled`: `True` to enable IPv6, `False` otherwise
-- `ip6_address`: an IPv4 address in CIDR notation (e.g. 2001:db8:0:1:1:1:1:1/64)
-- `ip6_gateway`: an IPv6 gateway
-- `ip6_mtu`: IPv6 maximum transmission unit
-- `attached_devices`: when configuring a bridge or a bond, it's the list of slave devices, e.g. `["eth0", "eth1"]`
-- `bonding_policy`: when configuring a bond, can be any of `balance-rr`, `active-backup`, `balance-xor`, `broadcast`, `802.3ad`, `balance-tlb`, `balance-alb`
-- `bond_primary_device`: when configuring a bond, name of the primary device
-- `pppoe_username`: PPPoE username
-- `pppoe_password`: PPPoE password
-- `dhcp_client_id`: Client ID to send when requesting DHCP
-- `dhcp_vendor_class`: Vendor class to send when requesting DHCP
-- `dhcp_hostname_to_send`: Hostname to send when requesting DHCP, can be `deviceHostname`, `doNotSendHostname` or `customHostname`
-- `dhcp_custom_hostname`: Custom hostname to use when `dhcp_hostname_to_send = customHostname`
-
-```bash
-api-cli ns.devices configure-device --data '{"device_type": "physical", "interface_name": "myiface", "protocol": "static", "zone": "lan", "ip6_enabled": false, "device_name": "eth2", "ip4_address": "10.20.30.40/24"}'
-```
-
-Response example:
-
+Response example for a remote LDAP database:
 ```json
 {
-   "message": "success"
+  "users": [
+    {
+      "name": "admin",
+      "description": "admin",
+      "local": false,
+      "database": "ns7",
+      "id": "admin"
+    },
+    {
+      "name": "pluto",
+      "description": "Pluto Rossi",
+      "local": false,
+      "database": "ns7",
+      "openpvn_ipaddr": "1.2.3.4",
+      "openvpn_enabled": "1",
+      "id": "pluto"
+    }
+  ]
 }
 ```
 
-### unconfigure-device
+May raise the following validation errors:
+- db_not_found
 
-Remove a device to an unconfigured state by deleting the associated network interface and other data created during the configuration process.
+### list-databases
 
-Required parameters:
-
-- `iface_name`: name of the interface associated to the device to unconfigure
-
-```bash
-api-cli ns.devices unconfigure-device --data '{"iface_name": "myiface"}'
+List configured user databases
 ```
-Response example:
-
-```json
-{
-   "message": "success"
-}
-```
-
-### create-alias-interface
-
-Create an alias interface in order to associate multiple IPv4/IPv6 addresses to a network interface.
-
-Required parameters:
-
-- `alias_iface_name`: name of the alias interface
-- `parent_iface_name`: name of the parent network interface (the one we need to add IP addresses to)
-
-Optional parameters:
-
-- `ip4_addresses`: list of IPv4 addresses in CIDR notation
-- `ip6_addresses`: list of IPv6 addresses in CIDR notation
-
-At least one of `ip4_addresses` and `ip6_addresses` are required.
-
-```bash
-api-cli ns.devices create-alias-interface --data '{"alias_iface_name": "al_myiface", "parent_iface_name": "myiface", "ip4_addresses": ["11.22.33.44/24"], "ip6_addresses": []}'
+api-cli ns.users list-databases
 ```
 
 Response example:
-
 ```json
 {
-   "message": "success"
+  "databases": [
+    {
+      "id": "main",
+      "type": "local",
+      "description": "Main local database"
+    },
+    {
+      "id": "ns7",
+      "type": "ldap",
+      "description": "OpenLDAP NS7",
+      "schema": "rfc2307"
+    }
+  ]
 }
 ```
 
-### edit-alias-interface
+### add-ldap-database
 
-Edit the list of IPv4/IPv6 addresses of an alias interface.
-
-Required parameters:
-
-- `alias_iface_name`: name of the alias interface to edit
-- `parent_iface_name`: name of the parent network interface
-
-Optional parameters:
-
-- `ip4_addresses`: list of IPv4 addresses in CIDR notation
-- `ip6_addresses`: list of IPv6 addresses in CIDR notation
-
-At least one of `ip4_addresses` and `ip6_addresses` are required.
-
-```bash
-api-cli ns.devices edit-alias-interface --data '{"alias_iface_name": "al_myiface", "parent_iface_name": "myiface", "ip4_addresses": ["11.22.33.44/24", "55.66.77.88/24"], "ip6_addresses": []}'
+Add new remote LDAP database:
+```
+api cli ns.users add-ldap-database --data '{"name": "ns7", "uri": "ldap://192.168.100.234", "schema": "rfc2307", "base_dn": "dc=directoy,dc=nh", "user_dn": "ou=People,dc=directory,dc=nh", "user_attr": "uid", "user_cn": "cn", "start_tls": false, "tls_reqcert": "never", "description": "OpenLDAP NS7"}'
 ```
 
 Response example:
-
 ```json
-{
-   "message": "success"
-}
+{"result": "success"}
 ```
 
-### delete-alias-interface
+May raise the following validation errors:
+- db_already_exists
 
-Delete an alias interface and remove the associated IPv4/IPv6 addresses from the parent interface.
+### edit-ldap-database
 
-Required parameters:
-
-- `alias_iface_name`: name of the alias interface to edit
-- `parent_iface_name`: name of the parent network interface
-
-```bash
-api-cli ns.devices delete-alias-interface --data '{"alias_iface_name": "al_myiface", "parent_iface_name": "myiface"}'
+Edit a remote LDAP database:
+```
+api-cli ns.users add-ldap-database --data '{"name": "ns7", "uri": "ldap://192.168.100.234", "schema": "rfc2307", "base_dn": "dc=directoy,dc=nh", "user_dn": "ou=People,dc=directory,dc=nh", "user_attr": "uid", "user_cn": "cn", "start_tls": false, "tls_reqcert": "never", "description": "OpenLDAP NS7"}'
 ```
 
 Response example:
-
 ```json
-{
-   "message": "success"
-}
+{"result": "success"}
 ```
 
-### create-vlan-device
+May raise the following validation errors:
+- db_not_found
 
-Create a VLAN device.
+### delete-ldap-database
 
-Required parameters:
-
-- `vlan_type`: can be `8021q` or `8021ad`
-- `base_device_name`: name of the network device to create the VLAN on
-- `vlan_id`: VLAN ID, must be a positive integer
-
-```bash
-api-cli ns.devices create-vlan-device --data '{"vlan_type": "8021q", "base_device_name": "eth3", "vlan_id": 5}'
+Delete a remote LDAP databse:
+```
+api-cli ns.users delete-ldap-database --data '{"name": "ns7"}'
 ```
 
 Response example:
-
 ```json
-{
-   "message": "success"
-}
+{"result": "success"}
 ```
 
-### delete-device
+May raise the following validation errors:
+- db_not_found
 
-Delete a device from `network` database.
+### test-ldap
 
-Required parameters:
-
-- `device_name`: name of the network device to delete
-
-```bash
-api-cli ns.devices delete-device --data '{"device_name": "eth3.5"}'
+Test LDAP connection, it returns the list of users:
+```
+api-cli ns.users test-ldap --data '{"uri": "ldap://192.168.100.234", "base_dn": "dc=directoy,dc=nh", "user_dn": "ou=People,dc=directory,dc=nh", "user_attr": "uid", "user_cn": "cn", "start_tls": false, "tls_reqcert": "never"}'
 ```
 
 Response example:
-
 ```json
 {
-   "message": "success"
+  "users": [
+    {
+      "name": "admin",
+      "description": "admin"
+    },
+    {
+      "name": "pluto",
+      "description": "Pluto Rossi"
+    }
+  ]
 }
 ```
+
+### get-ldap-defaults
+
+Retrieve opinionated LDAP defaults for given database:
+```
+api-cli ns.users get-ldap-defaults --data '{"uri": "ldap://ldap.example.com", "schema": "rfc2307"}'
+```
+
+Response example:
+```json
+{
+  "defaults": {
+    "base_dn": "dc=example,dc=com",
+    "user_dn": "ou=People,dc=example,dc=com",
+    "user_attr": "uid",
+    "user_cn": "cn"
+  }
+}
+```
+
+### add-local-database
+
+Create a local user database:
+```
+api-cli ns.users add-local-database --data '{"name": "local2", "description": "Local users"}''
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+May raise the following validation errors:
+- db_already_exists
+
+### edit-local-database
+
+Edit a local user database:
+```
+api-cli ns.users add-local-database --data '{"name": "local2", "description": "Local users 2"}''
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+May raise the following validation errors:
+- db_not_found
+
+### delete-local-database
+
+Delete the local user database and all its users and groups:
+```
+api-cli ns.users delete-local-database --data '{"name": "local2"}''
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+May raise the following validation errors:
+- db_not_found
+
+### add-local-user
+
+Add a user to the local database:
+```
+api-cli ns.users add-local-user --data '{"name": "john", "password": "P4**$w0rd", "description": "John Doe", "database": "main", "extra": {"openvpn_enabled": "0"}}'
+```
+
+Response example:
+```json
+{"id": "ns_0d0e8762"}
+```
+
+Extra fields will be added to user object.
+
+May raise the following validation errors:
+- user_already_exists
+- db_not_local
+
+### edit-local-user
+
+Change an existing user inside the local database:
+```
+api-cli ns.users edit-local-user --data '{"name": "john", "password": "P4**$w0rd", "description": "John Doe", "database": "main", "extra": {"openvpn_ipaddr": "1.2.3.4"}}'
+```
+
+To remove an existing extra option, just pass the `extra` field without that specific option.
+As an example, the above call removes the `openvpn_enabled` option from the user and add the `openvpn_ipaddr` option.
+
+Response example:
+```json
+{"id": "ns_0d0e8762"}
+```
+
+May raise the following validation errors:
+- user_not_found
+- db_not_local
+
+### delete-local-user
+
+Delete a user from a local database:
+```
+api-cli ns.users delete-local-user --data '{"name": "john", "database": "main"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+May raise the following validation errors:
+- user_not_found
+- db_not_local
+
+### add-remote-user
+
+Add a user to the remote database:
+```
+api-cli ns.users add-remote-user --data '{"name": "john", "database": "main", "extra": {"openvpn_enabled": "0"}}'
+```
+
+Response example:
+```json
+{"id": "ns_427824b1"}
+```
+
+Extra fields will be added to user object.
+
+May raise the following validation errors:
+- user_already_exists
+- db_not_remote
+
+### edit-remote-user
+
+Change an existing remoteuser:
+```
+api-cli ns.users edit-remote-user --data '{"name": "john", "database": "main", "extra": {"openvpn_ipaddr": "1.2.3.4"}}'
+```
+
+To remove an existing extra option, just pass the `extra` field without that specific option.
+As an example, the above call removes the `openvpn_enabled` option from the user and add the `openvpn_ipaddr` option.
+
+Response example:
+```json
+{"id": "ns_427824b1"}
+```
+
+May raise the following validation errors:
+- user_not_found
+- db_not_remote
+
+### delete-remote-user
+
+Delete an existing user from a remote LDAP database:
+```
+api-cli ns.users delete-remote-user --data '{"name": "john", "database": "main"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+May raise the following validation errors:
+- user_not_found
+- db_not_remote

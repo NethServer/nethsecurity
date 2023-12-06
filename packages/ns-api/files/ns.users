@@ -1,0 +1,98 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Manage user databases
+
+import os
+import sys
+import json
+import subprocess
+from nethsec import utils, users
+from euci import EUci
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({
+        "list_users": {"database": "main"},
+        "list-databases": {},
+
+        "add-local-database": {"name": "local", "description": "Local users"},
+        "edit-local-database": {"name": "local", "description": "Local users"},
+        "delete-local-database": {"name": "local"},
+        
+        "add-ldap-database": {"name": "ldap", "uri": "ldap://ldap.example.com", "schema": "rfc2307", "base_dn": "dc=example,dc=com", "user_dn": "ou=People,dc=example,dc=com", "user_attr": "uid", "user_cn": "cn", "start_tls": False, "tls_reqcert": "never", "description": "LDAP users"},
+        "edit-ldap-database": {"name": "ldap", "uri": "ldap://ldap.example.com", "schema": "rfc2307", "base_dn": "dc=example,dc=com", "user_dn": "ou=People,dc=example,dc=com", "user_attr": "uid", "user_cn": "cn", "start_tls": False, "tls_reqcert": "never", "description": "LDAP users"},
+        "delete-ldap-database": {"name": "ldap"},
+        "get-ldap-defaults": {"uri": "ldap://ldap.example.com", "schema": "rfc2307"},
+        "test-ldap": {"uri": "ldap://ldap.example.com", "user_dn": "ou=People,dc=example,dc=com", "user_attr": "uid", "user_cn": "cn", "start_tls": False, "tls_reqcert": "never"},
+
+        "add-local-user": {"name": "user", "password": "password", "description": "User", "database": "main"},
+        "edit-local-user": {"name": "user", "password": "password", "description": "User", "database": "main"},
+        "delete-local-user": {"name": "user", "database": "main"},
+    }))
+else:
+    action = sys.argv[2]
+    u = EUci()
+    try:
+        if action == "list-databases":
+            ret = {"databases": users.list_databases(u)}
+        else:
+            args = json.loads(sys.stdin.read())
+
+        if action == "list-users":
+            ret = {"users": users.list_users(u, args['database'])}
+        elif action == "add-local-database":
+            users.add_local_database(u, args['name'], args['description'])
+            ret = {"result": "success"}
+        elif action == "edit-local-database":
+            users.edit_local_database(u, args['name'], args['description'])
+            ret = {"result": "success"}
+        elif action == "delete-local-database":
+            users.delete_local_database(u, args['name'])
+            ret = {"result": "success"}
+
+        elif action == "add-ldap-database":
+            users.add_ldap_database(u, args['name'], args['uri'], args['schema'], args['base_dn'], args['user_dn'], args['user_attr'], args['user_cn'], args['start_tls'], args['tls_reqcert'], args['description'])
+            ret = {"result": "success"}
+        elif action == "edit-ldap-database":
+            users.edit_ldap_database(u, args['name'], args['uri'], args['schema'], args['base_dn'], args['user_dn'], args['user_attr'], args['user_cn'], args['start_tls'], args['tls_reqcert'], args['description'])
+            ret = {"result": "success"}
+        elif action == "delete-ldap-database":
+            users.delete_ldap_database(u, args['name'])
+            ret = {"result": "success"}
+        elif action == "get-ldap-defaults":
+            ret = {"defaults": users.get_ldap_defaults(args['uri'], args['schema'])}
+        elif action == "test-ldap":
+            ret = {"users": users.list_remote_users(args['uri'], args['user_dn'], args['user_attr'], args['user_cn'], args['start_tls'], args['tls_reqcert'])}
+
+        elif action == "add-local-user":
+            ret = {"id": users.add_local_user(u, args['name'], args['password'], args['description'], args['database'], args["extra"])}
+        elif action == "edit-local-user":
+            ret = {"id": users.edit_local_user(u, args['name'], args['password'], args['description'], args['database'], args["extra"])}
+        elif action == "delete-local-user":
+            users.delete_local_user(u, args['name'], args['database'])
+            ret = {"result": "success"}
+
+        elif action == "add-remote-user":
+            ret = {"id": users.add_remote_user(u, args['name'], args['database'], args["extra"])}
+        elif action == "edit-remote-user":
+            ret = {"id": users.edit_remote_user(u, args['name'], args['database'], args["extra"])}
+        elif action == "delete-remote-user":
+            users.delete_remote_user(u, args['name'], args['database'])
+            ret = {"result": "success"}
+
+        print(json.dumps(ret))
+
+    except KeyError as e:
+        print(json.dumps(utils.validation_error(e.args[0], 'required')))
+    except json.JSONDecodeError:
+        print(json.dumps(utils.generic_error("json given is invalid")))
+    except utils.ValidationError as e:
+        print(json.dumps(utils.validation_error(e.parameter, e.message, e.value)))
+    except ValueError as e:
+        print(json.dumps(utils.generic_error(e)))

@@ -1,0 +1,13 @@
+{
+  "user-manager": {
+    "description": "User manager",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.users": [
+          "*"
+        ]
+      }
+    }
+  }
+}
