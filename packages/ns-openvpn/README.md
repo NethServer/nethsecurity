@@ -39,7 +39,7 @@ Network and firewall configuration:
 
 After installation, the OpenVPN roadwarrior instance is not configured.
 
-You can enable it by invoking the `ns.ovpnrw`.`add-default-instance` API.
+You can enable it by invoking the `ns.ovpnrw`.`get-configuration` API.
 The API will:
 
 - create a default OpenVPN roadwarrior server instance named `ns_roadwarrior`
@@ -52,7 +52,7 @@ On client connect, the server will execute all scripts inside `/usr/libexec/ns-o
 On client disconnect, the server will execute all scripts inside `/usr/libexec/ns-openvpn/disconnect-scripts/` directory in lexicographical order.
 Each script takes 2 arguments: the server instance name and the client CN.
 
-Change from API are not commited.
+Changes from API are not commited.
 To start the OpenVPN execute:
 ```
 uci commit openvpn firewall network
@@ -63,30 +63,24 @@ service firewall restart
 
 ### Authentications methods
 
-Each user must have an entry of type `user` inside `openvpn` UCI configuration file.
-The entry name is also the name of the user. The name must be unique.
+Each user must have an entry of type `user` or `local-user` inside `users` UCI configuration file
+and must have at least the following fields:
+- `openvpn_instance`: name of the OpenVPN instance, a user always belong to a single instance
+- `openvpn_enabled`: can be `0` or `1`, if set to `0` the user can't authenticate itself
 
-Database example of a user:
-```
-config user 'giacomo'
-	option instance 'ns_roadwarrior'
-	option ipaddr '10.9.9.70'
-	option enabled '1'
-```
+Each user can have also the following options:
 
-Each user has the following options:
+- `openvpn_ipaddr`: IP address reserved for the user
+- `password`: shadow password hash for local authenticated users
 
-- `instance`: name of the OpenVPN instance, a user always belong to a single instance
-- `enabled`: can be `0` or `1`, if set to `0` the user can't authenticate itself
-- `ipaddr`: (optional) IP address reserved for the user
-- `password`: (optional) password hash for local authenticated users
+See [ns-objects](../ns-objects/) for more info.
 
 #### Local users with certificate only
 
 A client can connect to the server if:
 
 - there is a valid certificate inside with the same CN
-- the user belongs to the `ns_roadwarrior` server instance and is marked as enabled inside `openvpn` database
+- the user has an entry inside the  `users` database and has the `openvpn_enabled` field set to `1`
 
 Certificates are saved inside `/etc/openvpn/<instance>/pki/` directory.
 
@@ -100,30 +94,21 @@ uci commit openvpn
 /etc/init.d/openvpn restart
 ```
 
-To add a local user for certificate-only authentication use the `ns-openvpnrw-add` script.
-The script will:
-
-- create certificate and key of the user
-- create a user entry inside the `openvpn` UCI database
-- enable the user
-
-Execute:
-```
-ns-openvpnrw-add <instance> <user> <certificate_expiration>
-```
+To add a local user for certificate-only authentication:
+- create a user entry inside the `users` UCI database, commit the changes
+- create certificate and key of the user:
+  ```
+  ns-openvpnrw-add <instance> <user> <certificate_expiration>
+  ```
 
 Default `certificate_expiration` is `3650` days (1 year).
 
-Example:
-```
-ns-openvpnrw-add ns_roadwarrior giacomo
-```
 
 #### Local user with password
 
 A client can connect to the server if:
 
-- the user belongs to the `ns_roadwarrior` server instance and is marked as enabled inside `openvpn` database
+- the user has an entry inside the  `users` database and has the `openvpn_enabled` field set to `1`
 - the provided user password matches the one saved inside `password` option
 
 Enable user and password authentication:
@@ -136,24 +121,10 @@ uci commit openvpn
 /etc/init.d/openvpn restart
 ```
 
-User passwords are saved inside UCI in passwd format `$<hash_method>$<salt>$<hash>`:
-- `hash_method` is always set to `6`, which is `sha512`
-- `salt` is a random ASCII string of 16 characters
-- `hash` is a 86 characters hash calculated using `mkpasswd` command
-
-Generate the user password:
-```
-salt=$(uuidgen | md5sum | cut -c 0-15)
-echo -e '<password>' | mkpasswd -m sha512 -S "$salt"
-```
-
+FIXME
 Create a local user named `giacomo` with password `nethesis`:
 ```
-ns-openvpnrw-add ns_roadwarrior giacomo
-uci set openvpn.giacomo=user
-uci set openvpn.giacomo.enabled=1
-uci set openvpn.giacomo.instance=ns_roadwarrior
-uci set openvpn.giacomo.password=$(echo -e 'nethesis' | mkpasswd -m sha512 -S "$(uuidgen | md5sum | cut -c 0-15)")
+echo '{"enabled": "1", "username": "giacomo", "password": "nethesis", "expiration": "3600", "ipaddr": ""}' | /usr/libexec/rpcd/ns.ovpnrw call add-user
 uci commit openvpn
 ```
 
@@ -162,7 +133,7 @@ uci commit openvpn
 A client can connect to the server if:
 
 - there is a valid certificate inside with the same CN
-- the user belongs to the `ns_roadwarrior` server instance and is marked as enabled inside `openvpn` database
+- the user has an entry inside the  `users` database and has the `openvpn_enabled` field set to `1`
 - the provided user password matches the one saved inside `password` option
 
 Enable user and password authentication:
@@ -177,6 +148,7 @@ uci commit openvpn
 
 Create a local user named `giacomo` with password `nethesis` and certificate:
 ```
+FIXME
 ns-openvpnrw-add ns_roadwarrior giacomo
 uci set openvpn.giacomo.password=$(echo -e 'nethesis' | mkpasswd -m sha512 -S "$(uuidgen | md5sum | cut -c 0-15)")
 uci commit openvpn
@@ -187,7 +159,7 @@ uci commit openvpn
 A client can connect to the server if:
 
 - there is a valid certificate inside with the same CN
-- the user belongs to the `ns_roadwarrior` server instance and is marked as enabled inside `openvpn` database
+- the user has an entry inside the  `users` database and has the `openvpn_enabled` field set to `1`
 - the provided user OTP matches the one generated using `oathtool` from the 2FA secret saved inside `2fa` option
 
 Enable user and certificate + OTP authentication:
@@ -202,6 +174,7 @@ uci commit openvpn
 
 Create a local user named `giacomo` with OTP 2FA secret and certificate:
 ```
+FIXME
 ns-openvpnrw-add ns_roadwarrior giacomo
 uci set openvpn.giacomo.2fa=$(euuidgen | sha256sum | awk '{print $1}")
 uci commit openvpn
@@ -211,18 +184,8 @@ uci commit openvpn
 
 A client can connect to the server if:
 
-- the user belongs to the `ns_roadwarrior` server instance and is marked as enabled inside `openvpn` database
+- the user has an entry inside the  `users` database and has the `openvpn_enabled` field set to `1`
 - the user password can authenticate against remote LDAP server with provided password
-
-The LDAP configuration is saved to a `ldap` object inside `openvpn` UCI database with the following
-options:
-- `uri`: LDAP URI
-- `tls_reqcert`: enable or disable certificate validation, see valid values for `TLS_REQCERT` inside [OpenLDAP documentation](https://www.openldap.org/doc/admin21/tls.html)
-- `base_dn`: LDAP base DN
-- `user_dn`: LDAP user DN; if not present, default is equal as `base_dn`
-- `user_attr`: user attribute to identify the user; usually is `cn` for Active Directory and `uid` for OpenLDAP
-- `starttls`: can be `0` or `1`, if set to `1` enable StartTLS
-- `instance`: the name of OpenVPN instance associated to this configuration
 
 Setup the connection to a remote NS7 LDAP and associate it to `ns_roadwarrior` instance:
 ```
@@ -260,6 +223,7 @@ uci commit openvpn
 
 Create and enable the user inside the local database:
 ```
+FIXME
 uci set openvpn.giacomo=user
 uci set openvpn.giacomo.enabled=1
 uci set openvpn.giacomo.instance=ns_roadwarrior
@@ -271,7 +235,7 @@ uci commit openvpn
 A client can connect to the server if:
 
 - there is a valid certificate inside with the same CN
-- the user belongs to the `ns_roadwarrior` server instance and is marked as enabled inside `openvpn` database
+- the user has an entry inside the  `users` database and has the `openvpn_enabled` field set to `1`
 - the user password can authenticate against remote LDAP server with provided password
 
 First setup LDAP connection (see previous chapter), then enable authentication against remote LDAP/AD:
@@ -286,16 +250,14 @@ uci commit openvpn
 
 Create and enable the user inside the local database:
 ```
-uci set openvpn <user> user
-uci set openvpn instance ns_roadwarrior
-uci set openvpn enabled 1
-ns-openvpnrw-add ns_roadwarrior <user>
+FIXME
 ```
 
 ### IP static lease
 
 Execute:
 ```
+FIXME
 uci set openvpn.<user>.ipaddr=0
 uci commit openvpn
 ```
@@ -304,6 +266,7 @@ uci commit openvpn
 
 Execute:
 ```
+FIXME
 uci set openvpn.<user>.enabled=0
 uci commit openvpn
 ```
@@ -312,10 +275,11 @@ uci commit openvpn
 The revoke API will:
 
 - revoke the certificate and delete the user key
-- remove entry from `openvpn` UCI database
+- remove entry from `users` UCI database
 
 Execute:
 ```
+FIXME
 uci delete openvpn.<user>
 uci commit openvpn
 ns-openvpnrw-revoke <instance> <user>
