@@ -80,7 +80,7 @@ See [ns-objects](../ns-objects/) for more info.
 A client can connect to the server if:
 
 - there is a valid certificate inside with the same CN
-- the user has an entry inside the  `users` database and has the `openvpn_enabled` field set to `1`
+- the user is associated to the `ns_roadwarrior` server inside the `openvpn_instance` field and has the `openvpn_enabled` field set to `1` inside `users` database
 
 Certificates are saved inside `/etc/openvpn/<instance>/pki/` directory.
 
@@ -235,7 +235,7 @@ uci commit openvpn
 A client can connect to the server if:
 
 - there is a valid certificate inside with the same CN
-- the user has an entry inside the  `users` database and has the `openvpn_enabled` field set to `1`
+- the user belongs to the `ns_roadwarrior` server instance and is marked as enabled inside `openvpn` database
 - the user password can authenticate against remote LDAP server with provided password
 
 First setup LDAP connection (see previous chapter), then enable authentication against remote LDAP/AD:
