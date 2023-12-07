@@ -34,6 +34,7 @@ It also has the following fields:
 - `base_dn`: LDAP base DN
 - `user_dn`: LDAP user DN; if not present, default is equal as `base_dn`
 - `user_attr`: user attribute to identify the user; usually is `cn` for Active Directory and `uid` for OpenLDAP
+- `user_cn`: user attribute that contains the user complete name
 - `starttls`: can be `0` or `1`, if set to `1` enable StartTLS
 
 OpenLDAP example:
@@ -45,6 +46,7 @@ config ldap 'ldap1'
 	option base_dn 'dc=directory,dc=nh'
 	option user_dn 'ou=People,dc=directory,dc=nh'
 	option user_attr 'uid'
+	option user_cn 'cn'
 	option starttls '0'
 	option schema 'rfc2307'
 ```
@@ -58,6 +60,7 @@ config ldap 'ad1'
 	option base_dn 'dc=ad,dc=nethserver,dc=org'
 	option user_dn 'cn=users,dc=ad,dc=nethserver,dc=org'
 	option user_attr 'cn'
+	option user_cn 'cn'
 	option starttls '0'
 	option schema 'ad'
 ```
@@ -94,6 +97,7 @@ The local `user` object can have the following non-mandatory options:
 - `host`: list of DHCP reservations resolved to IP addresses, each reservation is a `host` record inside the [`dhcp` database](https://openwrt.org/docs/guide-user/base-system/dhcp#static_leases)
 - `password`: shadow password hash, shadow format: `$<alg>$<salt>$<hash>`, where `alg` is always set to `6` (SHA-512)
 - `openvpn_ipaddr`: an OpenVPN RoadWarrior IP address reserved for the user
+- `openvpn_enabled`: can be `0` or `1`, if set to `0` the user can't authenticate itself inside OpenVPN
 
 The local `group` object can have the following non-mandatory options:
 
