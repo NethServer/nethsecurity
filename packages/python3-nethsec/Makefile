@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=python3-nethsec
-PKG_VERSION:=0.0.19
+PKG_VERSION:=0.0.20
 PKG_RELEASE:=1
  
 PKG_MAINTAINER:=Giacomo Sanchietti <giacomo.sanchietti@nethesis.it>
@@ -26,7 +26,7 @@ define Package/python3-nethsec
 	CATEGORY:=NethSecurity
 	TITLE:=NethSecurity python libraries
 	URL:=https://github.com/NethServer/python3-nethsec/
-	DEPENDS:=+python3-light +python3-uci
+	DEPENDS:=+python3-uci +python3-passlib
 	PKGARCH:=all
 endef
  
