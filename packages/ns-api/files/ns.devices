@@ -838,15 +838,11 @@ def delete_alias_interface(input_data):
 
 def create_vlan_device(input_data):
     uci = EUci()
-    device_name = input_data.get('device_name')
     vlan_type = input_data.get('vlan_type')
     base_device_name = input_data.get('base_device_name')
     vlan_id = input_data.get('vlan_id')
 
     # validate input data
-
-    if not device_name:
-        raise utils.ValidationError('device_name', 'required')
 
     if not vlan_type:
         raise utils.ValidationError('vlan_type', 'required')
@@ -860,6 +856,7 @@ def create_vlan_device(input_data):
     # create device
 
     device_id = utils.get_random_id()
+    device_name = f'{base_device_name}.{vlan_id}'
     uci.set('network', device_id, 'device')
     uci.set('network', device_id, 'name', device_name)
     uci.set('network', device_id, 'type', vlan_type)
@@ -911,7 +908,6 @@ if cmd == 'list':
             'ip6_address': 'string',
             'ip6_gateway': 'string',
             'ip6_mtu': 'string',
-            'bridge_device_name': 'string',
             'attached_devices': 'array',
             'bonding_policy': 'string',
             'bond_primary_device': 'string',
@@ -942,7 +938,6 @@ if cmd == 'list':
             'parent_iface_name': 'string'
         },
         'create-vlan-device': {
-            'device_name': 'string',
             'vlan_type': 'string',
             'base_device_name': 'string',
             'vlan_id': 'string'
