@@ -34,6 +34,9 @@ if cmd == 'list':
         "add-local-user": {"name": "user", "password": "password", "description": "User", "database": "main"},
         "edit-local-user": {"name": "user", "password": "password", "description": "User", "database": "main"},
         "delete-local-user": {"name": "user", "database": "main"},
+
+        "set-admin": {"name": "user", "database": "main"},
+        "remove-admin": {"name": "user"},
     }))
 else:
     action = sys.argv[2]
