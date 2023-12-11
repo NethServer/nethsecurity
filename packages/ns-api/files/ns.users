@@ -18,7 +18,7 @@ cmd = sys.argv[1]
 
 if cmd == 'list':
     print(json.dumps({
-        "list_users": {"database": "main"},
+        "list-users": {"database": "main"},
         "list-databases": {},
 
         "add-local-database": {"name": "local", "description": "Local users"},
@@ -84,6 +84,13 @@ else:
             ret = {"id": users.edit_remote_user(u, args['name'], args['database'], args["extra"])}
         elif action == "delete-remote-user":
             users.delete_remote_user(u, args['name'], args['database'])
+            ret = {"result": "success"}
+
+        elif action == "set-admin":
+            id = users.set_admin(u, args['name'], args['database'])
+            ret = {"id": id}
+        elif action == "remove-admin":
+            id = users.remove_admin(u, args['name'])
             ret = {"result": "success"}
 
         print(json.dumps(ret))

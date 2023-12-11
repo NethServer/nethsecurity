@@ -4169,6 +4169,7 @@ Response example for a remote LDAP database:
       "name": "admin",
       "description": "admin",
       "local": false,
+      "admin": true,
       "database": "ns7",
       "id": "admin"
     },
@@ -4176,6 +4177,7 @@ Response example for a remote LDAP database:
       "name": "pluto",
       "description": "Pluto Rossi",
       "local": false,
+      "admin": false,
       "database": "ns7",
       "openpvn_ipaddr": "1.2.3.4",
       "openvpn_enabled": "1",
@@ -4451,3 +4453,27 @@ Response example:
 May raise the following validation errors:
 - user_not_found
 - db_not_remote
+
+## set-admin
+
+Make a local user an admin. The admin can login to the UI:
+```
+api-cli ns.users set-admin --data '{"name": "pluto", "database": "main"}'
+```
+
+Response example:
+```json
+{"id": "ns_bc8c1aa1"}
+```
+
+## remove-admin
+
+Remove the admin role from  a local user:
+```
+api-cli ns.users set-admin --data '{"name": "pluto"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
