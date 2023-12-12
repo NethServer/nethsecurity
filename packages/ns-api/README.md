@@ -790,13 +790,51 @@ Response example:
 
 ## ns.ovpnrw
 
-Manage OpenVPN Road Warrior server.
+Manage OpenVPN Road Warrior server instances.
+
+### list-instances
+
+List existing instances:
+```
+api-cli ns.ovpnrw list-instances
+```
+
+Response example:
+```json
+{
+  "instances": [
+    "ns_roadwarrior1"
+  ]
+}
+```
+### add-instance
+
+Create a new instance:
+```
+api-cli ns.ovpnrw add-instance
+```
+
+Response example:
+```json
+{"instance": "ns_roadwarrior2"}
+```
+
+### remove-instance
+
+```
+api-cli ns.ovpnrw remove-instance --data '{"instance": "ns_roadwarrior2"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
 
 ### get-configuration
 
 Get current server configuration:
 ```
-api-cli ns.ovpnrw get-configuration
+api-cli ns.ovpnrw get-configuration --data '{"instance": "ns_roadwarrior1"}'
 ```
 
 Response example for a server in routed mode:
@@ -870,22 +908,30 @@ Response example:
 {
   "users": [
     {
-      "enabled": "1",
-      "instance": "ns_roadwarrior",
-      "username": "giacomo",
-      "password": "mypass",
+      "local": true,
+      "database": "main",
+      "name": "john",
+      "password": "$6$3c955d30ce84091a$F385YlvQX44FJpNZ7CECB6gxrtKcv..rB5mnco9YMEicfLJ2EmVALg2I3t6xPaUxMCOzIDKhuzLhJPWYFNAuc.",
+      "description": "John Doe",
+      "openvpn_enabled": "1",
+      "openvpn_ipaddr": "10.84.232.22",
+      "openvpn_2fa": "ORWDWV66I4BHIWGT7CJLLCREFUS33BVZ",
+      "admin": false,
+      "id": "ns_d486faa0",
       "connected": false,
-      "ipaddr": "1.2.3.4",
-      "expiration": 2012460421,
-      "expired": false,
+      "expiration": "",
+      "expired": false
     },
     {
-      "instance": "ns_roadwarrior",
-      "enabled": "1",
-      "password": "mypass",
-      "ipaddr": "192.168.101.44",
-      "2fa": "eeea7e12f45c48709525a21985d9a2605f13a451b9ec342521d2fd53dd22f5ec",
-      "username": "giacomo2",
+      "local": true,
+      "database": "main",
+      "name": "daisy",
+      "password": "$6$3c955d30ce84091a$F385YlvQX44FJpNZ7CECB6gxrtKcvxxrB5mnco9YMEicfLJ2EmVALg2I3t6xPaUxMCOzIDKhuzLhJPWYFNAuc.",
+      "description": "Daisy Doe",
+      "openvpn_enabled": "1",
+      "openvpn_2fa": "ORWDWV66I4BHIWGT7CJLLCREFUS33BVZ",
+      "admin": false,
+      "id": "ns_d486faa0",
       "connected": true,
       "real_address": "192.168.100.1",
       "virtual_address": "192.168.101.44",
@@ -1006,12 +1052,12 @@ Response example:
 
 Configure a routed server:
 ```
-api-cli ns.ovpnrw set-configuration --data '{"proto":"udp","port":"1194","dev_type":"tun","topology":"subnet","enabled":"1","client_to_client":"0","auth":"SHA256","cipher":"AES-256-GCM","tls_version_min":"1.2","ns_auth_mode":"certificate","ns_public_ip":["192.168.100.238"],"server":"192.168.101.0/24","ns_redirect_gateway":"0","ns_local":["192.168.22.0/24","192.168.100.0/24"],"ns_dhcp_options":[{"option": "NBDD", "value": "1.2.3.4"}],"ns_pool_start":"","ns_pool_end":"","ns_bridge":""}}'
+api-cli ns.ovpnrw set-configuration --data '{"instance": "ns_roadwarrior1", "proto":"udp","port":"1194","dev_type":"tun","topology":"subnet","enabled":"1","client_to_client":"0","auth":"SHA256","cipher":"AES-256-GCM","tls_version_min":"1.2","ns_auth_mode":"certificate","ns_public_ip":["192.168.100.238"],"server":"192.168.101.0/24","ns_redirect_gateway":"0","ns_local":["192.168.22.0/24","192.168.100.0/24"],"ns_dhcp_options":[{"option": "NBDD", "value": "1.2.3.4"}],"ns_pool_start":"","ns_pool_end":"","ns_bridge":""}'
 ```
 
 Configure a bridged server: 
 ```
-api-cli ns.ovpnrw set-configuration --data '{"proto":"udp","port":"1194","dev_type":"tap","topology":"subnet","enabled":"1","client_to_client":"0","auth":"SHA256","cipher":"AES-256-GCM","tls_version_min":"1.2","ns_auth_mode":"certificate","ns_public_ip":["192.168.100.238"],"server":"","ns_redirect_gateway":"0","ns_local":["192.168.22.0/24","192.168.100.0/24"],"ns_dhcp_options":[],"ns_pool_start":"192.168.100.239","ns_pool_end":"192.168.100.240","ns_bridge":"lan"}'
+api-cli ns.ovpnrw set-configuration --data '{"instance": "ns_roadwarrior1", "proto":"udp","port":"1194","dev_type":"tap","topology":"subnet","enabled":"1","client_to_client":"0","auth":"SHA256","cipher":"AES-256-GCM","tls_version_min":"1.2","ns_auth_mode":"certificate","ns_public_ip":["192.168.100.238"],"server":"","ns_redirect_gateway":"0","ns_local":["192.168.22.0/24","192.168.100.0/24"],"ns_dhcp_options":[],"ns_pool_start":"192.168.100.239","ns_pool_end":"192.168.100.240","ns_bridge":"lan"}'
 ```
 
 Valid values for `proto` field are: `udp` and `tcp-server`
@@ -1038,7 +1084,7 @@ The API may raise the following validation errors:
 
 Create a user and generate a certficate for it:
 ```
-api-cli ns.ovpnrw add-user --data '{"enabled": "1", "username": "myuser", "password": "mypass", "expiration": "3650", "ipaddr": "1.2.3.4"}'
+api-cli ns.ovpnrw add-user --data '{"instance": "ns_roadwarrior1", "enabled": "1", "username": "myuser", "expiration": "3650", "ipaddr": "1.2.3.4"}'
 ```
 
 Response example:
@@ -1047,17 +1093,19 @@ Response example:
 ```
 
 The APIs can raise the following validation errors:
-- user_already_exists
 - user_add_failed
 - reserved_ip_must_be_in_server_network
 - reserverd_ip_already_used
 - reserved_ip_must_be_in_server_network
+- user_db_not_configured
+- db_not_found
+- user_not_in_db
 
 ### edit-user
 
 Edit a user and generate a certficate for it:
 ```
-api-cli ns.ovpnrw add-user --data '{"enabled": "1", "username": "myuser", "password": "mypass", "expiration": "3650", "ipaddr": "1.2.3.4"}'
+api-cli ns.ovpnrw add-user --data '{"instance": "ns_roadwarrior1", "enabled": "1", "username": "myuser", "ipaddr": "1.2.3.4"}'
 ```
 
 Response example:
@@ -1077,7 +1125,7 @@ The APIs can raise the following validation errors:
 
 Disable ab existing user:
 ```
-api-cli ns.ovpnrw disable-user --data '{"username": "myuser"}''
+api-cli ns.ovpnrw disable-user --data '{"instance": "ns_roadwarrior1", "username": "myuser"}''
 ```
 
 Response example:
@@ -1091,7 +1139,7 @@ Throws a validation error if the user is not found.
 
 Enable an existing user:
 ```
-api-cli ns.ovpnrw enable-user --data '{"username": "myuser"}''
+api-cli ns.ovpnrw enable-user --data '{"instance": "ns_roadwarrior1", "username": "myuser"}''
 ```
 
 Response example:
@@ -1106,7 +1154,7 @@ Throws a validation error if the user is not found.
 
 Delete an existing user:
 ```
-api-cli ns.ovpnrw delete-user --data '{"username": "myuser"}''
+api-cli ns.ovpnrw delete-user --data '{"instance": "ns_roadwarrior1", "username": "myuser"}''
 ```
 
 Response example:
@@ -1120,7 +1168,7 @@ Throws a validation error if the user is not found.
 
 Delete current user certificate and create a new one:
 ```
-api-cli ns.ovpnrw regenerate-user-certificate --data '{"username": "myuser", "expiration": "3650"}''
+api-cli ns.ovpnrw regenerate-user-certificate --data '{"instance": "ns_roadwarrior1", "username": "myuser", "expiration": "3650"}''
 ```
 
 Response example:
@@ -1134,7 +1182,7 @@ Throws a validation error if the user is not found.
 
 Download the certificate chain for the given user:
 ```
-api-cli ns.ovpnrw download-user-certificate --data '{"username": "myuser"}'
+api-cli ns.ovpnrw download-user-certificate --data '{"instance": "ns_roadwarrior1", "username": "myuser"}'
 ```
 
 Response example:
@@ -1149,7 +1197,7 @@ Throws a validation error if the user is not found.
 
 Download the OpenVPN configuration with embedded certificates for the given user:
 ```
-api-cli ns.ovpnrw download-user-configuration --data '{"username": "myuser"}''
+api-cli ns.ovpnrw download-user-configuration --data '{"instance": "ns_roadwarrior1", "username": "myuser"}''
 ```
 
 Response example:
@@ -1165,7 +1213,7 @@ Throws a validation error if the user is not found.
 
 Download the 2FA secret, the secret is encoded inside a QR code in a SVG file:
 ```
-api-cli ns.ovpnrw download-user-2fa --data '{"username": "myuser"}''
+api-cli ns.ovpnrw download-user-2fa --data '{"instance": "ns_roadwarrior1", "username": "myuser"}''
 ```
 
 Response example:
