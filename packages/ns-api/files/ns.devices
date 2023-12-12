@@ -10,13 +10,9 @@ import sys
 import subprocess
 import re
 from euci import EUci
-from nethsec import utils
-
-# //// remove
-DEBUG = False
+from nethsec import utils, firewall
 
 
-# //// move to python3-nethsec utils
 def get_all_by_type_as_list(uci, config, utype):
     all_as_dict = utils.get_all_by_type(uci, config, utype)
     all_as_list = []
@@ -54,8 +50,12 @@ def list_devices():
     merged_devices = []
 
     for physical_dev in filtered_physical_devices:
-        device_from_config_found = next((device_from_config for device_from_config in devices_from_config if physical_dev.get(
-            'name') == device_from_config.get('name')), None)
+        device_from_config_found = None
+
+        for device_from_config in devices_from_config:
+            if physical_dev.get('name') == device_from_config.get('name'):
+                device_from_config_found = device_from_config
+                break
 
         if device_from_config_found:
             merged_devices.append(device_from_config_found | physical_dev)
@@ -65,8 +65,12 @@ def list_devices():
     # add remaining devices from config
 
     for device_from_config in devices_from_config:
-        dev_found = next((dev for dev in merged_devices if dev.get(
-            'name') == device_from_config.get('name')), None)
+        dev_found = None
+
+        for dev in merged_devices:
+            if dev.get('name') == device_from_config.get('name'):
+                dev_found = dev
+                break
 
         if not dev_found:
             merged_devices.append(device_from_config)
@@ -91,8 +95,12 @@ def list_devices():
     stats = get_device_stats()
 
     for stat in stats:
-        dev_found = next((device for device in devices_to_show if device.get(
-            'name') == stat.get('ifname')), None)
+        dev_found = None
+
+        for device in devices_to_show:
+            if device.get('name') == stat.get('ifname'):
+                dev_found = device
+                break
 
         if dev_found:
             dev_found['stats'] = {
@@ -112,11 +120,10 @@ def list_devices():
 
     for device in devices_to_show:
         try:
-            res = subprocess.run(
-                ['/bin/cat', f'/sys/class/net/{device.get("name")}/speed'], check=True, text=True, capture_output=True)
-            speed = int(res.stdout.strip())
-            device['speed'] = speed
-        except subprocess.CalledProcessError:
+            with open(f'/sys/class/net/{device.get("name")}/speed') as f:
+                speed = int(f.read().strip())
+                device['speed'] = speed
+        except OSError:
             # ignore read errors
             pass
 
@@ -133,10 +140,6 @@ def list_devices():
         },
         {
             'name': 'guests',
-            'devices': []
-        },
-        {
-            'name': 'dmz',
             'devices': []
         },
     ]
@@ -159,8 +162,12 @@ def list_devices():
             if not zone_found:
                 unassigned_zone['devices'].append(get_name(device))
             else:
-                zone_obj = next((z for z in zones if z.get(
-                    'name') == zone_found.get('name')), None)
+                zone_obj = None
+
+                for z in zones:
+                    if z.get('name') == zone_found.get('name'):
+                        zone_obj = z
+                        break
 
                 if zone_obj:
                     zone_obj['devices'].append(get_name(device))
@@ -180,8 +187,13 @@ def list_devices():
 
 
 def get_firewall_zone(iface_name, fw_zones):
-    zone_found = next((zone for zone in fw_zones if zone.get(
-        'network') and iface_name in zone.get('network')), None)
+    zone_found = None
+
+    for zone in fw_zones:
+        if zone.get('network') and iface_name in zone.get('network'):
+            zone_found = zone
+            break
+
     return zone_found
 
 
@@ -205,6 +217,10 @@ def is_bridge(device):
         return False
 
 
+def should_omit_device_name(device_name):
+    return device_name == 'lo' or device_name.startswith('ifb-') or device_name.startswith('tun')
+
+
 def get_physical_devices():
     p = subprocess.run(["/sbin/ip", "-j", "address"],
                        check=True, text=True, capture_output=True)
@@ -213,9 +229,8 @@ def get_physical_devices():
     physical_devices = []
 
     for device in devices:
-        # discard lo and ifb-dns device
-        if device.get(
-                'ifname') in ['ifb-dns', 'lo']:
+        # discard lo and ifb-* devices
+        if should_omit_device_name(device.get('ifname')):
             continue
 
         # process devices attributes
@@ -260,9 +275,9 @@ def get_device_stats():
     p = subprocess.run(["/sbin/ip", "-j", "stats"],
                        check=True, text=True, capture_output=True)
     stats = json.loads(p.stdout)
-    # keep only tx/rx stats and discard lo and ifb-dns device
+    # keep only tx/rx stats and discard lo and ifb-* devices
     stats = list(filter(lambda stat: stat.get('stats64')
-                        and not stat.get('ifname') in ['ifb-dns', 'lo'], stats))
+                 and not should_omit_device_name(stat.get('ifname')), stats))
     return stats
 
 
@@ -290,7 +305,6 @@ def convert_prefix_length_to_ip4_subnet_mask(prefix_length):
     return subnet_mask_str
 
 
-# //// move to python3-nethsec utils
 def generate_device_name(device_prefix):
     uci = EUci()
     devices_from_config = get_all_by_type_as_list(uci, 'network', 'device')
@@ -298,9 +312,12 @@ def generate_device_name(device_prefix):
 
     while True:
         generated_name = device_prefix + str(num)
+        device_found = None
 
-        device_found = next(
-            (device for device in devices_from_config if device.get('name') == generated_name), None)
+        for device in devices_from_config:
+            if device.get('name') == generated_name:
+                device_found = device
+                break
 
         if device_found:
             num += 1
@@ -500,44 +517,43 @@ def set_network_configuration(device_type, interface_name, logical_type, interfa
         uci.set('network', interface_name, key, value)
 
 
-def add_interface_to_firewall_zone(interface_name, zone, fw_zones, uci):
-    fw_zone = next((z for z in fw_zones if z.get(
-        'name') == zone), None)
-
-    if not fw_zone:
-        raise utils.ValidationError('zone', 'not found')
-
-    if not fw_zone.get('network'):
-        fw_zone['network'] = ()
-
-    # add the new interface to zone interfaces
-    fw_zone['network'] += (interface_name,)
-
-    uci.set('firewall', fw_zone['.name'], 'network', list(fw_zone['network']))
-
-
 def set_firewall_zone(interface_name, zone, interface_to_edit, uci):
     fw_zones = get_all_by_type_as_list(uci, 'firewall', 'zone')
 
     if not interface_to_edit:
         # first configuration
-        add_interface_to_firewall_zone(interface_name, zone, fw_zones, uci)
+        firewall.add_interface_to_zone(uci, interface_name, zone)
     else:
         # editing configuration: if firewall zone has changed, remove interface from the old zone
+        old_zone = None
 
-        old_zone = next((z for z in fw_zones if z.get(
-            'network') and interface_name in z.get(
-            'network')), None)
+        for z in fw_zones:
+            if z.get('network') and interface_name in z.get('network'):
+                old_zone = z
+                break
 
         if old_zone and old_zone.get('name') != zone:
             # remove interface from the old zone
-            old_zone['network'] = list(
-                old_zone['network']).remove(interface_name)
+            firewall.remove_interface_from_zone(
+                uci, interface_name, old_zone['name'])
 
-            uci.set('firewall', old_zone['.name'],
-                    'network', old_zone['network'])
+            # add interface to the new zone
+            firewall.add_interface_to_zone(uci, interface_name, zone)
 
-            add_interface_to_firewall_zone(interface_name, zone, fw_zones, uci)
+            # if interface has an alias, move it too
+
+            ifaces_from_config = get_all_by_type_as_list(
+                uci, 'network', 'interface')
+            alias_found = get_alias_interface_from_iface_name(
+                interface_name, ifaces_from_config)
+
+            if alias_found:
+                # remove alias interface from the old zone
+                firewall.remove_interface_from_zone(
+                    uci, alias_found['.name'], old_zone['name'])
+
+                # add interface to the new zone
+                firewall.add_interface_to_zone(uci, alias_found['.name'], zone)
 
 
 def create_and_set_network_device(device_name, device_type, protocol, logical_type, ip4_mtu, ip6_mtu, ip6_enabled, bridge_device_name, attached_devices, uci):
@@ -545,9 +561,12 @@ def create_and_set_network_device(device_name, device_type, protocol, logical_ty
     device_section = ''
 
     # create the device only if it doesn't already exists
+    device_already_exists = None
 
-    device_already_exists = next(
-        (dev for dev in devices_from_config if dev.get('name') == device_name), None)
+    for dev in devices_from_config:
+        if dev.get('name') == device_name:
+            device_already_exists = dev
+            break
 
     if not device_already_exists:
         # create the device
@@ -564,8 +583,12 @@ def create_and_set_network_device(device_name, device_type, protocol, logical_ty
             uci.set("network", device_section, "type", 'bridge')
     else:
         # device already exists
-        device_found = next(
-            (dev for dev in devices_from_config if dev.get('name') == device_name), None)
+        device_found = None
+
+        for dev in devices_from_config:
+            if dev.get('name') == device_name:
+                device_found = dev
+                break
 
         if device_found:
             device_section = device_found.get('.name')
@@ -646,8 +669,13 @@ def configure_device(input_data):
 
 
 def get_alias_interface_from_iface_name(iface_name, ifaces_from_config):
-    alias_found = next((i for i in ifaces_from_config if i.get(
-        'device') == f'@{iface_name}'), None)
+    alias_found = None
+
+    for i in ifaces_from_config:
+        if i.get('device') == f'@{iface_name}':
+            alias_found = i
+            break
+
     return alias_found
 
 
@@ -660,29 +688,21 @@ def get_alias_interface_from_device_name(device_name, ifaces_from_config):
     return get_alias_interface_from_iface_name(iface['.name'], ifaces_from_config)
 
 
-def remove_interface_from_zone(iface_name, ifaces_from_config, uci):
+def remove_interface_from_firewall_zone(iface_name, ifaces_from_config, uci):
     fw_zones = get_all_by_type_as_list(uci, 'firewall', 'zone')
     zone = get_firewall_zone(iface_name, fw_zones)
-    sectionName = zone['.name']
+    zone_name = zone['name']
 
     # remove interface from zone
-    zone_interfaces = list(
-        filter(lambda zone_iface: zone_iface != iface_name, zone['network']))
+    firewall.remove_interface_from_zone(uci, iface_name, zone_name)
 
-    # if interface has an alias, delete it
+    # if interface has an alias, delete it too
     alias_found = get_alias_interface_from_iface_name(
         iface_name, ifaces_from_config)
 
     if alias_found:
-        zone_interfaces = list(
-            filter(lambda zone_iface: zone_iface != alias_found['.name'], zone_interfaces))
-
-    if len(zone_interfaces) > 0:
-        # update firewall zone
-        uci.set('firewall', sectionName, 'network', zone_interfaces)
-    else:
-        # firewall zone is now empty, let's delete 'network' option
-        uci.delete('firewall', sectionName, 'network')
+        firewall.remove_interface_from_zone(
+            uci, alias_found['.name'], zone_name)
 
 
 def is_vlan(device):
@@ -696,7 +716,7 @@ def is_bond(device_or_iface):
 def unconfigure_device(iface_name):
     uci = EUci()
     ifaces_from_config = get_all_by_type_as_list(uci, 'network', 'interface')
-    remove_interface_from_zone(iface_name, ifaces_from_config, uci)
+    remove_interface_from_firewall_zone(iface_name, ifaces_from_config, uci)
 
     # delete network interface
     uci.delete('network', iface_name)
@@ -712,13 +732,22 @@ def unconfigure_device(iface_name):
     # delete network device (if it's not a vlan or a bond)
 
     devices_from_config = get_all_by_type_as_list(uci, 'network', 'device')
-    iface = next(
-        (i for i in ifaces_from_config if i.get('.name') == iface_name), None)
+    iface = None
+
+    for i in ifaces_from_config:
+        if i.get('.name') == iface_name:
+            iface = i
+            break
+
     device_name = iface.get('device')
 
     if device_name:
-        device_found = next(
-            (dev for dev in devices_from_config if dev.get('name') == device_name), None)
+        device_found = None
+
+        for dev in devices_from_config:
+            if dev.get('name') == device_name:
+                device_found = dev
+                break
 
         if device_found and not is_vlan(device_found) and not is_bond(device_found):
             uci.delete('network', device_found['.name'])
@@ -742,8 +771,12 @@ def set_alias_ip_address_list(alias_iface_name, ip4_addresses, ip6_addresses, is
     if not is_creating:
         ifaces_from_config = get_all_by_type_as_list(
             uci, 'network', 'interface')
-        alias_to_edit = next((iface for iface in ifaces_from_config if iface.get(
-            '.name') == alias_iface_name), None)
+        alias_to_edit = None
+
+        for iface in ifaces_from_config:
+            if iface.get('.name') == alias_iface_name:
+                alias_to_edit = iface
+                break
 
     # ip4 addresses
 
@@ -788,8 +821,12 @@ def create_or_edit_alias_interface(input_data, is_creating):
     if not is_creating:
         ifaces_from_config = get_all_by_type_as_list(
             uci, 'network', 'interface')
-        parent_iface_found = next(
-            (iface for iface in ifaces_from_config if iface.get('.name') == parent_iface_name), None)
+        parent_iface_found = None
+
+        for iface in ifaces_from_config:
+            if iface.get('.name') == parent_iface_name:
+                parent_iface_found = iface
+                break
 
         if not parent_iface_found:
             raise utils.ValidationError('parent_iface_name', 'not found')
@@ -802,8 +839,7 @@ def create_or_edit_alias_interface(input_data, is_creating):
 
     fw_zones = get_all_by_type_as_list(uci, 'firewall', 'zone')
     zone = get_firewall_zone(parent_iface_name, fw_zones)
-    uci.set('firewall', zone['.name'], 'network', zone['network'])
-
+    firewall.add_interface_to_zone(uci, alias_iface_name, zone['name'])
     uci.save("firewall")
     uci.save("network")
 
@@ -876,9 +912,12 @@ def delete_device(device_name):
     # delete network device
 
     devices_from_config = get_all_by_type_as_list(uci, 'network', 'device')
+    device_found = None
 
-    device_found = next(
-        (dev for dev in devices_from_config if dev.get('name') == device_name), None)
+    for dev in devices_from_config:
+        if dev.get('name') == device_name:
+            device_found = dev
+            break
 
     if device_found:
         uci.delete('network', device_found['.name'])

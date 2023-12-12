@@ -4244,6 +4244,10 @@ All parameters:
 - `dhcp_hostname_to_send`: Hostname to send when requesting DHCP, can be `deviceHostname`, `doNotSendHostname` or `customHostname`
 - `dhcp_custom_hostname`: Custom hostname to use when `dhcp_hostname_to_send = customHostname`
 
+```bash
+api-cli ns.devices configure-device --data '{"device_type": "physical", "interface_name": "myiface", "protocol": "static", "zone": "lan", "ip6_enabled": false, "device_name": "eth2", "ip4_address": "10.20.30.40/24"}'
+```
+
 Response example:
 
 ```json
@@ -4260,6 +4264,9 @@ Required parameters:
 
 - `iface_name`: name of the interface associated to the device to unconfigure
 
+```bash
+api-cli ns.devices unconfigure-device --data '{"iface_name": "myiface"}'
+```
 Response example:
 
 ```json
@@ -4283,6 +4290,10 @@ Optional parameters:
 - `ip6_addresses`: list of IPv6 addresses in CIDR notation
 
 At least one of `ip4_addresses` and `ip6_addresses` are required.
+
+```bash
+api-cli ns.devices create-alias-interface --data '{"alias_iface_name": "al_myiface", "parent_iface_name": "myiface", "ip4_addresses": ["11.22.33.44/24"], "ip6_addresses": []}'
+```
 
 Response example:
 
@@ -4308,6 +4319,10 @@ Optional parameters:
 
 At least one of `ip4_addresses` and `ip6_addresses` are required.
 
+```bash
+api-cli ns.devices edit-alias-interface --data '{"alias_iface_name": "al_myiface", "parent_iface_name": "myiface", "ip4_addresses": ["11.22.33.44/24", "55.66.77.88/24"], "ip6_addresses": []}'
+```
+
 Response example:
 
 ```json
@@ -4324,6 +4339,10 @@ Required parameters:
 
 - `alias_iface_name`: name of the alias interface to edit
 - `parent_iface_name`: name of the parent network interface
+
+```bash
+api-cli ns.devices delete-alias-interface --data '{"alias_iface_name": "al_myiface", "parent_iface_name": "myiface"}'
+```
 
 Response example:
 
@@ -4343,6 +4362,10 @@ Required parameters:
 - `base_device_name`: name of the network device to create the VLAN on
 - `vlan_id`: VLAN ID, must be a positive integer
 
+```bash
+api-cli ns.devices create-vlan-device --data '{"vlan_type": "8021q", "base_device_name": "eth3", "vlan_id": 5}'
+```
+
 Response example:
 
 ```json
@@ -4358,6 +4381,10 @@ Delete a device from `network` database.
 Required parameters:
 
 - `device_name`: name of the network device to delete
+
+```bash
+api-cli ns.devices delete-device --data '{"device_name": "eth3.5"}'
+```
 
 Response example:
 
