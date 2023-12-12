@@ -45,7 +45,6 @@ define Package/ns-openvpn/install
 	$(INSTALL_BIN) ./files/ns-openvpnrw-print-pem $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-openvpnrw-print-2fa $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-openvpntunnel-add-client $(1)/usr/sbin
-	$(INSTALL_BIN) ./files/ns-openvpnrw-revoke  $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-openvpnrw-regenerate  $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/openvpn-connect $(1)/usr/libexec/ns-openvpn/
 	$(INSTALL_BIN) ./files/openvpn-disconnect $(1)/usr/libexec/ns-openvpn/
