@@ -28,6 +28,7 @@ if cmd == 'list':
         "add-ldap-database": {"name": "ldap", "uri": "ldap://ldap.example.com", "schema": "rfc2307", "base_dn": "dc=example,dc=com", "user_dn": "ou=People,dc=example,dc=com", "user_attr": "uid", "user_cn": "cn", "start_tls": False, "tls_reqcert": "never", "description": "LDAP users"},
         "edit-ldap-database": {"name": "ldap", "uri": "ldap://ldap.example.com", "schema": "rfc2307", "base_dn": "dc=example,dc=com", "user_dn": "ou=People,dc=example,dc=com", "user_attr": "uid", "user_cn": "cn", "start_tls": False, "tls_reqcert": "never", "description": "LDAP users"},
         "delete-ldap-database": {"name": "ldap"},
+        "get-database": {"name": "ldap"},
         "get-ldap-defaults": {"uri": "ldap://ldap.example.com", "schema": "rfc2307"},
         "test-ldap": {"uri": "ldap://ldap.example.com", "user_dn": "ou=People,dc=example,dc=com", "user_attr": "uid", "user_cn": "cn", "start_tls": False, "tls_reqcert": "never"},
 
@@ -68,6 +69,8 @@ else:
         elif action == "delete-ldap-database":
             users.delete_ldap_database(u, args['name'])
             ret = {"result": "success"}
+        elif action == "get-database":
+            ret = {"database": users.get_database(u, args['name'])}
         elif action == "get-ldap-defaults":
             ret = {"defaults": users.get_ldap_defaults(args['uri'], args['schema'])}
         elif action == "test-ldap":
