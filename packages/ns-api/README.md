@@ -4202,17 +4202,55 @@ Response example:
 {
   "databases": [
     {
-      "id": "main",
+      "name": "main",
       "type": "local",
       "description": "Main local database"
     },
     {
-      "id": "ns7",
+      "name": "ns7",
       "type": "ldap",
       "description": "OpenLDAP NS7",
-      "schema": "rfc2307"
+      "schema": "rfc2307",
+      "uri": "ldap://192.168.100.2"
     }
   ]
+}
+```
+
+### get-database
+
+Retrieve all configuration of the given database:
+```
+api-cli ns.users get-database --data '{"name": "main"}'
+```
+
+Response example for a local database:
+```json
+{
+  "database": {
+    "description": "Main local database",
+    "name": "main",
+    "type": "local"
+  }
+}
+```
+
+Response example for a ldap database:
+```json
+{
+  "database": {
+    "uri": "ldap://192.168.100.234",
+    "schema": "rfc2307",
+    "base_dn": "dc=directoy,dc=nh",
+    "user_dn": "ou=People,dc=directory,dc=nh",
+    "user_attr": "uid",
+    "user_cn": "cn",
+    "start_tls": "0",
+    "tls_reqcert": "never",
+    "description": "OpenLDAP NS7",
+    "name": "ns7",
+    "type": "ldap"
+  }
 }
 ```
 
