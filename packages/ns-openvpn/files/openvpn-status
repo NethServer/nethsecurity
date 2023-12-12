@@ -27,7 +27,7 @@ parser.add_argument("-t", "--topology", choices=["subnet", "p2p"])
 args = parser.parse_args()
 
 if not os.path.exists(args.socket_path):
-    print(f"File not found: {socket_path}", file=sys.stderr)
+    print(f"File not found: {args.socket_path}", file=sys.stderr)
     exit(1)
 
 try:
