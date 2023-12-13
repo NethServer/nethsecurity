@@ -4136,6 +4136,264 @@ Invalid configuration response:
 }
 ```
 
+## ns.devices
+
+Manages network devices and interfaces.
+
+### list-devices
+
+List configured and unconfigured network interfaces and devices, organized by zone.
+
+```bash
+api-cli ns.devices list-devices
+```
+
+Response example:
+
+```json
+{
+  "devices_by_zone": [
+    { "name": "lan", "devices": ["br-lan"] },
+    { "name": "wan", "devices": ["eth1"] },
+    { "name": "unassigned", "devices": ["eth2", "eth3"] }
+  ],
+  "all_devices": [
+    {
+      "ipaddrs": [
+        { "address": "192.168.122.144/24", "broadcast": "192.168.122.255" }
+      ],
+      "ip6addrs": [{ "address": "fe80::5054:ff:fe5b:1506/64" }],
+      "link_type": "ether",
+      "mac": "52:54:00:5b:15:06",
+      "mtu": 1500,
+      "name": "eth1",
+      "up": true,
+      "stats": {
+        "collisions": 0,
+        "multicast": 0,
+        "rx_bytes": 12253535,
+        "rx_dropped": 0,
+        "rx_errors": 0,
+        "rx_packets": 119400,
+        "tx_bytes": 66034,
+        "tx_dropped": 0,
+        "tx_errors": 0,
+        "tx_packets": 665
+      },
+      "speed": 1000
+    },
+    {
+      "name": "br-lan",
+      "type": "bridge",
+      "ports": ["eth0"],
+      ".name": "cfg020f15",
+      ".type": "device",
+      "ipaddrs": [
+        { "address": "192.168.122.30/24", "broadcast": "192.168.122.255" }
+      ],
+      "ip6addrs": [{ "address": "fe80::5054:ff:fe28:d273/64" }],
+      "link_type": "ether",
+      "mac": "52:54:00:28:d2:73",
+      "mtu": 1500,
+      "up": true,
+      "stats": {
+        ...
+      },
+      "speed": -1
+    },
+    ...
+  ]
+}
+```
+
+### configure-device
+
+Create or configure an unconfigured device, or edit its configuration. What happens exactly in the configuration process depends on the input parameters. Anyway, as a rule of thumb the configuration of a device executes one or more of the following steps:
+- creation of a network interface
+- association of the device to the newly created interface
+- configuration of some attributes of the network interface
+- association of the network interface to a firewall zone
+
+Required parameters:
+
+- The set of other required parameters depends on the specific device configuration
+
+All parameters:
+
+- `interface_name`: network interface name to assign to the device
+- `device_name`: name of the device to create
+- `device_type`: can be `physical` or `logical`
+- `protocol`: can be `static`, `dhcp`, `dhcpv6` or `pppoe`
+- `zone`: can be any configured firwall zone name, e.g. `lan`, `wan`...
+- `logical_type`: can be `bridge` or `bond`
+- `interface_to_edit`: name of the network interface to edit
+- `ip4_address`: an IPv4 address in CIDR notation (e.g. 10.20.30.40/24)
+- `ip4_gateway`: an IPv4 gateway
+- `ip4_mtu`: IPv4 maximum transmission unit
+- `ip6_enabled`: `True` to enable IPv6, `False` otherwise
+- `ip6_address`: an IPv4 address in CIDR notation (e.g. 2001:db8:0:1:1:1:1:1/64)
+- `ip6_gateway`: an IPv6 gateway
+- `ip6_mtu`: IPv6 maximum transmission unit
+- `attached_devices`: when configuring a bridge or a bond, it's the list of slave devices, e.g. `["eth0", "eth1"]`
+- `bonding_policy`: when configuring a bond, can be any of `balance-rr`, `active-backup`, `balance-xor`, `broadcast`, `802.3ad`, `balance-tlb`, `balance-alb`
+- `bond_primary_device`: when configuring a bond, name of the primary device
+- `pppoe_username`: PPPoE username
+- `pppoe_password`: PPPoE password
+- `dhcp_client_id`: Client ID to send when requesting DHCP
+- `dhcp_vendor_class`: Vendor class to send when requesting DHCP
+- `dhcp_hostname_to_send`: Hostname to send when requesting DHCP, can be `deviceHostname`, `doNotSendHostname` or `customHostname`
+- `dhcp_custom_hostname`: Custom hostname to use when `dhcp_hostname_to_send = customHostname`
+
+```bash
+api-cli ns.devices configure-device --data '{"device_type": "physical", "interface_name": "myiface", "protocol": "static", "zone": "lan", "ip6_enabled": false, "device_name": "eth2", "ip4_address": "10.20.30.40/24"}'
+```
+
+Response example:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### unconfigure-device
+
+Remove a device to an unconfigured state by deleting the associated network interface and other data created during the configuration process.
+
+Required parameters:
+
+- `iface_name`: name of the interface associated to the device to unconfigure
+
+```bash
+api-cli ns.devices unconfigure-device --data '{"iface_name": "myiface"}'
+```
+Response example:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### create-alias-interface
+
+Create an alias interface in order to associate multiple IPv4/IPv6 addresses to a network interface.
+
+Required parameters:
+
+- `alias_iface_name`: name of the alias interface
+- `parent_iface_name`: name of the parent network interface (the one we need to add IP addresses to)
+
+Optional parameters:
+
+- `ip4_addresses`: list of IPv4 addresses in CIDR notation
+- `ip6_addresses`: list of IPv6 addresses in CIDR notation
+
+At least one of `ip4_addresses` and `ip6_addresses` are required.
+
+```bash
+api-cli ns.devices create-alias-interface --data '{"alias_iface_name": "al_myiface", "parent_iface_name": "myiface", "ip4_addresses": ["11.22.33.44/24"], "ip6_addresses": []}'
+```
+
+Response example:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### edit-alias-interface
+
+Edit the list of IPv4/IPv6 addresses of an alias interface.
+
+Required parameters:
+
+- `alias_iface_name`: name of the alias interface to edit
+- `parent_iface_name`: name of the parent network interface
+
+Optional parameters:
+
+- `ip4_addresses`: list of IPv4 addresses in CIDR notation
+- `ip6_addresses`: list of IPv6 addresses in CIDR notation
+
+At least one of `ip4_addresses` and `ip6_addresses` are required.
+
+```bash
+api-cli ns.devices edit-alias-interface --data '{"alias_iface_name": "al_myiface", "parent_iface_name": "myiface", "ip4_addresses": ["11.22.33.44/24", "55.66.77.88/24"], "ip6_addresses": []}'
+```
+
+Response example:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### delete-alias-interface
+
+Delete an alias interface and remove the associated IPv4/IPv6 addresses from the parent interface.
+
+Required parameters:
+
+- `alias_iface_name`: name of the alias interface to edit
+- `parent_iface_name`: name of the parent network interface
+
+```bash
+api-cli ns.devices delete-alias-interface --data '{"alias_iface_name": "al_myiface", "parent_iface_name": "myiface"}'
+```
+
+Response example:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### create-vlan-device
+
+Create a VLAN device.
+
+Required parameters:
+
+- `vlan_type`: can be `8021q` or `8021ad`
+- `base_device_name`: name of the network device to create the VLAN on
+- `vlan_id`: VLAN ID, must be a positive integer
+
+```bash
+api-cli ns.devices create-vlan-device --data '{"vlan_type": "8021q", "base_device_name": "eth3", "vlan_id": 5}'
+```
+
+Response example:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### delete-device
+
+Delete a device from `network` database.
+
+Required parameters:
+
+- `device_name`: name of the network device to delete
+
+```bash
+api-cli ns.devices delete-device --data '{"device_name": "eth3.5"}'
+```
+
+Response example:
+
+```json
+{
+   "message": "success"
+}
+```
+
 ## ns.users
 
 ### list-users
