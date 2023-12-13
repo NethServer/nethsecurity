@@ -1,25 +1,37 @@
-#!/bin/sh
+#!/usr/bin/python
 
 #
-# Copyright (C) 2022 Nethesis S.r.l.
+# Copyright (C) 2023 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
+# Check if the given account is enabled
+# 
+# Environment variables:
+# - config
 
-if [ $# -lt 2 ]; then
-    logger -t openvpn "Not enough script parameters"
-    exit 3
-fi
+import os
+import sys
+from euci import EUci
+from nethsec import users
 
-instance=$1
-config=$2
+if len(sys.argv) < 3:
+    print("Not enough script parameters", file=sys.stderr)
+    sys.exit(3)
 
-uinstance=$(uci -q get openvpn.$common_name.instance)
-if [ "$uinstance" != "$instance" ]; then
-    exit 0
-fi
-ipaddr=$(uci -q get openvpn.$common_name.ipaddr)
-netmask=$(uci get openvpn.$instance.server | awk '{print $2}')
+instance = sys.argv[1]
+user_file = sys.argv[2]
 
-if [ -n $ipaddr ] && [ -n $netmask ]; then
-    echo "ifconfig-push $ipaddr $netmask" >> $config
-fi
+uci = EUci()
+# assume all checks on the instance have been executed in the script before this one
+config = uci.get_all("openvpn", instance)
+db = config.get("ns_user_db", None)
+user = users.get_user_by_name(uci, os.environ.get("common_name"), db)
+
+if user:
+    ipaddr = user.get('openvpn_ipaddr', '')
+    # FIXME bridge
+    netmask = config.get('server').split(" ")[1]
+
+    if ipaddr and netmask:
+        with open(user_file, 'a') as fp:
+            fp.write(f'ifconfig-push {ipaddr} {netmask}\n')
