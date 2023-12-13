@@ -59,7 +59,7 @@ config template_rule 'ip6_icmp_forward'
 
 config template_zone 'ns_hotspot'
 	option name 'hotspot'
-	option network 'hotspot'
+	list network 'hotspot'
 	option mtu_fix '1'
 	option forward 'DROP'
 	option input 'DROP'
