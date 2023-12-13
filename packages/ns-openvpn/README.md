@@ -39,14 +39,15 @@ Network and firewall configuration:
 
 After installation, the OpenVPN roadwarrior instance is not configured.
 
-You can enable it by invoking the `ns.ovpnrw`.`get-configuration` API.
+You can create an instance using the API: `/usr/libexec/rpcd/ns.ovpnrw call add-instance`.
+
 The API will:
 
-- create a default OpenVPN roadwarrior server instance named `ns_roadwarrior`
+- create a default OpenVPN roadwarrior server instance named `ns_roadwarrior1`
 - open the default `ns_roadwarrior` port (`1194/udp`) from the WAN zone
 - create a `rwopenvpn` trusted firewall zone which has access to LAN and WAN
 - setup the PKI (Public Key Infrastructure) inside `/etc/openvpn/<instance>/pki` with `ns-openvpnrw-init-pki`
-- create default firewall rules to access the `ns_roadwarrior` server from the WAN
+- create default firewall rules to access the `ns_roadwarrior1` server from the WAN
 
 On client connect, the server will execute all scripts inside `/usr/libexec/ns-openvpn/connect-scripts/` directory in lexicographical order.
 On client disconnect, the server will execute all scripts inside `/usr/libexec/ns-openvpn/disconnect-scripts/` directory in lexicographical order.
@@ -61,17 +62,18 @@ service network restart
 service firewall restart
 ```
 
+All APIs are documented inside the [ns-api](../ns-api/#nsovpnrw) page.
+
 ### Authentications methods
 
 Each user must have an entry of type `user` or `local-user` inside `users` UCI configuration file
 and must have at least the following fields:
-- `openvpn_instance`: name of the OpenVPN instance, a user always belong to a single instance
 - `openvpn_enabled`: can be `0` or `1`, if set to `0` the user can't authenticate itself
 
 Each user can have also the following options:
 
 - `openvpn_ipaddr`: IP address reserved for the user
-- `password`: shadow password hash for local authenticated users
+- `openvpn_2fa`: OTP secret
 
 See [ns-objects](../ns-objects/) for more info.
 
@@ -79,212 +81,81 @@ See [ns-objects](../ns-objects/) for more info.
 
 A client can connect to the server if:
 
-- there is a valid certificate inside with the same CN
-- the user is associated to the `ns_roadwarrior` server inside the `openvpn_instance` field and has the `openvpn_enabled` field set to `1` inside `users` database
+- there is a valid certificate inside the certificate directory: the certificate CN must match the user name
+- the user belongs to the database associated to the RoadWarrior instance
+- the user `openvpn_enabled` field is set to `1` inside `users` database
 
 Certificates are saved inside `/etc/openvpn/<instance>/pki/` directory.
 
-Enable certificate authentication:
-```
-uci delete openvpn.ns_roadwarrior.auth_user_pass_verify
-uci delete openvpn.ns_roadwarrior.verify_client_cert
-uci delete openvpn.ns_roadwarrior.username_as_common_name
-uci delete openvpn.ns_roadwarrior.script_security
-uci commit openvpn
-/etc/init.d/openvpn restart
-```
-
-To add a local user for certificate-only authentication:
-- create a user entry inside the `users` UCI database, commit the changes
-- create certificate and key of the user:
-  ```
-  ns-openvpnrw-add <instance> <user> <certificate_expiration>
-  ```
-
 Default `certificate_expiration` is `3650` days (1 year).
 
+To enable this authentication the `user_pass_verify` option must be empty or not set.
 
 #### Local user with password
 
 A client can connect to the server if:
 
-- the user has an entry inside the  `users` database and has the `openvpn_enabled` field set to `1`
+- the user belongs to the database associated to the RoadWarrior instance
+- the user `openvpn_enabled` field is set to `1` inside `users` database
 - the provided user password matches the one saved inside `password` option
 
-Enable user and password authentication:
-```
-uci set openvpn.ns_roadwarrior.auth_user_pass_verify='/usr/libexec/ns-openvpn/openvpn-local-auth via-env'
-uci set openvpn.ns_roadwarrior.verify_client_cert=none
-uci set openvpn.ns_roadwarrior.username_as_common_name=1
-uci set openvpn.ns_roadwarrior.script_security=3
-uci commit openvpn
-/etc/init.d/openvpn restart
-```
-
-FIXME
-Create a local user named `giacomo` with password `nethesis`:
-```
-echo '{"enabled": "1", "username": "giacomo", "password": "nethesis", "expiration": "3600", "ipaddr": ""}' | /usr/libexec/rpcd/ns.ovpnrw call add-user
-uci commit openvpn
-```
+To enable this authentication the `user_pass_verify` option must be set to `/usr/libexec/ns-openvpn/openvpn-local-auth via-env`.
 
 #### Local users with password and certificate
 
 A client can connect to the server if:
 
-- there is a valid certificate inside with the same CN
-- the user has an entry inside the  `users` database and has the `openvpn_enabled` field set to `1`
-- the provided user password matches the one saved inside `password` option
-
-Enable user and password authentication:
-```
-uci set openvpn.ns_roadwarrior.auth_user_pass_verify='/usr/libexec/ns-openvpn/openvpn-local-auth via-env'
-uci delete openvpn.ns_roadwarrior.verify_client_cert
-uci delete openvpn.ns_roadwarrior.username_as_common_name
-uci set openvpn.ns_roadwarrior.script_security=3
-uci commit openvpn
-/etc/init.d/openvpn restart
-```
-
-Create a local user named `giacomo` with password `nethesis` and certificate:
-```
-FIXME
-ns-openvpnrw-add ns_roadwarrior giacomo
-uci set openvpn.giacomo.password=$(echo -e 'nethesis' | mkpasswd -m sha512 -S "$(uuidgen | md5sum | cut -c 0-15)")
-uci commit openvpn
-```
+- there is a valid certificate inside the certificate directory: the certificate CN must match the user name
+- the user belongs to the database associated to the RoadWarrior instance
+- the user `openvpn_enabled` field is set to `1` inside `users` database
 
 #### Local users with certificate + OTP
 
 A client can connect to the server if:
 
-- there is a valid certificate inside with the same CN
-- the user has an entry inside the  `users` database and has the `openvpn_enabled` field set to `1`
-- the provided user OTP matches the one generated using `oathtool` from the 2FA secret saved inside `2fa` option
+- the user belongs to the database associated to the RoadWarrior instance
+- there is a valid certificate inside the certificate directory: the certificate CN must match the user name
+- the user belongs to the database associated to the RoadWarrior instance
+- the provided user OTP matches the one generated using `oathtool` from the 2FA secret saved inside `openvpn_2fa` field
 
-Enable user and certificate + OTP authentication:
-```
-uci set openvpn.ns_roadwarrior.auth_user_pass_verify='/usr/libexec/ns-openvpn/openvpn-otp-auth via-env'
-uci delete openvpn.ns_roadwarrior.verify_client_cert
-uci delete openvpn.ns_roadwarrior.username_as_common_name
-uci set openvpn.ns_roadwarrior.script_security=3
-uci commit openvpn
-/etc/init.d/openvpn restart
-```
-
-Create a local user named `giacomo` with OTP 2FA secret and certificate:
-```
-FIXME
-ns-openvpnrw-add ns_roadwarrior giacomo
-uci set openvpn.giacomo.2fa=$(euuidgen | sha256sum | awk '{print $1}")
-uci commit openvpn
-```
+To enable this authentication the `user_pass_verify` option must be set to `/usr/libexec/ns-openvpn/openvpn-otp-auth via-env`.
 
 #### Remote LDAP users with password
 
 A client can connect to the server if:
 
-- the user has an entry inside the  `users` database and has the `openvpn_enabled` field set to `1`
+- the user belongs to the database associated to the RoadWarrior instance
+- the user `openvpn_enabled` field is set to `1` inside `users` database
 - the user password can authenticate against remote LDAP server with provided password
 
-Setup the connection to a remote NS7 LDAP and associate it to `ns_roadwarrior` instance:
-```
-uci set openvpn.ns_ldap1=ldap
-uci set openvpn.ns_ldap1.uri=ldaps://192.168.100.234
-uci set openvpn.ns_ldap1.tls_reqcert=never
-uci set openvpn.ns_ldap1.base_dn=dc=directory,dc=nh
-uci set openvpn.ns_ldap1.user_dn=ou=People,dc=directory,dc=nh
-uci set openvpn.ns_ldap1.user_attr=uid
-uci set openvpn.ns_ldap1.instance=ns_roadwarrior
-uci commit openvpn
-```
-
-If the remote server is an Active Directory, use the following:
-```
-uci set openvpn.ns_ldap1=ldap
-uci set openvpn.ns_ldap1.uri=ldaps://ad.nethserver.org
-uci set openvpn.ns_ldap1.tls_reqcert=never
-uci set openvpn.ns_ldap1.base_dn=dc=ad,dc=nethserver,dc=org
-uci set openvpn.ns_ldap1.user_dn=cn=users,dc=ad,dc=nethserver,dc=org
-uci set openvpn.ns_ldap1.user_attr=cn
-uci set openvpn.ns_ldap1.instance=ns_roadwarrior
-uci commit openvpn
-```
-
-Enable authentication against remote LDAP/AD:
-```
-uci set openvpn.ns_roadwarrior.auth_user_pass_verify='/usr/libexec/ns-openvpn/openvpn-remote-auth via-env'
-uci set openvpn.ns_roadwarrior.verify_client_cert=none
-uci set openvpn.ns_roadwarrior.username_as_common_name=1
-uci set openvpn.ns_roadwarrior.script_security=3
-uci commit openvpn
-/etc/init.d/openvpn restart
-```
-
-Create and enable the user inside the local database:
-```
-FIXME
-uci set openvpn.giacomo=user
-uci set openvpn.giacomo.enabled=1
-uci set openvpn.giacomo.instance=ns_roadwarrior
-uci commit openvpn
-```
+To enable this authentication the `user_pass_verify` option must be set to `/usr/libexec/ns-openvpn/openvpn-remote-auth via-env`.
 
 #### Remote LDAP users with password and certificate
 
 A client can connect to the server if:
 
-- there is a valid certificate inside with the same CN
-- the user belongs to the `ns_roadwarrior` server instance and is marked as enabled inside `openvpn` database
+- there is a valid certificate inside the certificate directory: the certificate CN must match the user name
+- the user belongs to the database associated to the RoadWarrior instance
+- the user `openvpn_enabled` field is set to `1` inside `users` database
 - the user password can authenticate against remote LDAP server with provided password
 
-First setup LDAP connection (see previous chapter), then enable authentication against remote LDAP/AD:
-```
-uci set openvpn.ns_roadwarrior.auth_user_pass_verify='/usr/libexec/ns-openvpn/openvpn-remote-auth via-env'
-uci delete openvpn.ns_roadwarrior.verify_client_cert
-uci delete openvpn.ns_roadwarrior.username_as_common_name
-uci set openvpn.ns_roadwarrior.script_security=3
-uci commit openvpn
-/etc/init.d/openvpn restart
-```
-
-Create and enable the user inside the local database:
-```
-FIXME
-```
+To enable this authentication the `user_pass_verify` option must be set to `/usr/libexec/ns-openvpn/openvpn-remote-auth via-env`.
 
 ### IP static lease
 
-Execute:
-```
-FIXME
-uci set openvpn.<user>.ipaddr=0
-uci commit openvpn
-```
+The IP lease is saved inside the `openvpn_ipaddr` field, in the `users` database.
+
+See the `add-user` and `edit-user` APIs inside the [ns-api](../ns-api/#nsovpnrw) page.
 
 ### Disable a user
 
-Execute:
-```
-FIXME
-uci set openvpn.<user>.enabled=0
-uci commit openvpn
-```
+To disable a user, the `openvpn_enabled` fiels must be set to `0`.
+
+See the `enable-user` and `disable-user` APIs inside the [ns-api](../ns-api/#nsovpnrw) page.
+
 ### Remove a user
 
-The revoke API will:
-
-- revoke the certificate and delete the user key
-- remove entry from `users` UCI database
-
-Execute:
-```
-FIXME
-uci delete openvpn.<user>
-uci commit openvpn
-ns-openvpnrw-revoke <instance> <user>
-```
-
+See the `delete-user` API inside the [ns-api](../ns-api/#nsovpnrw) page.
 
 ### Accounting
 
@@ -306,16 +177,6 @@ ns-openvpnrw-print-client <instance> <user>
 Example:
 ```
 ns-openvpnrw-print-client ns_roadwarrior giacomo > giacomo.ovpn
-```
-
-To download user certificates in pem file, execute:
-```
-ns-openvpnrw-print-pem <instance> <user> > <user>.pem
-```
-
-To download user 2FA secret inside the QR code use:
-```
-ns-openvpnrw-print-2fa <instance> <user> > <user>.svg
 ```
 
 To regenerate the user certificate:
