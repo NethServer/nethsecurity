@@ -8,7 +8,7 @@
 from euci import EUci
 import json
 import subprocess
-from nethsec import utils
+from nethsec import utils, users
 
 def get_interface_ips(interface):
     ret = list()
@@ -28,13 +28,13 @@ def get_interface_ips(interface):
 
 def user_to_criteria(uci, user):
     criteria = []
-    (ipv4, ipv6) = utils.get_user_addresses(uci, user)
-    return entries_to_criteria(ipv4, ipv6, utils.get_user_macs(uci, user))
+    (ipv4, ipv6) = users.get_user_addresses(uci, user)
+    return entries_to_criteria(ipv4, ipv6, users.get_user_macs(uci, user))
 
 def group_to_criteria(uci, group):
     criteria = []
-    (ipv4, ipv6) = utils.get_group_addresses(uci, group)
-    return entries_to_criteria(ipv4, ipv6, utils.get_group_macs(uci, group))
+    (ipv4, ipv6) = users.get_group_addresses(uci, group)
+    return entries_to_criteria(ipv4, ipv6, users.get_group_macs(uci, group))
 
 def entries_to_criteria(ipv4, ipv6, macs):
     criteria = []

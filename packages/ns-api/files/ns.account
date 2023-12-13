@@ -10,7 +10,7 @@ import subprocess
 import sys
 
 from euci import EUci
-from nethsec import utils
+from nethsec import utils, users
 
 cmd = sys.argv[1]
 
@@ -27,20 +27,28 @@ elif cmd == 'call':
     if action == 'set-password':
         try:
             data = json.JSONDecoder().decode(sys.stdin.read())
-            user_list = utils.get_all_by_type(e_uci, 'rpcd', 'login')
+            rpcd_user_list = utils.get_all_by_type(e_uci, 'rpcd', 'login')
+            user_list = utils.get_all_by_type(e_uci, 'users', 'user')
             # check if username is inside config
-            if data['username'] not in [user['username'] for user in user_list.values()]:
+            if data['username'] not in [user['username'] for user in rpcd_user_list.values()]:
                 raise utils.ValidationError('username', 'invalid', data['username'])
 
             # if user is not root, change rpcd config
             if data['username'] != 'root':
-                for user_key, user in user_list.items():
+                for user_key, user in rpcd_user_list.items():
+                    password_hash = users.shadow_password(data['password'])
                     if user['username'] == data['username']:
-                        password_hash = subprocess.run(['uhttpd', '-m', data['password']], check=True,
-                                                       capture_output=True)
-                        e_uci.set('rpcd', user_key, 'password', password_hash.stdout.decode('utf-8').strip('\n'))
+                        e_uci.set('rpcd', user_key, 'password', password_hash)
                         e_uci.save('rpcd')
                         e_uci.commit('rpcd')
+                        break
+                # sync password inside local users db
+                for user_key, user in user_list.items():
+                    is_local = users.get_database_type(e_uci, user['database']) == 'local'
+                    if user['name'] == data['username'] and is_local:
+                        e_uci.set('users', user_key, 'password', password_hash)
+                        e_uci.save('users')
+                        e_uci.commit('users')
                         break
 
             else:

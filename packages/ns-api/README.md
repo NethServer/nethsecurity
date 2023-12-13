@@ -4393,3 +4393,383 @@ Response example:
    "message": "success"
 }
 ```
+
+## ns.users
+
+### list-users
+
+List configured users
+```
+api-cli ns.users list-users --data '{"database": "main"}'
+```
+
+Response example for a local database:
+```json
+{
+  "users": [
+    {
+      "local": true,
+      "database": "main",
+      "name": "user",
+      "password": "$6$nu00HaYNNF/rxGV4$nWpG3j5ydXy6anlK1x0DjNDN3PGC78YSxUvgEiFaW/3mWjyWP62iTp+IdBf7tynQueHl4zBBD+9JN3Ws+HMT7w==",
+      "description": "User",
+      "id": "ns_652b6c80"
+    }
+  ]
+}
+```
+
+Response example for a remote LDAP database:
+```json
+{
+  "users": [
+    {
+      "name": "admin",
+      "description": "admin",
+      "local": false,
+      "admin": true,
+      "database": "ns7",
+      "id": "admin"
+    },
+    {
+      "name": "pluto",
+      "description": "Pluto Rossi",
+      "local": false,
+      "admin": false,
+      "database": "ns7",
+      "openpvn_ipaddr": "1.2.3.4",
+      "openvpn_enabled": "1",
+      "id": "pluto"
+    }
+  ]
+}
+```
+
+May raise the following validation errors:
+- db_not_found
+
+### list-databases
+
+List configured user databases
+```
+api-cli ns.users list-databases
+```
+
+Response example:
+```json
+{
+  "databases": [
+    {
+      "name": "main",
+      "type": "local",
+      "description": "Main local database"
+    },
+    {
+      "name": "ns7",
+      "type": "ldap",
+      "description": "OpenLDAP NS7",
+      "schema": "rfc2307",
+      "uri": "ldap://192.168.100.2"
+    }
+  ]
+}
+```
+
+### get-database
+
+Retrieve all configuration of the given database:
+```
+api-cli ns.users get-database --data '{"name": "main"}'
+```
+
+Response example for a local database:
+```json
+{
+  "database": {
+    "description": "Main local database",
+    "name": "main",
+    "type": "local"
+  }
+}
+```
+
+Response example for a ldap database:
+```json
+{
+  "database": {
+    "uri": "ldap://192.168.100.234",
+    "schema": "rfc2307",
+    "base_dn": "dc=directoy,dc=nh",
+    "user_dn": "ou=People,dc=directory,dc=nh",
+    "user_attr": "uid",
+    "user_cn": "cn",
+    "start_tls": "0",
+    "tls_reqcert": "never",
+    "description": "OpenLDAP NS7",
+    "name": "ns7",
+    "type": "ldap"
+  }
+}
+```
+
+### add-ldap-database
+
+Add new remote LDAP database:
+```
+api cli ns.users add-ldap-database --data '{"name": "ns7", "uri": "ldap://192.168.100.234", "schema": "rfc2307", "base_dn": "dc=directoy,dc=nh", "user_dn": "ou=People,dc=directory,dc=nh", "user_attr": "uid", "user_cn": "cn", "start_tls": false, "tls_reqcert": "never", "description": "OpenLDAP NS7"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+May raise the following validation errors:
+- db_already_exists
+
+### edit-ldap-database
+
+Edit a remote LDAP database:
+```
+api-cli ns.users add-ldap-database --data '{"name": "ns7", "uri": "ldap://192.168.100.234", "schema": "rfc2307", "base_dn": "dc=directoy,dc=nh", "user_dn": "ou=People,dc=directory,dc=nh", "user_attr": "uid", "user_cn": "cn", "start_tls": false, "tls_reqcert": "never", "description": "OpenLDAP NS7"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+May raise the following validation errors:
+- db_not_found
+
+### delete-ldap-database
+
+Delete a remote LDAP databse:
+```
+api-cli ns.users delete-ldap-database --data '{"name": "ns7"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+May raise the following validation errors:
+- db_not_found
+
+### test-ldap
+
+Test LDAP connection, it returns the list of users:
+```
+api-cli ns.users test-ldap --data '{"uri": "ldap://192.168.100.234", "base_dn": "dc=directoy,dc=nh", "user_dn": "ou=People,dc=directory,dc=nh", "user_attr": "uid", "user_cn": "cn", "start_tls": false, "tls_reqcert": "never"}'
+```
+
+Response example:
+```json
+{
+  "users": [
+    {
+      "name": "admin",
+      "description": "admin"
+    },
+    {
+      "name": "pluto",
+      "description": "Pluto Rossi"
+    }
+  ]
+}
+```
+
+### get-ldap-defaults
+
+Retrieve opinionated LDAP defaults for given database:
+```
+api-cli ns.users get-ldap-defaults --data '{"uri": "ldap://ldap.example.com", "schema": "rfc2307"}'
+```
+
+Response example:
+```json
+{
+  "defaults": {
+    "base_dn": "dc=example,dc=com",
+    "user_dn": "ou=People,dc=example,dc=com",
+    "user_attr": "uid",
+    "user_cn": "cn"
+  }
+}
+```
+
+### add-local-database
+
+Create a local user database:
+```
+api-cli ns.users add-local-database --data '{"name": "local2", "description": "Local users"}''
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+May raise the following validation errors:
+- db_already_exists
+
+### edit-local-database
+
+Edit a local user database:
+```
+api-cli ns.users add-local-database --data '{"name": "local2", "description": "Local users 2"}''
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+May raise the following validation errors:
+- db_not_found
+
+### delete-local-database
+
+Delete the local user database and all its users and groups:
+```
+api-cli ns.users delete-local-database --data '{"name": "local2"}''
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+May raise the following validation errors:
+- db_not_found
+
+### add-local-user
+
+Add a user to the local database:
+```
+api-cli ns.users add-local-user --data '{"name": "john", "password": "P4**$w0rd", "description": "John Doe", "database": "main", "extra": {"openvpn_enabled": "0"}}'
+```
+
+Response example:
+```json
+{"id": "ns_0d0e8762"}
+```
+
+Extra fields will be added to user object.
+
+May raise the following validation errors:
+- user_already_exists
+- db_not_local
+
+### edit-local-user
+
+Change an existing user inside the local database:
+```
+api-cli ns.users edit-local-user --data '{"name": "john", "password": "P4**$w0rd", "description": "John Doe", "database": "main", "extra": {"openvpn_ipaddr": "1.2.3.4"}}'
+```
+
+To remove an existing extra option, just pass the `extra` field without that specific option.
+As an example, the above call removes the `openvpn_enabled` option from the user and add the `openvpn_ipaddr` option.
+
+Response example:
+```json
+{"id": "ns_0d0e8762"}
+```
+
+May raise the following validation errors:
+- user_not_found
+- db_not_local
+
+### delete-local-user
+
+Delete a user from a local database:
+```
+api-cli ns.users delete-local-user --data '{"name": "john", "database": "main"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+May raise the following validation errors:
+- user_not_found
+- db_not_local
+
+### add-remote-user
+
+Add a user to the remote database:
+```
+api-cli ns.users add-remote-user --data '{"name": "john", "database": "main", "extra": {"openvpn_enabled": "0"}}'
+```
+
+Response example:
+```json
+{"id": "ns_427824b1"}
+```
+
+Extra fields will be added to user object.
+
+May raise the following validation errors:
+- user_already_exists
+- db_not_remote
+
+### edit-remote-user
+
+Change an existing remoteuser:
+```
+api-cli ns.users edit-remote-user --data '{"name": "john", "database": "main", "extra": {"openvpn_ipaddr": "1.2.3.4"}}'
+```
+
+To remove an existing extra option, just pass the `extra` field without that specific option.
+As an example, the above call removes the `openvpn_enabled` option from the user and add the `openvpn_ipaddr` option.
+
+Response example:
+```json
+{"id": "ns_427824b1"}
+```
+
+May raise the following validation errors:
+- user_not_found
+- db_not_remote
+
+### delete-remote-user
+
+Delete an existing user from a remote LDAP database:
+```
+api-cli ns.users delete-remote-user --data '{"name": "john", "database": "main"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+May raise the following validation errors:
+- user_not_found
+- db_not_remote
+
+## set-admin
+
+Make a local user an admin. The admin can login to the UI:
+```
+api-cli ns.users set-admin --data '{"name": "pluto", "database": "main"}'
+```
+
+Response example:
+```json
+{"id": "ns_bc8c1aa1"}
+```
+
+## remove-admin
+
+Remove the admin role from  a local user:
+```
+api-cli ns.users set-admin --data '{"name": "pluto"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
