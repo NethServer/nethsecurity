@@ -1,7 +1,7 @@
-#!/bin/sh
+#!/usr/bin/python
 
 #
-# Copyright (C) 2022 Nethesis S.r.l.
+# Copyright (C) 2023 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
@@ -10,28 +10,40 @@
 # - password
 # - config
 
-. /lib/functions.sh
-config_load 'openvpn'
+import os
+import re
+import sys
+from euci import EUci
+from nethsec import users
 
-cur_instance=$(echo $config | sed -e 's/openvpn\-//' -e 's/\.conf//')
+username = os.environ.get("username")
+password = os.environ.get("password")
+config_path = os.environ.get("config")
 
-config_get enabled "$username" enabled 0
-config_get hash "$username" password ''
-config_get instance "$username" instance ''
+instance = re.sub(r'^openvpn-|\.conf$', '', config_path)
 
-if [ "$cur_instance" != "$instance" ]; then
-    exit 2
-fi
+uci = EUci()
+try:
+    db = uci.get("openvpn", instance, "ns_user_db")
+except:
+    # user db not set
+    sys.exit(5)
 
-if [ "$enabled" = "0" ]; then
-    exit 3
-fi
+user = users.get_user_by_name(uci, username, db)
+if user is None:
+    # user not found
+    sys.exit(4)
 
-salt=$(echo $hash | cut -d'$' -f3)
-given=$(echo -e "$password"| mkpasswd -m sha512 -S "$salt")
+if not "openvpn_enabled" in user or user["openvpn_enabled"] != "1":
+    # user not enabled
+    sys.exit(3)
 
-if [ "$given" = "$hash" ]; then
-    exit 0
-else
-    exit 1
-fi
+if "password" not in user:
+    # password not set
+    sys.exit(2)
+
+if users.check_password(password, user["password"]):
+    sys.exit(0)
+else:
+    # password do not match
+    sys.exit(1)
