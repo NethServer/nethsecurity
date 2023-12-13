@@ -34,7 +34,7 @@ def setup_dedalo():
     if not configure_fw():
         return False
 
-    interface = "hotspot"
+    interface = "dedalo"
     u.set("network", interface, "interface")
     u.set("network", interface, "proto", "none")
     u.set("network", interface, "ipv6", "0")
