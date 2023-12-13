@@ -1,0 +1,1031 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import json
+import sys
+import subprocess
+import re
+from euci import EUci
+from nethsec import utils, firewall
+
+
+def get_all_by_type_as_list(uci, config, utype):
+    all_as_dict = utils.get_all_by_type(uci, config, utype)
+    all_as_list = []
+
+    for key, value in all_as_dict.items():
+        value['.name'] = key
+        value['.type'] = utype
+        all_as_list.append(value)
+
+    return all_as_list
+
+
+def list_devices():
+    uci = EUci()
+    devices_from_config = get_all_by_type_as_list(uci, 'network', 'device')
+    ifaces_from_config = get_all_by_type_as_list(uci, 'network', 'interface')
+
+    # interfaces without device (e.g. bond interfaces)
+    ifaces_without_device = list(
+        filter(lambda iface: not iface.get('device'), ifaces_from_config))
+
+    physical_devices = get_physical_devices()
+
+    filtered_physical_devices = list(
+        filter(lambda physical_dev:
+               # discard unconfigured bridges (they would appear after bridge removal, before committing changes)
+               not (is_bridge(physical_dev) and not get_interface(
+                   physical_dev.get('name'), ifaces_from_config)) and
+               # discard unconfigured bond devices (they would appear after committing bond creation)
+               not is_bond(physical_dev),
+               physical_devices))
+
+    # add data from config
+
+    merged_devices = []
+
+    for physical_dev in filtered_physical_devices:
+        device_from_config_found = None
+
+        for device_from_config in devices_from_config:
+            if physical_dev.get('name') == device_from_config.get('name'):
+                device_from_config_found = device_from_config
+                break
+
+        if device_from_config_found:
+            merged_devices.append(device_from_config_found | physical_dev)
+        else:
+            merged_devices.append(physical_dev)
+
+    # add remaining devices from config
+
+    for device_from_config in devices_from_config:
+        dev_found = None
+
+        for dev in merged_devices:
+            if dev.get('name') == device_from_config.get('name'):
+                dev_found = dev
+                break
+
+        if not dev_found:
+            merged_devices.append(device_from_config)
+
+    all_devices = merged_devices + ifaces_without_device
+
+    # do not show devices used by bridges or bonds
+
+    devices_used_by_logical_ifaces = []
+
+    for device in all_devices:
+        if is_bond(device):
+            devices_used_by_logical_ifaces += device.get('slaves')
+        elif is_bridge(device):
+            devices_used_by_logical_ifaces += device.get('ports')
+
+    devices_to_show = list(filter(lambda device: not get_name(
+        device) in devices_used_by_logical_ifaces, all_devices))
+
+    # retrieve stats
+
+    stats = get_device_stats()
+
+    for stat in stats:
+        dev_found = None
+
+        for device in devices_to_show:
+            if device.get('name') == stat.get('ifname'):
+                dev_found = device
+                break
+
+        if dev_found:
+            dev_found['stats'] = {
+                'collisions': stat.get('stats64').get('tx').get('collisions'),
+                'multicast': stat.get('stats64').get('rx').get('multicast'),
+                'rx_bytes': stat.get('stats64').get('rx').get('bytes'),
+                'rx_dropped': stat.get('stats64').get('rx').get('dropped'),
+                'rx_errors': stat.get('stats64').get('rx').get('errors'),
+                'rx_packets': stat.get('stats64').get('rx').get('packets'),
+                'tx_bytes': stat.get('stats64').get('tx').get('bytes'),
+                'tx_dropped': stat.get('stats64').get('tx').get('dropped'),
+                'tx_errors': stat.get('stats64').get('tx').get('errors'),
+                'tx_packets': stat.get('stats64').get('tx').get('packets'),
+            }
+
+    # retrieve devices speed
+
+    for device in devices_to_show:
+        try:
+            with open(f'/sys/class/net/{device.get("name")}/speed') as f:
+                speed = int(f.read().strip())
+                device['speed'] = speed
+        except OSError:
+            # ignore read errors
+            pass
+
+    # sorted zones and devices
+
+    zones = [
+        {
+            'name': 'lan',
+            'devices': [],
+        },
+        {
+            'name': 'wan',
+            'devices': []
+        },
+        {
+            'name': 'guests',
+            'devices': []
+        },
+    ]
+
+    unassigned_zone = {
+        'name': 'unassigned',
+        'devices': []
+    }
+
+    fw_zones = get_all_by_type_as_list(uci, 'firewall', 'zone')
+
+    for device in devices_to_show:
+        iface_found = get_interface(device.get('name'), ifaces_from_config)
+
+        if not iface_found:
+            unassigned_zone['devices'].append(get_name(device))
+        else:
+            zone_found = get_firewall_zone(iface_found['.name'], fw_zones)
+
+            if not zone_found:
+                unassigned_zone['devices'].append(get_name(device))
+            else:
+                zone_obj = None
+
+                for z in zones:
+                    if z.get('name') == zone_found.get('name'):
+                        zone_obj = z
+                        break
+
+                if zone_obj:
+                    zone_obj['devices'].append(get_name(device))
+                else:
+                    zones.append({
+                        'name': zone_found.get('name'),
+                        'devices': [get_name(device)]
+                    })
+    zones.append(unassigned_zone)
+
+    # sort devices of every zone
+
+    for zone in zones:
+        zone['devices'].sort()
+
+    return {'devices_by_zone': zones, 'all_devices': all_devices}
+
+
+def get_firewall_zone(iface_name, fw_zones):
+    zone_found = None
+
+    for zone in fw_zones:
+        if zone.get('network') and iface_name in zone.get('network'):
+            zone_found = zone
+            break
+
+    return zone_found
+
+
+def get_name(device_or_iface):
+    if device_or_iface.get('.type') == 'interface':
+        return device_or_iface.get('.name')
+    else:
+        return device_or_iface.get('name')
+
+
+def get_interface(device_name, ifaces_from_config):
+    for iface in ifaces_from_config:
+        if iface.get('device') == device_name:
+            return iface
+
+
+def is_bridge(device):
+    if device.get('type') == 'bridge' or re.match(r"br[0-9]+", device.get('name')):
+        return True
+    else:
+        return False
+
+
+def should_omit_device_name(device_name):
+    return device_name == 'lo' or device_name.startswith('ifb-') or device_name.startswith('tun')
+
+
+def get_physical_devices():
+    p = subprocess.run(["/sbin/ip", "-j", "address"],
+                       check=True, text=True, capture_output=True)
+    devices = json.loads(p.stdout)
+
+    physical_devices = []
+
+    for device in devices:
+        # discard lo and ifb-* devices
+        if should_omit_device_name(device.get('ifname')):
+            continue
+
+        # process devices attributes
+        dev = {
+            'ipaddrs': map_ip4_addresses(device),
+            'ip6addrs': map_ip6_addresses(device),
+            'link_type': device.get('link_type'),
+            'mac': device.get('address'),
+            'mtu': device.get('mtu'),
+            'name': device.get('ifname'),
+            'up': 'UP' in device.get('flags')
+        }
+        physical_devices.append(dev)
+
+    return physical_devices
+
+
+def map_ip4_addresses(device):
+    ip4_addrs = []
+
+    for addr in device.get('addr_info', []):
+        if addr.get('family') == 'inet':
+            ip4_addrs.append({
+                'address': f"{addr.get('local')}/{addr.get('prefixlen')}",
+                'broadcast': addr.get('broadcast')
+            })
+    return ip4_addrs
+
+
+def map_ip6_addresses(device):
+    ip6_addrs = []
+
+    for addr in device.get('addr_info', []):
+        if addr.get('family') == 'inet6':
+            ip6_addrs.append({
+                'address': f"{addr.get('local')}/{addr.get('prefixlen')}",
+            })
+    return ip6_addrs
+
+
+def get_device_stats():
+    p = subprocess.run(["/sbin/ip", "-j", "stats"],
+                       check=True, text=True, capture_output=True)
+    stats = json.loads(p.stdout)
+    # keep only tx/rx stats and discard lo and ifb-* devices
+    stats = list(filter(lambda stat: stat.get('stats64')
+                 and not should_omit_device_name(stat.get('ifname')), stats))
+    return stats
+
+
+def convert_prefix_length_to_ip4_subnet_mask(prefix_length):
+    """
+    Convert IPv4 address prefix length to subnet mask.
+
+    Parameters:
+    - prefix_length (int): The prefix length.
+
+    Returns:
+    - str: The subnet mask in dotted decimal format.
+    """
+
+    if not (0 <= prefix_length <= 32):
+        raise ValueError("Prefix length must be between 0 and 32.")
+
+    # calculate the subnet mask using bitwise operations
+    subnet_mask = (0xFFFFFFFF << (32 - prefix_length)) & 0xFFFFFFFF
+
+    # convert the subnet mask to dotted decimal format
+    subnet_mask_str = ".".join(
+        str((subnet_mask >> (24 - i*8)) & 255) for i in range(4))
+
+    return subnet_mask_str
+
+
+def generate_device_name(device_prefix):
+    uci = EUci()
+    devices_from_config = get_all_by_type_as_list(uci, 'network', 'device')
+    num = 0
+
+    while True:
+        generated_name = device_prefix + str(num)
+        device_found = None
+
+        for device in devices_from_config:
+            if device.get('name') == generated_name:
+                device_found = device
+                break
+
+        if device_found:
+            num += 1
+        else:
+            return generated_name
+
+
+def create_network_interface(device_name, device_type, interface_name, protocol, logical_type, bridge_device_name, uci):
+    values = {}
+
+    if device_type == 'physical':
+        values['device'] = device_name
+        values['proto'] = protocol
+    else:
+        if logical_type == 'bridge':
+            values['device'] = bridge_device_name
+            values['proto'] = protocol
+        elif logical_type == 'bond':
+            values['proto'] = 'bonding'
+
+    uci.set("network", interface_name, "interface")
+
+    for key, value in values.items():
+        uci.set('network', interface_name, key, value)
+
+
+def get_bonding_values(ip4_address, attached_devices, bonding_policy, bond_primary_device):
+    values = {
+        'proto': 'bonding',
+        'ipaddr': '',
+        'netmask': '',
+        'ip6addr': '',
+        'gateway': '',
+        'ip6gw': '',
+        'username': '',
+        'password': '',
+        'clientid': '',
+        'vendorid': '',
+        'hostname': '',
+    }
+
+    # ip4 address and netmask
+    values['ipaddr'] = ip4_address
+
+    # luci requires to set ip4 netmask for bonds
+    prefix_length = int(ip4_address.split('/')[1])
+    netmask = convert_prefix_length_to_ip4_subnet_mask(prefix_length)
+    values['netmask'] = netmask
+
+    # attached devices
+    values['slaves'] = attached_devices
+
+    # bonding policy
+    values['bonding_policy'] = bonding_policy
+
+    # need to set unused options to empty string
+    options = [
+        'packets_per_slave',
+        'primary',
+        'primary_reselect',
+        'fail_over_mac',
+        'num_grat_arp__num_unsol_na',
+        'xmit_hash_policy',
+        'min_links',
+        'ad_actor_sys_prio',
+        'ad_select',
+        'lacp_rate',
+        'lp_interval',
+        'tlb_dynamic_lb',
+        'resend_igmp'
+    ]
+    for option in options:
+        values[option] = ''
+
+    match bonding_policy:
+        case 'balance-rr':
+            values = values | {'packets_per_slave': '1'}
+        case 'active-backup':
+            values = values | {
+                'primary': bond_primary_device,
+                'primary_reselect': 'always',
+                'fail_over_mac': 'none',
+                'num_grat_arp__num_unsol_na': '1'
+            }
+        case 'balance-xor':
+            values = values | {'primary': '', 'xmit_hash_policy': 'layer2'}
+        case 'broadcast':
+            values = values | {'primary': ''}
+        case '802.3ad':
+            values = values | {
+                'min_links': '0',
+                'ad_actor_sys_prio': '65535',
+                'ad_select': 'stable',
+                'lacp_rate': 'slow',
+                'xmit_hash_policy': 'layer2',
+                'primary': ''
+            }
+        case 'balance-tlb':
+            values = values | {
+                'primary': bond_primary_device,
+                'primary_reselect': 'always',
+                'lp_interval': '1',
+                'tlb_dynamic_lb': '1',
+                'xmit_hash_policy': 'layer2'
+            }
+        case 'balance-alb':
+            values = values | {
+                'primary': bond_primary_device,
+                'primary_reselect': 'always',
+                'lp_interval': '1',
+                'xmit_hash_policy': 'layer2',
+                'resend_igmp': '1'
+            }
+
+    return values
+
+
+def set_network_configuration(device_type, interface_name, logical_type, interface_to_edit, protocol, zone, ip4_address, ip4_gateway, ip6_enabled, ip6_address, ip6_gateway, attached_devices, bonding_policy, bond_primary_device, pppoe_username, pppoe_password, dhcp_client_id, dhcp_vendor_class, dhcp_hostname_to_send, dhcp_custom_hostname, uci):
+    if device_type == 'logical' and logical_type == 'bond':
+        values = get_bonding_values(
+            ip4_address, attached_devices, bonding_policy, bond_primary_device)
+    else:
+        # non-bond interfaces
+
+        values = {
+            'proto': protocol,
+            'ipaddr': '',
+            'netmask': '',
+            'ip6addr': '',
+            'gateway': '',
+            'ip6gw': '',
+            'username': '',
+            'password': '',
+            'clientid': '',
+            'vendorid': '',
+            'hostname': '',
+        }
+
+        if protocol == 'static':
+            # ip4 address and netmask
+            values['ipaddr'] = ip4_address
+
+            # ip6 address
+            if ip6_enabled and ip6_address:
+                values['ip6addr'] = ip6_address
+            else:
+                values['ip6addr'] = ''
+
+            if zone == 'wan':
+                # gateway
+                values['gateway'] = ip4_gateway
+
+                # ip6 gateway
+                if ip6_enabled:
+                    values['ip6gw'] = ip6_gateway
+                else:
+                    values['ip6gw'] = ''
+            else:
+                values['gateway'] = ''
+                values['ip6gw'] = ''
+        elif protocol == 'pppoe':
+            values['username'] = pppoe_username
+            values['password'] = pppoe_password
+        elif protocol in ['dhcp', 'dhcpv6']:
+            # dhcp client id
+            values['clientid'] = dhcp_client_id
+
+            if protocol == 'dhcp':
+                # dhcp vendor class
+                values['vendorid'] = dhcp_vendor_class
+
+                # dhcp hostname to send
+
+                dhcp_hostname = ''
+                delete_dhcp_hostname = False
+
+                match dhcp_hostname_to_send:
+                    case 'deviceHostname':
+                        delete_dhcp_hostname = True
+                    case 'doNotSendHostname':
+                        dhcp_hostname = '*'
+                    case 'customHostname':
+                        dhcp_hostname = dhcp_custom_hostname
+
+                if dhcp_hostname:
+                    values['hostname'] = dhcp_hostname
+
+                # delete dhcp hostname if needed
+                if interface_to_edit and delete_dhcp_hostname:
+                    uci.delete('network', interface_name, 'hostname')
+
+    # disable "force link" on red interfaces
+    if zone == 'wan':
+        values['force_link'] = '0'
+
+    for key, value in values.items():
+        uci.set('network', interface_name, key, value)
+
+
+def set_firewall_zone(interface_name, zone, interface_to_edit, uci):
+    fw_zones = get_all_by_type_as_list(uci, 'firewall', 'zone')
+
+    if not interface_to_edit:
+        # first configuration
+        firewall.add_interface_to_zone(uci, interface_name, zone)
+    else:
+        # editing configuration: if firewall zone has changed, remove interface from the old zone
+        old_zone = None
+
+        for z in fw_zones:
+            if z.get('network') and interface_name in z.get('network'):
+                old_zone = z
+                break
+
+        if old_zone and old_zone.get('name') != zone:
+            # remove interface from the old zone
+            firewall.remove_interface_from_zone(
+                uci, interface_name, old_zone['name'])
+
+            # add interface to the new zone
+            firewall.add_interface_to_zone(uci, interface_name, zone)
+
+            # if interface has an alias, move it too
+
+            ifaces_from_config = get_all_by_type_as_list(
+                uci, 'network', 'interface')
+            alias_found = get_alias_interface_from_iface_name(
+                interface_name, ifaces_from_config)
+
+            if alias_found:
+                # remove alias interface from the old zone
+                firewall.remove_interface_from_zone(
+                    uci, alias_found['.name'], old_zone['name'])
+
+                # add interface to the new zone
+                firewall.add_interface_to_zone(uci, alias_found['.name'], zone)
+
+
+def create_and_set_network_device(device_name, device_type, protocol, logical_type, ip4_mtu, ip6_mtu, ip6_enabled, bridge_device_name, attached_devices, uci):
+    devices_from_config = get_all_by_type_as_list(uci, 'network', 'device')
+    device_section = ''
+
+    # create the device only if it doesn't already exists
+    device_already_exists = None
+
+    for dev in devices_from_config:
+        if dev.get('name') == device_name:
+            device_already_exists = dev
+            break
+
+    if not device_already_exists:
+        # create the device
+        device_section = utils.get_random_id()
+
+        if device_type == 'physical':
+            # create physical device
+            uci.set("network", device_section, 'device')
+            uci.set('network', device_section, 'name', device_name)
+        elif device_type == 'logical' and logical_type == 'bridge':
+            # create bridge device
+            uci.set("network", device_section, "device")
+            uci.set("network", device_section, "name", bridge_device_name)
+            uci.set("network", device_section, "type", 'bridge')
+    else:
+        # device already exists
+        device_found = None
+
+        for dev in devices_from_config:
+            if dev.get('name') == device_name:
+                device_found = dev
+                break
+
+        if device_found:
+            device_section = device_found.get('.name')
+
+    # enable/disable ipv6
+
+    enable_ipv6 = ip6_enabled
+
+    if protocol == 'dhcpv6':
+        enable_ipv6 = True
+    elif protocol == 'dhcp':
+        enable_ipv6 = False
+
+    ip6_value = '1' if enable_ipv6 else '0'
+    ip4_mtu_value = ip4_mtu if ip4_mtu else ''
+    ip6_mtu_value = ip6_mtu if ip6_mtu else ''
+
+    values = {'mtu': ip4_mtu_value, 'mtu6': ip6_mtu_value, 'ipv6': ip6_value}
+
+    if device_type == 'logical' and logical_type == 'bridge':
+        values['ports'] = attached_devices
+
+    for key, value in values.items():
+        uci.set('network', device_section, key, value)
+
+
+def configure_device(input_data):
+    uci = EUci()
+    device_name = input_data.get('device_name')
+    device_type = input_data.get('device_type')
+    interface_name = input_data.get('interface_name')
+    protocol = input_data.get('protocol')
+    zone = input_data.get('zone')
+    logical_type = input_data.get('logical_type')
+    interface_to_edit = input_data.get('interface_to_edit')
+    ip4_address = input_data.get('ip4_address')
+    ip4_gateway = input_data.get('ip4_gateway')
+    ip4_mtu = input_data.get('ip4_mtu')
+    ip6_enabled = input_data.get('ip6_enabled')
+    ip6_address = input_data.get('ip6_address')
+    ip6_gateway = input_data.get('ip6_gateway')
+    ip6_mtu = input_data.get('ip6_mtu')
+    attached_devices = input_data.get('attached_devices')
+    bonding_policy = input_data.get('bonding_policy')
+    bond_primary_device = input_data.get('bond_primary_device')
+    pppoe_username = input_data.get('pppoe_username')
+    pppoe_password = input_data.get('pppoe_password')
+    dhcp_client_id = input_data.get('dhcp_client_id')
+    dhcp_vendor_class = input_data.get('dhcp_vendor_class')
+    dhcp_hostname_to_send = input_data.get('dhcp_hostname_to_send')
+    dhcp_custom_hostname = input_data.get('dhcp_custom_hostname')
+    bridge_device_name = ''
+
+    # validate input data
+
+    if not interface_name:
+        raise utils.ValidationError('interface_name', 'required')
+
+    if device_type == 'logical' and logical_type == 'bridge':
+        bridge_device_name = generate_device_name('br')
+
+    if not interface_to_edit:
+        create_network_interface(
+            device_name, device_type, interface_name, protocol, logical_type, bridge_device_name, uci)
+
+    set_network_configuration(device_type, interface_name, logical_type, interface_to_edit, protocol, zone, ip4_address, ip4_gateway, ip6_enabled, ip6_address, ip6_gateway,
+                              attached_devices, bonding_policy, bond_primary_device, pppoe_username, pppoe_password, dhcp_client_id, dhcp_vendor_class, dhcp_hostname_to_send, dhcp_custom_hostname, uci)
+
+    set_firewall_zone(interface_name, zone, interface_to_edit, uci)
+
+    # if it's not a bond, create and configure a network device
+    if not (device_type == 'logical' and logical_type == 'bond'):
+        create_and_set_network_device(device_name, device_type, protocol, logical_type,
+                                      ip4_mtu, ip6_mtu, ip6_enabled, bridge_device_name, attached_devices, uci)
+
+    uci.save("firewall")
+    uci.save("network")
+
+
+def get_alias_interface_from_iface_name(iface_name, ifaces_from_config):
+    alias_found = None
+
+    for i in ifaces_from_config:
+        if i.get('device') == f'@{iface_name}':
+            alias_found = i
+            break
+
+    return alias_found
+
+
+def get_alias_interface_from_device_name(device_name, ifaces_from_config):
+    iface = get_interface(device_name, ifaces_from_config)
+
+    if not iface:
+        return None
+
+    return get_alias_interface_from_iface_name(iface['.name'], ifaces_from_config)
+
+
+def remove_interface_from_firewall_zone(iface_name, ifaces_from_config, uci):
+    fw_zones = get_all_by_type_as_list(uci, 'firewall', 'zone')
+    zone = get_firewall_zone(iface_name, fw_zones)
+    zone_name = zone['name']
+
+    # remove interface from zone
+    firewall.remove_interface_from_zone(uci, iface_name, zone_name)
+
+    # if interface has an alias, delete it too
+    alias_found = get_alias_interface_from_iface_name(
+        iface_name, ifaces_from_config)
+
+    if alias_found:
+        firewall.remove_interface_from_zone(
+            uci, alias_found['.name'], zone_name)
+
+
+def is_vlan(device):
+    return device.get('vid') != None
+
+
+def is_bond(device_or_iface):
+    return device_or_iface.get('proto') == 'bonding' or re.match(r"bond-.+", device_or_iface.get('name'))
+
+
+def unconfigure_device(iface_name):
+    uci = EUci()
+    ifaces_from_config = get_all_by_type_as_list(uci, 'network', 'interface')
+    remove_interface_from_firewall_zone(iface_name, ifaces_from_config, uci)
+
+    # delete network interface
+    uci.delete('network', iface_name)
+
+    # delete alias interface (if any)
+
+    alias_found = get_alias_interface_from_iface_name(
+        iface_name, ifaces_from_config)
+
+    if alias_found:
+        uci.delete('network', alias_found['.name'])
+
+    # delete network device (if it's not a vlan or a bond)
+
+    devices_from_config = get_all_by_type_as_list(uci, 'network', 'device')
+    iface = None
+
+    for i in ifaces_from_config:
+        if i.get('.name') == iface_name:
+            iface = i
+            break
+
+    device_name = iface.get('device')
+
+    if device_name:
+        device_found = None
+
+        for dev in devices_from_config:
+            if dev.get('name') == device_name:
+                device_found = dev
+                break
+
+        if device_found and not is_vlan(device_found) and not is_bond(device_found):
+            uci.delete('network', device_found['.name'])
+
+    uci.save("firewall")
+    uci.save("network")
+
+
+def set_alias_interface(alias_iface_name, parent_iface_name, uci):
+    uci.set('network', alias_iface_name, 'interface')
+    uci.set('network', alias_iface_name, 'proto', 'static')
+    uci.set('network', alias_iface_name, 'device', f'@{parent_iface_name}')
+
+
+def set_alias_ip_address_list(alias_iface_name, ip4_addresses, ip6_addresses, is_creating, uci):
+    values_to_set = {}
+    options_to_delete = []
+    alias_to_edit = {}
+
+    # retrieve alias interface from config if editing
+    if not is_creating:
+        ifaces_from_config = get_all_by_type_as_list(
+            uci, 'network', 'interface')
+        alias_to_edit = None
+
+        for iface in ifaces_from_config:
+            if iface.get('.name') == alias_iface_name:
+                alias_to_edit = iface
+                break
+
+    # ip4 addresses
+
+    if len(ip4_addresses) > 0:
+        values_to_set['ipaddr'] = ip4_addresses
+    elif (not is_creating and alias_to_edit.get('ipaddr')):
+        # ip4 address list has been cleared
+        options_to_delete.append('ipaddr')
+
+    # ip6 addresses
+
+    if len(ip6_addresses) > 0:
+        values_to_set['ip6addr'] = ip6_addresses
+    elif (not is_creating and alias_to_edit.get('ip6addr')):
+        # ip4 address list has been cleared
+        options_to_delete.append('ip6addr')
+
+    # set non-empty ip address lists
+
+    for key, value in values_to_set.items():
+        uci.set('network', alias_iface_name, key, value)
+
+    # delete empty ip address lists
+
+    for option in options_to_delete:
+        uci.delete('network', alias_iface_name, option)
+
+
+def create_or_edit_alias_interface(input_data, is_creating):
+    uci = EUci()
+    alias_iface_name = input_data.get('alias_iface_name')
+    parent_iface_name = input_data.get('parent_iface_name')
+    ip4_addresses = input_data.get('ip4_addresses')
+    ip6_addresses = input_data.get('ip6_addresses')
+
+    # validate input data
+
+    if not parent_iface_name:
+        raise utils.ValidationError('parent_iface_name', 'required')
+
+    # if editing alias, ensure parent interface exists
+    if not is_creating:
+        ifaces_from_config = get_all_by_type_as_list(
+            uci, 'network', 'interface')
+        parent_iface_found = None
+
+        for iface in ifaces_from_config:
+            if iface.get('.name') == parent_iface_name:
+                parent_iface_found = iface
+                break
+
+        if not parent_iface_found:
+            raise utils.ValidationError('parent_iface_name', 'not found')
+
+    set_alias_interface(alias_iface_name, parent_iface_name, uci)
+    set_alias_ip_address_list(alias_iface_name, ip4_addresses,
+                              ip6_addresses, is_creating, uci)
+
+    # add alias interface to zone interfaces
+
+    fw_zones = get_all_by_type_as_list(uci, 'firewall', 'zone')
+    zone = get_firewall_zone(parent_iface_name, fw_zones)
+    firewall.add_interface_to_zone(uci, alias_iface_name, zone['name'])
+    uci.save("firewall")
+    uci.save("network")
+
+
+def delete_alias_interface(input_data):
+    uci = EUci()
+    alias_iface_name = input_data.get('alias_iface_name')
+    parent_iface_name = input_data.get('parent_iface_name')
+
+    # validate input data
+
+    if not alias_iface_name:
+        raise utils.ValidationError('alias_iface_name', 'required')
+
+    if not parent_iface_name:
+        raise utils.ValidationError('parent_iface_name', 'required')
+
+    # delete network interface
+    uci.delete('network', alias_iface_name)
+
+    # remove alias interface from zone
+
+    fw_zones = get_all_by_type_as_list(uci, 'firewall', 'zone')
+    zone = get_firewall_zone(parent_iface_name, fw_zones)
+    zone_interfaces = list(
+        filter(lambda zone_iface: zone_iface != alias_iface_name, zone['network']))
+    uci.set('firewall', zone['.name'], 'network', zone_interfaces)
+
+    uci.save("firewall")
+    uci.save("network")
+
+
+def create_vlan_device(input_data):
+    uci = EUci()
+    vlan_type = input_data.get('vlan_type')
+    base_device_name = input_data.get('base_device_name')
+    vlan_id = input_data.get('vlan_id')
+
+    # validate input data
+
+    if not vlan_type:
+        raise utils.ValidationError('vlan_type', 'required')
+
+    if not base_device_name:
+        raise utils.ValidationError('base_device_name', 'required')
+
+    if not vlan_id:
+        raise utils.ValidationError('vlan_id', 'required')
+
+    # create device
+
+    device_id = utils.get_random_id()
+    device_name = f'{base_device_name}.{vlan_id}'
+    uci.set('network', device_id, 'device')
+    uci.set('network', device_id, 'name', device_name)
+    uci.set('network', device_id, 'type', vlan_type)
+    uci.set('network', device_id, 'ifname', base_device_name)
+    uci.set('network', device_id, 'vid', str(vlan_id))
+    uci.save("network")
+
+
+def delete_device(device_name):
+    uci = EUci()
+
+    # validate input data
+
+    if not device_name:
+        raise utils.ValidationError('device_name', 'required')
+
+    # delete network device
+
+    devices_from_config = get_all_by_type_as_list(uci, 'network', 'device')
+    device_found = None
+
+    for dev in devices_from_config:
+        if dev.get('name') == device_name:
+            device_found = dev
+            break
+
+    if device_found:
+        uci.delete('network', device_found['.name'])
+    else:
+        raise utils.ValidationError('device_name', 'not found')
+
+    uci.save("network")
+
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({
+        'list-devices': {},
+        'configure-device': {
+            'device_name': 'string',
+            'device_type': 'string',
+            'interface_name': 'string',
+            'protocol': 'string',
+            'zone': 'string',
+            'logical_type': 'string',
+            'interface_to_edit': 'string',
+            'ip4_address': 'string',
+            'ip4_gateway': 'string',
+            'ip4_mtu': 'string',
+            'ip6_enabled': 'boolean',
+            'ip6_address': 'string',
+            'ip6_gateway': 'string',
+            'ip6_mtu': 'string',
+            'attached_devices': 'array',
+            'bonding_policy': 'string',
+            'bond_primary_device': 'string',
+            'pppoe_username': 'string',
+            'pppoe_password': 'string',
+            'dhcp_client_id': 'string',
+            'dhcp_vendor_class': 'string',
+            'dhcp_hostname_to_send': 'string',
+            'dhcp_custom_hostname': 'string',
+        },
+        'unconfigure-device': {
+            'iface_name': 'string',
+        },
+        'create-alias-interface': {
+            'alias_iface_name': 'string',
+            'parent_iface_name': 'string',
+            'ip4_addresses': 'array',
+            'ip6_addresses': 'array',
+        },
+        'edit-alias-interface': {
+            'alias_iface_name': 'string',
+            'parent_iface_name': 'string',
+            'ip4_addresses': 'array',
+            'ip6_addresses': 'array',
+        },
+        'delete-alias-interface': {
+            'alias_iface_name': 'string',
+            'parent_iface_name': 'string'
+        },
+        'create-vlan-device': {
+            'vlan_type': 'string',
+            'base_device_name': 'string',
+            'vlan_id': 'string'
+        },
+        'delete-device': {
+            'device_name': 'string'
+        }
+    }))
+elif cmd == 'call':
+    action = sys.argv[2]
+    try:
+        if action == 'list-devices':
+            devices = list_devices()
+            print(json.dumps(devices))
+        elif action == 'configure-device':
+            input_data = json.JSONDecoder().decode(sys.stdin.read())
+            configure_device(input_data)
+            print(json.dumps({'message': 'success'}))
+        elif action == 'unconfigure-device':
+            input_data = json.JSONDecoder().decode(sys.stdin.read())
+            unconfigure_device(input_data['iface_name'])
+            print(json.dumps({'message': 'success'}))
+        elif action == 'create-alias-interface':
+            input_data = json.JSONDecoder().decode(sys.stdin.read())
+            create_or_edit_alias_interface(input_data, True)
+            print(json.dumps({'message': 'success'}))
+        elif action == 'edit-alias-interface':
+            input_data = json.JSONDecoder().decode(sys.stdin.read())
+            create_or_edit_alias_interface(input_data, False)
+            print(json.dumps({'message': 'success'}))
+        elif action == 'delete-alias-interface':
+            input_data = json.JSONDecoder().decode(sys.stdin.read())
+            delete_alias_interface(input_data)
+            print(json.dumps({'message': 'success'}))
+        elif action == 'create-vlan-device':
+            input_data = json.JSONDecoder().decode(sys.stdin.read())
+            create_vlan_device(input_data)
+            print(json.dumps({'message': 'success'}))
+        elif action == 'delete-device':
+            input_data = json.JSONDecoder().decode(sys.stdin.read())
+            delete_device(input_data['device_name'])
+            print(json.dumps({'message': 'success'}))
+        else:
+            print(json.dumps(utils.generic_error(f'invalid method {action}')))
+    except KeyError as e:
+        print(json.dumps(utils.validation_error(e.args[0], 'required')))
+    except json.JSONDecodeError:
+        print(json.dumps(utils.generic_error("json given is invalid")))
+    except utils.ValidationError as e:
+        print(json.dumps(utils.validation_error(e.parameter, e.message, e.value)))
+    except ValueError as e:
+        print(json.dumps(utils.generic_error(e)))

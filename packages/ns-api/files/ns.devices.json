@@ -1,0 +1,11 @@
+{
+  "devices-manager": {
+    "description": "Manage devices and interfaces",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.devices": ["*"]
+      }
+    }
+  }
+}
