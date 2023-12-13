@@ -628,9 +628,9 @@ elif cmd == 'call':
     if action == "list-tunnels":
         ret = list_tunnels()
     elif action == "list-cipher":
-        ret = list_cipher()
+        ret = ovpn.list_cipher()
     elif action == "list-digest":
-        ret = list_digest()
+        ret = ovpn.list_digest()
     elif action == "get-defaults":
         ret = get_defaults()
     else:
