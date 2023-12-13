@@ -127,6 +127,7 @@ def unregister():
     try:
         # the below command also set the disabled option
         subprocess.run(["/usr/bin/unregister_dedalo", token_file], check=True, capture_output=True)
+        subprocess.run(["/etc/init.d/firewall", "reload"], capture_output=True, check=True)
     except:
         return utils.generic_error("unregister_failed")
     return {"result": "success"}
@@ -187,6 +188,7 @@ def set_configuration(args):
     else:
         subprocess.run(["/etc/init.d/dedalo", "start"], capture_output=True)
         subprocess.run(["/etc/init.d/dedalo_users_auth", "start"], capture_output=True)
+    subprocess.run(["/etc/init.d/firewall", "reload"], capture_output=True, check=True)
 
     return {"result": "success"}
 
