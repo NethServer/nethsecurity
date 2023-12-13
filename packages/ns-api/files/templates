@@ -59,7 +59,7 @@ config template_rule 'ip6_icmp_forward'
 
 config template_zone 'ns_hotspot'
 	option name 'hotspot'
-	list network 'hotspot'
+	list network 'dedalo'
 	option mtu_fix '1'
 	option forward 'DROP'
 	option input 'DROP'
