@@ -218,7 +218,7 @@ def is_bridge(device):
 
 
 def should_omit_device_name(device_name):
-    return device_name == 'lo' or device_name.startswith('ifb-') or device_name.startswith('tun')
+    return device_name == 'lo' or device_name.startswith('ifb-') or device_name.startswith('tun') or device_name.startswith("ipsec")
 
 
 def get_physical_devices():
