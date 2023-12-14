@@ -65,6 +65,7 @@ def list_sessions():
                 continue
 
             session_key = tokens[3]
+            user = tokens[5]
             session_time = tokens[6]
             session_time_elapsed = session_time.split("/")[0]
 
@@ -95,7 +96,8 @@ def list_sessions():
                 'inputOctetsDownloaded': input_octets_downloaded,
                 'inputOctetsLimit': input_octets_limit,
                 'outputOctetsUploaded': output_octets_uploaded,
-                'outputOctetsLimit': output_octets_limit
+                'outputOctetsLimit': output_octets_limit,
+                'temporary': True if user == 'temporary' else False
             }
             users.append(user)
 
