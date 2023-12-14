@@ -131,6 +131,7 @@ def unregister():
         return utils.generic_error("unregister_failed")
     try:
         firewall.delete_linked_sections(EUci(), "dedalo/config")
+        subprocess.run(["/sbin/ifdown", "dedalo"], capture_output=True, check=True)
         subprocess.run(["/etc/init.d/firewall", "reload"], capture_output=True, check=True)
     except Exception as e:
         print(e, file=sys.stderr)
@@ -193,6 +194,7 @@ def set_configuration(args):
     else:
         subprocess.run(["/etc/init.d/dedalo", "start"], capture_output=True)
         subprocess.run(["/etc/init.d/dedalo_users_auth", "start"], capture_output=True)
+    subprocess.run(["/sbin/ifup", "dedalo"], capture_output=True, check=True)
     subprocess.run(["/etc/init.d/firewall", "reload"], capture_output=True, check=True)
 
     return {"result": "success"}
