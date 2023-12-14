@@ -187,15 +187,19 @@ def set_configuration(args):
             print(e, file=sys.stderr)
             return utils.generic_error("registration_failed")
 
-    p = subprocess.run(["/etc/init.d/dedalo", "status"], capture_output=True)
-    if p.returncode == 0:
-        subprocess.run(["/etc/init.d/dedalo", "restart"], capture_output=True)
-        subprocess.run(["/etc/init.d/dedalo_users_auth", "restart"], capture_output=True)
-    else:
-        subprocess.run(["/etc/init.d/dedalo", "start"], capture_output=True)
-        subprocess.run(["/etc/init.d/dedalo_users_auth", "start"], capture_output=True)
     subprocess.run(["/sbin/ifup", "dedalo"], capture_output=True, check=True)
     subprocess.run(["/etc/init.d/firewall", "reload"], capture_output=True, check=True)
+    p = subprocess.run(["/etc/init.d/dedalo", "status"], capture_output=True)
+    try:
+        if p.returncode == 0:
+            subprocess.run(["/etc/init.d/dedalo", "restart"], capture_output=True, check=True)
+            subprocess.run(["/etc/init.d/dedalo_users_auth", "restart"], capture_output=True, check=True)
+        else:
+            subprocess.run(["/etc/init.d/dedalo", "start"], capture_output=True, check=True)
+            subprocess.run(["/etc/init.d/dedalo_users_auth", "start"], capture_output=True, check=True)
+    except Exception as e:
+        print(e, file=sys.stderr)
+        return utils.generic_error("dedalo_start_failed")
 
     return {"result": "success"}
 
