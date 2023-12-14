@@ -80,17 +80,19 @@ def list_devices():
     # retrieve hotspot interfaces
 
     hotspot_config = utils.get_all_by_type(uci, 'dedalo', 'dedalo')
-    hotspot_iface = None
+    hotspot_device = None
 
     if hotspot_config:
         hotspot_config = hotspot_config['config']
-        hotspot_iface = hotspot_config.get('interface')
+        hotspot_device = hotspot_config.get('interface')
 
         # merge hotspot info into device
 
         for device in all_devices:
-            if device.get('name') == hotspot_iface:
+            if device.get('name') == hotspot_device:
                 device['hotspot'] = hotspot_config
+                device['iface'] = {'device': hotspot_device,
+                                   '.name': 'dedalo', '.type': 'interface'}
                 break
 
     # do not show devices used by bridges or bonds
@@ -105,6 +107,35 @@ def list_devices():
 
     devices_to_show = list(filter(lambda device: not get_name(
         device) in devices_used_by_logical_ifaces, all_devices))
+
+    # associate interfaces to devices and convert ip4 addresses to CIDR notation
+
+    for deviceOrIface in devices_to_show:
+        if deviceOrIface.get('.type') == 'interface':
+            # convert ip4 addresses to CIDR notation
+            if deviceOrIface.get('ipaddr') and deviceOrIface.get('netmask'):
+                ipaddr = deviceOrIface.get('ipaddr')
+                netmask = deviceOrIface.get('netmask')
+                prefix_length = convert_ip4_subnet_mask_to_prefix_length(
+                    netmask)
+                ip4_address_cidr = f"{ipaddr}/{prefix_length}"
+                deviceOrIface['ipaddr'] = ip4_address_cidr
+        else:
+            # it's a device, associate its interface
+            iface = get_interface(
+                deviceOrIface.get('name'), ifaces_from_config)
+
+            if iface:
+                # convert ip4 addresses to CIDR notation
+                if iface.get('ipaddr') and iface.get('netmask'):
+                    ipaddr = iface.get('ipaddr')
+                    netmask = iface.get('netmask')
+                    prefix_length = convert_ip4_subnet_mask_to_prefix_length(
+                        netmask)
+                    ip4_address_cidr = f"{ipaddr}/{prefix_length}"
+                    iface['ipaddr'] = ip4_address_cidr
+
+                deviceOrIface['iface'] = iface
 
     # retrieve stats
 
@@ -313,6 +344,26 @@ def convert_prefix_length_to_ip4_subnet_mask(prefix_length):
     return subnet_mask_str
 
 
+def convert_ip4_subnet_mask_to_prefix_length(netmask):
+    """
+    Convert IPv4 subnet mask to an address prefix length.
+
+    Parameters:
+    - netmask (string): The subnet mask, e.g. '255.255.255.0'.
+
+    Returns:
+    - int: The address prefix length.
+    """
+
+    # Split the netmask into octets
+    octets = [int(octet) for octet in netmask.split('.')]
+
+    # Convert each octet to binary and count the number of '1' bits
+    bits_count = sum(bin(octet).count('1') for octet in octets)
+
+    return bits_count
+
+
 def generate_device_name(device_prefix):
     uci = EUci()
     devices_from_config = get_all_by_type_as_list(uci, 'network', 'device')
@@ -368,10 +419,11 @@ def get_bonding_values(ip4_address, attached_devices, bonding_policy, bond_prima
     }
 
     # ip4 address and netmask
-    values['ipaddr'] = ip4_address
 
-    # luci requires to set ip4 netmask for bonds
-    prefix_length = int(ip4_address.split('/')[1])
+    # luci requires to set ip4 address and netmask into two distinct fields
+    ip4_tokens = ip4_address.split('/')
+    values['ipaddr'] = ip4_tokens[0]
+    prefix_length = int(ip4_tokens[1])
     netmask = convert_prefix_length_to_ip4_subnet_mask(prefix_length)
     values['netmask'] = netmask
 
@@ -466,7 +518,13 @@ def set_network_configuration(device_type, interface_name, logical_type, interfa
 
         if protocol == 'static':
             # ip4 address and netmask
-            values['ipaddr'] = ip4_address
+
+            # luci requires to set ip4 address and netmask into two distinct fields
+            ip4_tokens = ip4_address.split('/')
+            values['ipaddr'] = ip4_tokens[0]
+            prefix_length = int(ip4_tokens[1])
+            netmask = convert_prefix_length_to_ip4_subnet_mask(prefix_length)
+            values['netmask'] = netmask
 
             # ip6 address
             if ip6_enabled and ip6_address:
