@@ -77,6 +77,22 @@ def list_devices():
 
     all_devices = merged_devices + ifaces_without_device
 
+    # retrieve hotspot interfaces
+
+    hotspot_config = utils.get_all_by_type(uci, 'dedalo', 'dedalo')
+    hotspot_iface = None
+
+    if hotspot_config:
+        hotspot_config = hotspot_config['config']
+        hotspot_iface = hotspot_config.get('interface')
+
+        # merge hotspot info into device
+
+        for device in all_devices:
+            if device.get('name') == hotspot_iface:
+                device['hotspot'] = hotspot_config
+                break
+
     # do not show devices used by bridges or bonds
 
     devices_used_by_logical_ifaces = []
@@ -129,33 +145,25 @@ def list_devices():
 
     # sorted zones and devices
 
-    zones = [
-        {
-            'name': 'lan',
-            'devices': [],
-        },
-        {
-            'name': 'wan',
-            'devices': []
-        },
-        {
-            'name': 'guests',
-            'devices': []
-        },
-    ]
-
+    zones = []
     unassigned_zone = {
         'name': 'unassigned',
         'devices': []
     }
-
     fw_zones = get_all_by_type_as_list(uci, 'firewall', 'zone')
 
     for device in devices_to_show:
         iface_found = get_interface(device.get('name'), ifaces_from_config)
 
         if not iface_found:
-            unassigned_zone['devices'].append(get_name(device))
+            # check if it's a hotspot device
+            if device.get('hotspot'):
+                zones.append({
+                    'name': 'hotspot',
+                    'devices': [device.get('name')]
+                })
+            else:
+                unassigned_zone['devices'].append(get_name(device))
         else:
             zone_found = get_firewall_zone(iface_found['.name'], fw_zones)
 
