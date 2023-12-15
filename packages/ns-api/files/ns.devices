@@ -79,11 +79,10 @@ def list_devices():
 
     # retrieve hotspot interfaces
 
-    hotspot_config = utils.get_all_by_type(uci, 'dedalo', 'dedalo')
+    hotspot_config = uci.get_all('dedalo', 'config')
     hotspot_device = None
 
     if hotspot_config:
-        hotspot_config = hotspot_config['config']
         hotspot_device = hotspot_config.get('interface')
 
         # merge hotspot info into device
