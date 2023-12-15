@@ -77,9 +77,9 @@ else:
             ret = {"users": users.list_remote_users(args['uri'], args['user_dn'], args['user_attr'], args['user_cn'], args['start_tls'], args['tls_reqcert'])}
 
         elif action == "add-local-user":
-            ret = {"id": users.add_local_user(u, args['name'], args.get('password'), args.get('description'), args['database'], args.get("extra"))}
+            ret = {"id": users.add_local_user(u, args['name'], args.get('password'), args.get('description',''), args['database'], args.get("extra"))}
         elif action == "edit-local-user":
-            ret = {"id": users.edit_local_user(u, args['name'], args.get('password'), args.get('description'), args['database'], args.get("extra"))}
+            ret = {"id": users.edit_local_user(u, args['name'], args.get('password'), args.get('description',''), args['database'], args.get("extra"))}
         elif action == "delete-local-user":
             users.delete_local_user(u, args['name'], args['database'])
             ret = {"result": "success"}
