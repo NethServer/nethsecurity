@@ -94,22 +94,9 @@ def list_devices():
                                    '.name': 'dedalo', '.type': 'interface'}
                 break
 
-    # do not show devices used by bridges or bonds
-
-    devices_used_by_logical_ifaces = []
-
-    for device in all_devices:
-        if is_bond(device):
-            devices_used_by_logical_ifaces += device.get('slaves')
-        elif is_bridge(device):
-            devices_used_by_logical_ifaces += device.get('ports')
-
-    devices_to_show = list(filter(lambda device: not get_name(
-        device) in devices_used_by_logical_ifaces, all_devices))
-
     # associate interfaces to devices and convert ip4 addresses to CIDR notation
 
-    for deviceOrIface in devices_to_show:
+    for deviceOrIface in all_devices:
         if deviceOrIface.get('.type') == 'interface':
             # convert ip4 addresses to CIDR notation
             if deviceOrIface.get('ipaddr') and deviceOrIface.get('netmask'):
@@ -130,6 +117,46 @@ def list_devices():
                     iface['ipaddr'] = convert_ip4_addr_to_cidr(ipaddr, netmask)
 
                 deviceOrIface['iface'] = iface
+
+                # check if it's a pppoe
+                if iface.get('proto') == 'pppoe':
+                    devices_from_config = get_all_by_type_as_list(
+                        uci, 'network', 'device')
+                    pppoe_device_found = None
+
+                    for device in all_devices:
+                        if device.get('name') == f'pppoe-{iface[".name"]}':
+                            pppoe_device_found = device
+                            break
+
+                    # set iface ip addresses from pppoe device
+
+                    if pppoe_device_found:
+                        # ip4
+                        if pppoe_device_found.get('ipaddrs') and len(pppoe_device_found.get('ipaddrs')) > 0:
+                            iface['ipaddr'] = pppoe_device_found.get('ipaddrs')[
+                                0].get('address')
+
+                        # ip6
+                        if pppoe_device_found.get('ip6addrs') and len(pppoe_device_found.get('ip6addrs')) > 0:
+                            iface['ip6addr'] = pppoe_device_found.get('ip6addrs')[
+                                0].get('address')
+
+    devices_used_by_logical_ifaces = []
+
+    for device in all_devices:
+        if is_bond(device):
+            devices_used_by_logical_ifaces += device.get('slaves')
+        elif is_bridge(device):
+            devices_used_by_logical_ifaces += device.get('ports')
+
+    # filter devices
+
+    devices_to_show = list(filter(lambda device:
+                                  # do not show devices used by bridges or bonds
+                                  not get_name(device) in devices_used_by_logical_ifaces and
+                                  # do not show duplicated pppoe devices
+                                  not (device.get('name') and device.get('name').startswith('pppoe-')), all_devices))
 
     # retrieve stats
 
