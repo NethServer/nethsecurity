@@ -115,10 +115,8 @@ def list_devices():
             if deviceOrIface.get('ipaddr') and deviceOrIface.get('netmask'):
                 ipaddr = deviceOrIface.get('ipaddr')
                 netmask = deviceOrIface.get('netmask')
-                prefix_length = convert_ip4_subnet_mask_to_prefix_length(
-                    netmask)
-                ip4_address_cidr = f"{ipaddr}/{prefix_length}"
-                deviceOrIface['ipaddr'] = ip4_address_cidr
+                deviceOrIface['ipaddr'] = convert_ip4_addr_to_cidr(
+                    ipaddr, netmask)
         else:
             # it's a device, associate its interface
             iface = get_interface(
@@ -129,10 +127,7 @@ def list_devices():
                 if iface.get('ipaddr') and iface.get('netmask'):
                     ipaddr = iface.get('ipaddr')
                     netmask = iface.get('netmask')
-                    prefix_length = convert_ip4_subnet_mask_to_prefix_length(
-                        netmask)
-                    ip4_address_cidr = f"{ipaddr}/{prefix_length}"
-                    iface['ipaddr'] = ip4_address_cidr
+                    iface['ipaddr'] = convert_ip4_addr_to_cidr(ipaddr, netmask)
 
                 deviceOrIface['iface'] = iface
 
@@ -402,7 +397,20 @@ def create_network_interface(device_name, device_type, interface_name, protocol,
         uci.set('network', interface_name, key, value)
 
 
-def get_bonding_values(ip4_address, attached_devices, bonding_policy, bond_primary_device):
+def convert_ip4_addr_to_cidr(ip4_addr, netmask):
+    prefix_length = convert_ip4_subnet_mask_to_prefix_length(netmask)
+    return f"{ip4_addr}/{prefix_length}"
+
+
+def convert_cidr_to_ip4_addr(ip4_cidr):
+    tokens = ip4_cidr.split('/')
+    ip4_addr = tokens[0]
+    prefix_length = int(tokens[1])
+    netmask = convert_prefix_length_to_ip4_subnet_mask(prefix_length)
+    return (ip4_addr, netmask)
+
+
+def get_bonding_values(ip4_addr_cidr, attached_devices, bonding_policy, bond_primary_device):
     values = {
         'proto': 'bonding',
         'ipaddr': '',
@@ -420,10 +428,8 @@ def get_bonding_values(ip4_address, attached_devices, bonding_policy, bond_prima
     # ip4 address and netmask
 
     # luci requires to set ip4 address and netmask into two distinct fields
-    ip4_tokens = ip4_address.split('/')
-    values['ipaddr'] = ip4_tokens[0]
-    prefix_length = int(ip4_tokens[1])
-    netmask = convert_prefix_length_to_ip4_subnet_mask(prefix_length)
+    ip4_addr, netmask = convert_cidr_to_ip4_addr(ip4_addr_cidr)
+    values['ipaddr'] = ip4_addr
     values['netmask'] = netmask
 
     # attached devices
@@ -494,10 +500,10 @@ def get_bonding_values(ip4_address, attached_devices, bonding_policy, bond_prima
     return values
 
 
-def set_network_configuration(device_type, interface_name, logical_type, interface_to_edit, protocol, zone, ip4_address, ip4_gateway, ip6_enabled, ip6_address, ip6_gateway, attached_devices, bonding_policy, bond_primary_device, pppoe_username, pppoe_password, dhcp_client_id, dhcp_vendor_class, dhcp_hostname_to_send, dhcp_custom_hostname, uci):
+def set_network_configuration(device_type, interface_name, logical_type, interface_to_edit, protocol, zone, ip4_addr_cidr, ip4_gateway, ip6_enabled, ip6_address, ip6_gateway, attached_devices, bonding_policy, bond_primary_device, pppoe_username, pppoe_password, dhcp_client_id, dhcp_vendor_class, dhcp_hostname_to_send, dhcp_custom_hostname, uci):
     if device_type == 'logical' and logical_type == 'bond':
         values = get_bonding_values(
-            ip4_address, attached_devices, bonding_policy, bond_primary_device)
+            ip4_addr_cidr, attached_devices, bonding_policy, bond_primary_device)
     else:
         # non-bond interfaces
 
@@ -519,10 +525,8 @@ def set_network_configuration(device_type, interface_name, logical_type, interfa
             # ip4 address and netmask
 
             # luci requires to set ip4 address and netmask into two distinct fields
-            ip4_tokens = ip4_address.split('/')
-            values['ipaddr'] = ip4_tokens[0]
-            prefix_length = int(ip4_tokens[1])
-            netmask = convert_prefix_length_to_ip4_subnet_mask(prefix_length)
+            ip4_addr, netmask = convert_cidr_to_ip4_addr(ip4_addr_cidr)
+            values['ipaddr'] = ip4_addr
             values['netmask'] = netmask
 
             # ip6 address
