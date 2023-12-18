@@ -85,14 +85,15 @@ def list_devices():
     if hotspot_config:
         hotspot_device = hotspot_config.get('interface')
 
-        # merge hotspot info into device
+        if hotspot_device:
+            # merge hotspot info into device
 
-        for device in all_devices:
-            if device.get('name') == hotspot_device:
-                device['hotspot'] = hotspot_config
-                device['iface'] = {'device': hotspot_device,
-                                   '.name': 'dedalo', '.type': 'interface'}
-                break
+            for device in all_devices:
+                if device.get('name') == hotspot_device:
+                    device['hotspot'] = hotspot_config
+                    device['iface'] = {'device': hotspot_device,
+                                    '.name': 'dedalo', '.type': 'interface'}
+                    break
 
     # associate interfaces to devices and convert ip4 addresses to CIDR notation
 
@@ -205,7 +206,12 @@ def list_devices():
     fw_zones = get_all_by_type_as_list(uci, 'firewall', 'zone')
 
     for device in devices_to_show:
-        iface_found = get_interface(get_name(device), ifaces_from_config)
+        iface_found = None
+
+        if device.get('.type') == 'interface':
+            iface_found = device
+        else:
+            iface_found = get_interface(get_name(device), ifaces_from_config)
 
         if not iface_found:
             # check if it's a special device
