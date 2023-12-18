@@ -597,6 +597,7 @@ if cmd == 'list':
         "list-digest": {},
         "list-dhcp-options": {},
         "list-bridges": {},
+        "list-instances": {},
         "set-configuration": {
             "instance": "roadwarrior1",
             "proto": "udp", 
