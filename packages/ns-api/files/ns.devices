@@ -205,15 +205,33 @@ def list_devices():
     fw_zones = get_all_by_type_as_list(uci, 'firewall', 'zone')
 
     for device in devices_to_show:
-        iface_found = get_interface(device.get('name'), ifaces_from_config)
+        iface_found = get_interface(get_name(device), ifaces_from_config)
 
         if not iface_found:
-            # check if it's a hotspot device
+            # check if it's a special device
+
             if device.get('hotspot'):
+                # hotspot
                 zones.append({
                     'name': 'hotspot',
                     'devices': [device.get('name')]
                 })
+            elif device.get('zone') == 'ipsec':
+                # ipsec
+                vpn_zone = None
+
+                for z in zones:
+                    if z.get('name') == 'vpn':
+                        vpn_zone = z
+                        break
+
+                if vpn_zone:
+                    vpn_zone['devices'].append(get_name(device))
+                else:
+                    zones.append({
+                        'name': 'vpn',
+                        'devices': [get_name(device)]
+                    })
             else:
                 unassigned_zone['devices'].append(get_name(device))
         else:
@@ -265,6 +283,9 @@ def get_name(device_or_iface):
 
 
 def get_interface(device_name, ifaces_from_config):
+    if not device_name:
+        return None
+
     for iface in ifaces_from_config:
         if iface.get('device') == device_name:
             return iface
