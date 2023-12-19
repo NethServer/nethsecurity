@@ -75,9 +75,87 @@ def list_devices():
         if not dev_found:
             merged_devices.append(device_from_config)
 
-    all_devices = merged_devices + ifaces_without_device
+    # retrieve openvpn tunnels
 
-    # do not show devices used by bridges or bonds
+    openvpn_tunnels = []
+    openvpn_config = get_all_by_type_as_list(uci, 'openvpn', 'openvpn')
+
+    for tun in openvpn_config:
+        # skip road warrior servers
+        if not tun.get('ns_auth_mode', None) is None:
+            continue
+
+        if tun.get('.name').startswith('ns_'):
+            ovpn_tun = {'name': tun.get('dev'), 'openvpn': tun, 'iface': {
+                '.name': tun['ns_name'], '.type': 'interface', 'device': tun['dev']}}
+            openvpn_tunnels.append(ovpn_tun)
+
+    all_devices = merged_devices + ifaces_without_device + openvpn_tunnels
+
+    # retrieve hotspot interfaces
+
+    hotspot_config = uci.get_all('dedalo', 'config')
+    hotspot_device = None
+
+    if hotspot_config:
+        hotspot_device = hotspot_config.get('interface')
+
+        if hotspot_device:
+            # merge hotspot info into device
+
+            for device in all_devices:
+                if device.get('name') == hotspot_device:
+                    device['hotspot'] = hotspot_config
+                    device['iface'] = {'device': hotspot_device,
+                                       '.name': 'dedalo', '.type': 'interface'}
+                    break
+
+    # associate interfaces to devices and convert ip4 addresses to CIDR notation
+
+    for deviceOrIface in all_devices:
+        if deviceOrIface.get('.type') == 'interface':
+            # convert ip4 addresses to CIDR notation
+            if deviceOrIface.get('ipaddr') and deviceOrIface.get('netmask'):
+                ipaddr = deviceOrIface.get('ipaddr')
+                netmask = deviceOrIface.get('netmask')
+                deviceOrIface['ipaddr'] = convert_ip4_addr_to_cidr(
+                    ipaddr, netmask)
+        else:
+            # it's a device, associate its interface
+            iface = get_interface(
+                deviceOrIface.get('name'), ifaces_from_config)
+
+            if iface:
+                # convert ip4 addresses to CIDR notation
+                if iface.get('ipaddr') and iface.get('netmask'):
+                    ipaddr = iface.get('ipaddr')
+                    netmask = iface.get('netmask')
+                    iface['ipaddr'] = convert_ip4_addr_to_cidr(ipaddr, netmask)
+
+                deviceOrIface['iface'] = iface
+
+                # check if it's a pppoe
+                if iface.get('proto') == 'pppoe':
+                    devices_from_config = get_all_by_type_as_list(
+                        uci, 'network', 'device')
+                    pppoe_device_found = None
+
+                    for device in all_devices:
+                        if device.get('name') == f'pppoe-{iface[".name"]}':
+                            pppoe_device_found = device
+                            break
+
+                    # set iface ip addresses from pppoe device
+
+                    if pppoe_device_found:
+                        # ip4
+                        if pppoe_device_found.get('ipaddrs') and len(pppoe_device_found.get('ipaddrs')) > 0:
+                            iface['ipaddr'] = pppoe_device_found.get('ipaddrs')[
+                                0].get('address')
+
+                        # ip6
+                        if pppoe_device_found.get('ip6addrs') and len(pppoe_device_found.get('ip6addrs')) > 0:
+                            iface['ip6addr'] = pppoe_device_found.get('ip6addrs')[0].get('address')
 
     devices_used_by_logical_ifaces = []
 
@@ -87,8 +165,13 @@ def list_devices():
         elif is_bridge(device):
             devices_used_by_logical_ifaces += device.get('ports')
 
-    devices_to_show = list(filter(lambda device: not get_name(
-        device) in devices_used_by_logical_ifaces, all_devices))
+    # filter devices
+
+    devices_to_show = list(filter(lambda device:
+                                  # do not show devices used by bridges or bonds
+                                  not get_name(device) in devices_used_by_logical_ifaces and
+                                  # do not show duplicated pppoe devices
+                                  not (device.get('name') and device.get('name').startswith('pppoe-')), all_devices))
 
     # retrieve stats
 
@@ -129,61 +212,79 @@ def list_devices():
 
     # sorted zones and devices
 
-    zones = [
-        {
-            'name': 'lan',
-            'devices': [],
-        },
-        {
-            'name': 'wan',
-            'devices': []
-        },
-        {
-            'name': 'guests',
-            'devices': []
-        },
-    ]
-
+    zones_for_ui = []
     unassigned_zone = {
         'name': 'unassigned',
         'devices': []
     }
-
     fw_zones = get_all_by_type_as_list(uci, 'firewall', 'zone')
 
     for device in devices_to_show:
-        iface_found = get_interface(device.get('name'), ifaces_from_config)
+        # check if it's a special device/interface
 
-        if not iface_found:
-            unassigned_zone['devices'].append(get_name(device))
+        if device.get('hotspot'):
+            # hotspot
+            zones_for_ui.append({
+                'name': 'hotspot',
+                'devices': [device.get('name')]
+            })
+        elif device.get('openvpn') or device.get('zone') == 'ipsec':
+            # vpn
+            vpn_zone = None
+
+            for z in zones_for_ui:
+                if z.get('name') == 'vpn':
+                    vpn_zone = z
+                    break
+
+            if vpn_zone:
+                vpn_zone['devices'].append(get_name(device))
+            else:
+                zones_for_ui.append({
+                    'name': 'vpn',
+                    'devices': [get_name(device)]
+                })
         else:
-            zone_found = get_firewall_zone(iface_found['.name'], fw_zones)
+            # retrieve interface and firewall zone
 
-            if not zone_found:
+            iface_found = None
+
+            if device.get('.type') == 'interface':
+                iface_found = device
+            else:
+                iface_found = get_interface(
+                    get_name(device), ifaces_from_config)
+
+            if not iface_found:
                 unassigned_zone['devices'].append(get_name(device))
             else:
-                zone_obj = None
+                zone_found = get_firewall_zone(iface_found['.name'], fw_zones)
 
-                for z in zones:
-                    if z.get('name') == zone_found.get('name'):
-                        zone_obj = z
-                        break
-
-                if zone_obj:
-                    zone_obj['devices'].append(get_name(device))
+                if not zone_found:
+                    unassigned_zone['devices'].append(get_name(device))
                 else:
-                    zones.append({
-                        'name': zone_found.get('name'),
-                        'devices': [get_name(device)]
-                    })
-    zones.append(unassigned_zone)
+                    zone_obj = None
+
+                    for z in zones_for_ui:
+                        if z.get('name') == zone_found.get('name'):
+                            zone_obj = z
+                            break
+
+                    if zone_obj:
+                        zone_obj['devices'].append(get_name(device))
+                    else:
+                        zones_for_ui.append({
+                            'name': zone_found.get('name'),
+                            'devices': [get_name(device)]
+                        })
+    zones_for_ui.append(unassigned_zone)
 
     # sort devices of every zone
 
-    for zone in zones:
+    for zone in zones_for_ui:
         zone['devices'].sort()
 
-    return {'devices_by_zone': zones, 'all_devices': all_devices}
+    return {'devices_by_zone': zones_for_ui, 'all_devices': all_devices}
 
 
 def get_firewall_zone(iface_name, fw_zones):
@@ -205,20 +306,23 @@ def get_name(device_or_iface):
 
 
 def get_interface(device_name, ifaces_from_config):
+    if not device_name:
+        return None
+
     for iface in ifaces_from_config:
         if iface.get('device') == device_name:
             return iface
 
 
 def is_bridge(device):
-    if device.get('type') == 'bridge' or re.match(r"br[0-9]+", device.get('name')):
+    if device.get('type') == 'bridge' or re.match(r"br[0-9]+", device.get('name', '')):
         return True
     else:
         return False
 
 
 def should_omit_device_name(device_name):
-    return device_name == 'lo' or device_name.startswith('ifb-') or device_name.startswith('tun')
+    return device_name == 'lo' or device_name.startswith('ifb-') or device_name.startswith('tun') or device_name.startswith("ipsec")
 
 
 def get_physical_devices():
@@ -305,6 +409,26 @@ def convert_prefix_length_to_ip4_subnet_mask(prefix_length):
     return subnet_mask_str
 
 
+def convert_ip4_subnet_mask_to_prefix_length(netmask):
+    """
+    Convert IPv4 subnet mask to an address prefix length.
+
+    Parameters:
+    - netmask (string): The subnet mask, e.g. '255.255.255.0'.
+
+    Returns:
+    - int: The address prefix length.
+    """
+
+    # Split the netmask into octets
+    octets = [int(octet) for octet in netmask.split('.')]
+
+    # Convert each octet to binary and count the number of '1' bits
+    bits_count = sum(bin(octet).count('1') for octet in octets)
+
+    return bits_count
+
+
 def generate_device_name(device_prefix):
     uci = EUci()
     devices_from_config = get_all_by_type_as_list(uci, 'network', 'device')
@@ -344,7 +468,20 @@ def create_network_interface(device_name, device_type, interface_name, protocol,
         uci.set('network', interface_name, key, value)
 
 
-def get_bonding_values(ip4_address, attached_devices, bonding_policy, bond_primary_device):
+def convert_ip4_addr_to_cidr(ip4_addr, netmask):
+    prefix_length = convert_ip4_subnet_mask_to_prefix_length(netmask)
+    return f"{ip4_addr}/{prefix_length}"
+
+
+def convert_cidr_to_ip4_addr(ip4_cidr):
+    tokens = ip4_cidr.split('/')
+    ip4_addr = tokens[0]
+    prefix_length = int(tokens[1])
+    netmask = convert_prefix_length_to_ip4_subnet_mask(prefix_length)
+    return (ip4_addr, netmask)
+
+
+def get_bonding_values(ip4_addr_cidr, attached_devices, bonding_policy, bond_primary_device):
     values = {
         'proto': 'bonding',
         'ipaddr': '',
@@ -360,11 +497,10 @@ def get_bonding_values(ip4_address, attached_devices, bonding_policy, bond_prima
     }
 
     # ip4 address and netmask
-    values['ipaddr'] = ip4_address
 
-    # luci requires to set ip4 netmask for bonds
-    prefix_length = int(ip4_address.split('/')[1])
-    netmask = convert_prefix_length_to_ip4_subnet_mask(prefix_length)
+    # luci requires to set ip4 address and netmask into two distinct fields
+    ip4_addr, netmask = convert_cidr_to_ip4_addr(ip4_addr_cidr)
+    values['ipaddr'] = ip4_addr
     values['netmask'] = netmask
 
     # attached devices
@@ -435,10 +571,10 @@ def get_bonding_values(ip4_address, attached_devices, bonding_policy, bond_prima
     return values
 
 
-def set_network_configuration(device_type, interface_name, logical_type, interface_to_edit, protocol, zone, ip4_address, ip4_gateway, ip6_enabled, ip6_address, ip6_gateway, attached_devices, bonding_policy, bond_primary_device, pppoe_username, pppoe_password, dhcp_client_id, dhcp_vendor_class, dhcp_hostname_to_send, dhcp_custom_hostname, uci):
+def set_network_configuration(device_type, interface_name, logical_type, interface_to_edit, protocol, zone, ip4_addr_cidr, ip4_gateway, ip6_enabled, ip6_address, ip6_gateway, attached_devices, bonding_policy, bond_primary_device, pppoe_username, pppoe_password, dhcp_client_id, dhcp_vendor_class, dhcp_hostname_to_send, dhcp_custom_hostname, uci):
     if device_type == 'logical' and logical_type == 'bond':
         values = get_bonding_values(
-            ip4_address, attached_devices, bonding_policy, bond_primary_device)
+            ip4_addr_cidr, attached_devices, bonding_policy, bond_primary_device)
     else:
         # non-bond interfaces
 
@@ -458,7 +594,11 @@ def set_network_configuration(device_type, interface_name, logical_type, interfa
 
         if protocol == 'static':
             # ip4 address and netmask
-            values['ipaddr'] = ip4_address
+
+            # luci requires to set ip4 address and netmask into two distinct fields
+            ip4_addr, netmask = convert_cidr_to_ip4_addr(ip4_addr_cidr)
+            values['ipaddr'] = ip4_addr
+            values['netmask'] = netmask
 
             # ip6 address
             if ip6_enabled and ip6_address:
@@ -710,7 +850,7 @@ def is_vlan(device):
 
 
 def is_bond(device_or_iface):
-    return device_or_iface.get('proto') == 'bonding' or re.match(r"bond-.+", device_or_iface.get('name'))
+    return device_or_iface.get('proto') == 'bonding' or re.match(r"bond-.+", device_or_iface.get('name', ''))
 
 
 def unconfigure_device(iface_name):
