@@ -1080,6 +1080,24 @@ The API may raise the following validation errors:
 - ip_already_used
 - start_must_be_greater_then_end
 
+### import-users
+
+Create all VPN uses from the database associated to an instance:
+```
+api-cli ns.ovpnrw add-user --data '{"instance": "ns_roadwarrior1"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+If one or more user creation fails, it will return something like:
+```json
+{"error": "user_import_failed-ns_d486faa0-ns_d79f110"}
+```
+Where the format is `user_import_failed-<user_id_1>-<user_id_2>...`.
+
 ### add-user
 
 Create a user and generate a certficate for it:

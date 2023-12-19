@@ -446,6 +446,28 @@ def add_user(args):
     u.save("users")
     return {"result": "success"}
 
+def import_users(ovpninstance):
+    u = EUci()
+    try:
+        db = u.get("openvpn", ovpninstance, "ns_user_db")
+    except:
+        return utils.validation_error("instance", "user_db_not_configured", ovpninstance)
+
+    errors = []
+    db_users = users.list_users(u, db)
+    db_is_remote = users.get_database_type(u, db) == "ldap"
+    for user in db_users:
+        # create user for remote db, if needed
+        if users.get_user_by_name(u, user["name"], db) is None and db_is_remote:
+            user_id = users.add_remote_user(u, user["name"], db)
+        ret = add_user({"instance": ovpninstance, "enabled": "1", "username": user["name"], "expiration": "3650", "ipaddr": ""})
+        if not ret ==  {"result": "success"}:
+            errors.append(user["id"])
+    if errors:
+        return utils.generic_error("user_import_failed-" + '-'.join(errors))
+    else:
+        return {"result": "success"}
+
 def edit_user(args):
     u = EUci()
     ovpninstance = args["instance"]
@@ -622,6 +644,7 @@ if cmd == 'list':
             "ns_public_ip": ["1.2.3.4"],
             "ns_user_db": "main"
             },
+        "import-users": {"instance": "roadwarrior1"},
         "add-user": {"instance": "roadwarrior1", "enabled": "1", "username": "myuser", "expiration": "3650", "ipaddr": "1.2.3.4"},
         "edit-user": {"instance": "roadwarrior1", "enabled": "1", "username": "myuser", "expiration": "3650", "ipaddr": "1.2.3.4"},
         "disable-user": {"instance": "roadwarrior1", "username": "myuser"},
@@ -656,6 +679,8 @@ else:
         ret = disable_user(args["instance"], args["username"])
     elif action == "enable-user":
         ret = enable_user(args["instance"], args["username"])
+    elif action == "import-users":
+        ret = import_users(args["instance"])
     elif action == "add-user":
         ret = add_user(args)
     elif action == "edit-user":
