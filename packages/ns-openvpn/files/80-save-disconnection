@@ -13,13 +13,16 @@ conn = sqlite3.connect(f'/var/openvpn/{sys.argv[1]}/connections.db')
 c = conn.cursor()
 
 env = os.environ
-common_name = env['common_name']
-duration = int(env['time_duration'])
-bytes_received = int(env['bytes_received'])
-bytes_sent = int(env['bytes_sent'])
+common_name = env.get('common_name')
+if not common_name:
+    sys.exit(0)
+duration = int(env.get('time_duration', '0'))
+bytes_received = int(env.get('bytes_received', '0'))
+bytes_sent = int(env.get('bytes_sent', '0'))
 
 # Update connection data
 c.execute("UPDATE connections SET duration=?, bytes_received=?, bytes_sent=? WHERE common_name=? and start_time=(SELECT MAX(start_time) FROM connections WHERE common_name=?)", (duration, bytes_received, bytes_sent, common_name, common_name))
 
 conn.commit()
 conn.close()
+sys.exit(0)
