@@ -162,8 +162,12 @@ def add_instance():
     firewall.add_device_to_lan(u, tun)
     olink = f"openvpn/{instance}"
     ovpn_interface = firewall.add_vpn_interface(u, 'rwopenvpn', tun, link=olink)
-    ovpn_zone = firewall.add_trusted_zone(u, "rwpenvpn", [ovpn_interface], link=olink)
-    port = ovpn.generate_random_port(u, 1300, 1400)
+    ovpn_zone = firewall.add_trusted_zone(u, "rwopenvpn", [ovpn_interface], link=olink)
+    # use default port for the first instance
+    if next_instance == 1:
+        port = 1194
+    else:
+        port = ovpn.generate_random_port(u, 1300, 1400)
     ovpn_rule = firewall.add_service(u, 'OpenVPNRW', port, 'udp', link=olink)
     # convert from '10.0.0.1/24' to '10.0.0.0 255.255.255.0'
     network =  ipaddress.ip_network(ovpn.generate_random_network(u)).with_netmask.replace('/', ' ')
@@ -302,8 +306,8 @@ def set_configuration(args):
     else:
         (server_net, server_mask) = args["server"].split("/")
         u.set("openvpn", ovpninstance, "server", f"{server_net} {ovpn.to_netmask(server_mask)}")
-        u.set("openvpn", ovpninstance, "client_connect", "\"/usr/libexec/ns-openvpn/openvpn-connect ns_roadwarrior\"")
-        u.set("openvpn", ovpninstance, "client_disconnect", "\"/usr/libexec/ns-openvpn/openvpn-connect ns_roadwarrior\"")
+        u.set("openvpn", ovpninstance, "client_connect", f"\"/usr/libexec/ns-openvpn/openvpn-connect {ovpninstance}\"")
+        u.set("openvpn", ovpninstance, "client_disconnect", f"\"/usr/libexec/ns-openvpn/openvpn-disconnect {ovpninstance}\"")
         u.set("openvpn", ovpninstance, "dev", "tunrw")
         try:
             u.delete("openvpn", ovpninstance, "server_bridge")
@@ -598,6 +602,7 @@ if cmd == 'list':
         "list-dhcp-options": {},
         "list-bridges": {},
         "list-instances": {},
+        "add-instance":  {},
         "set-configuration": {
             "instance": "roadwarrior1",
             "proto": "udp", 
@@ -668,7 +673,7 @@ else:
     elif action == "remove-instance":
         ret = remove_instance(args["instance"])
     elif action == "get-configuration":
-        ret = get_configuration(args["instance"], args["instance"])
+        ret = get_configuration(args["instance"])
     elif action == "list-users":
         ret = list_users(args["instance"])
 

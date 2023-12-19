@@ -900,7 +900,7 @@ Response example for a server in bridged mode:
 
 List existing users with their status:
 ```
-api-cli ns.ovpnrw list-users
+api-cli ns.ovpnrw list-users --data '{"instance": "ns_roadwarrior1"}'
 ```
 
 Response example:
