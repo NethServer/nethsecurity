@@ -278,6 +278,7 @@ def set_configuration(args):
     if not user_db_exists(u, args["ns_user_db"]):
         return utils.validation_error("ns_user_db", "user_db_not_found", args["ns_user_db"])
     u.set("openvpn", ovpninstance, "ns_user_db", args["ns_user_db"])
+    db_is_local = users.get_database_type(u, args["ns_user_db"]) == "local"
 
     if args["dev_type"] == "tap":
         u.set("openvpn", ovpninstance, "dev", "taprw")
@@ -318,7 +319,10 @@ def set_configuration(args):
         u.set("openvpn", ovpninstance, opt, args[opt])
 
     if args["ns_auth_mode"] == "username_password":
-        u.set("openvpn", ovpninstance, "auth_user_pass_verify", "/usr/libexec/ns-openvpn/openvpn-local-auth via-env")
+        if db_is_local:
+            u.set("openvpn", ovpninstance, "auth_user_pass_verify", "/usr/libexec/ns-openvpn/openvpn-local-auth via-env")
+        else:
+            u.set("openvpn", ovpninstance, "auth_user_pass_verify", "/usr/libexec/ns-openvpn/openvpn-remote-auth via-env")
         u.set("openvpn", ovpninstance, "verify_client_cert", "none")
         u.set("openvpn", ovpninstance, "username_as_common_name", "1")
         u.set("openvpn", ovpninstance, "script_security", "3")
