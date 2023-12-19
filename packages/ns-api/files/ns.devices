@@ -75,7 +75,18 @@ def list_devices():
         if not dev_found:
             merged_devices.append(device_from_config)
 
-    all_devices = merged_devices + ifaces_without_device
+    # retrieve openvpn tunnels
+
+    openvpn_tunnels = []
+    openvpn_config = get_all_by_type_as_list(uci, 'openvpn', 'openvpn')
+
+    for tun in openvpn_config:
+        if tun.get('.name').startswith('ns_'):
+            ovpn_tun = {'name': tun.get('dev'), 'openvpn': tun, 'iface': {
+                '.name': tun['ns_name'], '.type': 'interface', 'device': tun['dev']}}
+            openvpn_tunnels.append(ovpn_tun)
+
+    all_devices = merged_devices + ifaces_without_device + openvpn_tunnels
 
     # retrieve hotspot interfaces
 
@@ -92,7 +103,7 @@ def list_devices():
                 if device.get('name') == hotspot_device:
                     device['hotspot'] = hotspot_config
                     device['iface'] = {'device': hotspot_device,
-                                    '.name': 'dedalo', '.type': 'interface'}
+                                       '.name': 'dedalo', '.type': 'interface'}
                     break
 
     # associate interfaces to devices and convert ip4 addresses to CIDR notation
@@ -198,7 +209,7 @@ def list_devices():
 
     # sorted zones and devices
 
-    zones = []
+    zones_for_ui = []
     unassigned_zone = {
         'name': 'unassigned',
         'devices': []
@@ -206,68 +217,71 @@ def list_devices():
     fw_zones = get_all_by_type_as_list(uci, 'firewall', 'zone')
 
     for device in devices_to_show:
-        iface_found = None
+        # check if it's a special device/interface
 
-        if device.get('.type') == 'interface':
-            iface_found = device
-        else:
-            iface_found = get_interface(get_name(device), ifaces_from_config)
+        if device.get('hotspot'):
+            # hotspot
+            zones_for_ui.append({
+                'name': 'hotspot',
+                'devices': [device.get('name')]
+            })
+        elif device.get('openvpn') or device.get('zone') == 'ipsec':
+            # vpn
+            vpn_zone = None
 
-        if not iface_found:
-            # check if it's a special device
+            for z in zones_for_ui:
+                if z.get('name') == 'vpn':
+                    vpn_zone = z
+                    break
 
-            if device.get('hotspot'):
-                # hotspot
-                zones.append({
-                    'name': 'hotspot',
-                    'devices': [device.get('name')]
+            if vpn_zone:
+                vpn_zone['devices'].append(get_name(device))
+            else:
+                zones_for_ui.append({
+                    'name': 'vpn',
+                    'devices': [get_name(device)]
                 })
-            elif device.get('zone') == 'ipsec':
-                # ipsec
-                vpn_zone = None
-
-                for z in zones:
-                    if z.get('name') == 'vpn':
-                        vpn_zone = z
-                        break
-
-                if vpn_zone:
-                    vpn_zone['devices'].append(get_name(device))
-                else:
-                    zones.append({
-                        'name': 'vpn',
-                        'devices': [get_name(device)]
-                    })
-            else:
-                unassigned_zone['devices'].append(get_name(device))
         else:
-            zone_found = get_firewall_zone(iface_found['.name'], fw_zones)
+            # retrieve interface and firewall zone
 
-            if not zone_found:
+            iface_found = None
+
+            if device.get('.type') == 'interface':
+                iface_found = device
+            else:
+                iface_found = get_interface(
+                    get_name(device), ifaces_from_config)
+
+            if not iface_found:
                 unassigned_zone['devices'].append(get_name(device))
             else:
-                zone_obj = None
+                zone_found = get_firewall_zone(iface_found['.name'], fw_zones)
 
-                for z in zones:
-                    if z.get('name') == zone_found.get('name'):
-                        zone_obj = z
-                        break
-
-                if zone_obj:
-                    zone_obj['devices'].append(get_name(device))
+                if not zone_found:
+                    unassigned_zone['devices'].append(get_name(device))
                 else:
-                    zones.append({
-                        'name': zone_found.get('name'),
-                        'devices': [get_name(device)]
-                    })
-    zones.append(unassigned_zone)
+                    zone_obj = None
+
+                    for z in zones_for_ui:
+                        if z.get('name') == zone_found.get('name'):
+                            zone_obj = z
+                            break
+
+                    if zone_obj:
+                        zone_obj['devices'].append(get_name(device))
+                    else:
+                        zones_for_ui.append({
+                            'name': zone_found.get('name'),
+                            'devices': [get_name(device)]
+                        })
+    zones_for_ui.append(unassigned_zone)
 
     # sort devices of every zone
 
-    for zone in zones:
+    for zone in zones_for_ui:
         zone['devices'].sort()
 
-    return {'devices_by_zone': zones, 'all_devices': all_devices}
+    return {'devices_by_zone': zones_for_ui, 'all_devices': all_devices}
 
 
 def get_firewall_zone(iface_name, fw_zones):
