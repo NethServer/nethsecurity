@@ -1067,6 +1067,18 @@ def delete_device(device_name):
     uci.save("network")
 
 
+def list_zones_for_device_config():
+    uci = EUci()
+    fw_zones = get_all_by_type_as_list(uci, 'firewall', 'zone')
+    zones = []
+
+    for zone in fw_zones:
+        if zone.get('name') not in ['hotspot', 'openvpn', 'ipsec', 'rwopenvpn']:
+            zones.append(zone)
+
+    return {'zones': zones}
+
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
@@ -1123,7 +1135,8 @@ if cmd == 'list':
         },
         'delete-device': {
             'device_name': 'string'
-        }
+        },
+        'list-zones-for-device-config': {}
     }))
 elif cmd == 'call':
     action = sys.argv[2]
@@ -1159,6 +1172,9 @@ elif cmd == 'call':
             input_data = json.JSONDecoder().decode(sys.stdin.read())
             delete_device(input_data['device_name'])
             print(json.dumps({'message': 'success'}))
+        elif action == 'list-zones-for-device-config':
+            zones = list_zones_for_device_config()
+            print(json.dumps(zones))
         else:
             print(json.dumps(utils.generic_error(f'invalid method {action}')))
     except KeyError as e:
