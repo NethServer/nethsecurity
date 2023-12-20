@@ -7,6 +7,7 @@
 
 # Setup default OpenVPN roadwarrior instance
 
+import re
 import os
 import shutil
 import sys
@@ -83,14 +84,6 @@ def is_free_ip(ovpninstance, ip):
             return False
     return True
 
-def list_connected_clients(openvpninstance):
-    try:
-        p = subprocess.run(["/usr/bin/openvpn-status", "-t", "subnet", f"/var/run/openvpn_{openvpninstance}.socket"], check=True, capture_output=True, text=True)
-    except Exception as e:
-        print(e, file=sys.stderr)
-        return {}
-    return json.loads(p.stdout)
-
 def list_user_expirations(openvpninstance):
     ret = {}
     with open(f"/etc/openvpn/{openvpninstance}/pki/index.txt", "r") as fp:
@@ -122,6 +115,10 @@ def hostname():
 def slurp(path):
     with open(path) as fp:
         return fp.read()
+
+def instance2number(input_string):
+    numbers = re.findall(r'\d+', input_string)
+    return int(numbers[0]) if numbers else None
 
 ## APIs
 
@@ -160,15 +157,23 @@ def add_instance():
 
     # FIXME: verify if breaking change in the firewall
     firewall.add_device_to_lan(u, tun)
-    olink = f"openvpn/{instance}"
-    ovpn_interface = firewall.add_vpn_interface(u, 'rwopenvpn', tun, link=olink)
-    ovpn_zone = firewall.add_trusted_zone(u, "rwopenvpn", [ovpn_interface], link=olink)
+    zone_link = ""
+    fw_link = f"openvpn/{instance}"
+    port = ""
     # use default port for the first instance
     if next_instance == 1:
         port = 1194
+        # zones rules inserted by the first instance can't be removed, otherwise other
+        # instances will be broken
+        zone_link = "openvpn/ns_roadwarrior_noremove"
     else:
         port = ovpn.generate_random_port(u, 1300, 1400)
-    ovpn_rule = firewall.add_service(u, 'OpenVPNRW', port, 'udp', link=olink)
+        zone_link = fw_link
+    firewall.add_service(u, f'OpenVPNRW{next_instance}', port, 'udp', link=fw_link)
+
+    ovpn_interface = firewall.add_vpn_interface(u, 'rwopenvpn', tun, link=zone_link)
+    firewall.add_trusted_zone(u, "rwopenvpn", [ovpn_interface], link=zone_link)
+
     # convert from '10.0.0.1/24' to '10.0.0.0 255.255.255.0'
     network =  ipaddress.ip_network(ovpn.generate_random_network(u)).with_netmask.replace('/', ' ')
 
@@ -192,7 +197,7 @@ def add_instance():
     u.set('openvpn', instance, 'cert', f'/etc/openvpn/{instance}/pki/issued/server.crt')
     u.set('openvpn', instance, 'crl_verify', f'/etc/openvpn/{instance}/pki/crl.pem')
     u.set('openvpn', instance, 'key', f'/etc/openvpn/{instance}/pki/private/server.key')
-    u.set('openvpn', instance, 'ns_description', "Default OpenVPN RoadWarrior instance")
+    u.set('openvpn', instance, 'ns_description', "")
     u.set("openvpn", instance, 'management', f'/var/run/openvpn_{instance}.socket unix')
     u.set("openvpn", instance, 'client_to_client','0')
     u.set("openvpn", instance, 'compress','')
@@ -219,6 +224,7 @@ def remove_instance(instance):
 
     u.delete("openvpn", instance)
     u.save("openvpn")
+    firewall.delete_linked_sections(u, f"openvpn/{instance}")
     shutil.rmtree(f"/etc/openvpn/{instance}")
     
     return {"result": "success"}
@@ -228,7 +234,7 @@ def get_configuration(ovpninstance):
     u = EUci()
     ret = u.get_all("openvpn", ovpninstance)
 
-    for opt in ['dev', 'float', 'nobind', 'passtos', 'verb', 'keepalive', 'crl_verify', 'management', 'ns_tag', 'dh', 'ca', 'cert', 'key', 'client_connect', 'client_disconnect', 'persist_tun', 'multihome', 'ping_timer_rem', 'persist_key', 'ns_description']:
+    for opt in ['dev', 'float', 'nobind', 'passtos', 'verb', 'keepalive', 'crl_verify', 'management', 'ns_tag', 'dh', 'ca', 'cert', 'key', 'client_connect', 'client_disconnect', 'persist_tun', 'multihome', 'ping_timer_rem', 'persist_key']:
         ret.pop(opt, None)
 
     ret['server'] = ovpn.opt2cidr(ret.get('server'))
@@ -237,6 +243,9 @@ def get_configuration(ovpninstance):
     ret["ns_dhcp_options"] = []
     if not "ns_user_db" in ret:
         ret["ns_user_db"] = ""
+    # the UI assumes that if ns_description is not set, it's a new instance
+    if not "ns_description" in ret:
+        ret["ns_description"] = ""
 
     if ret.get('push'):
         local = []
@@ -266,13 +275,15 @@ def set_configuration(args):
     u = EUci()
     push_options = []
     ovpninstance = args["instance"]
+    instance_num = instance2number(ovpninstance)
     u.set("openvpn", ovpninstance, "enabled", args["enabled"])
     if args["ns_redirect_gateway"] == "1":
         push_options.append("redirect-gateway")
     for opt in args["ns_dhcp_options"]:
         push_options.append(f"dhcp-option {opt['option']} {opt['value']}")
     for route in args["ns_local"]:
-        push_options.append(f"route {route}")
+        (ip, prefix) = route.split("/")
+        push_options.append(f"route {ip} {ovpn.to_netmask(prefix)}")
     u.set("openvpn", ovpninstance, "push", push_options)
     u.set("openvpn", ovpninstance, "ns_public_ip", args["ns_public_ip"])
     if not user_db_exists(u, args["ns_user_db"]):
@@ -309,14 +320,14 @@ def set_configuration(args):
         u.set("openvpn", ovpninstance, "server", f"{server_net} {ovpn.to_netmask(server_mask)}")
         u.set("openvpn", ovpninstance, "client_connect", f"\"/usr/libexec/ns-openvpn/openvpn-connect {ovpninstance}\"")
         u.set("openvpn", ovpninstance, "client_disconnect", f"\"/usr/libexec/ns-openvpn/openvpn-disconnect {ovpninstance}\"")
-        u.set("openvpn", ovpninstance, "dev", "tunrw")
+        u.set("openvpn", ovpninstance, "dev", f"tunrw{instance_num}")
         try:
             u.delete("openvpn", ovpninstance, "server_bridge")
         except:
             pass
 
-    for opt in ["client_to_client", "dev_type", "ns_public_ip", "ns_auth_mode", "proto"]:
-        u.set("openvpn", ovpninstance, opt, args[opt])
+    for opt in ["client_to_client", "dev_type", "ns_public_ip", "ns_auth_mode", "proto", "ns_description", "auth", "cipher", "compress"]:
+        u.set("openvpn", ovpninstance, opt, args.get(opt,''))
 
     if args["ns_auth_mode"] == "username_password":
         if db_is_local:
@@ -343,13 +354,20 @@ def set_configuration(args):
         except:
             pass
     elif args["ns_auth_mode"] == "username_password_certificate":
-        u.set("openvpn", ovpninstance, "auth_user_pass_verify", "/usr/libexec/ns-openvpn/openvpn-local-auth via-env")
+        if db_is_local:
+            u.set("openvpn", ovpninstance, "auth_user_pass_verify", "/usr/libexec/ns-openvpn/openvpn-local-auth via-env")
+        else:
+            u.set("openvpn", ovpninstance, "auth_user_pass_verify", "/usr/libexec/ns-openvpn/openvpn-remote-auth via-env")
         u.set("openvpn", ovpninstance, "script_security", "3")
         try:
             u.delete("openvpn", ovpninstance, "verify_client_cert")
             u.delete("openvpn", ovpninstance, "username_as_common_name")
         except:
             pass
+    else:
+        return utils.validation_error("ns_auth_mode", "invalid_auth_mode", args["ns_auth_mode"])
+
+
     u.save("openvpn")
 
     return {"result": "success"}
@@ -363,7 +381,7 @@ def list_dhcp_options():
 def list_users(ovpninstance):
     u = EUci()
     ret = []
-    connected = list_connected_clients(ovpninstance)
+    connected = ovpn.list_connected_clients(ovpninstance)
     expirations = list_user_expirations(ovpninstance)
     db = u.get("openvpn", ovpninstance, "ns_user_db", default=None)
     db_users = users.list_users(u, db)
@@ -373,7 +391,7 @@ def list_users(ovpninstance):
             continue
         if user['name'] in connected:
              user["connected"] = True
-             user = user | connected[u]
+             user = user | connected[user['name']]
         else:
             user["connected"] = False
         user["expiration"] = ""
@@ -519,7 +537,8 @@ def delete_user(ovpninstance, username):
         env = os.environ.copy()
         env["EASYRSA_BATCH"] = "1"
         env["EASYRSA_PKI"] = f'/etc/openvpn/{ovpninstance}/pki'
-        subprocess.run(["/usr/bin/easyrsa", "revoke", username], env=env, check=True, capture_output=True) # FIXME: must be reimplemented
+        subprocess.run(["/usr/bin/easyrsa", "revoke", username], env=env, check=True, capture_output=True)
+        subprocess.run(["/usr/bin/easyrsa", "gen-crl"], env=env, check=True, capture_output=True)
     except Exception as e:
         print(e, file=sys.stderr)
         return utils.validation_error("username", "user_delete_failed", username)
@@ -609,7 +628,8 @@ def download_user_2fa(ovpninstance, username):
         return utils.validation_error("username", "user_not_found", username)
 
     secret = u.get("users", user_id, "openvpn_2fa", default='')
-    uri = pyotp.totp.TOTP(secret).provisioning_uri(name=f"{username}@{hostname()}", issuer_name=f"OpenVPN {ovpninstance}")
+    instance_num = instance2number(ovpninstance)
+    uri = pyotp.totp.TOTP(secret).provisioning_uri(name=f"{username}@{hostname()}", issuer_name=f"OpenVPN {instance_num}")
     if secret:
         p = subprocess.run(["/usr/bin/qrencode", "-t", "svg", uri], capture_output=True, text=True)
         return {"data": p.stdout}
@@ -648,6 +668,7 @@ if cmd == 'list':
             "ns_public_ip": ["1.2.3.4"],
             "ns_user_db": "main"
             },
+        "remove-instance": {"instance": "roadwarrior1"},
         "import-users": {"instance": "roadwarrior1"},
         "add-user": {"instance": "roadwarrior1", "enabled": "1", "username": "myuser", "expiration": "3650", "ipaddr": "1.2.3.4"},
         "edit-user": {"instance": "roadwarrior1", "enabled": "1", "username": "myuser", "expiration": "3650", "ipaddr": "1.2.3.4"},
@@ -657,6 +678,7 @@ if cmd == 'list':
         "regenerate-user-certificate": {"instance": "roadwarrior1", "username": "myuser", "expiration": "3650"},
         "download-user-certificate": {"instance": "roadwarrior1", "username": "myuser"},
         "download-user-configuration": {"instance": "roadwarrior1", "username": "myuser"},
+        "download-user-2fa": {"instance": "roadwarrior1", "username": "myuser"},
         }))
 else:
     action = sys.argv[2]

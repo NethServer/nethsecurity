@@ -860,7 +860,8 @@ Response example for a server in routed mode:
     "192.168.101.0/24",
     "192.168.100.0/24"
   ],
-  "ns_dhcp_options": []
+  "ns_dhcp_options": [],
+  "ns_description": "Road Warrior 1"
 }
 ```
 
@@ -893,9 +894,13 @@ Response example for a server in bridged mode:
     }
   ],
   "ns_pool_start": "192.168.100.240",
-  "ns_pool_end": "192.168.100.242"
+  "ns_pool_end": "192.168.100.242",
+  "ns_description": "Road Warrior 1"
 }
 ```
+
+After `add-instance`, the `ns_description` field is empty. If the field is empty, the instance has never been edited from UI.
+
 ### list-users
 
 List existing users with their status:
@@ -1052,12 +1057,12 @@ Response example:
 
 Configure a routed server:
 ```
-api-cli ns.ovpnrw set-configuration --data '{"instance": "ns_roadwarrior1", "proto":"udp","port":"1194","dev_type":"tun","topology":"subnet","enabled":"1","client_to_client":"0","auth":"SHA256","cipher":"AES-256-GCM","tls_version_min":"1.2","ns_auth_mode":"certificate","ns_public_ip":["192.168.100.238"],"server":"192.168.101.0/24","ns_redirect_gateway":"0","ns_local":["192.168.22.0/24","192.168.100.0/24"],"ns_dhcp_options":[{"option": "NBDD", "value": "1.2.3.4"}],"ns_pool_start":"","ns_pool_end":"","ns_bridge":""}'
+api-cli ns.ovpnrw set-configuration --data '{"instance": "ns_roadwarrior1", "proto":"udp","port":"1194","dev_type":"tun","topology":"subnet","enabled":"1","client_to_client":"0","auth":"SHA256","cipher":"AES-256-GCM","tls_version_min":"1.2","ns_auth_mode":"certificate","ns_public_ip":["192.168.100.238"],"server":"192.168.101.0/24","ns_redirect_gateway":"0","ns_local":["192.168.22.0/24","192.168.100.0/24"],"ns_dhcp_options":[{"option": "NBDD", "value": "1.2.3.4"}],"ns_pool_start":"","ns_pool_end":"","ns_bridge":"", "ns_description": "Road Warrior 1"}'
 ```
 
 Configure a bridged server: 
 ```
-api-cli ns.ovpnrw set-configuration --data '{"instance": "ns_roadwarrior1", "proto":"udp","port":"1194","dev_type":"tap","topology":"subnet","enabled":"1","client_to_client":"0","auth":"SHA256","cipher":"AES-256-GCM","tls_version_min":"1.2","ns_auth_mode":"certificate","ns_public_ip":["192.168.100.238"],"server":"","ns_redirect_gateway":"0","ns_local":["192.168.22.0/24","192.168.100.0/24"],"ns_dhcp_options":[],"ns_pool_start":"192.168.100.239","ns_pool_end":"192.168.100.240","ns_bridge":"lan"}'
+api-cli ns.ovpnrw set-configuration --data '{"instance": "ns_roadwarrior1", "proto":"udp","port":"1194","dev_type":"tap","topology":"subnet","enabled":"1","client_to_client":"0","auth":"SHA256","cipher":"AES-256-GCM","tls_version_min":"1.2","ns_auth_mode":"certificate","ns_public_ip":["192.168.100.238"],"server":"","ns_redirect_gateway":"0","ns_local":["192.168.22.0/24","192.168.100.0/24"],"ns_dhcp_options":[],"ns_pool_start":"192.168.100.239","ns_pool_end":"192.168.100.240","ns_bridge":"lan", "ns_description": "Road Warrior 1"}'
 ```
 
 Valid values for `proto` field are: `udp` and `tcp-server`
