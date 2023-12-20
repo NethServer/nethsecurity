@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/python
 
 #
 # Copyright (C) 2023 Nethesis S.r.l.
@@ -10,31 +10,41 @@
 # - password (this is the OTP)
 # - config
 
-. /lib/functions.sh
-cur_instance=$(echo $config | sed -e 's/openvpn\-//' -e 's/\.conf//')
+import os
+import re
+import sys
+import pyotp
+from euci import EUci
+from nethsec import users
 
-config_load 'openvpn'
+username = os.environ.get("username")
+otp = os.environ.get("password")
+config_path = os.environ.get("config")
 
-config_get enabled "$username" enabled 0
-config_get user_instance "$username" instance ''
-config_get secret "$username" 2fa ''
+instance = re.sub(r'^openvpn-|\.conf$', '', config_path)
 
-if [ "$cur_instance" != "$user_instance" ]; then
-    exit 2
-fi
+uci = EUci()
+try:
+    db = uci.get("openvpn", instance, "ns_user_db")
+except:
+    # user db not set
+    sys.exit(5)
 
-if [ "$enabled" = "0" ]; then
-    exit 3
-fi
+user = users.get_user_by_name(uci, username, db)
+if user is None:
+    # user not found
+    sys.exit(4)
 
-if [ -z "$secret" ]; then
-    exit 4
-fi
+if not "openvpn_enabled" in user or user["openvpn_enabled"] != "1":
+    # user not enabled
+    sys.exit(3)
 
-otp=$(/usr/bin/oathtool -b --totp=SHA1 "$secret")
+if "openvpn_2fa" not in user:
+    # 2fa secret not set
+    sys.exit(2)
 
-if [ "$otp" = "$password" ]; then
-    exit 0
-fi
-
-exit 1
+if pyotp.totp.TOTP(user.get("openvpn_2fa")).verify(otp):
+    sys.exit(0)
+else:
+    # password do not match
+    sys.exit(1)
