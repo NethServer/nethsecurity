@@ -78,6 +78,15 @@ config template_rule 'ns_hs_uamport'
 	option target 'ACCEPT'
 	option direction 'in'
 
+config template_rule 'ns_hs_uamport_tun'
+	option name 'Allow-HotSpot-UAM-tun'
+	option src '*'
+	option proto 'tcp'
+	option dest_port '3990'
+	option target 'ACCEPT'
+	option direction 'in'
+	option device 'tun-dedalo'
+
 # Guest zone (blue)
 
 config template_zone 'ns_guest'

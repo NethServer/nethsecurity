@@ -37,6 +37,7 @@ def setup(u):
         return
 
     firewall.add_template_rule(u, 'ns_hs_uamport', link="dedalo/config")
+    firewall.add_template_rule(u, 'ns_hs_uamport_tun', link="dedalo/config")
     firewall.add_template_zone(u, 'ns_hotspot', link="dedalo/config")
 
     interface = "dedalo"
