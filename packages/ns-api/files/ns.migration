@@ -82,10 +82,8 @@ elif cmd == 'call':
             for i in data:
                 if i['ifname'] == "lo" or i['ifname'].startswith('br-') or i['ifname'].startswith('tun-') or  i['ifname'].startswith('ifb-'):
                     continue
-                ret.append({'name': i['ifname'], 'hwaddr': i['address'], "role": utils.get_interface_from_device(u, i['ifname']), 'ipaddr': get_ip(i['ifname'])})
+                ret.append({'name': i.get('ifname'), 'hwaddr': i.get('address'), "role": utils.get_interface_from_device(u, i.get('ifname')), 'ipaddr': get_ip(i.get('ifname'))})
 
             print(json.dumps({'devices': ret}))
-        except KeyError as error:
-            print(error)
-            print(json.dumps(utils.validation_error('passphrase', 'required')))
-
+        except:
+            print(json.dumps({'devices': []}))
