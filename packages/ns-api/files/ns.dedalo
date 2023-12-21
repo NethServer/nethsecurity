@@ -165,6 +165,15 @@ def set_configuration(args):
         if opt in args:
             u.set("dedalo", "config", opt, args[opt])
 
+    # setup UAM rule, if needed
+    rules = utils.get_all_by_type(u, 'firewall', 'rule')
+    for r in rules:
+        rule = rules[r]
+        if rule.get('name') == 'Allow-HotSpot-UAM' and rule.get('device') !=  args.get('interface'):
+            u.set('firewall', r, 'device', args.get('interface'))
+            u.commit('firewall')
+            break
+
     if not registered:
         h = hashlib.md5(uuid.uuid4().hex.encode()).hexdigest()
         u.set("dedalo", "config", "secret", h)
