@@ -155,7 +155,6 @@ def add_instance():
     if os.path.isdir(f'/etc/openvpn/{instance}'):
         return utils.validation_error("instance", "pki_dir_already_exists", instance)
 
-    # FIXME: verify if breaking change in the firewall
     firewall.add_device_to_lan(u, tun)
     zone_link = ""
     fw_link = f"openvpn/{instance}"
@@ -416,7 +415,7 @@ def disable_user(ovpninstance, username):
         return utils.validation_error("username", "user_not_found", username)
 
     u.set("users", user_id, "openvpn_enabled", "0")
-    u.save("users")
+    u.commit("users")
     return {"result": "success"}
 
 def enable_user(ovpninstance, username):
@@ -432,7 +431,7 @@ def enable_user(ovpninstance, username):
         return utils.validation_error("username", "user_not_found", username)
 
     u.set("users", user_id, "openvpn_enabled", "1")
-    u.save("users")
+    u.commit("users")
     return {"result": "success"}
 
 def add_user(args):
@@ -465,7 +464,7 @@ def add_user(args):
     if "ipaddr" in args:
         u.set("users", user_id, "openvpn_ipaddr", args["ipaddr"])
     u.set("users", user_id, "openvpn_2fa", generate_2fa_secret())
-    u.save("users")
+    u.commit("users")
     return {"result": "success"}
 
 def import_users(ovpninstance):
@@ -512,7 +511,7 @@ def edit_user(args):
             return utils.validation_error("ipaddr", "reserverd_ip_already_used", args["ipaddr"])
         u.set("users", user_id, "openvpn_ipaddr", args["ipaddr"])
     u.set("users", user_id, "openvpn_enabled", args["enabled"])
-    u.save("users")
+    u.commit("users")
     return {"result": "success"}
 
 def delete_user(ovpninstance, username):
@@ -530,7 +529,7 @@ def delete_user(ovpninstance, username):
         u.delete("users", user_id, "openvpn_enabled")
         u.delete("users", user_id, "openvpn_ipaddr")
         u.delete("users", user_id, "openvpn_2fa")
-        u.save("users")
+        u.commit("users")
     except:
         pass
     try:
