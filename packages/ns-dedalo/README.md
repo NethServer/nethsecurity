@@ -18,35 +18,16 @@ Available options:
 - `secret`: a shared secret between this unit and Icaro installation, eg: ``My$uperS3cret``
 
 
-## First setup
+## Configuration
 
-1. Configure basic parameters.
-   The `hotspot_id` van be found inside the Icaro portal.
-   The `interface` should be a free physical interface (`eth2` in this example).
-   ```shell
-   uci set dedalo.config.unit_name=$(uci get system.@system[0].hostname)
-   uci set dedalo.config.unit_uuid=$(uuidgen)
-   uci set dedalo.config.secret=$(uuidgen | md5sum | awk '{print $1}')
-   uci set dedalo.config.unit_description='My Dedalo hotspot'
-   uci set dedalo.config.hotspot_id=1550
-   uci set dedalo.config.interface=eth2
-   uci set dedalo.config.disabled=0
-   uci commit dedalo
-   ```
- 
-2. Setup the firewall.
-   ```shell
-   uci add_list firewall.ns_dedalo.device=eth2
-   uci commit firewall
-   fw4 reload
-   ```
+Use the APIs to configure dedalo and the firewall:
+```
+echo '{"network":"192.168.182.0/24","hotspot_id":"1787","unit_name":"NethSec","unit_description":"t1","interface":"eth3","dhcp_limit":"253"}'\
+  | /usr/libexec/rpcd/ns.dedalo call set-configuration
+```
 
-3. Register the unit and start the service.
-   ```shell
-   /etc/init.d/dedalo reload
-   dedalo register -u <your reseller username> -p <your reseller password>
-   dedalo restart
-   ```
+The `hotspot_id` van be found inside the Icaro portal.
+The `interface` should be a free physical interface (`eth3` in this example).
 
 ## Unregister
 

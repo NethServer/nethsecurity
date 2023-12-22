@@ -21,6 +21,8 @@ tmp_dir = "/var/run/"
 token_file = f"{tmp_dir}/dedalo_token"
 opts = ["network", "hotspot_id", "unit_name", "unit_description", "interface"]
 
+## Utilities
+
 def _get_token():
     try:
         with open(token_file, 'r') as fp:
@@ -28,13 +30,35 @@ def _get_token():
     except:
         return None
 
+def setup(u):
+    links = firewall.get_all_linked(u, "dedalo/config")
+    if links["firewall"]:
+        # already configured
+        return
+
+    firewall.add_template_rule(u, 'ns_hs_uamport', link="dedalo/config")
+    firewall.add_template_rule(u, 'ns_hs_uamport_tun', link="dedalo/config")
+    firewall.add_template_zone(u, 'ns_hotspot', link="dedalo/config")
+
+    interface = "dedalo"
+    u.set("network", interface, "interface")
+    u.set("network", interface, "proto", "none")
+    u.set("network", interface, "ipv6", "0")
+    u.set("network", interface, "device", f"tun-{interface}")
+    u.set("network", interface, "ns_link", "dedalo/config")
+    u.set("network", interface, "ns_tag", ["automated"])
+    u.commit("network")
+    u.commit("firewall")
+
+## APIs
+
 def login(args):
     u = EUci()
     try:
         p = subprocess.run(['curl', '-L', '--url', f'https://{args["host"]}/api/login', '--header', 'Content-Type: application/json', '--data-binary', json.dumps(args)], check=True, capture_output=True, text=True)
         resp = json.loads(p.stdout)
         if 'token' in resp:
-            subprocess.run(["/usr/sbin/ns-dedalo-setup"], check=True)
+            setup(u)
             u.set("dedalo", "config", "splash_page", f'http://{args["host"]}/wings')
             u.set("dedalo", "config", "aaa_url", f'https://{args["host"]}/wax/aaa')
             u.set("dedalo", "config", "api_url", f'https://{args["host"]}/api')
@@ -164,6 +188,15 @@ def set_configuration(args):
     for opt in opts:
         if opt in args:
             u.set("dedalo", "config", opt, args[opt])
+
+    # setup UAM rule, if needed
+    rules = utils.get_all_by_type(u, 'firewall', 'rule')
+    for r in rules:
+        rule = rules[r]
+        if rule.get('name') == 'Allow-HotSpot-UAM' and rule.get('device') !=  args.get('interface'):
+            u.set('firewall', r, 'device', args.get('interface'))
+            u.commit('firewall')
+            break
 
     if not registered:
         h = hashlib.md5(uuid.uuid4().hex.encode()).hexdigest()
