@@ -1,1 +1,6 @@
+# initialize OpenVPN custom scripts
 grep -q '/usr/libexec/ns-openvpn/init-connections-db' /etc/openvpn.user || echo "/usr/libexec/ns-openvpn/init-connections-db" >> /etc/openvpn.user
+# enable easyrsa certificate verification
+sed  -i 's/^extendedKeyUsage = serverAuth$/extendedKeyUsage = serverAuth, TLS Web Server Authentication/' /etc/easy-rsa/x509-types/server
+sed -i 's/^extendedKeyUsage = clientAuth$/extendedKeyUsage = clientAuth, TLS Web Client Authentication/' /etc/easy-rsa/x509-types/client
+sed  -i 's/^keyUsage = digitalSignature/keyUsage = digitalSignature, keyAgreement/' /etc/easy-rsa/x509-types/client

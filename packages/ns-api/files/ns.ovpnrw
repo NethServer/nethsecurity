@@ -613,6 +613,17 @@ def download_user_configuration(ovpninstance, username):
     config = config + "persist-tun\n"
     config = config + "nobind\n"
     config = config + "passtos\n"
+
+    # add certificate verification if supported by certificate
+    # this is not supported by migrated instances
+    input_crt = f'/etc/openvpn/{ovpninstance}/pki/issued/server.crt'
+    command = ['openssl', 'x509', '-noout', '-ext', 'keyUsage']
+    try:
+        p = subprocess.run(command, stdin=open(input_crt, 'r'), text=True, capture_output=True, check=True)
+        if "Digital Signature, Key Encipherment" in p.stdout:
+            config = config + "remote-cert-tls server\n"
+    except:
+        pass
     return {"data": config}
 
 def download_user_2fa(ovpninstance, username):
