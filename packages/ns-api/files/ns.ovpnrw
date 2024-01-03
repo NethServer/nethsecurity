@@ -402,6 +402,26 @@ def list_users(ovpninstance):
         ret.append(user)
     return {"users": ret}
 
+def disconnect_user(ovpninstance, username):
+    u = EUci()
+    try:
+        db = u.get("openvpn", ovpninstance, "ns_user_db")
+    except:
+        return utils.validation_error("instance", "user_db_not_configured", ovpninstance)
+
+    db_users = users.list_users(u, db)
+    user_id = get_user_id(username, db_users)
+    if user_id == None:
+        return utils.validation_error("username", "user_not_found", username)
+
+    try:
+        subprocess.run(["/usr/bin/openvpn-kill", f'/var/run/openvpn_{ovpninstance}.socket', username], capture_output=True, check=True)
+    except Exception as e:
+        print(e, file=sys.stderr)
+        return utils.generic_error("user_disconnect_failed")
+    return {"result": "success"}
+
+
 def disable_user(ovpninstance, username):
     u = EUci()
     try:
@@ -413,6 +433,9 @@ def disable_user(ovpninstance, username):
     user_id = get_user_id(username, db_users)
     if user_id == None:
         return utils.validation_error("username", "user_not_found", username)
+
+    # try to disconnect the user, ignore the error
+    disconnect_user(ovpninstance, username)
 
     u.set("users", user_id, "openvpn_enabled", "0")
     u.commit("users")
@@ -683,6 +706,7 @@ if cmd == 'list':
         "add-user": {"instance": "roadwarrior1", "enabled": "1", "username": "myuser", "expiration": "3650", "ipaddr": "1.2.3.4"},
         "edit-user": {"instance": "roadwarrior1", "enabled": "1", "username": "myuser", "expiration": "3650", "ipaddr": "1.2.3.4"},
         "disable-user": {"instance": "roadwarrior1", "username": "myuser"},
+        "disconnect-user": {"instance": "roadwarrior1", "username": "myuser"},
         "enable-user": {"instance": "roadwarrior1", "username": "myuser"},
         "delete-user": {"instance": "roadwarrior1", "username": "myuser"},
         "regenerate-user-certificate": {"instance": "roadwarrior1", "username": "myuser", "expiration": "3650"},
@@ -711,6 +735,8 @@ else:
 
     if action == "set-configuration":
         ret = set_configuration(args)
+    elif action == "disconnect-user":
+        ret = disconnect_user(args["instance"], args["username"])
     elif action == "disable-user":
         ret = disable_user(args["instance"], args["username"])
     elif action == "enable-user":

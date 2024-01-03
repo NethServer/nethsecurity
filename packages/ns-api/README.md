@@ -1143,13 +1143,27 @@ The APIs can raise the following validation errors:
 - reserverd_ip_already_used
 - reserved_ip_must_be_in_server_network
 
+### disconnect-user
+
+Disconnect a connected client:
+```
+api-cli ns.ovpnrw disconnect-user --data '{"instance": "ns_roadwarrior1", "username": "myuser"}''
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+Throws a validation error if the user is not found.
 
 ### disable-user
 
-Disable ab existing user:
+Disable an existing user:
 ```
 api-cli ns.ovpnrw disable-user --data '{"instance": "ns_roadwarrior1", "username": "myuser"}''
 ```
+If the user is currently utilizing the VPN, the API will also disconnect the client.
 
 Response example:
 ```json
