@@ -103,6 +103,9 @@ persist-key
 compress lz4
 management $socket unix
 connect-timeout 10
+inactive 604800
+script-security 2
+down "/usr/sbin/don stop"
 EOF
 
     # Generate VPN credentials
