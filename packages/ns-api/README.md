@@ -4394,6 +4394,56 @@ Response example:
 }
 ```
 
+### list-zones-for-device-config
+
+List firewall zones that can be selected for device configuration. Currently all zones are returned except: `hotspot`, `openvpn`, `ipsec` and `rwopenvpn`.
+
+```bash
+api-cli ns.devices list-zones-for-device-config
+```
+
+Response example:
+
+```json
+{
+  "zones": [
+    {
+      "name": "lan",
+      "input": "ACCEPT",
+      "output": "ACCEPT",
+      "forward": "ACCEPT",
+      "network": [
+        "lan"
+      ],
+      ".name": "ns_lan",
+      ".type": "zone"
+    },
+    {
+      "name": "wan",
+      "input": "REJECT",
+      "output": "ACCEPT",
+      "forward": "REJECT",
+      "masq": "1",
+      "mtu_fix": "1",
+      "network": [
+        "wan",
+        "myiface"
+      ],
+      ".name": "ns_wan",
+      ".type": "zone"
+    },
+    {
+      "name": "myzone",
+      "input": "DROP",
+      "forward": "DROP",
+      "output": "ACCEPT",
+      ".name": "ns_myzone",
+      ".type": "zone"
+    }
+  ]
+}
+```
+
 ## ns.users
 
 ### list-users

@@ -14,12 +14,14 @@ import uuid
 import hashlib
 import ipaddress
 import subprocess
-from nethsec import utils
+from nethsec import utils, firewall
 from euci import EUci
 
 tmp_dir = "/var/run/"
 token_file = f"{tmp_dir}/dedalo_token"
 opts = ["network", "hotspot_id", "unit_name", "unit_description", "interface"]
+
+## Utilities
 
 def _get_token():
     try:
@@ -28,13 +30,35 @@ def _get_token():
     except:
         return None
 
+def setup(u):
+    links = firewall.get_all_linked(u, "dedalo/config")
+    if links["firewall"]:
+        # already configured
+        return
+
+    firewall.add_template_rule(u, 'ns_hs_uamport', link="dedalo/config")
+    firewall.add_template_rule(u, 'ns_hs_uamport_tun', link="dedalo/config")
+    firewall.add_template_zone(u, 'ns_hotspot', link="dedalo/config")
+
+    interface = "dedalo"
+    u.set("network", interface, "interface")
+    u.set("network", interface, "proto", "none")
+    u.set("network", interface, "ipv6", "0")
+    u.set("network", interface, "device", f"tun-{interface}")
+    u.set("network", interface, "ns_link", "dedalo/config")
+    u.set("network", interface, "ns_tag", ["automated"])
+    u.commit("network")
+    u.commit("firewall")
+
+## APIs
+
 def login(args):
     u = EUci()
     try:
         p = subprocess.run(['curl', '-L', '--url', f'https://{args["host"]}/api/login', '--header', 'Content-Type: application/json', '--data-binary', json.dumps(args)], check=True, capture_output=True, text=True)
         resp = json.loads(p.stdout)
         if 'token' in resp:
-            subprocess.run(["/usr/sbin/ns-dedalo-setup"], check=True)
+            setup(u)
             u.set("dedalo", "config", "splash_page", f'http://{args["host"]}/wings')
             u.set("dedalo", "config", "aaa_url", f'https://{args["host"]}/wax/aaa')
             u.set("dedalo", "config", "api_url", f'https://{args["host"]}/api')
@@ -65,6 +89,7 @@ def list_sessions():
                 continue
 
             session_key = tokens[3]
+            user = tokens[5]
             session_time = tokens[6]
             session_time_elapsed = session_time.split("/")[0]
 
@@ -95,7 +120,8 @@ def list_sessions():
                 'inputOctetsDownloaded': input_octets_downloaded,
                 'inputOctetsLimit': input_octets_limit,
                 'outputOctetsUploaded': output_octets_uploaded,
-                'outputOctetsLimit': output_octets_limit
+                'outputOctetsLimit': output_octets_limit,
+                'temporary': True if user == 'temporary' else False
             }
             users.append(user)
 
@@ -123,12 +149,19 @@ def list_parents():
         return {"parents": []}
 
 def unregister():
-    u = EUci()
     try:
         # the below command also set the disabled option
         subprocess.run(["/usr/bin/unregister_dedalo", token_file], check=True, capture_output=True)
-    except:
+    except Exception as e:
+        print(e, file=sys.stderr)
         return utils.generic_error("unregister_failed")
+    try:
+        firewall.delete_linked_sections(EUci(), "dedalo/config")
+        subprocess.run(["/sbin/ifdown", "dedalo"], capture_output=True, check=True)
+        subprocess.run(["/etc/init.d/firewall", "reload"], capture_output=True, check=True)
+    except Exception as e:
+        print(e, file=sys.stderr)
+        return utils.generic_error("firewall_cleanup_failed")
     return {"result": "success"}
 
 def get_configuration():
@@ -148,13 +181,28 @@ def get_configuration():
 
 def set_configuration(args):
     u = EUci()
+    registered = False
+    if u.get("dedalo", "config", "secret", default=None):
+        registered = True
+
     for opt in opts:
         if opt in args:
             u.set("dedalo", "config", opt, args[opt])
+
+    # setup UAM rule, if needed
+    rules = utils.get_all_by_type(u, 'firewall', 'rule')
+    for r in rules:
+        rule = rules[r]
+        if rule.get('name') == 'Allow-HotSpot-UAM' and rule.get('device') !=  args.get('interface'):
+            u.set('firewall', r, 'device', args.get('interface'))
+            u.commit('firewall')
+            break
+
+    if not registered:
+        h = hashlib.md5(uuid.uuid4().hex.encode()).hexdigest()
+        u.set("dedalo", "config", "secret", h)
+        u.set("dedalo", "config", "unit_uuid", uuid.uuid4().hex)
     u.set("dedalo", "config", "disabled", "0")
-    h = hashlib.md5(uuid.uuid4().hex.encode()).hexdigest()
-    u.set("dedalo", "config", "secret", h)
-    u.set("dedalo", "config", "unit_uuid", uuid.uuid4().hex)
     n = ipaddress.IPv4Network(args["network"])
     max_entries = int(n[-1]) - int(n[0]) - 2
     u.set("dedalo", "config", "max_clients", max_entries)
@@ -166,21 +214,27 @@ def set_configuration(args):
         subprocess.run(["/etc/init.d/dedalo", "reload"], check=True, capture_output=True)
     except:
         return utils.generic_error("configuration_reload_failed")
-    
-    # register only if needed
-    if not u.get("dedalo", "config", "secret", default=None):
+
+    if not registered:
         try:
             subprocess.run(["/usr/bin/dedalo", "register", "-t", _get_token()], check=True, capture_output=True)
-        except:
+        except Exception as e:
+            print(e, file=sys.stderr)
             return utils.generic_error("registration_failed")
 
+    subprocess.run(["/sbin/ifup", "dedalo"], capture_output=True, check=True)
+    subprocess.run(["/etc/init.d/firewall", "reload"], capture_output=True, check=True)
     p = subprocess.run(["/etc/init.d/dedalo", "status"], capture_output=True)
-    if p.returncode == 0:
-        subprocess.run(["/etc/init.d/dedalo", "restart"], capture_output=True)
-        subprocess.run(["/etc/init.d/dedalo_users_auth", "restart"], capture_output=True)
-    else:
-        subprocess.run(["/etc/init.d/dedalo", "start"], capture_output=True)
-        subprocess.run(["/etc/init.d/dedalo_users_auth", "start"], capture_output=True)
+    try:
+        if p.returncode == 0:
+            subprocess.run(["/etc/init.d/dedalo", "restart"], capture_output=True, check=True)
+            subprocess.run(["/etc/init.d/dedalo_users_auth", "restart"], capture_output=True, check=True)
+        else:
+            subprocess.run(["/etc/init.d/dedalo", "start"], capture_output=True, check=True)
+            subprocess.run(["/etc/init.d/dedalo_users_auth", "start"], capture_output=True, check=True)
+    except Exception as e:
+        print(e, file=sys.stderr)
+        return utils.generic_error("dedalo_start_failed")
 
     return {"result": "success"}
 

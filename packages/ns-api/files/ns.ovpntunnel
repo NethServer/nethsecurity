@@ -50,21 +50,6 @@ def generate_key():
         return ''
         return None
 
-def generate_random_port(limit_min, limit_max):
-    port = random.randint(limit_min, limit_max)
-    while is_used_port(port):
-        port = random.randint(limit_min, limit_max)
-    return port
-
-def is_used_port(port):
-    u = EUci()
-    for v in u.get_all('openvpn'):
-        rport = int(u.get('openvpn', v, 'port', default="0"))
-        lport = int(u.get('openvpn', v, 'lport', default="0"))
-        if port == rport or port == lport:
-            return True
-    return False
-
 def setup_firewall(u, name, device, link):
     ovpn_interface = firewall.add_vpn_interface(u, name, device, link=link)
     if not firewall.zone_exists(u, 'openvpn'):
@@ -248,7 +233,7 @@ def export_client(name):
     if u.get("openvpn", name, "proto", default="") == "tcp-server":
         proto = "tcp-client"
     client = {
-        "name": f"c{name}"[0:13],
+        "name": f"c{name.removeprefix('ns_')}"[0:10],
         "type": "tunnel",
         "Mode": "routed",
         "status": "enabled",
@@ -295,14 +280,23 @@ def list_tunnels():
         # skip custom config
         if not section.startswith("ns_"):
             continue
+        # skip road warrior servers
+        if 'ns_auth_mode' in vpn:
+            continue
         topology = vpn.get("topology", "subnet")
         record = {
             "id": section,
             "ns_name": vpn.get("ns_name", ""),
             "topology": topology,
-            "enabled": vpn.get("enabled", "0") == "1"
+            "enabled": vpn.get("enabled", "0") == "1",
+            "connected": False
         }
+
         if vpn.get("client", "0") == "1" or vpn.get("ns_client", "0") == "1":
+            connected = ovpn.list_connected_clients(section, 'p2p')
+            if 'stats' in connected:
+                record["connected"] = True
+                record = record | connected['stats']
             remote = []
             if vpn.get("ifconfig", "") != "":
                 record["topology"] = "p2p"
@@ -318,6 +312,11 @@ def list_tunnels():
             }
             clients.append(client)
         else:
+            connected = ovpn.list_connected_clients(section, topology)
+            if 'client' in connected:
+                record["connected"] = True
+                record = record | connected['client']
+
             local = []
             remote = []
             if vpn.get('route'):
@@ -414,7 +413,7 @@ def get_defaults():
 
     defaults = {
         "secret": generate_key(),
-        "port": generate_random_port(limit_min, limit_max),
+        "port": ovpn.generate_random_port(u, limit_min, limit_max),
         "server": net,
         "ifconfig_local": str(ipaddress.ip_interface(net).network.network_address + 1),
         "ifconfig_remote": str(ipaddress.ip_interface(net).network.network_address + 2),
@@ -573,7 +572,7 @@ def setup_client(u, iname, args):
         routes = []
         for r in args.get('route'):
             (ip, prefix) = r.split("/")
-            routes.append(f"route {ip} {ovpn.to_netmask(prefix)}")
+            routes.append(f"{ip} {ovpn.to_netmask(prefix)}")
         u.set('openvpn', iname, 'route', routes) 
 
     # Add management socket

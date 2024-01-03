@@ -1,2 +1,2 @@
-config database 'main'
+config local 'main'
 	option description 'Local users'

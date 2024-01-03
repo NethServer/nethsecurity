@@ -110,6 +110,7 @@ def edit_interface(args):
     u.set("dhcp", args['interface'], "limit", limit)
     u.set("dhcp", args['interface'], "start", start)
     u.set("dhcp", args['interface'], "leasetime", args["leasetime"])
+    u.set("dhcp", args['interface'], "interface", args['interface'])
     opts = []
     for opt in args['options']:
         k = list(opt.keys())[0]
