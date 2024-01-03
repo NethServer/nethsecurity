@@ -55,6 +55,7 @@ define Package/ns-openvpn/install
 	$(INSTALL_BIN) ./files/80-save-disconnection $(1)/usr/libexec/ns-openvpn/disconnect-scripts
 	$(INSTALL_BIN) ./files/99_ns-openvpn $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/openvpn-status $(1)/usr/bin
+	$(INSTALL_BIN) ./files/openvpn-kill $(1)/usr/bin
 endef
 
 define Package/ns-openvpn/postinst
