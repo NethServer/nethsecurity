@@ -37,17 +37,7 @@ def setup(u):
         return
 
     firewall.add_template_rule(u, 'ns_hs_uamport', link="dedalo/config")
-    firewall.add_template_rule(u, 'ns_hs_uamport_tun', link="dedalo/config")
     firewall.add_template_zone(u, 'ns_hotspot', link="dedalo/config")
-
-    interface = "dedalo"
-    u.set("network", interface, "interface")
-    u.set("network", interface, "proto", "none")
-    u.set("network", interface, "ipv6", "0")
-    u.set("network", interface, "device", f"tun-{interface}")
-    u.set("network", interface, "ns_link", "dedalo/config")
-    u.set("network", interface, "ns_tag", ["automated"])
-    u.commit("network")
     u.commit("firewall")
 
 ## APIs
@@ -69,7 +59,8 @@ def login(args):
             return {"response": "success"}
         else:
             return utils.generic_error("login_failed")
-    except:
+    except Exception as e:
+        print(e, file=sys.stderr)
         return {"success": False}
 
 def list_sessions():
@@ -190,13 +181,10 @@ def set_configuration(args):
             u.set("dedalo", "config", opt, args[opt])
 
     # setup UAM rule, if needed
-    rules = utils.get_all_by_type(u, 'firewall', 'rule')
-    for r in rules:
-        rule = rules[r]
-        if rule.get('name') == 'Allow-HotSpot-UAM' and rule.get('device') !=  args.get('interface'):
-            u.set('firewall', r, 'device', args.get('interface'))
-            u.commit('firewall')
-            break
+    (z_name, z_config) = firewall.get_zone_by_name(u, 'hotspot')
+    if args.get('interface') not in z_config.get('device', []):
+        u.set('firewall', z_name, 'device', [args.get('interface'),'tun-dedalo'])
+        u.commit('firewall')
 
     if not registered:
         h = hashlib.md5(uuid.uuid4().hex.encode()).hexdigest()
