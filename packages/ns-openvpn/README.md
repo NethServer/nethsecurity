@@ -166,23 +166,7 @@ As default, all logs are sent to `/var/log/messages`.
 
 ### Client configuration
 
-The `ns-openvpnrw-print-client` can generate a valid `.ovpn` file with embedded certificates.
-The generated configuration can be copied to any compatible client.
-
-Execute:
-```
-ns-openvpnrw-print-client <instance> <user>
-```
-
-Example:
-```
-ns-openvpnrw-print-client ns_roadwarrior giacomo > giacomo.ovpn
-```
-
-To regenerate the user certificate:
-```
-ns-openvpnrw-regenerate <instance> <user> <expiration>
-```
+To generate a valid `.ovpn` file, see the `download-user-configuration` API inside the [ns-api](../ns-api/#nsovpnrw) page.
 
 ## OpenVPN tunnels
 

@@ -98,6 +98,7 @@ The local `user` object can have the following non-mandatory options:
 - `password`: shadow password hash, shadow format: `$<alg>$<salt>$<hash>`, where `alg` is always set to `6` (SHA-512)
 - `openvpn_ipaddr`: an OpenVPN RoadWarrior IP address reserved for the user
 - `openvpn_enabled`: can be `0` or `1`, if set to `0` the user can't authenticate itself inside OpenVPN
+- `openvpn_2fa`: it's a string containing the secret for OpenVPN OTP authentication
 
 The local `group` object can have the following non-mandatory options:
 
@@ -129,6 +130,7 @@ config user
 	option label "John Doe"
 	option openvpn_ipaddr "10.10.10.22"
 	option openvpn_enabled "1"
+	option openvpn_2fa "3PGEK5B7RBSODTUW6KAQUMED7ZAJ4ZEJ"
 	option password "$6$o5l7kWSclhvn5HM5$hRN60ONxiKnb1RZJP14M1oTXYICFS4G998tCasf04j7Gm60p5G9Jkmewqa0LKAcdWwiIijPwowSlA78wx/kP3Q=="
 ```
 
@@ -155,6 +157,7 @@ The remote `user` object can have the following non-mandatory options:
 - `host`: list of DHCP reservations resolved to IP addresses, each reservation is a `host` record inside the [`dhcp` database](https://openwrt.org/docs/guide-user/base-system/dhcp#static_leases)
 - `openvpn_ipaddr`: an OpenVPN RoadWarrior IP address reserved for the user
 - `openvpn_enabled`: can be `0` or `1`, if set to `0` the user can't authenticate itself inside OpenVPN
+- `openvpn_2fa`: it's a string containing the secret for OpenVPN OTP authentication
 
 Example of a remote user with OpenVPN access and a reserved IP:
 ```
@@ -163,6 +166,7 @@ config user
 	option database "ldap1"
 	option openvpn_ipaddr "10.10.10.22"
 	option openvpn_enabled "1"
+	option openvpn_2fa "3PGEK5B7RBSODTUW6KAQUMED7ZAJ4ZEJ"
 ```
 
 # Hosts

@@ -1,7 +1,7 @@
-#!/bin/sh
+#!/usr/bin/python3
 
 #
-# Copyright (C) 2022 Nethesis S.r.l.
+# Copyright (C) 2023 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
@@ -10,53 +10,66 @@
 # - password
 # - config
 
-. /lib/functions.sh
-cur_instance=$(echo $config | sed -e 's/openvpn\-//' -e 's/\.conf//')
-uri=""
-base_dn=""
-tls_reqcert=""
-user_dn=""
-user_attr=""
-starttls=0
+import re
+import os
+import sys
+import subprocess
+from euci import EUci
+from nethsec import users
 
-function read_config
-{
-    local section="$1"
-    config_get instance "$section" instance
+username = os.environ.get("username")
+password = os.environ.get("password")
+config_path = os.environ.get("config")
 
-    if [ "$instance" = "$cur_instance" ]; then
-        config_get uri "$section" uri
-        config_get base_dn "$section" base_dn
-        # default for user_dn is the base_dn
-        config_get user_dn "$section" user_dn $base_dn
-        config_get user_attr "$section" user_attr "uid"
-        config_get tls_reqcert "$section" tls_reqcert "never"
-        config_get starttls "$section" starttls "0"
-    fi
-}
+instance = re.sub(r'^openvpn-|\.conf$', '', config_path)
 
-config_load 'openvpn'
-config_foreach read_config ldap
+ldap = {}
+uci = EUci()
+try:
+    db = uci.get("openvpn", instance, "ns_user_db")
+    ldap = uci.get_all("users", db)
+except:
+    # user db not set or not found
+    sys.exit(5)
 
-config_get enabled "$username" enabled 0
-config_get user_instance "$username" instance ''
+user = users.get_user_by_name(uci, username, db)
+if user is None:
+    # user not found
+    sys.exit(4)
 
-if [ "$cur_instance" != "$user_instance" ]; then
-    exit 2
-fi
+if not "openvpn_enabled" in user or user["openvpn_enabled"] != "1":
+    # user not enabled
+    sys.exit(3)
 
-if [ "$enabled" = "0" ]; then
-    exit 3
-fi
+uri = ldap.get("uri", "")
+base_dn = ldap.get("base_dn", "")
+# default for user_dn is the base_dn
+user_dn = ldap.get("user_dn", base_dn)
+user_attr = ldap.get("user_attr", "uid")
+tls_reqcert = ldap.get("tls_reqcert", "never")
+starttls = int(ldap.get("starttls", 0))
 
-if [ -z "$uri" ] || [ -z "$base_dn" ]; then
-    exit 4
-fi
+if not uri or not base_dn:
+    # no info to connect ldap db
+    sys.exit(2)
 
-if [ "$starttls" = "1" ]; then
-    starttls_opt="-Z"
-else
-    starttls_opt=""
-fi
+ldapsearch_command = [
+    "/usr/bin/ldapsearch",
+    "-H", uri,
+    "-b", base_dn,
+    "-D", f"{user_attr}={username},{user_dn}",
+    "-w", password,
+    f"{user_attr}={username}"
+]
+if ldap.get("starttls", '1') == 1:
+    ldapsearch_command.append("-Z")
 
-LDAPTLS_REQCERT="$tls_reqcert" ldapsearch $starttls_opt -H "$uri" -b "$base_dn" -D "$user_attr=$username,$user_dn" -w"$password" "$user_attr=$username" >/dev/null
+env = os.environ.copy()
+env['LDAPTLS_REQCERT'] = tls_reqcert
+
+try:
+    subprocess.run(ldapsearch_command, env=env, check=True, capture_output=True)
+    sys.exit(0)
+except Exception as e:
+    print(e, file=sys.stderr)
+    sys.exit(1)

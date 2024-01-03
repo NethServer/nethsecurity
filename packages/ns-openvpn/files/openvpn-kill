@@ -1,0 +1,53 @@
+#!/usr/bin/python
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Kill connected OpenVPN client from management socket
+
+import os
+import sys
+import socket
+import argparse
+
+parser = argparse.ArgumentParser(prog='openvpn-kill',  description='Kill OpenVPN Road Warrior client connection')
+parser.add_argument("socket_path")
+parser.add_argument("client_name")
+parser.add_argument("-d", "--debug", action="store_true")
+args = parser.parse_args()
+
+if not os.path.exists(args.socket_path):
+    print(f"File not found: {args.socket_path}", file=sys.stderr)
+    exit(1)
+
+try:
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as tsock:
+        tsock.connect(args.socket_path)
+        fp = tsock.makefile(mode='r', newline='\n')
+
+        results = {}
+        greetings = fp.readline()
+        if greetings:
+            cmd = f"kill {args.client_name}\n"
+            tsock.sendall(cmd.encode())
+        else:
+            exit(1)
+
+        while True:
+            msg = fp.readline()
+            if args.debug:
+                print(msg, file=sys.stderr)
+            if "ERROR" in msg:
+                exit(1)
+            if "SUCCESS" in msg:
+                exit(0)
+
+        exit(2)
+
+except Exception as e:
+    print("An error occurred:", e)
+    import traceback
+    traceback.print_exc()
+    exit(1)

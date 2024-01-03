@@ -39,15 +39,9 @@ define Package/ns-openvpn/install
 	$(INSTALL_DIR) $(1)/usr/libexec/ns-openvpn/connect-scripts
 	$(INSTALL_DIR) $(1)/usr/libexec/ns-openvpn/disconnect-scripts
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
-	$(INSTALL_BIN) ./files/ns-openvpnrw-setup $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-openvpnrw-add $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-openvpnrw-init-pki $(1)/usr/sbin
-	$(INSTALL_BIN) ./files/ns-openvpnrw-print-client $(1)/usr/sbin
-	$(INSTALL_BIN) ./files/ns-openvpnrw-print-pem $(1)/usr/sbin
-	$(INSTALL_BIN) ./files/ns-openvpnrw-print-2fa $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-openvpntunnel-add-client $(1)/usr/sbin
-	$(INSTALL_BIN) ./files/ns-openvpnrw-revoke  $(1)/usr/sbin
-	$(INSTALL_BIN) ./files/ns-openvpnrw-regenerate  $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/openvpn-connect $(1)/usr/libexec/ns-openvpn/
 	$(INSTALL_BIN) ./files/openvpn-disconnect $(1)/usr/libexec/ns-openvpn/
 	$(INSTALL_BIN) ./files/init-connections-db $(1)/usr/libexec/ns-openvpn/
@@ -61,6 +55,7 @@ define Package/ns-openvpn/install
 	$(INSTALL_BIN) ./files/80-save-disconnection $(1)/usr/libexec/ns-openvpn/disconnect-scripts
 	$(INSTALL_BIN) ./files/99_ns-openvpn $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/openvpn-status $(1)/usr/bin
+	$(INSTALL_BIN) ./files/openvpn-kill $(1)/usr/bin
 endef
 
 define Package/ns-openvpn/postinst
