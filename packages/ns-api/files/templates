@@ -59,7 +59,6 @@ config template_rule 'ip6_icmp_forward'
 
 config template_zone 'ns_hotspot'
 	option name 'hotspot'
-	list network 'dedalo'
 	option mtu_fix '1'
 	option forward 'DROP'
 	option input 'DROP'
@@ -72,20 +71,11 @@ config template_forwarding 'ns_hotspot_to_wan'
 
 config template_rule 'ns_hs_uamport'
 	option name 'Allow-HotSpot-UAM'
-	option src '*'
+	option src 'hotspot'
 	option proto 'tcp'
 	option dest_port '3990'
 	option target 'ACCEPT'
 	option direction 'in'
-
-config template_rule 'ns_hs_uamport_tun'
-	option name 'Allow-HotSpot-UAM-tun'
-	option src '*'
-	option proto 'tcp'
-	option dest_port '3990'
-	option target 'ACCEPT'
-	option direction 'in'
-	option device 'tun-dedalo'
 
 # Guest zone (blue)
 
