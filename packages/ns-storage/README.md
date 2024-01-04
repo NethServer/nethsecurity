@@ -15,26 +15,61 @@ Features:
 
 ## Add a data storage
 
+It is possible to use either a partition on the main disk where the operating system is installed or a new disk as additional storage.
+
+The procedure is divided into two parts:
+
+- configure the disk or partition
+- mount the device and setup the system
+
+### New disk
+
 Before starting the configuration, attach a disk device to the machine.
-You can find the attached device name inside `/var/log/messages`.
+You can find the attached device name inside `/var/log/messages`, let's assume the device is named `/dev/sdb`.
 
 To prepare the disk, execute:
 ```
-add-storage <device>
+/usr/libexec/ns-storage-setup-disk /dev/sdb
 ```
 
 The script will prepare the device by:
 
 - erasing all partitions and existing data on the device
 - creating a single partition using the ext4 filesystem
-- mounting the storage at `/mnt/data`
 
-Then, the system will be reconfigured as follow:
+### Parition on existing disk
+
+If the disk where the operating system is installed has unallocated space, it is possible to utilize this space as data storage.
+
+To check if the disk has free space, execute:
+```
+/usr/libexec/ns-storage-has-free-space
+```
+
+The script must exit with 0 and return the available space like:
+```
+{"name": "vda", "path": "/dev/vda", "size": 968899584}
+```
+
+In this case, proceed with the setup:
+```
+/usr/libexec/ns-storage-setup-partition
+```
+
+### Use the device
+
+Execute the `add-storage` script on the prepared device, like:
+```
+add-storage /dev/sda
+```
+
+The script will mount the storage at `/mnt/data` and configure
+the system as follow:
 
 - rsyslog will write logs also inside `/mnt/data/logs/messages` file
 - logrotate will rotate `/mnt/data/logs/messages` once a week (see `/etc/logrotate/data.conf` for more info)
 
-### Data sync customization
+## Data sync customization
 
 Every night the cron will run a script named `sync-data` to sync data from in-memory
 filesystems to persistent storage.

@@ -55,8 +55,12 @@ define Package/ns-storage/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_DIR) $(1)/etc/logrotate.d
+	$(INSTALL_DIR) $(1)/usr/libexec
 	$(INSTALL_DIR) $(1)/usr/libexec/sync-data
 	$(INSTALL_BIN) ./files/add-storage $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/ns-storage-setup-partition $(1)/usr/libexec
+	$(INSTALL_BIN) ./files/ns-storage-setup-disk $(1)/usr/libexec
+	$(INSTALL_BIN) ./files/ns-storage-has-free-space $(1)/usr/libexec
 	$(INSTALL_BIN) ./files/remove-storage $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/rotate-messages $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/sync-data $(1)/usr/sbin
