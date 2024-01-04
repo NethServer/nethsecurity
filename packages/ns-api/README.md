@@ -3100,11 +3100,20 @@ Response example:
 {
   "devices": [
     {
-      "name": "sda",
-      "size": "1G",
-      "path": "/dev/sda",
-      "model": "QEMU HARDDISK",
-      "vendor": "QEMU"
+      "name": "vdb",
+      "size": 1073741824,
+      "path": "/dev/vdb",
+      "type": "disk",
+      "model": null,
+      "vendor": "0x1af4"
+    },
+    {
+      "name": "vda",
+      "size": 968899584,
+      "path": "/dev/vda",
+      "type": "partition",
+      "model": null,
+      "vendor": null
     }
   ]
 }
@@ -3116,7 +3125,7 @@ Please note that model and vendor could be empty on some hardware.
 
 Configure the device to be used as extra data storage:
 ```
-api-cli ns.storage add-storage --data '{"device": "/dev/sdb"}'
+api-cli ns.storage add-storage --data '{"device": "/dev/sdb", "type": "disk"}'
 ```
 
 Successful response example:
