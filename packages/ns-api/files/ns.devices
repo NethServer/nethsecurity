@@ -499,9 +499,10 @@ def get_bonding_values(ip4_addr_cidr, attached_devices, bonding_policy, bond_pri
     # ip4 address and netmask
 
     # luci requires to set ip4 address and netmask into two distinct fields
-    ip4_addr, netmask = convert_cidr_to_ip4_addr(ip4_addr_cidr)
-    values['ipaddr'] = ip4_addr
-    values['netmask'] = netmask
+    if ip4_addr_cidr:
+        ip4_addr, netmask = convert_cidr_to_ip4_addr(ip4_addr_cidr)
+        values['ipaddr'] = ip4_addr
+        values['netmask'] = netmask
 
     # attached devices
     values['slaves'] = attached_devices
@@ -596,9 +597,10 @@ def set_network_configuration(device_type, interface_name, logical_type, interfa
             # ip4 address and netmask
 
             # luci requires to set ip4 address and netmask into two distinct fields
-            ip4_addr, netmask = convert_cidr_to_ip4_addr(ip4_addr_cidr)
-            values['ipaddr'] = ip4_addr
-            values['netmask'] = netmask
+            if ip4_addr_cidr:
+                ip4_addr, netmask = convert_cidr_to_ip4_addr(ip4_addr_cidr)
+                values['ipaddr'] = ip4_addr
+                values['netmask'] = netmask
 
             # ip6 address
             if ip6_enabled and ip6_address:
@@ -741,6 +743,10 @@ def create_and_set_network_device(device_name, device_type, protocol, logical_ty
         enable_ipv6 = True
     elif protocol == 'dhcp':
         enable_ipv6 = False
+
+    if enable_ipv6:
+        # add default ipv6 rules
+        firewall.add_default_ipv6_rules(uci)
 
     ip6_value = '1' if enable_ipv6 else '0'
     ip4_mtu_value = ip4_mtu if ip4_mtu else ''
