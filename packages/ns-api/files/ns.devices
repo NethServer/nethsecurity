@@ -75,22 +75,25 @@ def list_devices():
         if not dev_found:
             merged_devices.append(device_from_config)
 
-    # retrieve openvpn tunnels
+    # retrieve openvpn tunnels and road warrior servers
 
-    openvpn_tunnels = []
+    openvpn_devices = []
     openvpn_config = get_all_by_type_as_list(uci, 'openvpn', 'openvpn')
 
-    for tun in openvpn_config:
-        # skip road warrior servers
-        if not tun.get('ns_auth_mode', None) is None:
-            continue
+    for ovpn_dev in openvpn_config:
+        if ovpn_dev.get('.name').startswith('ns_'):
+            if ovpn_dev.get('ns_auth_mode', None):
+                # road warrior server
+                ovpn_rw = {'name': ovpn_dev.get('dev'), 'openvpn_rw': ovpn_dev, 'iface': {
+                    '.name': ovpn_dev['ns_description'], '.type': 'interface', 'device': ovpn_dev['dev']}}
+                openvpn_devices.append(ovpn_rw)
+            else:
+                # openvpn tunnel
+                ovpn_tun = {'name': ovpn_dev.get('dev'), 'openvpn': ovpn_dev, 'iface': {
+                    '.name': ovpn_dev['ns_name'], '.type': 'interface', 'device': ovpn_dev['dev']}}
+                openvpn_devices.append(ovpn_tun)
 
-        if tun.get('.name').startswith('ns_'):
-            ovpn_tun = {'name': tun.get('dev'), 'openvpn': tun, 'iface': {
-                '.name': tun['ns_name'], '.type': 'interface', 'device': tun['dev']}}
-            openvpn_tunnels.append(ovpn_tun)
-
-    all_devices = merged_devices + ifaces_without_device + openvpn_tunnels
+    all_devices = merged_devices + ifaces_without_device + openvpn_devices
 
     # retrieve hotspot interfaces
 
@@ -228,7 +231,7 @@ def list_devices():
                 'name': 'hotspot',
                 'devices': [device.get('name')]
             })
-        elif device.get('openvpn') or device.get('zone') == 'ipsec':
+        elif device.get('openvpn') or device.get('openvpn_rw') or device.get('zone') == 'ipsec':
             # vpn
             vpn_zone = None
 
