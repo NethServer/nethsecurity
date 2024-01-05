@@ -221,6 +221,11 @@ def remove_instance(instance):
     if u.get("openvpn", instance, default=None) == None:
         return utils.validation_error("instance", "instance_not_found", instance)
 
+    db = u.get("openvpn", instance, "ns_user_db", default=None)
+    if db:
+        db_users = users.list_users(u, db)
+        for user in db_users:
+            delete_user(instance, user["name"])
     u.delete("openvpn", instance)
     u.save("openvpn")
     firewall.delete_linked_sections(u, f"openvpn/{instance}")
