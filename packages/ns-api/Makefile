@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-api
-PKG_VERSION:=0.0.21
+PKG_VERSION:=0.0.22
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-api-$(PKG_VERSION)
@@ -82,6 +82,8 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.dedalo.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.power $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.power.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.qos $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.qos.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.routes $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.routes.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.dashboard $(1)/usr/libexec/rpcd/

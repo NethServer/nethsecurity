@@ -4797,3 +4797,94 @@ Response example:
 ```json
 {"result": "success"}
 ```
+
+## ns.qos
+
+Allows to configure QoS for each network interface available.
+
+### list
+
+List all QoS rules present in `/etc/config/qosify`:
+
+```bash
+api-cli ns.qos list
+```
+
+Example response:
+
+```json
+{
+  "rules": [
+    {
+      "interface": "wan",
+      "device": "eth1",
+      "disabled": true,
+      "upload": 100,
+      "download": 100
+    },
+    {
+      "interface": "VM",
+      "device": "eth3",
+      "disabled": true,
+      "upload": 5,
+      "download": 5
+    }
+  ]
+}
+ ```
+
+### add
+
+Add a new QoS rule:
+
+```bash
+api-cli ns.qos add --data '{"interface": "VM", "disabled": true, "upload": 5, "download": 5}'
+```
+
+Example response:
+
+```json
+{
+  "message": "success"
+}
+```
+
+### edit
+
+Edit an existing QoS rule:
+
+```bash
+api-cli ns.qos edit --data '{"interface": "VM", "disabled": true, "upload": 5, "download": 5}'
+```
+
+Example response:
+
+```json
+{
+  "message": "success"
+}
+```
+
+### delete
+
+Delete an existing QoS rule:
+
+```bash
+api-cli ns.qos delete --data '{"interface": "VM"}'
+```
+
+### set-status
+
+Disable or enable an existing QoS rule:
+
+```bash
+api-cli ns.qos set-status --data '{"interface": "VM", "disabled": true}'
+```
+
+Example response:
+
+```json
+{
+  "message": "success"
+}
+```

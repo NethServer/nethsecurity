@@ -1,0 +1,13 @@
+{
+  "qos-manager": {
+    "description": "QoS Manager",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.qos": [
+          "*"
+        ]
+      }
+    }
+  }
+}
