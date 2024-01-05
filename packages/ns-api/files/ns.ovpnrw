@@ -86,14 +86,17 @@ def is_free_ip(ovpninstance, ip):
 
 def list_user_expirations(openvpninstance):
     ret = {}
-    with open(f"/etc/openvpn/{openvpninstance}/pki/index.txt", "r") as fp:
-        lines = fp.readlines()
-        for line in lines:
-            (status, expiration, revocation, serial, filename, name) = line.split("\t")
-            # remove /CN= from name
-            dt = datetime.strptime(expiration, "%y%m%d%H%M%SZ")
-            name = name.strip()[4:]
-            ret[name] = dt.timestamp()
+    try:
+        with open(f"/etc/openvpn/{openvpninstance}/pki/index.txt", "r") as fp:
+            lines = fp.readlines()
+            for line in lines:
+                (status, expiration, revocation, serial, filename, name) = line.split("\t")
+                # remove /CN= from name
+                dt = datetime.strptime(expiration, "%y%m%d%H%M%SZ")
+                name = name.strip()[4:]
+                ret[name] = dt.timestamp()
+    except:
+        return ret
     return ret
 
 def generate_2fa_secret():
@@ -232,8 +235,10 @@ def remove_instance(instance):
         for user in db_users:
             delete_user(instance, user["name"])
     u.delete("openvpn", instance)
-    u.save("openvpn")
+    u.commit("openvpn")
     firewall.delete_linked_sections(u, f"openvpn/{instance}")
+    u.commit('firewall')
+    u.commit('network')
     shutil.rmtree(f"/etc/openvpn/{instance}")
     
     return {"result": "success"}
@@ -571,8 +576,7 @@ def delete_user(ovpninstance, username):
         env["EASYRSA_PKI"] = f'/etc/openvpn/{ovpninstance}/pki'
         subprocess.run(["/usr/bin/easyrsa", "revoke", username], env=env, check=True, capture_output=True)
         subprocess.run(["/usr/bin/easyrsa", "gen-crl"], env=env, check=True, capture_output=True)
-    except Exception as e:
-        print(e, file=sys.stderr)
+    except:
         return utils.validation_error("username", "user_delete_failed", username)
     return {"result": "success"}
     
