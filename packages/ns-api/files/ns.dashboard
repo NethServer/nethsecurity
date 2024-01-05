@@ -83,12 +83,16 @@ def get_storage():
 
 
 def check_internet():
-    for host in ("8.8.8.8", "1.1.1.1", "www.nethserver.org"):
+    success = 0
+    hosts = ("8.8.8.8", "one.one.one.one", "www.nethserver.org", "gstatic.com")
+    for host in hosts:
         try:
             subprocess.check_output(["ping", "-c", "1", host])
-            return "ok"
+            success = success + 1
+            if success >= (len(hosts) / 2):
+                return "ok"
         except:
-            pass
+            continue
 
     return "error"
 
