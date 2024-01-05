@@ -1,0 +1,144 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import json
+import numbers
+import sys
+
+from euci import EUci
+from nethsec import utils
+from nethsec.utils import ValidationError
+
+
+def validate(data):
+    if 'interface' not in data:
+        raise ValidationError('name', 'required')
+    if 'disabled' not in data:
+        raise ValidationError('disabled', 'required')
+    if data['disabled'] not in [True, False]:
+        raise ValidationError('disabled', 'invalid')
+    if 'upload' not in data:
+        raise ValidationError('upload', 'required')
+    if not isinstance(data['upload'], numbers.Number):
+        raise ValidationError('upload', 'invalid')
+    if 'download' not in data:
+        raise ValidationError('download', 'required')
+    if not isinstance(data['download'], numbers.Number):
+        raise ValidationError('download', 'invalid')
+
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({
+        'list': {},
+        'add': {
+            'interface': 'String',
+            'disabled': False,
+            'upload': 0,
+            'download': 0,
+        },
+        'delete': {
+            'interface': 'String'
+        },
+        'edit': {
+            'interface': 'String',
+            'disabled': False,
+            'upload': 0,
+            'download': 0,
+        },
+        'set-status': {
+            'interface': 'String',
+            'disabled': False,
+        }
+    }))
+
+elif cmd == 'call':
+    action = sys.argv[2]
+    e_uci = EUci()
+    try:
+        if action == 'list':
+            network_interfaces = utils.get_all_by_type(e_uci, 'network', 'interface').items()
+            result = []
+            for key, interface in utils.get_all_by_type(e_uci, 'qosify', 'interface').items():
+                device = [item['device'] for config_name, item in network_interfaces if config_name == key][0]
+                result.append({
+                    'interface': key,
+                    'device': device,
+                    'disabled': interface['disabled'] == '1',
+                    'upload': int(interface['bandwidth_up'].removesuffix('mbit')),
+                    'download': int(interface['bandwidth_down'].removesuffix('mbit')),
+                })
+            print(json.dumps({'rules': result}))
+
+        elif action == 'add':
+            data = json.loads(sys.stdin.read())
+            validate(data)
+            if data['interface'] in utils.get_all_by_type(e_uci, 'qosify', 'interface').keys():
+                raise ValidationError('name', 'duplicate')
+            if data['interface'] not in utils.get_all_by_type(e_uci, 'network', 'interface').keys():
+                raise ValidationError('name', 'invalid')
+
+            e_uci.set('qosify', data['interface'], 'interface')
+            e_uci.set('qosify', data['interface'], 'name', data['interface'])
+            e_uci.set('qosify', data['interface'], 'disabled', data['disabled'])
+            e_uci.set('qosify', data['interface'], 'bandwidth_up', f'{data["upload"]}mbit')
+            e_uci.set('qosify', data['interface'], 'bandwidth_down', f'{data["download"]}mbit')
+
+            e_uci.save('qosify')
+
+            print(json.dumps({'message': 'success'}))
+
+        elif action == 'delete':
+            data = json.loads(sys.stdin.read())
+            if 'interface' not in data:
+                raise ValidationError('name', 'required')
+            if data['interface'] not in utils.get_all_by_type(e_uci, 'qosify', 'interface').keys():
+                raise ValidationError('name', 'invalid')
+
+            e_uci.delete('qosify', data['interface'])
+
+            e_uci.save('qosify')
+
+            print(json.dumps({'message': 'success'}))
+
+        elif action == 'edit':
+            data = json.loads(sys.stdin.read())
+            validate(data)
+            if data['interface'] not in utils.get_all_by_type(e_uci, 'qosify', 'interface').keys():
+                raise ValidationError('name', 'invalid')
+
+            e_uci.set('qosify', data['interface'], 'disabled', data['disabled'])
+            e_uci.set('qosify', data['interface'], 'bandwidth_up', f'{data["upload"]}mbit')
+            e_uci.set('qosify', data['interface'], 'bandwidth_down', f'{data["download"]}mbit')
+
+            e_uci.save('qosify')
+
+            print(json.dumps({'message': 'success'}))
+
+        elif action == 'set-status':
+            data = json.loads(sys.stdin.read())
+            if 'interface' not in data:
+                raise ValidationError('name', 'required')
+            if data['interface'] not in utils.get_all_by_type(e_uci, 'qosify', 'interface').keys():
+                raise ValidationError('name', 'invalid')
+            if 'disabled' not in data:
+                raise ValidationError('disabled', 'required')
+            if data['disabled'] not in [True, False]:
+                raise ValidationError('disabled', 'invalid')
+
+            e_uci.set('qosify', data['interface'], 'disabled', data['disabled'])
+
+            e_uci.save('qosify')
+
+            print(json.dumps({'message': 'success'}))
+
+    except ValidationError as ex:
+        print(json.dumps(utils.validation_error(ex.parameter, ex.message, ex.value)))
+
+    except Exception as ex:
+        print(json.dumps(utils.generic_error(ex.args[0])))
