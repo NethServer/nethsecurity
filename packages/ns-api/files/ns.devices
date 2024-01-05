@@ -744,6 +744,10 @@ def create_and_set_network_device(device_name, device_type, protocol, logical_ty
     elif protocol == 'dhcp':
         enable_ipv6 = False
 
+    if enable_ipv6:
+        # add default ipv6 rules
+        firewall.add_default_ipv6_rules(uci)
+
     ip6_value = '1' if enable_ipv6 else '0'
     ip4_mtu_value = ip4_mtu if ip4_mtu else ''
     ip6_mtu_value = ip6_mtu if ip6_mtu else ''
