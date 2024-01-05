@@ -205,7 +205,12 @@ def add_instance():
     u.set("openvpn", instance, 'tls_version_min','1.2')
     u.set("openvpn", instance, 'ns_auth_mode', 'certificate')
     u.set('openvpn', instance, 'ns_tag', ["automated"])
-    u.save('openvpn')
+
+    # commit everything, otherwise a future revert will break the configuration
+    # drawback: openvpn zone and network will be created even if the instance is not saved
+    u.commit('openvpn')
+    u.commit('firewall')
+    u.commit('network')
 
     # initialize pki
     try:
