@@ -375,7 +375,7 @@ def list_auth_modes():
     return {"options": ["username_password", "certificate", "username_password_certificate", "username_otp_certificate"]}
 
 def list_dhcp_options():
-    return {"options": ["DNS", "WINS", "NBDD", "NBT", "NBS", "DISABLE-NBT"]}
+    return {"options": ["DOMAIN", "DNS", "WINS", "NBDD", "NBT", "NBS", "DISABLE-NBT"]}
 
 def list_users(ovpninstance):
     u = EUci()
