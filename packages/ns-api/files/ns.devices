@@ -82,15 +82,18 @@ def list_devices():
 
     for ovpn_dev in openvpn_config:
         if ovpn_dev.get('.name').startswith('ns_'):
+            # hide non-configurated vpn networks
+            if not ovpn_dev.get('ns_description'):
+                continue
             if ovpn_dev.get('ns_auth_mode', None):
                 # road warrior server
                 ovpn_rw = {'name': ovpn_dev.get('dev'), 'openvpn_rw': ovpn_dev, 'iface': {
-                    '.name': ovpn_dev['ns_description'], '.type': 'interface', 'device': ovpn_dev['dev']}}
+                    '.name': ovpn_dev.get('ns_description'), '.type': 'interface', 'device': ovpn_dev.get('dev')}}
                 openvpn_devices.append(ovpn_rw)
             else:
                 # openvpn tunnel
                 ovpn_tun = {'name': ovpn_dev.get('dev'), 'openvpn': ovpn_dev, 'iface': {
-                    '.name': ovpn_dev['ns_name'], '.type': 'interface', 'device': ovpn_dev['dev']}}
+                    '.name': ovpn_dev.get('ns_name'), '.type': 'interface', 'device': ovpn_dev.get('dev')}}
                 openvpn_devices.append(ovpn_tun)
 
     all_devices = merged_devices + ifaces_without_device + openvpn_devices
