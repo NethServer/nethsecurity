@@ -3906,6 +3906,56 @@ Response example:
 }
 ```
 
+### add-certificate
+
+Allows to add a custom certificate uploaded to the system.
+
+Required parameters:
+
+- `name`: name of the certificate, must be unique and conform to the uci name format
+- `certificate_path`: path to the certificate file, will be imported and saved under `/etc/acme`, then deleted.
+- `key_path`: path to the key file, will be imported and saved under `/etc/acme`, then deleted.
+
+Optional parameters:
+
+- `chain_path`: path to the subsequent certificate, will be appended to the `certficate_file` and deleted.
+
+```bash
+api-cli ns.reverseproxy add-certificate --data '{"name": "pretty_certificate", "certificate_path": "/tmp/cert.pem", "key_path": "/tmp/key.pem", "chain_path": "/tmp/chain.pem"}'
+```
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### delete-certificate
+
+Delete a certificate.
+
+Required parameters:
+
+- `name`: name of the certificate to be deleted
+
+```bash
+api-cli ns.reverseproxy delete-certificate --data '{"name": "pretty_certificate"}'
+```
+
+### set-default-certificate
+
+Set a certificate as default used by the UI.
+
+Required parameters:
+
+- `name`: name of the certificate to be set as default
+
+```bash
+api-cli ns.reverseproxy set-default-certificate --data '{"name": "pretty_certificate"}'
+```
+
 ### add-path
 
 Adds a path to the default server. This action will commit the `nginx` uci configuration and restart the `nginx` service.
