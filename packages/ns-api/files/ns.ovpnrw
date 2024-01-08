@@ -316,9 +316,9 @@ def set_configuration(args):
             return utils.validation_error("ns_pool_start", "start_not_in_network", args['ns_pool_start'])
         if ipaddress.ip_address(args['ns_pool_end']) not in ipaddress.ip_network(f'{ipnet}/{mask}'):
             return utils.validation_error("ns_pool_end", "end_not_in_network", args['ns_pool_end'])
-        if not is_free_ip(args['ns_pool_start']):
+        if not is_free_ip(ovpninstance, args['ns_pool_start']):
             return utils.validation_error("ns_pool_start", "ip_already_used", args['ns_pool_start'])
-        if not is_free_ip(args['ns_pool_end']):
+        if not is_free_ip(ovpninstance, args['ns_pool_end']):
             return utils.validation_error("ns_pool_end", "ip_already_used", args['ns_pool_end'])
         if ipaddress.ip_address(args['ns_pool_start']) >= ipaddress.ip_address(args['ns_pool_end']):
             return utils.validation_error("ns_pool_start", "start_must_be_greater_then_end", args['ns_pool_start'])
