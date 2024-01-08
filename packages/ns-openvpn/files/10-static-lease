@@ -25,6 +25,9 @@ uci = EUci()
 # assume all checks on the instance have been executed in the script before this one
 config = uci.get_all("openvpn", instance)
 db = config.get("ns_user_db", None)
+if not db:
+    # this is probably a tunnel, just ignore it
+    sys.exit(0)
 user = users.get_user_by_name(uci, os.environ.get("common_name"), db)
 
 if user:
