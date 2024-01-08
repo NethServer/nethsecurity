@@ -538,7 +538,7 @@ Response example:
 }
 ```
 
-# get-tunnel-server
+### get-tunnel-server
 
 Get tunnel server configuration:
 ```
