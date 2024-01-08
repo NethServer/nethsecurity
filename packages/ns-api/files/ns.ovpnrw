@@ -323,9 +323,9 @@ def set_configuration(args):
         if ipaddress.ip_address(args['ns_pool_start']) >= ipaddress.ip_address(args['ns_pool_end']):
             return utils.validation_error("ns_pool_start", "start_must_be_greater_then_end", args['ns_pool_start'])
         u.set("openvpn", ovpninstance, "server_bridge", f"{ip} {mask} {args['ns_pool_start']} {args['ns_pool_end']}")
+        u.set("openvpn", ovpninstance, "client_connect", f"\"/usr/libexec/ns-openvpn/openvpn-connect {ovpninstance}\"")
+        u.set("openvpn", ovpninstance, "client_disconnect", f"\"/usr/libexec/ns-openvpn/openvpn-disconnect {ovpninstance}\"")
         try:
-            u.delete("openvpn", ovpninstance, "client_connect")
-            u.delete("openvpn", ovpninstance, "client_disconnect")
             u.delete("openvpn", ovpninstance, "server")
         except:
             pass
