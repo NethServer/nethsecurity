@@ -380,7 +380,7 @@ Example:
 
 ## ns.ovpntunnel
 
-## list-tunnels
+### list-tunnels
 
 List existing tunnels:
 ```
@@ -4824,7 +4824,7 @@ May raise the following validation errors:
 - user_not_found
 - db_not_remote
 
-## set-admin
+### set-admin
 
 Make a local user an admin. The admin can login to the UI:
 ```
@@ -4836,7 +4836,7 @@ Response example:
 {"id": "ns_bc8c1aa1"}
 ```
 
-## remove-admin
+### remove-admin
 
 Remove the admin role from  a local user:
 ```
