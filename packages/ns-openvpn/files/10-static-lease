@@ -4,10 +4,11 @@
 # Copyright (C) 2023 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Check if the given account is enabled
+# Push the reserved IP address to the client
 # 
 # Environment variables:
 # - config
+# - common_name
 
 import os
 import sys
@@ -32,8 +33,11 @@ user = users.get_user_by_name(uci, os.environ.get("common_name"), db)
 
 if user:
     ipaddr = user.get('openvpn_ipaddr', '')
-    # FIXME bridge
-    netmask = config.get('server').split(" ")[1]
+    if config.get('server'):
+        # routed mode
+        netmask = config.get('server').split(" ")[1]
+    else:
+        netmask = config.get('server_bridge').split(" ")[1]
 
     if ipaddr and netmask:
         with open(user_file, 'a') as fp:
