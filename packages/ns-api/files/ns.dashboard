@@ -160,13 +160,13 @@ def check_ts_ip():
 
 def check_openvpn_rw():
     u = EUci()
-    rw_enabled = u.get("openvpn", "ns_roadwarrior", "enabled", default="0") == "1"
+    rw_enabled = u.get("openvpn", "ns_roadwarrior1", "enabled", default="0") == "1"
     if not rw_enabled:
         return "disabled"
     try:
         pa = subprocess.run(["service", "openvpn", "info"], check=True, capture_output=True)
         info = json.loads(pa.stdout)
-        if info["openvpn"]["instances"]["ns_roadwarrior"]["running"]:
+        if info["openvpn"]["instances"]["ns_roadwarrior1"]["running"]:
             return "ok"
     except:
         return "error"
