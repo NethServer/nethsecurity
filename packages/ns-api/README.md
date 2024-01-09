@@ -40,11 +40,11 @@ Response:
 
 ## ns.firewall
 
-### rules
+### list-forward-rules
 
-List firewall rules in order:
+List forward rules in order:
 ```
-api-cli ns.firewall rules
+api-cli ns.firewall list-forward-rules
 ```
 
 Response:
@@ -52,26 +52,170 @@ Response:
 {
   "rules": [
     {
-      "name": "Allow-DHCP-Renew",
-      "src": "wan",
-      "proto": "udp",
-      "dest_port": "68",
+      "name": "r1",
+      "dest": "wan",
+      "dest_port": "22",
       "target": "ACCEPT",
-      "family": "ipv4"
-    },
-    {
-      "name": "Allow-Ping",
-      "src": "wan",
-      "proto": "icmp",
-      "icmp_type": "echo-request",
-      "family": "ipv4",
-      "target": "ACCEPT"
+      "src": "lan",
+      "src_ip": [
+        {
+          "value": "192.168.100.1",
+          "label": "test.name.org",
+          "type": "domain"
+        },
+        {
+          "value": "192.168.100.238",
+          "label": null,
+          "type": null
+        }
+      ],
+      "dest_ip": [
+        {
+          "value": "192.168.122.1",
+          "label": null,
+          "type": null
+        },
+        {
+          "value": "192.168.122.49",
+          "label": null,
+          "type": null
+        }
+      ],
+      "log": true,
+      "proto": [
+        "tcp",
+        "udp",
+        "icmp"
+      ],
+      "id": "cfg1492bd",
+      "index": 0,
+      "system_rule": false,
+      "ns_tag": [],
+      "enabled": true,
+      "ns_service": "ssh"
     }
   ]
 }
 ```
 
-### list zones
+### list-output-rules
+
+List output rules in order:
+```
+api-cli ns.firewall list-output-rules
+```
+
+Response:
+```json
+{
+  "rules": [
+    {
+      "name": "output1",
+      "dest_ip": [
+        {
+          "value": "192.168.100.1",
+          "label": "test.name.org",
+          "type": "domain"
+        }
+      ],
+      "target": "ACCEPT",
+      "ns_service": "",
+      "dest": "wan",
+      "id": "cfg1592bd",
+      "index": 0,
+      "system_rule": false,
+      "ns_tag": [],
+      "src_ip": [],
+      "proto": [
+        "udp",
+        "tcp"
+      ],
+      "log": false,
+      "enabled": true
+    },
+    {
+      "name": "output2",
+      "src_ip": [
+        {
+          "value": "192.168.100.238",
+          "label": null,
+          "type": null
+        }
+      ],
+      "dest": "lan",
+      "dest_port": "45678",
+      "target": "ACCEPT",
+      "ns_service": "",
+      "id": "cfg1692bd",
+      "index": 1,
+      "system_rule": false,
+      "ns_tag": [],
+      "dest_ip": [],
+      "proto": [
+        "udp",
+        "tcp"
+      ],
+      "log": false,
+      "enabled": true
+    }
+  ]
+}
+```
+
+### list-input-rules
+
+List input rules in order:
+```
+api-cli ns.firewall list-input-rules
+```
+
+Response:
+```json
+{
+  "rules": [
+    {
+      "name": "Allow-Ping",
+      "src": "wan",
+      "proto": [
+        "icmp"
+      ],
+      "icmp_type": "echo-request",
+      "family": "ipv4",
+      "target": "ACCEPT",
+      "id": "ns_ping_wan",
+      "index": 1,
+      "system_rule": false,
+      "ns_tag": [],
+      "src_ip": [],
+      "dest_ip": [],
+      "log": false,
+      "enabled": true
+    },
+    {
+      "name": "Allow-ovpns1",
+      "src": "wan",
+      "dest_port": "1202",
+      "proto": [
+        "udp"
+      ],
+      "target": "ACCEPT",
+      "ns_service": "",
+      "enabled": false,
+      "ns_link": "openvpn/ns_s1",
+      "ns_tag": [
+        "automated"
+      ],
+      "id": "ns_allow_ovpns1",
+      "index": 3,
+      "system_rule": true,
+      "src_ip": [],
+      "dest_ip": [],
+      "log": false
+    }
+  ]
+}
+```
+
 
 List firewall zones:
 
@@ -113,8 +257,182 @@ Response:
     "output": "ACCEPT"
   }
 }
-
 ```
+
+### list-service-suggestions
+
+List all services from /etc/service:
+```
+api-cli ns.firewall list-service-suggestions
+```
+
+Response example:
+```json
+{
+  "services": [
+    {
+      "id": "echo",
+      "proto": [
+        "tcp",
+        "udp"
+      ],
+      "port": 7
+    },
+    {
+      "id": "netstat",
+      "proto": [
+        "tcp"
+      ],
+      "port": 15
+    }
+  ]
+}
+```
+
+### list-host-suggestions
+
+List suggestions for hosts:
+```
+api-cli ns.firewall list-host-suggestions
+```
+
+Response:
+```json
+{
+  "hosts": [
+    {
+      "value": "192.168.100.1",
+      "label": "test.name.org",
+      "type": "domain"
+    },
+    {
+      "value": "192.168.100.2",
+      "label": "test2.giacomo.org",
+      "type": "host"
+    },
+    {
+      "value": "192.168.100.238",
+      "label": "lan",
+      "type": "network"
+    },
+    {
+      "value": "192.168.1.219",
+      "label": "test2",
+      "type": "lease"
+    }
+  ]
+}
+```
+
+### add-rule
+
+Add a rule:
+```
+api-cli ns.firewall add-rule '{"name": "r1", "src": "lan", "src_ip": [], "dest": "wan", "dest_ip": ["1.2.3.4"], "proto": [], "dest_port": ", "target": "ACCEPT", "ns_service": "ssh", "enabled": true, "log": false, "ns_tag": [], "add_to_top": false}'
+```
+
+Response example:
+```json
+{"id": "ns_206325d3"}
+```
+
+The `proto` and `dest_port` field will be validated and saved only if `ns_service` is set to `custom`.
+
+Possible validation errors:
+- `invalid_format` for `dest_ip` and `src_ip`
+- `same_zone` is `src` is equal to `dest`
+- `invalid_target` for `target`
+- if `ns_service` is `custom`: `invalid_proto` for `proto` and `invalid_port` for `dest_port`
+- if `ns_service` is not `cutom` or `*`: `invalid_service` for `ns_service
+
+### edit-rule
+
+Edit an existing rule:
+```
+api-cli ns.firewall edit-rule '{"id": "ns_206325d3", "name": "r1", "src": "lan", "src_ip": [], "dest": "wan", "dest_ip": ["1.2.3.4"], "proto": ["tcp"], "dest_port": "22", "target": "ACCEPT", "ns_service": "ssh", "enabled": true, "log": false, "ns_tag": []}'
+```
+
+Response example:
+```json
+{"id": "ns_206325d3"}
+```
+
+Possible validation errors:
+- the same for add-rule
+- `rule_does_not_exists` for `id`
+
+### order-rules
+
+Order a group of rules:
+```
+api-cli ns.firewall order-rule '{"type": "forward", "order": ["ns_e6f258a3", "ns_2be3a634", "cfg0f92bd"]}'
+```
+
+This API assumes that the /etc/config/firewall file is ordered using this schema:
+- defaults and includes
+- zones
+- forwardings
+- forward rules
+- output rules
+- input rules
+
+The field `type` can have the following values:
+- `forward`
+- `input`
+- `output`
+
+The `order` field must contain all ids of the given type.
+
+Reponse example:
+```json
+{"message": "success"}
+```
+
+It may rise the following validation errors:
+- `invalid_rule_type` for `type`
+- `invalid_order` if the `order` array does not contains all ids of rules for the given type
+
+### delete-rule
+
+Delete an existing rule:
+```
+api-cli ns.firewall delete-rule '{"id": "ns_206325d3"}'
+```
+
+Reponse example:
+```json
+{"message": "success"}
+```
+
+It may raise `rule_not_found` if the `id` is not found inside the `firewall` config.
+
+### enable-rule
+
+Enable an existing rule:
+```
+api-cli ns.firewall enable-rule '{"id": "ns_206325d3"}'
+```
+
+Reponse example:
+```json
+{"message": "success"}
+```
+
+It may raise `rule_not_found` if the `id` is not found inside the `firewall` config.
+
+### disable-rule
+
+Disable an existing rule:
+```
+api-cli ns.firewall disable-rule '{"id": "ns_206325d3"}'
+```
+
+Reponse example:
+```json
+{"message": "success"}
+```
+
+It may raise `rule_not_found` if the `id` is not found inside the `firewall` config.
 
 ### list forwardings
 
