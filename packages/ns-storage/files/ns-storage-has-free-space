@@ -1,0 +1,43 @@
+#!/bin/bash
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Check for free space on the OS partition
+# Parameters:
+#  - preserve, disk space to preserve for future use; optional, default to 100MiB
+
+set -e
+
+dev=$(mount | grep /boot | uniq | awk '{print $1}')
+dev=${dev::-1}
+preserve=${1:-100}
+
+pnum=$(lsblk ${dev} -o TYPE -n | grep part | wc -l)
+if [ "${pnum}" -gt 3 ]; then
+    # already partitioned, no free space
+    exit 3
+fi
+
+# find free space
+free_part=$(parted -s -m "${dev}" unit B print free 2>/dev/null | grep free)
+
+if [ -z "${free_part}" ]; then
+    # no free space
+    exit 4
+fi
+
+size=$(echo "${free_part}" | awk -F':' '{print $4}')
+size=${size::-1}
+
+# convert from MiB to B
+preserve=$(( preserve * 8388608 / 8 ))
+size=$(( size - preserve ))
+
+if [ "$size" -le 0 ]; then
+    # not enough free space
+    exit 5
+fi
+
+echo '{"name": "'$(basename $dev)'", "path": "'$dev'", "size": '$size'}'

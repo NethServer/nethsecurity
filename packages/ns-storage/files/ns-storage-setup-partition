@@ -1,0 +1,35 @@
+#!/bin/bash
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Check for free space on the OS disk and create a ext4 partition using the free space.
+# Parameters:
+#  - preserve, disk space to preserve for future use; optional, default to 100MiB
+
+set -e
+
+dev=$(mount | grep /boot | uniq | awk '{print $1}')
+dev=${dev::-1}
+preserve=${1:-100}
+
+# find free space
+free_part=$(parted -s -m $dev unit MiB print free 2>/dev/null | grep free)
+
+if [ -z "${free_part}" ]; then
+    # no free space
+    exit 3
+fi
+
+# find free space start and end
+start_current=$(echo $free_part | awk -F':' '{print $2}')
+end=$(echo $free_part | awk -F':' '{print $3}')
+# remove MB suffix
+start_new=${start_current::-3}
+# preserve some space for future use
+start_new=$((start_new + preserve))
+
+parted -s --fix -a optimal ${dev} unit MiB mkpart ext4 ${start_new}MiB 100%
+mkfs.ext4 -q -O ^has_journal -F "${dev}"3 >/dev/null
+echo '{"device": "'${dev}3'"}'
