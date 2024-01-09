@@ -30,7 +30,7 @@ define Package/ns-api-server
 	SECTION:=base
 	CATEGORY:=NethSecurity
 	TITLE:=NethSecurity REST API server
-	URL:=https://github.com/NethServer/ns-api-server
+	URL:=https://github.com/NethServer/nethsecurity-api
 	DEPENDS:=$(GO_ARCH_DEPENDS)
 endef
  
