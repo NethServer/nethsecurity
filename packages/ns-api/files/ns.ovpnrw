@@ -237,6 +237,11 @@ def remove_instance(instance):
         for user in db_users:
             delete_user(instance, user["name"])
     u.delete("openvpn", instance)
+    try:
+        # workaround: manually delete config since it's not removed from init script
+        os.unlink(f"/var/etc/openvpn-{instance}.conf")
+    except:
+        pass
     u.commit("openvpn")
     firewall.delete_linked_sections(u, f"openvpn/{instance}")
     u.commit('firewall')
