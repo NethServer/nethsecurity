@@ -214,6 +214,8 @@ def add_instance():
     u.commit('openvpn')
     u.commit('firewall')
     u.commit('network')
+    # make sure the firewall is reloaded to open the port
+    subprocess.run(["/etc/init.d/firewall", "reload"], capture_output=True)
 
     # initialize pki
     try:
@@ -240,6 +242,8 @@ def remove_instance(instance):
     u.commit('firewall')
     u.commit('network')
     shutil.rmtree(f"/etc/openvpn/{instance}")
+    # make sure the firewall is reloaded to open the port
+    subprocess.run(["/etc/init.d/firewall", "reload"], capture_output=True)
     
     return {"result": "success"}
 
