@@ -158,7 +158,6 @@ def add_instance():
     if os.path.isdir(f'/etc/openvpn/{instance}'):
         return utils.validation_error("instance", "pki_dir_already_exists", instance)
 
-    firewall.add_device_to_lan(u, tun)
     zone_link = ""
     fw_link = f"openvpn/{instance}"
     port = ""
