@@ -238,6 +238,7 @@ def remove_instance(instance):
     if device:
         firewall.remove_device_from_zone(u, device, 'rwopenvpn')
     u.delete("openvpn", instance)
+    shutil.rmtree(f"/etc/openvpn/{instance}")
     try:
         # workaround: manually delete config since it's not removed from init script
         os.unlink(f"/var/etc/openvpn-{instance}.conf")
@@ -247,7 +248,6 @@ def remove_instance(instance):
     firewall.delete_linked_sections(u, f"openvpn/{instance}")
     u.commit('firewall')
     u.commit('network')
-    shutil.rmtree(f"/etc/openvpn/{instance}")
     # make sure the firewall is reloaded to open the port
     subprocess.run(["/etc/init.d/firewall", "reload"], capture_output=True)
     
