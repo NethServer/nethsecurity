@@ -108,7 +108,7 @@ def user_db_exists(u, user_db):
 def get_user_id(username, db_users):
     for user in db_users:
         if user['name'] == username:
-            return user['id']
+            return user['id'] if user['id'] else user['name'] # id is null for remote users
     return None
 
 def hostname():
@@ -508,10 +508,13 @@ def add_user(args):
     except Exception as e:
         print(e, file=sys.stderr)
         return utils.validation_error("username", "user_add_failed", args["username"])
-    u.set("users", user_id, "openvpn_enabled", args["enabled"])
-    if "ipaddr" in args:
-        u.set("users", user_id, "openvpn_ipaddr", args["ipaddr"])
-    u.set("users", user_id, "openvpn_2fa", generate_2fa_secret())
+
+    ovpn_config={"openvpn_enabled":  args.get("enabled", "1"), "openvpn_ipaddr": args.get("ipaddr", ""), "openvpn_2fa": generate_2fa_secret()}
+
+    if u.get("users", db) == "ldap":
+        users.add_remote_user(u, args["username"], db, extra_fields=ovpn_config)
+    else:
+        users.edit_local_user(u, args["username"], db, extra_fields=ovpn_config)
     u.commit("users")
     return {"result": "success"}
 
