@@ -108,7 +108,7 @@ def user_db_exists(u, user_db):
 def get_user_id(username, db_users):
     for user in db_users:
         if user['name'] == username:
-            return user['id']
+            return user['id'] if user['id'] else user['name'] # id is null for remote users
     return None
 
 def hostname():
@@ -158,7 +158,6 @@ def add_instance():
     if os.path.isdir(f'/etc/openvpn/{instance}'):
         return utils.validation_error("instance", "pki_dir_already_exists", instance)
 
-    firewall.add_device_to_lan(u, tun)
     zone_link = ""
     fw_link = f"openvpn/{instance}"
     port = ""
@@ -171,10 +170,9 @@ def add_instance():
     else:
         port = ovpn.generate_random_port(u, 1300, 1400)
         zone_link = fw_link
-    firewall.add_service(u, f'OpenVPNRW{next_instance}', port, 'udp', link=fw_link)
-
-    ovpn_interface = firewall.add_vpn_interface(u, 'rwopenvpn', tun, link=zone_link)
-    firewall.add_trusted_zone(u, "rwopenvpn", [ovpn_interface], link=zone_link)
+    firewall.add_service(u, f'OpenVPNRW{next_instance}', port, ['tcp', 'udp'], link=fw_link)
+    firewall.add_trusted_zone(u, "rwopenvpn", link=zone_link)
+    firewall.add_device_to_zone(u, tun, 'rwopenvpn')
 
     # convert from '10.0.0.1/24' to '10.0.0.0 255.255.255.0'
     network =  ipaddress.ip_network(ovpn.generate_random_network(u)).with_netmask.replace('/', ' ')
@@ -214,6 +212,8 @@ def add_instance():
     u.commit('openvpn')
     u.commit('firewall')
     u.commit('network')
+    # make sure the firewall is reloaded to open the port
+    subprocess.run(["/etc/init.d/firewall", "reload"], capture_output=True)
 
     # initialize pki
     try:
@@ -234,12 +234,22 @@ def remove_instance(instance):
         db_users = users.list_users(u, db)
         for user in db_users:
             delete_user(instance, user["name"])
+    device = u.get("openvpn", instance, "dev", default='')
+    if device:
+        firewall.remove_device_from_zone(u, device, 'rwopenvpn')
     u.delete("openvpn", instance)
+    try:
+        # workaround: manually delete config since it's not removed from init script
+        os.unlink(f"/var/etc/openvpn-{instance}.conf")
+    except:
+        pass
     u.commit("openvpn")
     firewall.delete_linked_sections(u, f"openvpn/{instance}")
     u.commit('firewall')
     u.commit('network')
     shutil.rmtree(f"/etc/openvpn/{instance}")
+    # make sure the firewall is reloaded to open the port
+    subprocess.run(["/etc/init.d/firewall", "reload"], capture_output=True)
     
     return {"result": "success"}
 
@@ -498,10 +508,13 @@ def add_user(args):
     except Exception as e:
         print(e, file=sys.stderr)
         return utils.validation_error("username", "user_add_failed", args["username"])
-    u.set("users", user_id, "openvpn_enabled", args["enabled"])
-    if "ipaddr" in args:
-        u.set("users", user_id, "openvpn_ipaddr", args["ipaddr"])
-    u.set("users", user_id, "openvpn_2fa", generate_2fa_secret())
+
+    ovpn_config={"openvpn_enabled":  args.get("enabled", "1"), "openvpn_ipaddr": args.get("ipaddr", ""), "openvpn_2fa": generate_2fa_secret()}
+
+    if u.get("users", db) == "ldap":
+        users.add_remote_user(u, args["username"], db, extra_fields=ovpn_config)
+    else:
+        users.edit_local_user(u, args["username"], db, extra_fields=ovpn_config)
     u.commit("users")
     return {"result": "success"}
 
