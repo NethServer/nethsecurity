@@ -109,6 +109,7 @@ Example of local users:
 ```
 config user 'ns_rand123'
 	option name "goofy"
+	option database "main"
 	option description 'Goofy Doe'
 	list macaddr '52:54:00:9d:3d:e5'
 	list ipaddr '192.168.100.23'
@@ -117,6 +118,7 @@ config user 'ns_rand123'
 
 config user 'ns_rand456'
 	option name "Daisy"
+	option database "main"
 	option label "Daisy White"
 	list ipaddr '192.168.100.22'
 	list ipaddr '2001:db8:3333:4444:5555:6666:7777:8888'
@@ -126,7 +128,7 @@ Example of local user with OpenVPN access and a reserved IP:
 ```
 config user
 	option name "john"
-    option database "main"
+	option database "main"
 	option label "John Doe"
 	option openvpn_ipaddr "10.10.10.22"
 	option openvpn_enabled "1"
@@ -138,7 +140,7 @@ Example of a local group:
 ```
 config group
 	option name 'vip'
-    option database "main"
+	option database "main"
 	option description 'Very Important People'
 	list user 'goofy'
 	list user 'daisy'
