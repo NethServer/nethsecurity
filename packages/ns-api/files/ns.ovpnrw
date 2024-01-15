@@ -171,9 +171,8 @@ def add_instance():
         port = ovpn.generate_random_port(u, 1300, 1400)
         zone_link = fw_link
     firewall.add_service(u, f'OpenVPNRW{next_instance}', port, ['tcp', 'udp'], link=fw_link)
-
-    ovpn_interface = firewall.add_vpn_interface(u, 'rwopenvpn', tun, link=zone_link)
-    firewall.add_trusted_zone(u, "rwopenvpn", [ovpn_interface], link=zone_link)
+    firewall.add_trusted_zone(u, "rwopenvpn", link=zone_link)
+    firewall.add_device_to_zone(u, tun, 'rwopenvpn')
 
     # convert from '10.0.0.1/24' to '10.0.0.0 255.255.255.0'
     network =  ipaddress.ip_network(ovpn.generate_random_network(u)).with_netmask.replace('/', ' ')
@@ -235,6 +234,9 @@ def remove_instance(instance):
         db_users = users.list_users(u, db)
         for user in db_users:
             delete_user(instance, user["name"])
+    device = u.get("openvpn", instance, "dev", default='')
+    if device:
+        firewall.remove_device_from_zone(u, device, 'rwopenvpn')
     u.delete("openvpn", instance)
     try:
         # workaround: manually delete config since it's not removed from init script
