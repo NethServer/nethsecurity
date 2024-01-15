@@ -170,7 +170,7 @@ def add_instance():
     else:
         port = ovpn.generate_random_port(u, 1300, 1400)
         zone_link = fw_link
-    firewall.add_service(u, f'OpenVPNRW{next_instance}', port, 'udp', link=fw_link)
+    firewall.add_service(u, f'OpenVPNRW{next_instance}', port, ['tcp', 'udp'], link=fw_link)
 
     ovpn_interface = firewall.add_vpn_interface(u, 'rwopenvpn', tun, link=zone_link)
     firewall.add_trusted_zone(u, "rwopenvpn", [ovpn_interface], link=zone_link)
