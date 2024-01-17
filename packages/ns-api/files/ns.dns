@@ -145,9 +145,6 @@ def set_config(args):
            if type(val) == type(True):
                val = bool2str(val)
            u.set("dhcp", section, opt, val)
-        # calculate local option to avoid errors
-        if 'domain' in args and not 'local' in args:
-           u.set("dhcp", section, 'local', f'/{args["domain"]}/')
         u.save("dhcp")
     except:
         return utils.generic_error("config_write_error")
