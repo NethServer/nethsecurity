@@ -17,9 +17,48 @@ cmd = sys.argv[1]
 
 if cmd == 'list':
     print(json.dumps({
-        'rules': {},
+        'list-forward-rules': {},
+        'list-output-rules': {},
+        'list-input-rules': {},
+        'list-service-suggestions': {},
+        'list-host-suggestions': {},
         'list_zones': {},
         'list_forwardings': {},
+        'add-rule': {
+            "name": "r1",
+            "src": "lan",
+            "src_ip": [],
+            "dest": "wan",
+            "dest_ip": ["1.2.3.4"],
+            "proto": ["tcp"],
+            "dest_port": "22",
+            "target": "ACCEPT",
+            "ns_service": "ssh",
+            "enabled": True,
+            "log": False,
+            "ns_tag": [],
+            "add_to_top": False
+        },
+        'edit-rule': {
+            "id": "ns_1234",
+            "name": "r1",
+            "src": "lan",
+            "src_ip": [],
+            "dest": "wan",
+            "dest_ip": ["1.2.3.4"],
+            "proto": ["tcp"],
+            "dest_port": "22",
+            "target": "ACCEPT",
+            "ns_service": "",
+            "enabled": True,
+            "log": False,
+            "ns_tag": [],
+            "add_to_top": False
+        },
+        'delete-rule': { "id": "ns_1234" },
+        'enable-rule': { "id": "ns_1234" },
+        'disable-rule': { "id": "ns_1234" },
+        'order-rules': { "type": "forward", "order": ["ns_1234", "ns_456"] },
         'create_zone': {
             'name': 'String',
             'input': 'String',
@@ -41,17 +80,78 @@ if cmd == 'list':
         }
     }))
 elif cmd == 'call':
-    action = sys.argv[2]
-    e_uci = EUci()
-    if action == 'rules':
-        rules = utils.get_all_by_type(e_uci, 'firewall', 'rule')
-        print(json.dumps({'rules': list(rules.values())}))
-    elif action == 'list_zones':
-        print(json.dumps(firewall.list_zones(e_uci)))
-    elif action == 'list_forwardings':
-        print(json.dumps(firewall.list_forwardings(e_uci)))
-    elif action == 'create_zone':
-        try:
+    try:
+        action = sys.argv[2]
+        e_uci = EUci()
+        if action == 'list-forward-rules':
+            print(json.dumps({'rules': firewall.list_forward_rules(e_uci)}))
+        elif action == 'list-output-rules':
+            print(json.dumps({'rules': firewall.list_output_rules(e_uci)}))
+        elif action == 'list-input-rules':
+            print(json.dumps({'rules': firewall.list_input_rules(e_uci)}))
+        elif action == 'list-service-suggestions':
+            print(json.dumps({'services': firewall.list_service_suggestions()}))
+        elif action == 'list-host-suggestions':
+            print(json.dumps({'hosts': firewall.list_host_suggestions(e_uci)}))
+        elif action == "add-rule":
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            ret = firewall.add_rule(
+                    e_uci,
+                    data['name'],
+                    data['src'],
+                    data['src_ip'],
+                    data['dest'],
+                    data['dest_ip'],
+                    data['proto'],
+                    data['dest_port'],
+                    data['target'],
+                    data['ns_service'],
+                    data['enabled'],
+                    data['log'],
+                    data['ns_tag'],
+                    data['add_to_top']
+            )
+            print(json.dumps({"id": ret}))
+        elif action == "edit-rule":
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            ret = firewall.edit_rule(
+                    e_uci,
+                    data['id'],
+                    data['name'],
+                    data['src'],
+                    data['src_ip'],
+                    data['dest'],
+                    data['dest_ip'],
+                    data['proto'],
+                    data['dest_port'],
+                    data['target'],
+                    data['ns_service'],
+                    data['enabled'],
+                    data['log'],
+                    data['ns_tag']
+            )
+            print(json.dumps({"id": ret}))
+        elif action == "delete-rule":
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            ret = firewall.delete_rule(e_uci, data['id'])
+            print(json.dumps({"message": "success"}))
+        elif action == "enable-rule":
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            ret = firewall.enable_rule(e_uci, data['id'])
+            print(json.dumps({"message": "success"}))
+        elif action == "disable-rule":
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            ret = firewall.disable_rule(e_uci, data['id'])
+            print(json.dumps({"message": "success"}))
+        elif action == "order-rules":
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            ret = firewall.order_rules(e_uci, data['type'], data['order'])
+            print(json.dumps({"message": "success"}))
+        elif action == 'list_zones':
+            print(json.dumps(firewall.list_zones(e_uci)))
+        elif action == 'list_forwardings':
+            print(json.dumps(firewall.list_forwardings(e_uci)))
+        elif action == 'create_zone':
             data = json.JSONDecoder().decode(sys.stdin.read())
             ret = firewall.add_zone(e_uci,
                               data['name'],
@@ -67,12 +167,7 @@ elif cmd == 'call':
             else:
                 # validation error
                 print(json.dumps(ret))
-        except KeyError:
-            print(json.dumps({"error": "missing data required fields"}))
-        except json.JSONDecodeError:
-            print(json.dumps({"error": "json given is invalid"}))
-    elif action == 'edit_zone':
-        try:
+        elif action == 'edit_zone':
             data = json.JSONDecoder().decode(sys.stdin.read())
             ret = firewall.edit_zone(e_uci,
                               data['name'],
@@ -88,18 +183,12 @@ elif cmd == 'call':
             else:
                 # validation error
                 print(json.dumps(ret))
-        except KeyError:
-            print(json.dumps({"error": "missing data required fields"}))
-        except json.JSONDecodeError:
-            print(json.dumps({"error": "json given is invalid"}))
-    elif action == 'delete_zone':
-        try:
+        elif action == 'delete_zone':
             zone_name = json.JSONDecoder().decode(sys.stdin.read())['config_name']
             firewall.delete_zone(e_uci, zone_name)
             print(json.dumps({"message": "success"}))
-        except json.JSONDecodeError:
-            print(json.dumps({"error": "json given is invalid"}))
-        except ValueError:
-            print(json.dumps({"error": "zone missing or not supported"}))
-        except KeyError:
-            print(json.dumps({"error": "missing required name field"}))
+
+    except utils.ValidationError as ex:
+        print(json.dumps(utils.validation_error(ex.parameter, ex.message, ex.value)))
+    except json.JSONDecodeError:
+       print(json.dumps({"error": "json given is invalid"}))
