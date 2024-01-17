@@ -10,6 +10,7 @@ import pwd
 import grp
 import sys
 import os.path
+import shutil
 import nsmigration
 import subprocess
 from nethsec import firewall, utils
@@ -25,10 +26,9 @@ def save_cert(path, data):
     os.chown(path, uid, gid)
 
 
-iname="ns_roadwarrior"
+iname="ns_roadwarrior1"
 cert_dir=f"/etc/openvpn/{iname}/pki/"
 auth_script = '/usr/libexec/ns-openvpn/openvpn-local-auth'
-subprocess.run(["/usr/sbin/ns-openvpnrw-init-pki", iname], check=True)
 
 (u, data, nmap) = nsmigration.init("openvpn.json")
 
@@ -40,6 +40,9 @@ try:
     u.delete('openvpn', iname)
 except:
     pass
+if os.path.isdir(f'/etc/openvpn/{iname}'):
+    shutil.rmtree(f'/etc/openvpn/{iname}')
+subprocess.run(["/usr/sbin/ns-openvpnrw-init-pki", iname], check=True)
 
 # Setup global options
 u.set("openvpn", iname, "openvpn")
@@ -48,10 +51,14 @@ u.set("openvpn", iname, "openvpn")
 # local-service option is enabled
 if data['rw']['options'].get('topology') == 'net30':
     data['rw']['options']['topology' ] = 'subnet'
+# Force device name
+data['rw']['options']['dev'] = 'tunrw1'
 for option in data['rw']['options']:
-    nsmigration.vprint(f"Setting OpenVPN roadwarrior option {option}")
+    nsmigration.vprint(f"Setting OpenVPN Road Warrior option {option}")
     u.set("openvpn", iname, option, data['rw']['options'][option])
 
+# Force device type
+u.set("openvpn", iname, 'dev_type', data['rw']['options'].get('dev_type', 'tun'))
 # Setup server certificates
 save_cert(os.path.join(cert_dir, 'ca.crt'), data['rw']['ca']['ca.crt'])
 save_cert(os.path.join(cert_dir, 'index'), data['rw']['ca']['certindex'])
@@ -72,50 +79,63 @@ u.set("openvpn", iname, 'client_connect', f'"/usr/libexec/ns-openvpn/openvpn-con
 u.set("openvpn", iname, 'client_disconnect', f'"/usr/libexec/ns-openvpn/openvpn-disconnect {iname}"')
 u.set("openvpn", iname, 'management', f'/var/run/openvpn_{iname}.socket unix')
 
-if data['rw']['ldap']:
+u.set('openvpn', iname, 'ns_description', "Migrated")
+u.set("openvpn", iname, 'ns_auth_mode', 'certificate')
+u.set('openvpn', iname, 'ns_tag', ["automated", "migrated"])
+
+# cleanup user config, keep only main db
+for s in u.get_all('users'):
+    if u.get('users', s) in ['ldap', 'user']:
+        u.delete('users', s)
+
+user_db = "main"
+if data['ldap']:
+    user_db = "ns_ldap1"
     auth_script = '/usr/libexec/ns-openvpn/openvpn-remote-auth'
-    u.set("openvpn", "ns_ldap1", "ldap")
-    u.set("openvpn", "ns_ldap1", "instance", iname)
-    for o in data['rw']['ldap']:
-        u.set("openvpn", "ns_ldap1", o,  data['rw']['ldap'][o])
+    u.set("users", "ns_ldap1", "ldap")
+    for o in data['ldap']:
+        u.set("users", "ns_ldap1", o,  data['ldap'][o])
+
+u.set('openvpn', iname, 'ns_user_db', user_db)
 
 if data['rw']['auth'] == 'password':
     u.set("openvpn", iname, 'auth_user_pass_verify', f'{auth_script} via-env')
     u.set("openvpn", iname, 'verify_client_cert', 'none')
     u.set("openvpn", iname, 'username_as_common_name', '1')
     u.set("openvpn", iname, 'script_security', '3')
+    u.set("openvpn", iname, 'ns_auth_mode', 'username_password')
 elif data['rw']['auth'] == 'password-certificate':
     u.set("openvpn", iname, 'auth_user_pass_verify', f'{auth_script} via-env')
     u.set("openvpn", iname, 'script_security', '3')
+    u.set("openvpn", iname, 'ns_auth_mode', 'username_password_certificate')
 elif data['rw']['auth'] == 'certificate-otp':
     u.set("openvpn", iname, 'auth_user_pass_verify', '/usr/libexec/ns-openvpn/openvpn-otp-auth via-env')
     u.set("openvpn", iname, 'script_security', '3')
+    u.set("openvpn", iname, 'ns_auth_mode', 'username_otp_certificate')
+
 
 # Create user entries
 for user in data["users"]:
-    sname = utils.sanitize(user["name"])
-    nsmigration.vprint(f"Creating OpenVPN roadwarrior user {sname}")
-    u.set("openvpn", sname, "user")
-    u.set("openvpn", sname, "instance", iname)
-    u.set("openvpn", sname, "ipaddr", user["ipaddr"])
-    u.set("openvpn", sname, "enabled", user["enabled"])
-    if 'password' in user:
-        u.set("openvpn", sname, "password", user["password"])
-    if '2fa' in user:
-        u.set("openvpn", sname, "2fa", user["2fa"])
-    save_cert(os.path.join(cert_dir, f'private/{sname}.key'), user['key'])
-    save_cert(os.path.join(cert_dir, f'issued/{sname}.crt'), user['crt'])
+    sname = utils.get_random_id()
+    nsmigration.vprint(f"Creating OpenVPN Road Warrior user {user['name']}")
+    u.set("users", sname, "user")
+    u.set("users", sname, "name", user["name"])
+    u.set("users", sname, "database", user_db)
+    u.set("users", sname, "openvpn_ipaddr", user["ipaddr"])
+    u.set("users", sname, "openvpn_enabled", user["enabled"])
+    if 'password' in user and user.get('password'):
+        u.set("users", sname, "password", user["password"])
+    if '2fa' in user and user.get('2fa'):
+        u.set("users", sname, "openvpn_2fa", user["2fa"])
+    save_cert(os.path.join(cert_dir, f'private/{user["name"]}.key'), user['key'])
+    save_cert(os.path.join(cert_dir, f'issued/{user["name"]}.crt'), user['crt'])
 
-# Add interface to LAN
-ovpn_interface = firewall.add_vpn_interface(u, 'rwopenvpn', data['rw']['options']['dev'], link=f'openvpn/{sname}')
-if not firewall.zone_exists(u, 'rwopenvpn'):
-    firewall.add_trusted_zone(u, "rwopenvpn", [ovpn_interface])
-else:
-    firewall.add_device_to_zone(u, data['rw']['options']['dev'], 'rwopenvpn')
-
-# Open OpenVPN port
-firewall.add_service(u, 'OpenVPNRW', data['rw']['options']['port'], data['rw']['options']['proto'], link=f'openvpn/{sname}')
+# Setup firewall
+firewall.add_service(u, 'OpenVPNRW1', data['rw']['options']['port'], ['tcp', 'udp'], link=f"openvpn/{iname}")
+firewall.add_trusted_zone(u, "rwopenvpn", link="openvpn/ns_roadwarrior_noremove")
+firewall.add_device_to_zone(u, 'tunrw1', 'rwopenvpn')
 
 # Save configuration
 u.commit("openvpn")
+u.commit("users")
 firewall.apply(u)

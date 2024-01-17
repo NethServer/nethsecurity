@@ -14,6 +14,8 @@ import os
 import re
 import sys
 import pyotp
+import binascii
+import subprocess
 from euci import EUci
 from nethsec import users
 
@@ -43,8 +45,14 @@ if "openvpn_2fa" not in user:
     # 2fa secret not set
     sys.exit(2)
 
-if pyotp.totp.TOTP(user.get("openvpn_2fa")).verify(otp):
-    sys.exit(0)
-else:
-    # password do not match
-    sys.exit(1)
+try:
+    if pyotp.totp.TOTP(user.get("openvpn_2fa")).verify(otp):
+        sys.exit(0)
+except binascii.Error:
+    # the user has old migrated 2fa secret
+    proc = subprocess.run(["/usr/bin/oathtool", "--totp=SHA1", user.get("openvpn_2fa")], capture_output=True, text=True)
+    if proc.stdout.strip() == otp:
+        sys.exit(0)
+
+# otp codes do not match
+sys.exit(1)

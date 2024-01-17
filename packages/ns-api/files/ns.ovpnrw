@@ -99,6 +99,12 @@ def list_user_expirations(openvpninstance):
         return ret
     return ret
 
+def get_cert_expiration(instance, user):
+    # used for migrated certificates not present inside the index
+    p = subprocess.run(f"openssl x509 -enddate -noout -in /etc/openvpn/{instance}/pki/issued/{user}.crt | sed 's/notAfter=//'", shell=True, capture_output=True, text=True)
+    dt = datetime.strptime(p.stdout.strip(), "%b %d %H:%M:%S %Y %Z")
+    return dt.timestamp()
+
 def generate_2fa_secret():
     return pyotp.random_base32()
 
@@ -238,6 +244,7 @@ def remove_instance(instance):
     if device:
         firewall.remove_device_from_zone(u, device, 'rwopenvpn')
     u.delete("openvpn", instance)
+    shutil.rmtree(f"/etc/openvpn/{instance}")
     try:
         # workaround: manually delete config since it's not removed from init script
         os.unlink(f"/var/etc/openvpn-{instance}.conf")
@@ -247,7 +254,6 @@ def remove_instance(instance):
     firewall.delete_linked_sections(u, f"openvpn/{instance}")
     u.commit('firewall')
     u.commit('network')
-    shutil.rmtree(f"/etc/openvpn/{instance}")
     # make sure the firewall is reloaded to open the port
     subprocess.run(["/etc/init.d/firewall", "reload"], capture_output=True)
     
@@ -422,8 +428,10 @@ def list_users(ovpninstance):
         user["expired"] = False
         if user['name'] in expirations:
             user["expiration"] = expirations[user['name']]
-            if user["expiration"] < int(datetime.now(timezone.utc).timestamp()):
-                user["expired"] = True
+        else:
+            user["expiration"] = get_cert_expiration(ovpninstance, user["name"])
+        if user["expiration"] and user["expiration"] < int(datetime.now(timezone.utc).timestamp()):
+            user["expired"] = True
         ret.append(user)
     return {"users": ret}
 
