@@ -89,12 +89,12 @@ for s in u.get_all('users'):
         u.delete('users', s)
 
 user_db = "main"
-if data['rw']['ldap']:
+if data['ldap']:
     user_db = "ns_ldap1"
     auth_script = '/usr/libexec/ns-openvpn/openvpn-remote-auth'
     u.set("users", "ns_ldap1", "ldap")
-    for o in data['rw']['ldap']:
-        u.set("users", "ns_ldap1", o,  data['rw']['ldap'][o])
+    for o in data['ldap']:
+        u.set("users", "ns_ldap1", o,  data['ldap'][o])
 
 u.set('openvpn', iname, 'ns_user_db', user_db)
 
