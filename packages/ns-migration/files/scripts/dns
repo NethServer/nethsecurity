@@ -29,8 +29,6 @@ for section in u.get("dhcp"):
 
         nsmigration.vprint(f"Setting DNS forwardings")
         u.set("dhcp", section, "server", data["forwardings"])
-        # Forward all non-local records, allow split DNS
-        u.set("dhcp", section, "local", '')
 
 # Create hosts entries
 for host in data["hosts"]:
