@@ -16,22 +16,72 @@ from nethsec import utils
 from nethsec.utils import ValidationError
 
 
-def __create_location(uci, uci_server, location, proxy_pass):
+def __create_location(uci, uci_server, location, proxy_pass, domain=''):
     location_id = utils.get_random_id()
     uci.set('nginx', location_id, 'location')
+    # defaults
+    uci.set('nginx', location_id, 'proxy_http_version', '1.1')
+    default_headers = [
+        'X-Forwarded-Proto $scheme',
+        'X-Forwarded-For $proxy_add_x_forwarded_for',
+        'X-Real-IP $remote_addr',
+        'Upgrade $http_upgrade',
+        'Connection "upgrade"'
+    ]
+    if domain:
+        default_headers.append(f'Host {domain})')
+    uci.set('nginx', location_id, 'proxy_set_header', default_headers)
+    # setup location
     uci.set('nginx', location_id, 'uci_server', uci_server)
     uci.set('nginx', location_id, 'location', location)
-    prefix = proxy_pass.split('://')[0]
-    address = proxy_pass.split('://')[1]
-    try:
-        ipaddress.ip_address(address)
-        e_uci.set('nginx', location_id, 'proxy_pass', proxy_pass)
-    except ValueError:
-        e_uci.set('nginx', location_id, 'resolver', '127.0.0.1')
-        e_uci.set('nginx', location_id, 'set', f'$upstream {address}')
-        e_uci.set('nginx', location_id, 'proxy_pass', f'{prefix}://$upstream')
+    __set_proxy_pass(uci, location_id, proxy_pass)
 
     return location_id
+
+
+def __parse_proxy_pass(e_uci, location):
+    """
+    Parses the proxy_pass directive, replacing $upstream with the actual upstream address.
+    """
+    proxy_pass = e_uci.get('nginx', location, 'proxy_pass', dtype=str)
+    if '$upstream' not in proxy_pass:
+        return proxy_pass
+    else:
+        protocol = proxy_pass.split('://')[0]
+        destination = proxy_pass.split('://')[1]
+        path = destination.split('/')[1:]
+        if len(path) > 0:
+            path = '/' + '/'.join(path)
+        elif destination.endswith('/'):
+            path = '/'
+        else:
+            path = ''
+
+        host = ''
+        for set in e_uci.get('nginx', location, 'set', dtype=str, list=True):
+            if set.startswith('$upstream'):
+                host = set.split(' ')[1]
+                break
+
+        return protocol + '://' + host + path
+
+
+def __set_proxy_pass(e_uci, location, proxy_pass):
+    prefix = proxy_pass.split('://')[0]
+    destination = proxy_pass.split('://')[1]
+    address = destination.split('/')[0]
+    if len(destination.split('/')) > 1:
+        path = '/' + '/'.join(destination.split('/')[1:])
+    else:
+        path = ''
+
+    try:
+        ipaddress.ip_address(address)
+        e_uci.set('nginx', location, 'proxy_pass', proxy_pass)
+    except ValueError:
+        e_uci.set('nginx', location, 'resolver', '127.0.0.1')
+        e_uci.set('nginx', location, 'set', [f'$upstream {address}'])
+        e_uci.set('nginx', location, 'proxy_pass', f'{prefix}://$upstream{path}')
 
 
 def __dns_providers():
@@ -42,6 +92,25 @@ def __dns_providers():
     return [entry.name[4:-3]
             for entry in os.scandir('/usr/lib/acme/client/dnsapi')
             if entry.is_file() and entry.name.startswith('dns_') and entry.name.endswith('.sh')]
+
+
+def __start_acme():
+    """
+    Handle acme service startup and setup.
+    """
+    # check if mail is default, otherwise change it
+    uci = EUci()
+    for key, entry in utils.get_all_by_type(e_uci, 'acme', 'acme').items():
+        if 'account_email' in entry:
+            if entry['account_email'] == 'email@example.org':
+                # set email
+                uci.set('acme', key, 'account_email', 'no-reply@nethsecurity.org')
+            break
+    # check if acme has been started at least once
+    service_status = subprocess.run(['/etc/init.d/acme', 'status'], capture_output=True, text=True)
+    if 'inactive' in service_status.stdout:
+        # run acme service in background, don't care if it fails
+        subprocess.run('/etc/init.d/acme start &', shell=True)
 
 
 def __certificate_list(uci: EUci):
@@ -293,6 +362,7 @@ elif cmd == 'call':
                 e_uci.set('acme', data['name'], 'dns', f'dns_{data["dns_provider"]}')
                 e_uci.set('acme', data['name'], 'credentials', data['dns_provider_options'])
 
+            __start_acme()
             e_uci.save('acme')
             print(json.dumps({'message': 'success'}))
 
@@ -332,11 +402,11 @@ elif cmd == 'call':
             # if acme certificate, delete from uci
             if valid_certificates[data['name']]['type'] == 'acme':
                 e_uci.delete('acme', data['name'])
-
-            if 'cert_path' in valid_certificates[data['name']] and 'key_path' in valid_certificates[data['name']]:
+            else:
                 os.remove(valid_certificates[data['name']]['cert_path'])
                 os.remove(valid_certificates[data['name']]['key_path'])
 
+            __start_acme()
             e_uci.save('acme')
 
             print(json.dumps({'message': 'success'}))
@@ -398,14 +468,15 @@ elif cmd == 'call':
             server_name = utils.get_random_id()
             e_uci.set('nginx', server_name, 'server')
             # create default location
-            __create_location(e_uci, server_name, '/', data['destination'])
+            __create_location(e_uci, server_name, '/', data['destination'], data['domain'])
             # defaults
             e_uci.set('nginx', server_name, 'proxy_ssl_verify', 'off')
             e_uci.set('nginx', server_name, 'ssl_session_timeout', '64m')
             e_uci.set('nginx', server_name, 'ssl_session_cache', 'shared:SSL:32k')
-            e_uci.set('nginx', server_name, 'proxy_set_header', ['Host $http_host'])
             e_uci.set('nginx', server_name, 'listen', ['443 ssl', '[::]:443 ssl'])
             e_uci.set('nginx', server_name, 'include', [f'conf.d/{server_name}.proxy'])
+            e_uci.set('nginx', server_name, 'access_log', 'syslog:server=unix:/dev/log')
+            e_uci.set('nginx', server_name, 'error_log', 'syslog:server=unix:/dev/log')
             # setup server
             e_uci.set('nginx', server_name, 'server_name', data['domain'])
             e_uci.set('nginx', server_name, 'ssl_certificate', valid_certificates[data['certificate']]['cert_path'])
@@ -463,7 +534,7 @@ elif cmd == 'call':
                         'type': 'location',
                         'description': entry['uci_description'],
                         'location': entry['location'],
-                        'destination': entry['proxy_pass']
+                        'destination': __parse_proxy_pass(e_uci, entry_id)
                     }
                     if 'allow' in entry:
                         item['allow'] = entry['allow']
@@ -484,7 +555,7 @@ elif cmd == 'call':
                         'description': server['uci_description'],
                         'location': entry['location'],
                         'domain': server['server_name'],
-                        'destination': entry['proxy_pass']
+                        'destination': __parse_proxy_pass(e_uci, entry_id)
                     }
                     certificates = __certificate_list(e_uci)
                     for certificate in certificates:
@@ -520,7 +591,7 @@ elif cmd == 'call':
                 raise ValidationError('allow', 'invalid', data['allow'])
             # update location
             e_uci.set('nginx', data['id'], 'location', data['path'])
-            e_uci.set('nginx', data['id'], 'proxy_pass', data['destination'])
+            __set_proxy_pass(e_uci, data['id'], data['destination'])
             e_uci.set('nginx', data['id'], 'uci_description', data['description'])
             if 'allow' in data:
                 e_uci.set('nginx', data['id'], 'allow', data['allow'])
@@ -559,6 +630,11 @@ elif cmd == 'call':
             e_uci.set('nginx', data['id'], 'ssl_certificate', valid_certificates[data['certificate']]['cert_path'])
             e_uci.set('nginx', data['id'], 'ssl_certificate_key', valid_certificates[data['certificate']]['key_path'])
             e_uci.set('nginx', data['id'], 'uci_description', data['description'])
+            # update location
+            for location_id, location in utils.get_all_by_type(e_uci, 'nginx', 'location').items():
+                if location['uci_server'] == data['id']:
+                    __set_proxy_pass(e_uci, location_id, data['destination'])
+                    break
             if 'allow' in data:
                 e_uci.set('nginx', data['id'], 'allow', data['allow'])
             # submit changes
