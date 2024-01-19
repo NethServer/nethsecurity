@@ -388,8 +388,8 @@ elif cmd == 'call':
             if 'certificate' not in data:
                 raise ValidationError('certificate', 'required')
             certificates = __certificate_list(e_uci)
-            valid_certificates = [certificates[certificate] for certificate in certificates
-                                  if 'cert_path' in certificates[certificate]]
+            valid_certificates = {name: certificate for (name, certificate) in certificates.items()
+                                  if 'cert_path' in certificate}
             if data['certificate'] not in valid_certificates:
                 raise ValidationError('certificate', 'invalid', data['certificate'])
             if 'allow' in data and not isinstance(data['allow'], list):
@@ -408,8 +408,8 @@ elif cmd == 'call':
             e_uci.set('nginx', server_name, 'include', [f'conf.d/{server_name}.proxy'])
             # setup server
             e_uci.set('nginx', server_name, 'server_name', data['domain'])
-            e_uci.set('nginx', server_name, 'ssl_certificate', valid_certificates[data['cert_path']])
-            e_uci.set('nginx', server_name, 'ssl_certificate_key', valid_certificates[data['key_path']])
+            e_uci.set('nginx', server_name, 'ssl_certificate', valid_certificates[data['certificate']]['cert_path'])
+            e_uci.set('nginx', server_name, 'ssl_certificate_key', valid_certificates[data['certificate']]['key_path'])
             e_uci.set('nginx', server_name, 'uci_description', data['description'])
             # optional parameters
             if 'allow' in data:
@@ -548,16 +548,16 @@ elif cmd == 'call':
             if 'certificate' not in data:
                 raise ValidationError('certificate', 'required')
             certificates = __certificate_list(e_uci)
-            valid_certificates = [certificate for certificate in certificates if
-                                  'cert_path' in certificates[certificate]]
+            valid_certificates = {name: certificate for (name, certificate) in certificates.items()
+                                  if 'cert_path' in certificate}
             if data['certificate'] not in valid_certificates:
                 raise ValidationError('certificate', 'invalid', data['certificate'])
             if 'allow' in data and not isinstance(data['allow'], list):
                 raise ValidationError('allow', 'invalid', data['allow'])
             # update server
             e_uci.set('nginx', data['id'], 'server_name', data['domain'])
-            e_uci.set('nginx', data['id'], 'ssl_certificate', valid_certificates[data['cert_path']])
-            e_uci.set('nginx', data['id'], 'ssl_certificate_key', valid_certificates[data['key_path']])
+            e_uci.set('nginx', data['id'], 'ssl_certificate', valid_certificates[data['certificate']]['cert_path'])
+            e_uci.set('nginx', data['id'], 'ssl_certificate_key', valid_certificates[data['certificate']]['key_path'])
             e_uci.set('nginx', data['id'], 'uci_description', data['description'])
             if 'allow' in data:
                 e_uci.set('nginx', data['id'], 'allow', data['allow'])
