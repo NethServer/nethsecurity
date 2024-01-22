@@ -16,7 +16,7 @@ from nethsec import utils
 from nethsec.utils import ValidationError
 
 
-def __create_location(uci, uci_server, location, proxy_pass):
+def __create_location(uci, uci_server, location, proxy_pass, headers=[]):
     location_id = utils.get_random_id()
     uci.set('nginx', location_id, 'location')
     uci.set('nginx', location_id, 'uci_server', uci_server)
@@ -30,6 +30,17 @@ def __create_location(uci, uci_server, location, proxy_pass):
         e_uci.set('nginx', location_id, 'resolver', '127.0.0.1')
         e_uci.set('nginx', location_id, 'set', f'$upstream {address}')
         e_uci.set('nginx', location_id, 'proxy_pass', f'{prefix}://$upstream')
+    if prefix == 'https':
+        e_uci.set('nginx', location_id, 'proxy_ssl_server_name', 'on')
+        to_remove = []
+        # Avoid duplicate Host header for https
+        for h in headers:
+            if h.startswith("Host"):
+                to_remove.append(h)
+        for h in to_remove:
+            headers.remove(h)
+    if headers:
+        e_uci.set('nginx', server_name, 'proxy_set_header', headers)
 
     return location_id
 
@@ -398,12 +409,11 @@ elif cmd == 'call':
             server_name = utils.get_random_id()
             e_uci.set('nginx', server_name, 'server')
             # create default location
-            __create_location(e_uci, server_name, '/', data['destination'])
+            __create_location(e_uci, server_name, '/', data['destination'], headers=['Host $http_host'])
             # defaults
             e_uci.set('nginx', server_name, 'proxy_ssl_verify', 'off')
             e_uci.set('nginx', server_name, 'ssl_session_timeout', '64m')
             e_uci.set('nginx', server_name, 'ssl_session_cache', 'shared:SSL:32k')
-            e_uci.set('nginx', server_name, 'proxy_set_header', ['Host $http_host'])
             e_uci.set('nginx', server_name, 'listen', ['443 ssl', '[::]:443 ssl'])
             e_uci.set('nginx', server_name, 'include', [f'conf.d/{server_name}.proxy'])
             e_uci.set('nginx', server_name, 'access_log', 'syslog:server=unix:/dev/log')
