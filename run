@@ -56,11 +56,23 @@ if [ "$(podman ps -a --format '{{.Names}}')" == "nethsec-builder" ]; then
     podman rm nethsec-builder
 fi
 
+# Setup version from git
+VERSION=$(git describe)
+IS_STABLE=$(git describe --exact-match --tags HEAD 2>/dev/null)
+if [ "$IS_STABLE" != "" ]; then
+    CHANNEL="stable"
+else
+    CHANNEL="dev"
+fi
+export CHANNEL
+export VERSION
+
 # Run podman with local mounted dirs
 podman run -ti --name nethsec-builder \
     --security-opt label=disable \
     --env=USIGN_PUB_KEY --env=USIGN_PRIV_KEY \
     --env=NETIFYD_ACCESS_TOKEN \
+    --env=VERSION --env=CHANNEL \
     -v ./config:/config:z -v ./files:/files:z -v ./packages:/nspackages:z -v ./patches:/patches:z \
     $opts $image "$@"
 # When executed inside CI, do not execute next setps on error

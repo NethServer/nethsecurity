@@ -43,6 +43,43 @@ done
 # Fix permissions
 sudo chown -R build:build /config-tmp /home/build/openwrt/{files,nspackages,patches} >/dev/null
 
+# Setup branding and version
+# Required env variables:
+# - VERSION
+# - CHANNEL
+
+if [ -z "$VERSION" ]; then
+    echo "VERSION env variable not set"
+    exit 1
+fi
+
+if [ -z "$CHANNEL" ]; then
+    echo "CHANNEL env variable not set"
+    exit 1
+fi
+
+: "${CONFIG_GRUB_TITLE:=NethSecurity}"
+: "${CONFIG_VERSION_BUG_URL:=https://github.com/NethServer/dev/issues}"
+: "${CONFIG_VERSION_DIST:=NethSecurity}"
+: "${CONFIG_VERSION_HOME_URL:=https://github.com/nethserver/nethsecurity}"
+: "${CONFIG_VERSION_MANUFACTURER:=Nethesis}"
+: "${CONFIG_VERSION_MANUFACTURER_URL:=https://www.nethesis.it}"
+: "${CONFIG_VERSION_PRODUCT:=NethSecurity}"
+: "${CONFIG_VERSION_REPO:=https://updates.nethsecurity.nethserver.org/${CHANNEL}/${VERSION}}"
+: "${CONFIG_VERSION_SUPPORT_URL:=https://community.nethserver.org}"
+
+echo "CONFIG_GRUB_TITLE=\"${CONFIG_GRUB_TITLE}\"" >> /config-tmp/branding.conf
+echo "CONFIG_VERSION_BUG_URL=\"${CONFIG_VERSION_BUG_URL}\"" >> /config-tmp/branding.conf
+echo "CONFIG_VERSION_DIST=\"${CONFIG_VERSION_DIST}\"" >> /config-tmp/branding.conf
+echo "CONFIG_VERSION_HOME_URL=\"${CONFIG_VERSION_HOME_URL}\"" >> /config-tmp/branding.conf
+echo "CONFIG_VERSION_MANUFACTURER=\"${CONFIG_VERSION_MANUFACTURER}\"" >> /config-tmp/branding.conf
+echo "CONFIG_VERSION_MANUFACTURER_URL=\"${CONFIG_VERSION_MANUFACTURER_URL}\"" >> /config-tmp/branding.conf
+echo "CONFIG_VERSION_NUMBER=\"8-${VERSION}\"" >> /config-tmp/branding.conf
+echo "CONFIG_VERSION_PRODUCT=\"${CONFIG_VERSION_PRODUCT}\"" >> /config-tmp/branding.conf
+echo "CONFIG_VERSION_REPO=\"${CONFIG_VERSION_REPO}\"" >> /config-tmp/branding.conf
+echo "CONFIG_VERSION_SUPPORT_URL=\"${CONFIG_VERSION_SUPPORT_URL}\"" >> /config-tmp/branding.conf
+
+
 # Generate diffconfig from .conf file inside config directory
 > $OUTPUT
 for f in $(find /config-tmp -type f -name \*.conf)
