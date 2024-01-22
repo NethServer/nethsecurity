@@ -116,7 +116,7 @@ def edit_interface(args):
         k = list(opt.keys())[0]
         v = opt[k].strip().rstrip(',')
         if v:
-            opts.append(f"{k},{v}")
+            opts.append(f"option:{k},{v}")
     u.set("dhcp", args['interface'], "dhcp_option", opts)
     u.set("dhcp", args['interface'], "ignore", '0')
     u.save("dhcp")
