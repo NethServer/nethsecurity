@@ -141,7 +141,8 @@ data = {
             "size_bytes": int(_run("df -P | sort | uniq | grep '/$' | awk '{print $2}'"))*1024
         }
     },
-    "rpms": {}
+    "rpms": {},
+    "public_ip": _run("curl https://ifconfig.co")
 }
 
 print(json.dumps(data))
