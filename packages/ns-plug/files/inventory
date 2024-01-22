@@ -86,6 +86,8 @@ if not product:
     except:
         product = ""
 dns = _run("grep nameserver /tmp/resolv.conf.d/resolv.conf.auto | awk '{print $2}' | tr '\n' ','")
+if not dns:
+  dns = _run("uci get dhcp.ns_dnsmasq.server | tr ' ' ','")
 networks = {}
 u = EUci()
 devices = utils.get_all_by_type(u, 'network', 'device')
@@ -125,13 +127,18 @@ data = {
         ]
     },
     "memory": {
-        "swap": { "used_bytes": _run("free | grep 'Swap': | awk '{print $3}'"), "available_bytes": _run("free | grep 'Swap': | awk '{print $7}'") },
-        "system": { "used_bytes": _run("free | grep 'Mem': | awk '{print $3}'"), "available_bytes": _run("free | grep 'Mem:' | awk '{print $7}'") }
+        "swap": { "used_bytes": 0, "available_bytes": 0, "total_bytes": 0 },
+        "system": {
+            "used_bytes": int(_run("free | grep 'Mem': | awk '{print $3}'"))*1024,
+            "available_bytes": int(_run("free | grep 'Mem:' | awk '{print $7}'"))*1024,
+            "total_bytes": int(_run("free | grep 'Mem': | awk '{print $7}'"))*1024
+        }
     },
     "mountpoints": {
         "/": {
-            "used_bytes": int(_run("df | sort | uniq | grep '/$' | awk '{print $3}'"))*1024,
-            "available_bytes": int(_run("df | sort | uniq | grep '/$' | awk '{print $4}'"))*1024
+            "used_bytes": int(_run("df -P | sort | uniq | grep '/$' | awk '{print $3}'"))*1024,
+            "available_bytes": int(_run("df -P | sort | uniq | grep '/$' | awk '{print $4}'"))*1024,
+            "size_bytes": int(_run("df -P | sort | uniq | grep '/$' | awk '{print $2}'"))*1024
         }
     },
     "rpms": {}
