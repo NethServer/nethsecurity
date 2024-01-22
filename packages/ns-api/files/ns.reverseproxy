@@ -406,6 +406,8 @@ elif cmd == 'call':
             e_uci.set('nginx', server_name, 'proxy_set_header', ['Host $http_host'])
             e_uci.set('nginx', server_name, 'listen', ['443 ssl', '[::]:443 ssl'])
             e_uci.set('nginx', server_name, 'include', [f'conf.d/{server_name}.proxy'])
+            e_uci.set('nginx', server_name, 'access_log', 'syslog:server=unix:/dev/log')
+            e_uci.set('nginx', server_name, 'error_log', 'syslog:server=unix:/dev/log')
             # setup server
             e_uci.set('nginx', server_name, 'server_name', data['domain'])
             e_uci.set('nginx', server_name, 'ssl_certificate', valid_certificates[data['certificate']]['cert_path'])
