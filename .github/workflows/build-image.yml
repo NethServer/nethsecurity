@@ -35,14 +35,13 @@ jobs:
         name: Build the image
         run: |
           # Build the image
+          # The run script will set VERSION and CHANNEL env variable
           ./run
       - id: release
         name: Update latest_release file
         run: |
-          # Setup OWRT_VERSION env variable for release action
-          grep '^OWRT_VERSION' builder/build-builder | tr -d '"' >> $GITHUB_ENV
-          # Create release file pointing to OWRT_VERSION
-          grep '^OWRT_VERSION' builder/build-builder | tr -d '"' | cut -d'=' -f2 > latest_release
+          # Create release file pointing to VERSION
+          echo ${{ env.VERSION }} > latest_release
       - uses: actions/upload-artifact@v3
         name: Publish images as temporary artifacts
         with:
@@ -58,7 +57,7 @@ jobs:
           space_region: ${{ env.DO_SPACE_REGION }}
           cdn_domain: ${{ env.CDN_DOMAIN }}
           source: bin/packages
-          out_dir: ${{ env.OWRT_VERSION }}/packages
+          out_dir: ${{ env.CHANNEL }}/${{ env.VERSION }}/packages
       - uses: BetaHuhn/do-spaces-action@v2
         name: Publish images insde the repository
         if: ${{ github.ref == 'refs/heads/main' }}
@@ -69,7 +68,7 @@ jobs:
           space_region: ${{ env.DO_SPACE_REGION }}
           cdn_domain: ${{ env.CDN_DOMAIN }}
           source: bin/targets
-          out_dir: ${{ env.OWRT_VERSION }}/targets
+          out_dir: ${{ env.CHANNEL }}/${{ env.VERSION }}/packages
       - uses: BetaHuhn/do-spaces-action@v2
         name: Publish latest_release inside the repository
         if: ${{ github.ref == 'refs/heads/main' }}
@@ -80,3 +79,4 @@ jobs:
           space_region: ${{ env.DO_SPACE_REGION }}
           cdn_domain: ${{ env.CDN_DOMAIN }}
           source: latest_release
+          out_dir: ${{ env.CHANNEL }}/
