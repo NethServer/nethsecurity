@@ -28,6 +28,7 @@ def get_version():
         for line in f.readlines():
             if line.startswith("PRETTY_NAME"):
                 ret["release"] = line[line.index('=')+2:-2]
+                ret["release"] = ret["release"].replace("-", " ", 1)
             if line.startswith("OPENWRT_ARCH"):
                 ret["arch"] = line[line.index('=')+2:-2]
     return ret
