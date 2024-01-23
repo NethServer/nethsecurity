@@ -70,7 +70,7 @@ jobs:
           source: bin/packages
           out_dir: ${{ env.REPO_CHANNEL }}/${{ env.VERSION }}/packages
       - uses: BetaHuhn/do-spaces-action@v2
-        name: Publish images insde the fixed repository
+        name: Publish images inside the fixed repository
         if: ${{ github.ref == 'refs/heads/main' }}
         with:
           access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
