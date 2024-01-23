@@ -75,14 +75,53 @@ podman tag $TAG ghcr.io/nethserver/nethsecurity-builder:$IMAGE_TAG
 ./run
 ```
 
+## Versioning
+
+
+The versioning system encompasses three types of versions:
+
+- **Stable:** Stable versions, finalized and ready for production use. 
+- **Unstable:** Versions under active development, intended for testing and continuous development.
+- **Development:** Versions in active development, with additional commit details, used for debugging and internal testing.
+
+
+The generic format for a version is as follows:
+
+```
+<owrt_release>-ns.<nethsecurity_release>-<commit_since_last_tag>-g<commit_hash>
+```
+
+- `<owrt_release>`: Main version number of OpenWRT.
+- `<nethsecurity_release>`: NethSecurity security version in [semver](https://semver.org/) format.
+- `<commit_since_last_tag>`: Number of commits since the last version tag, present only in development versions.
+- `g<commit_hash>`: Unique identifier for the current commit, prsent only in development versions.
+
+
+Stable version example:
+```
+8-20.05-ns.1.2.0
+```
+
+Unstable version example
+```
+8-20.05-ns.0.1.0-alpha1
+```
+
+Development version example:
+```
+8-20.05-ns.0.0.1-224-g26d3f78
+```
+
 ## Upstream version change
 
-Change the version inside the following files:
+Create a tag that contains the new OpenWrt release followed by a NethSecurity unstable release.
 
-- `builder/build-builder`
-- `config/branding.conf`
+Example:
+```
+git tag 23.05.2-ns.0.0.1-alpha1
+```
 
-Prepare a new Luci branch with NethSecurity customizations:
+Prepare a new Luci branch with NethSecurity customizations named after OpenWrt major and minor release:
 ```
 git remote add openwrt https://github.com/openwrt/luci.git
 git fetch openwrt
@@ -97,9 +136,12 @@ Then, push the changes:
 git push origin nethsec-23.05
 ```
 
-After changing the the upstream release:
+Finally, push the tags to start the build process:
+```
+git push --tags
+```
 
-- rebuild the builder container locally or push the changes and the CI pipeline will do it for you
+When the builder of the image has been completed, make sure to:
 - wipe podman volumes  otherwise the build will fail:
   ```
   podman volume rm nethsecurity-build_dir nethsecurity-staging_dir
