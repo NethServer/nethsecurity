@@ -57,6 +57,12 @@ if [ "$(podman ps -a --format '{{.Names}}')" == "nethsec-builder" ]; then
 fi
 
 # Setup version from git
+
+if [[ -n "${CI}" ]]; then
+    # Fetch all history when running con Github CI
+    git fetch --prune --unshallow
+fi
+
 VERSION=$(git describe)
 IS_STABLE=$(git describe --exact-match --tags HEAD 2>/dev/null)
 if [ "$IS_STABLE" != "" ]; then
