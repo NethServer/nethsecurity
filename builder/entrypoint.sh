@@ -46,15 +46,21 @@ sudo chown -R build:build /config-tmp /home/build/openwrt/{files,nspackages,patc
 # Setup branding and version
 # Required env variables:
 # - VERSION
-# - CHANNEL
+# - REPO_CHANNEL
+# - OWRT_VERSION
 
 if [ -z "$VERSION" ]; then
     echo "VERSION env variable not set"
     exit 1
 fi
 
-if [ -z "$CHANNEL" ]; then
-    echo "CHANNEL env variable not set"
+if [ -z "$REPO_CHANNEL" ]; then
+    echo "REPO_CHANNEL env variable not set"
+    exit 1
+fi
+
+if [ -z "$OWRT_VERSION" ]; then
+    echo "OWRT_VERSION env variable not set"
     exit 1
 fi
 
@@ -65,7 +71,7 @@ fi
 : "${CONFIG_VERSION_MANUFACTURER:=Nethesis}"
 : "${CONFIG_VERSION_MANUFACTURER_URL:=https://www.nethesis.it}"
 : "${CONFIG_VERSION_PRODUCT:=NethSecurity}"
-: "${CONFIG_VERSION_REPO:=https://updates.nethsecurity.nethserver.org/${CHANNEL}/${VERSION}}"
+: "${CONFIG_VERSION_REPO:=https://updates.nethsecurity.nethserver.org/${REPO_CHANNEL}/${OWRT_VERSION}}"
 : "${CONFIG_VERSION_SUPPORT_URL:=https://community.nethserver.org}"
 
 echo "CONFIG_GRUB_TITLE=\"${CONFIG_GRUB_TITLE}\"" >> /config-tmp/branding.conf

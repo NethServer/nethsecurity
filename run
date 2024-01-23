@@ -64,13 +64,15 @@ if [[ -n "${CI}" ]]; then
 fi
 
 VERSION=$(git describe)
+OWRT_VERSION=$(echo $VERSION | cut -d'-' -f1)
 IS_STABLE=$(git describe --exact-match --tags HEAD 2>/dev/null)
 if [ "$IS_STABLE" != "" ]; then
-    CHANNEL="stable"
+    REPO_CHANNEL="stable"
 else
-    CHANNEL="dev"
+    REPO_CHANNEL="dev"
 fi
-export CHANNEL
+export REPO_CHANNEL
+export OWRT_VERSION
 export VERSION
 
 # Setup CI when pushing to Github.
@@ -78,8 +80,10 @@ if [[ -n "${CI}" ]]; then
     # Set output value for Github Actions
     echo "VERSION=$VERSION" >> "${GITHUB_ENV}"
     echo "::notice title=VERSION::$VERSION"
-    echo "CHANNEL=$CHANNEL" >> "${GITHUB_ENV}"
-    echo "::notice title=CHANNEL::$CHANNEL"
+    echo "REPO_CHANNEL=$REPO_CHANNEL" >> "${GITHUB_ENV}"
+    echo "::debug title=FIXED_REPOSITORY::$REPO_CHANNEL/$VERSION"
+    echo "OWRT_VERSION=$OWRT_VERSION" >> "${GITHUB_ENV}"
+    echo "::debug title=ROLLING_REPOSITORY::$REPO_CHANNEL/$OWRT_VERSION"
 fi
 
 # Run podman with local mounted dirs
@@ -87,7 +91,7 @@ podman run -ti --name nethsec-builder \
     --security-opt label=disable \
     --env=USIGN_PUB_KEY --env=USIGN_PRIV_KEY \
     --env=NETIFYD_ACCESS_TOKEN \
-    --env=VERSION --env=CHANNEL \
+    --env=VERSION --env=REPO_CHANNEL --env=OWRT_VERSION\
     -v ./config:/config:z -v ./files:/files:z -v ./packages:/nspackages:z -v ./patches:/patches:z \
     $opts $image "$@"
 # When executed inside CI, do not execute next setps on error
