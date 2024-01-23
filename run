@@ -76,10 +76,10 @@ export VERSION
 # Setup CI when pushing to Github.
 if [[ -n "${CI}" ]]; then
     # Set output value for Github Actions
-    echo "version=$VERSION" >> "${GITHUB_ENV}"
-    echo "::notice title=VERSION::{$VERSION}"
-    echo "channel=$CHANNEL" >> "${GITHU_ENV}"
-    echo "::notice title=CHANNEL::{$CHANNEL}"
+    echo "VERSION=$VERSION" >> "${GITHUB_ENV}"
+    echo "::notice title=VERSION::$VERSION"
+    echo "CHANNEL=$CHANNEL" >> "${GITHUB_ENV}"
+    echo "::notice title=CHANNEL::$CHANNEL"
 fi
 
 # Run podman with local mounted dirs
