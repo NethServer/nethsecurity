@@ -81,9 +81,9 @@ if [[ -n "${CI}" ]]; then
     echo "VERSION=$VERSION" >> "${GITHUB_ENV}"
     echo "::notice title=VERSION::$VERSION"
     echo "REPO_CHANNEL=$REPO_CHANNEL" >> "${GITHUB_ENV}"
-    echo "::debug title=FIXED_REPOSITORY::$REPO_CHANNEL/$VERSION"
+    echo "::notice title=FIXED_REPOSITORY::$REPO_CHANNEL/$VERSION"
     echo "OWRT_VERSION=$OWRT_VERSION" >> "${GITHUB_ENV}"
-    echo "::debug title=ROLLING_REPOSITORY::$REPO_CHANNEL/$OWRT_VERSION"
+    echo "::notice title=ROLLING_REPOSITORY::$REPO_CHANNEL/$OWRT_VERSION"
 fi
 
 # Run podman with local mounted dirs
@@ -91,7 +91,7 @@ podman run -ti --name nethsec-builder \
     --security-opt label=disable \
     --env=USIGN_PUB_KEY --env=USIGN_PRIV_KEY \
     --env=NETIFYD_ACCESS_TOKEN \
-    --env=VERSION --env=REPO_CHANNEL --env=OWRT_VERSION\
+    --env=VERSION --env=REPO_CHANNEL --env=OWRT_VERSION \
     -v ./config:/config:z -v ./files:/files:z -v ./packages:/nspackages:z -v ./patches:/patches:z \
     $opts $image "$@"
 # When executed inside CI, do not execute next setps on error
