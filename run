@@ -63,14 +63,26 @@ if [[ -n "${CI}" ]]; then
     git fetch --prune --unshallow
 fi
 
+# VERSION has the following format: 8-<owrt_release>-ns.<nethsecurity_release>[-<commit_since_last_tag>-g<commit_hash>]
 VERSION=$(git describe)
+# OWRT_VERSION is like 23.05.2
 OWRT_VERSION=$(echo $VERSION | cut -d'-' -f1)
-IS_STABLE=$(git describe --exact-match --tags HEAD 2>/dev/null)
-if [ "$IS_STABLE" != "" ]; then
-    REPO_CHANNEL="stable"
-else
-    REPO_CHANNEL="dev"
+# NS_VERSION is a semver release like '1.0.0' for stable and '1.0.0-alpha1' or '1.0.0-234-g1bc543c' for dev
+NS_VERSION=$(echo $VERSION | cut -d- -f2- | cut -d. -f2-)
+if [[ "$NS_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$ ]]; then
+    MAJOR="${BASH_REMATCH[1]}"
+    MINOR="${BASH_REMATCH[2]:-""}"
+    PATCH="${BASH_REMATCH[3]:-""}"
+    PRE_RELEASE="${BASH_REMATCH[5]:-""}"
+    BUILD_METADATA="${BASH_REMATCH[10]:-""}"
 fi
+# Publish to dev channel for tagged unstable versions and dev builds
+if [ -z "$PRE_RELEASE" ]; then
+     REPO_CHANNEL="stable"
+ else
+     REPO_CHANNEL="dev"
+fi
+
 export REPO_CHANNEL
 export OWRT_VERSION
 export VERSION
