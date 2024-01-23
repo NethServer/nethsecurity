@@ -7,7 +7,17 @@
 
 set -e
 
-OWRT_VERSION="23.05.2"
+if [[ -n "${CI}" ]]; then
+    # Fetch all history when running con Github CI
+    git fetch --prune --unshallow
+fi
+
+OWRT_VERSION=$(git describe | cut -d'-' -f1)
+
+if [ -z "$OWRT_VERSION" ]; then
+    echo "Missing OWRT_VERSION"
+    exit 1
+fi
 repobase="ghcr.io/nethserver"
 reponame="nethsecurity-builder"
 
