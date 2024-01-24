@@ -61,6 +61,17 @@ jobs:
           source: bin/packages
           out_dir: ${{ env.REPO_CHANNEL }}/${{ env.OWRT_VERSION }}/packages
       - uses: BetaHuhn/do-spaces-action@v2
+        name: Publish images insde the rolling repository
+        if: ${{ github.ref == 'refs/heads/main' }}
+        with:
+          access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
+          secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
+          space_name: ${{ env.DO_SPACE_NAME }}
+          space_region: ${{ env.DO_SPACE_REGION }}
+          cdn_domain: ${{ env.CDN_DOMAIN }}
+          source: bin/targets
+          out_dir: ${{ env.CHANNEL }}/${{ env.OWRT_VERSION }}/packages
+      - uses: BetaHuhn/do-spaces-action@v2
         name: Publish packages inside the fixed repository
         if: ${{ github.ref == 'refs/heads/main' }}
         with:
