@@ -55,7 +55,7 @@ def check_package_updates():
         if not line:
             continue
         tmp = line.split(" - ")
-        ret.append({"package": tmp[0], "currentVersion": tmp[1], "latesetVersion": tmp[2]})
+        ret.append({"package": tmp[0], "currentVersion": tmp[1], "latestVersion": tmp[2]})
 
     return {"updates": ret}
 
@@ -71,11 +71,14 @@ def install_package_updates():
     return {"result": "success"}
 
 def check_system_update():
-    ret = {"currentVersion": f'NethSecurity {get_system_version()}', "lastVersion": "", "scheduledAt": get_update_schedule()}
+    current_version = get_system_version()
+    ret = {"currentVersion": f'NethSecurity {current_version}', "lastVersion": "", "scheduledAt": get_update_schedule()}
     try:
-        with urllib.request.urlopen("https://updates.nethsecurity.nethserver.org/latest_release") as resp:
+        channel = "dev"
+        with urllib.request.urlopen(f"https://updates.nethsecurity.nethserver.org/{channel}/latest_release") as resp:
             version = resp.read().decode().rstrip()
-            ret["lastVersion"] = f'NethSecurity {version}'
+            if current_version != version:
+                ret["lastVersion"] = f'NethSecurity {version}'
     except Exception as e:
         print(e, file=sys.stderr)
     return ret
