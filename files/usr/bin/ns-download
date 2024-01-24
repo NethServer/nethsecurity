@@ -43,9 +43,14 @@ if [ "$force" -eq 1 ]; then
     rm -rf "$DL_DIR" &> /dev/null   
 fi
 
+# Extract channel from nethsecurity_core repository url
+url=$(cat /etc/opkg/distfeeds.conf | grep nethsecurity_core | awk '{print $3}')
+path=${url#"$BASE_URL"}
+channel=$(echo $path | cut -d"/" -f2)
+
 # Set version to download
 if [ "$latest" -eq 1 ]; then
-    version=$(curl -L -s -m 10 $BASE_URL/latest_release)
+    version=$(curl -L -s -m 10 $BASE_URL/$channel/latest_release)
     if [ -z "$version" ]; then
         exit 1
     fi
@@ -56,8 +61,8 @@ fi
 hash="$DL_DIR/sha256"
 img_name="nethsecurity-$version-$ARCH-generic-squashfs-combined-efi.img.gz"
 img="$DL_DIR/$img_name"
-img_url="$BASE_URL/$version/targets/$OPENWRT_BOARD/$img_name"
-hash_url="$BASE_URL/$version/targets/$OPENWRT_BOARD/sha256sums"
+img_url="$BASE_URL/$channel/$version/targets/$OPENWRT_BOARD/$img_name"
+hash_url="$BASE_URL/$channel/$version/targets/$OPENWRT_BOARD/sha256sums"
 
 # Download if image does not exists
 if [ ! -d "$DL_DIR" ] || [ ! -f "$img" ] || [ ! -f "$hash" ]; then
