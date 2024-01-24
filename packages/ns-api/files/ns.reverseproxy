@@ -546,6 +546,7 @@ elif cmd == 'call':
                        if server_id != '_lan' and server_id != '_redirect2ssl'}
 
             # add locations assigned to domains to response
+            certificates = __certificate_list(e_uci)
             for entry_id, entry in lan_paths.items():
                 if entry['uci_server'] in servers:
                     server = servers[entry['uci_server']]
@@ -557,7 +558,6 @@ elif cmd == 'call':
                         'domain': server['server_name'],
                         'destination': __parse_proxy_pass(e_uci, entry_id)
                     }
-                    certificates = __certificate_list(e_uci)
                     for certificate in certificates:
                         if certificates[certificate]['cert_path'] == server['ssl_certificate']:
                             item['certificate'] = certificate
