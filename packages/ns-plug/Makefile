@@ -70,6 +70,7 @@ define Package/ns-plug/install
 	$(INSTALL_DIR) $(1)/usr/lib/netdata/python.d/
 	$(INSTALL_BIN) ./files/ns-plug.init $(1)/etc/init.d/ns-plug
 	$(INSTALL_BIN) ./files/ns-plug $(1)/usr/sbin/ns-plug
+	$(INSTALL_BIN) ./files/distfeed-setup $(1)/usr/sbin/distfeed-setup
 	$(INSTALL_BIN) ./files/remote-backup $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/send-backup $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/send-heartbeat $(1)/usr/sbin
