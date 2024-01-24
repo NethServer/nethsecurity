@@ -10,12 +10,15 @@ on:
 
 jobs:
   update-package:
-    name: Update ns-ui package
+    name: Sync stable channel to subscription one
 
     runs-on: ubuntu-latest
 
     steps:
       - name: Sync stable to subscription
+        env:
+          DO_SPACE_ACCESS_KEY: ${{ secrets.DO_SPACE_ACCESS_KEY }}
+          DO_SPACE_SECRET_KEY: ${{ secrets.DO_SPACE_SECRET_KEY }}
         run: |
           cat <<EOF > rclone.conf
           [spaces]
