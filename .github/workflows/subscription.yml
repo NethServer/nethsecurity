@@ -1,0 +1,33 @@
+name: Update subscription repository
+
+# Once a week, on monday at 1 AM, it copies packages from stable channel to subscription channel
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    - cron:  "0 1 * * 1"
+
+jobs:
+  update-package:
+    name: Update ns-ui package
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Sync stable to subscription
+        run: |
+          cat <<EOF > rclone.conf
+          [spaces]
+          type = s3
+          provider = DigitalOcean
+          env_auth = false
+          access_key_id = $DO_SPACE_ACCESS_KEY
+          secret_access_key = $DO_SPACE_SECRET_KEY
+          endpoint = ams3.digitaloceanspaces.com
+          acl = public-read
+          EOF
+
+          chmod 600 rclone.conf
+          podman run -ti -v ./rclone.conf:/rclone.conf:z docker.io/rclone/rclone --config /rclone.conf sync \
+            -v -M --delete-after spaces:nethsecurity/stable spaces:nethsecurity/subscription
