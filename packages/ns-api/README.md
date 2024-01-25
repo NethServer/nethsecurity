@@ -4194,6 +4194,37 @@ Response example:
 {"result": "success"}
 ```
 
+### get-automatic-updates-status
+
+Check if automatic updates are enabled:
+```
+api-cli ns.update get-automatic-updates-status
+```
+
+Response example:
+```json
+{"enabled": false}
+```
+
+### set-automatic-updates
+
+Enable or disable automatic updates.
+
+Enable:
+```
+api-cli ns.update set-automatic-updates --data '{"enable": true}'
+```
+
+Disable:
+```
+api-cli ns.update set-automatic-updates --data '{"enable": false}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
 ## ns.ssh
 
 Read SSH keys
