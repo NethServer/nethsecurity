@@ -20,6 +20,8 @@ from nethsec import utils
 
 def last_package_check():
     try:
+        if not os.listdir("/tmp/opkg-lists/"):
+            return 0
         return int(os.path.getmtime("/tmp/opkg-lists/"))
     except:
         return 0
