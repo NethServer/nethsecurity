@@ -48,6 +48,9 @@ def import_tunnel(u, tunnel, ttype):
             save_cert(os.path.join(cert_dir, f'{option}.pem'), value)
             u.set("openvpn", iname, option, os.path.join(cert_dir, f'{option}.pem'))
 
+    # Convert remote to a list
+    if tunnel.get('remote') and type(tunnel.get('remote')) != list:
+        tunnel['remote'] = [tunnel['remote']]
     # Setup general options
     for option in tunnel:
         u.set("openvpn", iname, option, tunnel[option])
