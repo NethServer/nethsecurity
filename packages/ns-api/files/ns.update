@@ -124,6 +124,24 @@ def install_uploaded_image(image):
     # The server is too quick: this success result probably will never reach the client.
     return {"result": "success"}
 
+def get_automatic_updates_status():
+    try:
+        p = subprocess.run(["/usr/libexec/ns-api/schedule-automatic-updates", "check"], check=True, capture_output=True, text=True)
+        return {"enabled": True}
+    except:
+        return {"enabled": False}
+
+def set_automatic_updates(status):
+    if status:
+        action = "add"
+    else:
+        action = "remove"
+    try:
+        p = subprocess.run(["/usr/libexec/ns-api/schedule-automatic-updates", action], check=True, capture_output=True, text=True)
+        return {"result": "success"}
+    except:
+        return utils.generic_error("set_automatic_updates_failed")
+
 cmd = sys.argv[1]
 
 if cmd == "list":
@@ -132,6 +150,7 @@ if cmd == "list":
             {
                 "check-package-updates": {},
                 "get-package-updates-last-check": {},
+                "get-automatic-updates-status": {},
                 "install-package-updates": {},
                 "check-system-update": {},
                 "schedule-system-update": {"scheduleAt": 1699615827},
@@ -139,6 +158,7 @@ if cmd == "list":
                 "install-uploaded-image": {
                     "image": "uploaded-xxxx"
                 },
+                "set-automatic-updates": {"enable": True}
             }
         )
     )
@@ -148,10 +168,15 @@ elif cmd == "call":
         ret = check_package_updates()
     elif action == "get-package-updates-last-check":
         ret = get_package_updates_lat_check()
+    elif action == "get-automatic-updates-status":
+        ret = get_automatic_updates_status()
     elif action == "install-package-updates":
         ret = install_package_updates()
     elif action == "check-system-update":
         ret = check_system_update()
+    elif action == "set-automatic-updates":
+        args = json.loads(sys.stdin.read())
+        ret = set_automatic_updates(args["enable"])
     elif action == "schedule-system-update":
         args = json.loads(sys.stdin.read())
         ret = schedule_system_update(args["scheduleAt"])

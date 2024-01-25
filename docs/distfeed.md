@@ -19,7 +19,7 @@ The distribution feed includes the following channels:
 
 ## Repositories
 
-Official package repository is hosted at [{{site.download_url}}]({{site.download_url}}/index.html).
+Official package repositories are hosted at [{{site.download_url}}]({{site.download_url}}/index.html).
 
 Each release in the distribution feed is associated with two repositories:
 
@@ -46,6 +46,28 @@ Here are some examples of releases and their corresponding repositories:
 3. Unstable example: `23.05.2-ns.0.0.1-alpha1`
     - Fixed repository: `{{site.download_url}}/dev/23.05.2-ns.0.0.1-alpha1`
     - Rolling repository: `{{site.download_url}}/dev/23.05.2`
+
+### Change repository channel
+
+The `distfeed-setup` script simplifies the automatic setup of the repository channel, tailored to the version of the running image. 
+
+Execute the script without any additional arguments to automatically configure the repository channel based on the version of the running image.
+The script is automatically executed when a subscription is enabled or disabled.
+
+### Customization options
+
+The behavior of the distfeed-setup script can be customized using the following environment variables:
+
+- `BASE_URL`: set the base URL for repositories. If not specified, the default value is taken from {{site.download}}.
+- `CHANNEL`: define the desired channel for the repository. Possible values include stable, dev, and subscription.
+   By default, the script attempts to extract this information from the `/etc/os-release` file.
+- `OWRT_VERSION`: specify the OpenWrt version used inside the rolling repository URL.
+   The script typically extracts this information from the `/etc/os-release` file.
+
+Custom configuration example:
+```
+BASE_URL="https://custom-repo-url.com" CHANNEL="dev" OWRT_VERSION="21.02.3" distfeed-setup
+```
 
 ## Upstream OpenWrt repositories
 
