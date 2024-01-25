@@ -42,8 +42,8 @@ jobs:
       - id: release
         name: Update latest_release file
         run: |
-          # Create release file pointing to VERSION
-          echo ${{ env.VERSION }} > latest_release
+          # Create release file pointing to 8-VERSION
+          echo 8-${{ env.VERSION }} > latest_release
       - uses: actions/upload-artifact@v3
         name: Publish images as temporary artifacts
         with:
@@ -81,7 +81,7 @@ jobs:
           space_region: ${{ env.DO_SPACE_REGION }}
           cdn_domain: ${{ env.CDN_DOMAIN }}
           source: bin/packages
-          out_dir: ${{ env.REPO_CHANNEL }}/${{ env.VERSION }}/packages
+          out_dir: ${{ env.REPO_CHANNEL }}/8-${{ env.VERSION }}/packages
       - uses: BetaHuhn/do-spaces-action@v2
         name: Publish images inside the fixed repository
         if: ${{ github.ref == 'refs/heads/main' }}
@@ -92,7 +92,7 @@ jobs:
           space_region: ${{ env.DO_SPACE_REGION }}
           cdn_domain: ${{ env.CDN_DOMAIN }}
           source: bin/targets
-          out_dir: ${{ env.REPO_CHANNEL }}/${{ env.VERSION }}/targets
+          out_dir: ${{ env.REPO_CHANNEL }}/8-${{ env.VERSION }}/targets
       - uses: BetaHuhn/do-spaces-action@v2
         name: Publish latest_release inside the repository
         if: ${{ github.ref == 'refs/heads/main' }}
