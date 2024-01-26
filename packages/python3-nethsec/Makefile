@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=python3-nethsec
-PKG_VERSION:=0.0.32
+PKG_VERSION:=0.0.33
 PKG_RELEASE:=1
  
 PKG_MAINTAINER:=Giacomo Sanchietti <giacomo.sanchietti@nethesis.it>

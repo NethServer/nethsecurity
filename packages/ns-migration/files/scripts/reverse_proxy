@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-
+import os
 #
 # Copyright (C) 2022 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
@@ -7,69 +7,61 @@
 
 import sys
 import nsmigration
-from nethsec import utils
+from nethsec import reverse_proxy
 
 (u, data, nmap) = nsmigration.init("reverse_proxy.json")
 
 if 'server' not in data and 'locations' not in data:
     sys.exit(0)
 
-# handle reverse proxy paths for main virtual host
-lcount = len(data['locations'])
-if lcount > 0:
-    # enable reverse proxy for default _lan server
-    includes = list(u.get('nginx', '_lan', 'include', list=True, default=list()))
-    if 'conf.d/_lan[.]proxy' not in includes:
-        includes.append('conf.d/_lan[.]proxy')
-    u.set('nginx', '_lan', 'include', includes)
-for location in data['locations']:
-    loc = utils.get_id(f'location{lcount}')
-    nsmigration.vprint(f'Setting reverse proxy location {loc}') 
-    u.set('nginx', loc, 'location')
-    u.set('nginx', loc, 'uci_server', '_lan')
-    for o in location:
-        if o == 'description':
-            u.set('nginx', loc, 'uci_description', location[o])
-        else:
-            u.set('nginx', loc, o, location[o])
-    lcount = lcount-1
-
-# handle host-bases reverse proxy
-scount = len(data['servers'])
+# ensure the custom_certs directory exists
+if not os.path.isdir('/etc/nginx/custom_certs'):
+    os.mkdir('/etc/nginx/custom_certs')
+# loop over server
 for server in data['servers']:
-    s = utils.get_id(f'server{scount}')
-    u.set('nginx', s, 'server')
-    locations = server.pop('locations')
-    crt = server.pop('ssl_certificate')
-    with open(f'/etc/nginx/conf.d/{s}.crt', 'w') as fp:
-        fp.write(crt)
-    u.set('nginx', s, 'ssl_certificate', f'/etc/nginx/conf.d/{s}.crt')
-    key = server.pop('ssl_certificate_key')
-    with open(f'/etc/nginx/conf.d/{s}.key', 'w') as fp:
-        fp.write(key)
-    u.set('nginx', s, 'ssl_certificate_key', f'/etc/nginx/conf.d/{s}.key')
-    nsmigration.vprint(f'Setting reverse proxy host {s}')
-    u.set('nginx', s, 'uci_description', server.pop('ns_description'))
-    for o in server:
-        u.set('nginx', s, o, server[o])
+    # get server data
+    server_name = server['server_name']
+    description = server['uci_description']
+    ssl_certificate = server['ssl_certificate']
+    ssl_certificate_key = server['ssl_certificate_key']
+    destination = server['locations'][0]['proxy_pass']
+    allow = server['locations'][0]['allow']
 
-    lcount = len(locations)
-    if lcount > 0:
-        # enable reverse proxy for the server
-        u.set('nginx', s, 'include', [f'conf.d/{s}.proxy'])
-    for location in locations:
-        loc = utils.get_id(f'server{scount}_location{lcount}')
-        u.set('nginx', loc, 'location')
-        u.set('nginx', loc, 'uci_server', s)
-        for o in location:
-            if o == 'description':
-                u.set('nginx', loc, 'uci_description', location[o])
-            else:
-                u.set('nginx', loc, o, location[o])
+    # generate list of available certificates, every loop in case a new one was added
+    available_certs = {}
+    for entry in os.scandir('/etc/nginx/custom_certs'):
+        if entry.is_file() and entry.name.endswith('.crt') and os.path.isfile(entry.path[:-4] + '.key'):
+            available_certs[entry.name[:-4]] = {
+                'cert_content': open(entry.path, 'r').read(),
+                'key_content': open(entry.path[:-4] + '.key', 'r').read(),
+            }
 
-        lcount = lcount-1
+    # check if the certificate is already available
+    certificate = ''
+    for name, entry in available_certs.items():
+        if ssl_certificate == entry['cert_content'] and ssl_certificate_key == entry['key_content']:
+            certificate = name
+            break
+    if certificate == '':
+        # certificate is not available, import it
+        with open(f'/etc/nginx/custom_certs/{server_name}.crt', 'w') as fp:
+            fp.write(ssl_certificate)
+        with open(f'/etc/nginx/custom_certs/{server_name}.key', 'w') as fp:
+            fp.write(ssl_certificate_key)
+        certificate = server_name
 
-    scount = scount-1
+    # import server
+    reverse_proxy.add_domain(server_name, destination, certificate, description, allow)
+
+for location in data['locations']:
+    # get location data
+    path = location['location']
+    description = location['uci_description']
+    destination = location['proxy_pass']
+    allow = location['allow']
+
+    # import location
+    reverse_proxy.add_path(path, destination, description, allow)
 
 # Save configuration
 u.commit('nginx')
