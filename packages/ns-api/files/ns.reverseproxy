@@ -559,7 +559,8 @@ elif cmd == 'call':
                         'destination': __parse_proxy_pass(e_uci, entry_id)
                     }
                     for certificate in certificates:
-                        if certificates[certificate]['cert_path'] == server['ssl_certificate']:
+                        if ('cert_path' in certificates[certificate]
+                                and certificates[certificate]['cert_path'] == server['ssl_certificate']):
                             item['certificate'] = certificate
                     if 'allow' in server:
                         item['allow'] = server['allow']
