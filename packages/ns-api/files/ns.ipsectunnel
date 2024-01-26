@@ -251,7 +251,7 @@ def list_wans():
     ips = get_device_ips()
     wans = utils.get_all_wan_devices(EUci())
     for device in ips.keys():
-        if device in wans:
+        if device in wans or device.startswith('pppoe'):
             for ip in ips[device]:
                 ret["wans"].append({"device": device, "ipaddr": ip})
     return ret
