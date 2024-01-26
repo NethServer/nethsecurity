@@ -629,6 +629,7 @@ def set_network_configuration(device_type, interface_name, logical_type, interfa
         elif protocol == 'pppoe':
             values['username'] = pppoe_username
             values['password'] = pppoe_password
+            values['keepalive'] = '0 1'
         elif protocol in ['dhcp', 'dhcpv6']:
             # dhcp client id
             values['clientid'] = dhcp_client_id
