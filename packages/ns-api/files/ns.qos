@@ -65,7 +65,10 @@ elif cmd == 'call':
             network_interfaces = utils.get_all_by_type(e_uci, 'network', 'interface').items()
             result = []
             for key, interface in utils.get_all_by_type(e_uci, 'qosify', 'interface').items():
-                device = [item['device'] for config_name, item in network_interfaces if config_name == key][0]
+                try:
+                    device = [item['device'] for config_name, item in network_interfaces if config_name == key][0]
+                except:
+                    continue
                 result.append({
                     'interface': key,
                     'device': device,
@@ -139,6 +142,3 @@ elif cmd == 'call':
 
     except ValidationError as ex:
         print(json.dumps(utils.validation_error(ex.parameter, ex.message, ex.value)))
-
-    except Exception as ex:
-        print(json.dumps(utils.generic_error(ex.args[0])))
