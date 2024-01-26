@@ -61,6 +61,8 @@ define Package/ns-api/install
 	$(INSTALL_DIR) $(1)/usr/bin/
 	$(INSTALL_DIR) $(1)/usr/sbin/
 	$(INSTALL_DIR) $(1)/usr/libexec/ns-api/
+	$(INSTALL_DIR) $(1)/usr/libexec/ns-api/pre-commit
+	$(INSTALL_DIR) $(1)/usr/libexec/ns-api/post-commit
 	$(INSTALL_BIN) ./files/api-cli $(1)/usr/bin/
 	$(INSTALL_BIN) ./files/ns.talkers $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.talkers.json $(1)/usr/share/rpcd/acl.d/
@@ -128,6 +130,8 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.devices.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.users $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.users.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.commit $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.commit.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_CONF) files/msmtp.keep $(1)/lib/upgrade/keep.d/msmtp
 	$(LN) /usr/bin/msmtp $(1)/usr/sbin/sendmail

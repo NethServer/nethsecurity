@@ -5,6 +5,32 @@ NethSecurity APIs for `rpcd`.
 * TOC
 {:toc}
 
+## ns.commit
+
+This API will take care to commit all UCI changes. This is the workflow:
+
+- pre-commit hook: run all executable scripts inside the /usr/libexec/ns-api/pre-commit directory
+- commit UCI changes
+- post-commit hook: run all executable scripts inside the /usr/libexec/ns-api/post-commit directory
+- inform ubus about changes to apply them
+
+Usage example:
+```
+api-cli ns.commit commit --data '{"changes":{"system":[["set","cfg01e48a","hostname","NethSec2"]]}}'
+```
+
+Successful response example:
+```json
+{"pre_errors": [], "post_errors": []}
+```
+
+The API will fail only if commit of UCI changes raises and error.
+Even if one of the hooks script fail, the API will exit successfully (with exit status code 0) but 
+the failed scripts will be added to the array below:
+```json
+{"pre_errors": ["/usr/libexec/ns-api/pre-commit/test.py", "/usr/libexec/ns-api/pre-commit/test_bash"], "post_errors": []}
+```
+
 ## ns.talkers
 
 ### list

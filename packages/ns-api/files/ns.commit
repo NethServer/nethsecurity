@@ -1,0 +1,49 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import os
+import sys
+import glob
+import json
+import syslog
+import subprocess
+from euci import EUci
+
+
+def execute_hook(directory, changes):
+    script_files = glob.glob(os.path.join(directory, '*'))
+    errors = []
+    for script in script_files:
+        if os.access(script, os.X_OK):
+            try:
+                # directly execute python scripts to speedup the run
+                if script.endswith('.py'):
+                    exec(open(script).read())
+                else:
+                    subprocess.run([script], input=json.dumps(changes), check=True, capture_output=True, text=True)
+            except Exception as e:
+                syslog.syslog(syslog.LOG_ERR, f"{e}")
+                errors.append(script)
+                continue
+    return errors
+
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({ 'commit': {} }))
+elif cmd == 'call':
+    action = sys.argv[2]
+    u = EUci()
+    args = json.loads(sys.stdin.read())
+    if action == 'commit':
+        pre_errors = execute_hook("/usr/libexec/ns-api/pre-commit", args['changes'])
+        for config in args["changes"]:
+            u.commit(config)
+        post_errors = execute_hook("/usr/libexec/ns-api/post-commit", args['changes'])
+        subprocess.run(["/bin/ubus", "call", "uci", "reload_config"], check=True)
+        print(json.dumps({"pre_errors": pre_errors, "post_errors": post_errors}))

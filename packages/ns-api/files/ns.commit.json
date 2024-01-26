@@ -1,0 +1,13 @@
+{
+  "commit-manager": {
+    "description": "Execute commit",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.commit": [
+          "*"
+        ]
+      }
+    }
+  }
+}
