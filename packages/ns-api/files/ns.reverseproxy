@@ -296,7 +296,7 @@ elif cmd == 'call':
                 raise ValidationError('allow', 'invalid', data['allow'])
 
             # normalize optional parameters
-            allow = data['destination'] if 'allow' in data else []
+            allow = data.get('allow', [])
             # create location for _lan
             reverse_proxy.add_path(data['path'], data['destination'], data['description'], allow)
             # submit changes
@@ -325,7 +325,7 @@ elif cmd == 'call':
                 raise ValidationError('allow', 'invalid', data['allow'])
 
             # normalize optional parameters
-            allow = data['destination'] if 'allow' in data else []
+            allow = data.get('allow', [])
             reverse_proxy.add_domain(data['domain'], data['destination'], data['certificate'], data['description'],
                                      allow)
             # submit changes
