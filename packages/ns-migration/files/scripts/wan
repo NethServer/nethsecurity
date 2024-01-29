@@ -71,6 +71,7 @@ for p in data['providers']:
     # The policy will be used for divert rules
     ponly = utils.get_id(f'{iname}', length = 15)
     u.set("mwan3", ponly, "policy")
+    u.set("mwan3", ponly, "label", iname)
     if type(mname) != list:
         mname = [mname]
     u.set("mwan3", ponly, "use_member", mname)
@@ -81,9 +82,12 @@ for p in data['providers']:
 
 # Setup default policy
     pname = utils.get_id("ns7balance", length = 15)
+    label = "balance"
 else:
     pname = utils.get_id("ns7backup", length = 15)
+    label = "backup"
 u.set("mwan3", pname, "policy")
+u.set("mwan3", pname, "label" ,label)
 u.set("mwan3", pname, "use_member", list(utils.get_all_by_type(u, "mwan3", "member").keys()))
 u.set("mwan3", pname, "last_resort", "default")
 
