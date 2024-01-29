@@ -5,117 +5,98 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
+from nethsec import utils, mwan
+
 import nsmigration
-from nethsec import firewall, utils
 
-(u, data, nmap) = nsmigration.init("wan.json")
+(u, data, nmap) = nsmigration.init('wan.json')
 
-def by_weight(e):
-    return e["weight"]
+# Cleanup default configuration, brutal way
+with open('/etc/config/mwan3', 'w') as file:
+    pass
 
-def by_position(e):
-    return e["position"]
+# General configuration
+u.set('ns-api', 'defaults_mwan', 'ping_interval', data['general']['interval'])
+u.set('ns-api', 'defaults_mwan', 'tracking_reliability', data['general']['reliability'])
+u.set('ns-api', 'defaults_mwan', 'track_ip', data['general']['track_ip'])
 
-# Cleanup default configuration
-u.delete("mwan3", "https")
-for section in u.get("mwan3"):
-    s_type = u.get("mwan3", section)
-    if s_type != "globals":
-        u.delete("mwan3", section)
-
-# Sort providers to setup metric
-# lower metric => higher priority
-data['providers'].sort(key=by_weight, reverse=True)
-
-# map NS7 provider name to mwan polices
-divert_policies = dict()
-
-# Create interfaces and members
+# Setup mwan policies
+# define interfaces, will be sent directly to `mwan.store_policy`
+interfaces = []
+# define base metric, will be incremented if needed to configure backup policies
 metric = 10
-for p in data['providers']:
-    iname = None
-    if p["type"] == "ethernet":
-        iname = utils.get_interface_from_mac(u, nsmigration.remap(p["hwaddr"], nmap))
-    elif p["type"] == "vlan":
-        device = utils.get_device_name(nsmigration.remap(p["hwaddr"], nmap))
-        iname = utils.get_interface_from_device(u, f'{device}.{p["vid"]}')
-    else:
-        iname = utils.get_interface_from_device(u, p["device"])
+# fetch what kind of policy we are migrating
+policy_type = data['general']['mode']
+# prep providers, sort by desc weight
+data['providers'].sort(key=lambda x: x['weight'], reverse=True)
 
-    if iname is None:
-        nsmigration.vprint(f"Skipping mwan interface {p['name']}")
+# for each provider, generate interface
+for provider in data['providers']:
+    # get interface name, could have been moved during migration
+    interface_name = None
+    if provider['type'] == 'ethernet':
+        interface_name = utils.get_interface_from_mac(u, nsmigration.remap(provider['hwaddr'], nmap))
+    elif provider['type'] == 'vlan':
+        device = utils.get_device_name(nsmigration.remap(provider['hwaddr'], nmap))
+        interface_name = utils.get_interface_from_device(u, f"{device}.{provider['vid']}")
+    else:
+        interface_name = utils.get_interface_from_device(u, provider['device'])
+
+    # skip if interface is not found
+    if interface_name is None:
+        nsmigration.vprint(f"Skipping provider {provider['name']}")
         continue
-    nsmigration.vprint(f"Creating mwan interface {iname}")
-    u.set("mwan3", iname, "interface")
-    u.set("mwan3", iname, "enabled", "1")
-    u.set("mwan3", iname, "family", "ipv4")
-    u.set("mwan3", iname, "track_ip", data['general']['track_ip'])
-    u.set("mwan3", iname, "reliability", data['general']['reliability'])
 
-    nsmigration.vprint(f"Setting mwan metric for {iname}")
-    u.set("network", iname, 'metric', metric)
-
-    nsmigration.vprint(f"Setting mwan member for {iname}")
-    mname = utils.get_id(f"{iname}_m{metric}_w{p['weight']}")
-    u.set("mwan3", mname, "member")
-    u.set("mwan3", mname, "interface", iname)
-    u.set("mwan3", mname, "weight", p["weight"])
-
-    if data["general"]["mode"] == "balance":
-        # same metric => same priority
-        u.set("mwan3", mname, "metric", "50")
+    if policy_type == 'backup':
+        interfaces.append({
+            'name': interface_name,
+            'metric': metric,
+            'weight': '100',
+        })
+        metric = metric + 10
     else:
-        u.set("mwan3", mname, "metric", metric)
+        # this is a balance policy by exclusion
+        interfaces.append({
+            'name': interface_name,
+            'weight': provider['weight'],
+            'metric': metric,
+        })
 
-    # Setup policy with only this interface
-    # The policy will be used for divert rules
-    ponly = utils.get_id(f'{iname}', length = 15)
-    u.set("mwan3", ponly, "policy")
-    u.set("mwan3", ponly, "label", iname)
-    if type(mname) != list:
-        mname = [mname]
-    u.set("mwan3", ponly, "use_member", mname)
-    u.set("mwan3", ponly, "last_resort", "default")
-    divert_policies[p["name"]] = ponly
-
-    metric = metric + 10
-
-# Setup default policy
-    pname = utils.get_id("ns7balance", length = 15)
-    label = "balance"
+# create mwan name
+if policy_type == 'balance':
+    policy_name = 'ns7balance'
 else:
-    pname = utils.get_id("ns7backup", length = 15)
-    label = "backup"
-u.set("mwan3", pname, "policy")
-u.set("mwan3", pname, "label" ,label)
-u.set("mwan3", pname, "use_member", list(utils.get_all_by_type(u, "mwan3", "member").keys()))
-u.set("mwan3", pname, "last_resort", "default")
+    policy_name = 'ns7backup'
 
-# Sort rules in reverse order
-# On NS7 last match wins
-data['rules'].sort(key=by_position, reverse=True)
+# create mwan policy
+mwan.store_policy(u, policy_name, interfaces)
 
+# sort rules by position
+data['rules'].sort(key=lambda x: x['position'])
+# create mwan rules
 for rule in data['rules']:
-    rname = utils.get_id(rule.pop('name'))
-    rule["use_policy"]  = divert_policies[rule["use_policy"]]
-    nsmigration.vprint(f"Setting mwan rule {rname}")
-    u.set("mwan3", rname, 'rule')
-    u.set("mwan3", rname, 'family', 'ipv4')
-    for o in rule:
-        u.set("mwan3", rname, o, rule[o])
-
-def_v4 = utils.get_id('default_v4', length = 15)
-u.set("mwan3", def_v4, 'rule')
-u.set("mwan3", def_v4, 'dest_ip', '0.0.0.0/0')
-u.set("mwan3", def_v4, 'use_policy', pname)
-u.set("mwan3", def_v4, 'family', 'ipv4')
-
-def_v6 = utils.get_id('default_v6', length = 15)
-u.set("mwan3", def_v6, 'rule')
-u.set("mwan3", def_v6, 'dest_ip', '::/0')
-u.set("mwan3", def_v6, 'use_policy', pname)
-u.set("mwan3", def_v6, 'family', 'ipv6')
+    # normalize src_ip, src_port, dest_ip, dest_port to null if empty string
+    if rule['src_ip'] == '':
+        rule['src_ip'] = None
+    if rule['src_port'] == '':
+        rule['src_port'] = None
+    if rule['dest_ip'] == '':
+        rule['dest_ip'] = None
+    if rule['dest_port'] == '':
+        rule['dest_port'] = None
+    # simply store the rule
+    mwan.store_rule(
+        u,
+        rule['name'],
+        policy_name,
+        rule['proto'],
+        rule['src_ip'],
+        rule['src_port'],
+        rule['dest_ip'],
+        rule['dest_port']
+    )
 
 # Save configuration
-u.commit("mwan3")
-u.commit("network")
+u.commit('ns-api')
+u.commit('mwan3')
+u.commit('network')
