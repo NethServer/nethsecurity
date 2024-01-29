@@ -33,14 +33,14 @@ def save_cert(path, data):
 
 def import_tunnel(u, tunnel, ttype):
     name = tunnel.pop('ns_name')
-    iname = utils.get_id(name)
+    iname = utils.get_id(name, 10)
     cert_dir=f"/etc/openvpn/{iname}/pki/"
     os.makedirs(cert_dir, exist_ok=True)
 
     nsmigration.vprint(f"Creating OpenVPN tunnel {ttype} {name}")
 
     u.set("openvpn", iname, "openvpn")
-    u.set("openvpn", iname, "ns_name", name)
+    u.set("openvpn", iname, "ns_name", name[0:10])
     # Setup auth files
     for option in ['dh', 'ca' , 'cert', 'key', 'secret']:
         if option in tunnel:
