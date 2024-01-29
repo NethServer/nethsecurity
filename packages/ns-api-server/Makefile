@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-api-server
-PKG_VERSION:=0.0.9
+PKG_VERSION:=0.0.10
 PKG_RELEASE:=1
  
 PKG_SOURCE:=ns-api-server-$(PKG_VERSION).tar.gz
