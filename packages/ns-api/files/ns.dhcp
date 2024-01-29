@@ -64,6 +64,8 @@ def list_interfaces():
         for zi in u.get('firewall', z, 'network', list=True, default=[]):
             zones[zi] = u.get('firewall', z, 'name', default=z)
     dhcps = utils.get_all_by_type(u, 'dhcp', 'dhcp')
+    if not dhcps:
+        dhcps = []
     for i in interfaces:
         record = {"device": "", "start": "", "end": "", "active": False, "options": {} }
         # skip loopback, wans and interfaces with no IP address (e.g. DHCP interfaces)
@@ -126,7 +128,12 @@ def get_interface(args):
     u = EUci()
     ret = {"interface": args["interface"], "options": [], "first": "", "last": "", "active": False}
     try:
-        dhcp = u.get_all("dhcp", args["interface"])
+        items = utils.get_all_by_type(u, "dhcp", "dhcp")
+        for i in items:
+            if items[i].get('interface') == args['interface']:
+                dhcp = u.get_all('dhcp', i)
+        if not dhcp:
+            raise Exception # fallback to default
     except:
         dhcp = {"start": 100, "limit": 150, "leasetime": "12h", "dhcpv4": "disabled", "dhcp_option": []}
     try:
