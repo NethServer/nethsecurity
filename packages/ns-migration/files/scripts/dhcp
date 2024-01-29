@@ -7,18 +7,39 @@
 
 from nethsec import firewall, utils
 import nsmigration
+import subprocess
+
+
+def list_dhcp_options():
+    ret = {}
+    pd = subprocess.run(["dnsmasq", "--help", "dhcp"], capture_output=True, text=True)
+    k = 0
+    for line in pd.stdout.rstrip().split("\n"):
+        k = k+1
+        if k == 1:
+            continue
+        tmp = line.strip().split(" ")
+        ret[tmp[0]] = tmp[1]
+    return ret
 
 (u, data, nmap) = nsmigration.init("dhcp.json")
 
 # Set global options
 for section in u.get("dhcp"):
-    if  u.get("dhcp", section) == "dnsmasq":
+    if u.get("dhcp", section) == "dnsmasq":
         u.set("dhcp", section, "dhcpleasemax", data['general']["dhcpleasemax"])
+        u.set("dhcp", section, "rebind_protection", data['general'].get('rebind_protection', '0'))
         # add ns_ prefix to the section
         u.rename("dhcp", section, utils.get_id("dnsmasq"))
+    elif u.get("dhcp", section) == "dhcp":
+        # cleanup dhcp range connected to an non-existing interface
+        interface = u.get('dhcp', section, 'interface')
+        if u.get('network', interface, default=None) == None:
+            u.delete('dhcp', section)
 
 # Setup DHCP ranges
 rcounter = len(data['servers'])
+options = list_dhcp_options()
 for s in data['servers']:
     iname = None
     if s["type"] == "ethernet":
@@ -41,7 +62,17 @@ for s in data['servers']:
     u.set("dhcp", sname, "ignore", s["ignore"])
     u.set("dhcp", sname, "start", s["start"])
     u.set("dhcp", sname, "limit", s["limit"])
-    u.set("dhcp", sname, "dhcp_option", s["dhcp_option"])
+    u.set("dhcp", sname, "dhcpv6", s["dhcpv6"])
+    u.set("dhcp", sname, "dhcpv4", s["dhcpv4"])
+    u.set("dhcp", sname, "ignore", '0')
+    dhcp_options = []
+    for opt in s["dhcp_option"]:
+        tmp = opt.split(",")
+        name = options.get(tmp[0])
+        if name:
+            dhcp_options.append(f'{name},{",".join(tmp[1:])}')
+    if dhcp_options:
+        u.set("dhcp", sname, "dhcp_option", dhcp_options)
     if s["domain"]:
         u.set("dhcp", sname, "domain", s["domain"])
     rcounter = rcounter - 1
