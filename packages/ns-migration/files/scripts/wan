@@ -8,6 +8,7 @@
 from nethsec import utils, mwan
 
 import nsmigration
+import subprocess
 
 (u, data, nmap) = nsmigration.init('wan.json')
 
@@ -76,25 +77,24 @@ data['rules'].sort(key=lambda x: x['position'])
 # create mwan rules
 for rule in data['rules']:
     # normalize src_ip, src_port, dest_ip, dest_port to null if empty string
-    if rule['src_ip'] == '':
-        rule['src_ip'] = None
-    if rule['src_port'] == '':
-        rule['src_port'] = None
-    if rule['dest_ip'] == '':
-        rule['dest_ip'] = None
-    if rule['dest_port'] == '':
-        rule['dest_port'] = None
+    for opt in ['src_ip', 'src_port' , 'dest_ip', 'dest_port']:
+        if rule.get(opt, None) == '':
+            rule[opt] = None
     # simply store the rule
     mwan.store_rule(
         u,
-        rule['name'],
-        policy_name,
-        rule['proto'],
-        rule['src_ip'],
-        rule['src_port'],
-        rule['dest_ip'],
-        rule['dest_port']
+        rule.get('name'),
+        utils.get_id(policy_name),
+        rule.get('proto'),
+        rule.get('src_ip'),
+        rule.get('src_port'),
+        rule.get('dest_ip'),
+        rule.get('dest_port')
     )
+
+# push default rule to the end
+length = len(u.get_all('mwan3'))
+subprocess.run(["/sbin/uci", "reorder", f"mwan3.ns_default_rule={length}"])
 
 # Save configuration
 u.commit('ns-api')
