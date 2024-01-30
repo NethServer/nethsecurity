@@ -141,7 +141,7 @@ data = {
             "size_bytes": int(_run("df -P | sort | uniq | grep '/$' | awk '{print $2}'"))*1024
         }
     },
-    "rpms": { "nethserver-firewall-base-ui": _run("opkg info ns-ui | grep Version | awk '{print $2}'") },
+    "rpms": { "nethserver-firewall-base-ui": _run("opkg status ns-ui | grep Version | awk '{print $2}'") },
     "public_ip": _run("curl https://ifconfig.co")
 }
 
