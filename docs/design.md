@@ -73,6 +73,19 @@ Several distinctive options have been incorporated into UCI configuration sectio
 - `ns_tag`: this option allows the assignment of a list of tags to any section.
    Users can define custom tags. Meanwhile, the system already employs the special `automated` tag to label automatically generated sections.
 
+### Commit hooks
+
+To overcome UCI limitations, the UI should always use the `ns.commit` API to commit changes.
+The API will:
+- execute all scripts in `/usr/libexec/ns-api/pre-commit` before committing changes
+- commit UCI changes
+- execute all scripts in `/usr/libexec/ns-api/post-commit` after committing changes
+- notify ubus about the changes to apply them
+
+Execution of hooks script will continue even if a script fails. A failure of the
+hook script will not be reflected inside the API exit code.
+Every script within the hook directory will be provided with a JSON-formatted list of changes via standard input.
+
 ### Packages
 
 See [Packages](../packages/).
