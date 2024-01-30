@@ -53,17 +53,17 @@ def __dns_providers():
             if entry.is_file() and entry.name.startswith('dns_') and entry.name.endswith('.sh')]
 
 
-def __start_acme():
+def __start_acme(uci):
     """
     Handle acme service startup and setup.
     """
     # check if mail is default, otherwise change it
-    uci = EUci()
     for key, entry in utils.get_all_by_type(e_uci, 'acme', 'acme').items():
         if 'account_email' in entry:
             if entry['account_email'] == 'email@example.org':
                 # set email
                 uci.set('acme', key, 'account_email', 'no-reply@nethsecurity.org')
+                uci.save('acme')
             break
     # check if acme has been started at least once
     service_status = subprocess.run(['/etc/init.d/acme', 'status'], capture_output=True, text=True)
@@ -228,7 +228,7 @@ elif cmd == 'call':
                 e_uci.set('acme', data['name'], 'dns', f'dns_{data["dns_provider"]}')
                 e_uci.set('acme', data['name'], 'credentials', data['dns_provider_options'])
 
-            __start_acme()
+            __start_acme(e_uci)
             e_uci.save('acme')
             print(json.dumps({'message': 'success'}))
 
@@ -272,7 +272,7 @@ elif cmd == 'call':
                 os.remove(valid_certificates[data['name']]['cert_path'])
                 os.remove(valid_certificates[data['name']]['key_path'])
 
-            __start_acme()
+            __start_acme(e_uci)
             e_uci.save('acme')
 
             print(json.dumps({'message': 'success'}))
