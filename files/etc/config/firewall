@@ -24,6 +24,13 @@ config forwarding 'ns_lan2wan'
 	option src		lan
 	option dest		wan
 
+config rule 'ns_allow_webui'
+	option name 'Allow-UI-from-WAN'
+	option proto 'tcp'
+	option src 'wan'
+	option dest_port '443'
+	option target 'ACCEPT'
+
 # We need to accept udp packets on port 68,
 # see https://dev.openwrt.org/ticket/4108
 config rule 'ns_dhcp_wan'

@@ -1,15 +1,4 @@
 uci batch <<EOI
-add firewall rule
-rename firewall.@rule[-1]=ns_allow_webui
-set firewall.@rule[-1].name='Allow-UI-from-WAN'
-set firewall.@rule[-1].proto='tcp'
-set firewall.@rule[-1].src='wan'
-set firewall.@rule[-1].dest_port='443'
-set firewall.@rule[-1].target='ACCEPT'
-commit
-EOI
-
-uci batch <<EOI
 del_list nginx._lan.include=restrict_locally
 commit
 EOI
