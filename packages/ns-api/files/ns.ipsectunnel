@@ -238,8 +238,8 @@ def get_tunnel(id):
     for opt in ['remote_subnet', 'local_subnet']:
         ret[opt] = u.get('ipsec', tunnel, opt, default=[], list=True)
 
-    ret['esp']['rekeytime'] = u.get('ipsec', tunnel, 'rekeytime')
-    ret['ns_name'] = u.get('ipsec', id, 'ns_name', default="")
+    ret['esp']['rekeytime'] = u.get('ipsec', tunnel, 'rekeytime', default='3600')
+    ret['ns_name'] = u.get('ipsec', id, 'ns_name', default=id)
     for opt in ['gateway', 'keyexchange', 'local_identifier', 'local_ip', 'enabled', 'remote_identifier', 'pre_shared_key']:
         ret[opt] = u.get('ipsec', id, opt, default="")
     ret['ike']['rekeytime'] = u.get('ipsec', id, 'rekeytime', default='')
