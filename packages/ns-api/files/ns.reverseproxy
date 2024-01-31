@@ -375,8 +375,8 @@ elif cmd == 'call':
                     item = {
                         'id': entry_id,
                         'type': 'location',
-                        'description': entry['uci_description'],
-                        'location': entry['location'],
+                        'description': entry.get('uci_description'),
+                        'location': entry.get('location'),
                         'destination': __parse_proxy_pass(e_uci, entry_id)
                     }
                     if 'allow' in entry:
@@ -396,9 +396,9 @@ elif cmd == 'call':
                     item = {
                         'id': entry['uci_server'],
                         'type': 'domain',
-                        'description': server['uci_description'],
-                        'location': entry['location'],
-                        'domain': server['server_name'],
+                        'description': server.get('uci_description'),
+                        'location': entry.get('location'),
+                        'domain': server.get('server_name'),
                         'destination': __parse_proxy_pass(e_uci, entry_id)
                     }
                     for certificate in certificates:
