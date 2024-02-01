@@ -24,7 +24,6 @@ jobs:
     name: 'Build NethSecurity image'
     runs-on: self-hosted
     env:
-      IMAGETAG: ${{ github.ref_name }}
       DO_SPACE_NAME: 'nethsecurity'
       DO_SPACE_REGION: 'ams3'
       CDN_NAME: 'updates.nethsecurity.nethserver.org'
@@ -32,7 +31,14 @@ jobs:
       USIGN_PRIV_KEY: ${{ secrets.USIGN_PRIV_KEY }}
       NETIFYD_ACCESS_TOKEN: ${{ secrets.NETIFYD_ACCESS_TOKEN }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      - id: read_tag
+        name: Set VERSION env variable
+        if: ${{ startsWith(github.ref, 'refs/tags') }}
+        run: |
+          # Set tag from GitHub: using git describe in this context seems not working
+          # even if the checkout has been done with fetch-depth set to 0
+          echo "VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
       - id: build
         name: Build the image
         run: |
@@ -51,7 +57,7 @@ jobs:
           path: bin/targets/x86/64/nethsecurity-*-x86-64-generic-*-combined-efi.img.gz
       - uses: BetaHuhn/do-spaces-action@v2
         name: Publish packages inside the rolling repository
-        if: ${{ github.ref == 'refs/heads/main' }}
+        if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags') }}
         with:
           access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
           secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
@@ -62,7 +68,7 @@ jobs:
           out_dir: ${{ env.REPO_CHANNEL }}/${{ env.OWRT_VERSION }}/packages
       - uses: BetaHuhn/do-spaces-action@v2
         name: Publish images inside the rolling repository
-        if: ${{ github.ref == 'refs/heads/main' }}
+        if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags') }}
         with:
           access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
           secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
@@ -73,7 +79,7 @@ jobs:
           out_dir: ${{ env.REPO_CHANNEL }}/${{ env.OWRT_VERSION }}/targets
       - uses: BetaHuhn/do-spaces-action@v2
         name: Publish packages inside the fixed repository
-        if: ${{ github.ref == 'refs/heads/main' }}
+        if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags') }}
         with:
           access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
           secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
@@ -84,7 +90,7 @@ jobs:
           out_dir: ${{ env.REPO_CHANNEL }}/8-${{ env.VERSION }}/packages
       - uses: BetaHuhn/do-spaces-action@v2
         name: Publish images inside the fixed repository
-        if: ${{ github.ref == 'refs/heads/main' }}
+        if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags') }}
         with:
           access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
           secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
@@ -95,7 +101,7 @@ jobs:
           out_dir: ${{ env.REPO_CHANNEL }}/8-${{ env.VERSION }}/targets
       - uses: BetaHuhn/do-spaces-action@v2
         name: Publish latest_release inside the repository
-        if: ${{ github.ref == 'refs/heads/main' }}
+        if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags') }}
         with:
           access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
           secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
