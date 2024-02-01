@@ -61,7 +61,7 @@ fi
 if [ -z "${VERSION}" ]; then
     # Setup version from git if the env var is not set
     # Make sure to fetch all history to generate a correct git-descrive
-    git fetch --prune --unshallow
+    git fetch --prune --unshallow &> /dev/null
     VERSION=$(git describe)
 fi
 # OWRT_VERSION is like 23.05.2
