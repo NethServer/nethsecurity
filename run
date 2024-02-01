@@ -51,16 +51,18 @@ fi
 # Download latest image
 podman pull $image
 
-# Renove existing container
+# Remove existing container
 if [ "$(podman ps -a --format '{{.Names}}')" == "nethsec-builder" ]; then
     podman rm nethsec-builder
 fi
 
 # Use VERSION from the environment, need for CI
 # VERSION has the following format: 8-<owrt_release>-ns.<nethsecurity_release>[-<commit_since_last_tag>-g<commit_hash>]
-if [ -z "{$VERSION}" ]; then
+if [ -z "${VERSION}" ]; then
     # Setup version from git if the env var is not set
-    VERSION=$(git describe --tags)
+    # Make sure to fetch all history to generate a correct git-descrive
+    git fetch --prune --unshallow
+    VERSION=$(git describe)
 fi
 # OWRT_VERSION is like 23.05.2
 OWRT_VERSION=$(echo $VERSION | cut -d'-' -f1)
@@ -83,6 +85,7 @@ fi
 export REPO_CHANNEL
 export OWRT_VERSION
 export VERSION
+echo "Building version $VERSION"
 
 # Setup CI when pushing to Github.
 if [[ -n "${CI}" ]]; then
