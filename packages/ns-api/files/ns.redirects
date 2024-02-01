@@ -61,13 +61,16 @@ def list_redirects():
         redirect["reflection_zone"] = r.get("reflection_zone", [])
         redirect["dest"] = r.get("dest", "") # destination zone
         redirect["id"] = section
-        redirect["restrict"] = r.get("ipset", [])
-        if redirect["restrict"]:
-            try:
-                ipset = u.get_all('firewall', redirect["restrict"])
-                redirect["restrict"] = ipset.get("entry", [])
-            except:
-                pass
+        if r.get('src_ip'):
+            redirect['restrict'] = [r.get('src_ip')]
+        else:
+            redirect["restrict"] = r.get("ipset", [])
+            if redirect["restrict"]:
+                try:
+                    ipset = u.get_all('firewall', redirect["restrict"])
+                    redirect["restrict"] = ipset.get("entry", [])
+                except:
+                    pass
         ret["redirects"][redirect["dest_ip"]].append(redirect)
         count = count + 1
     return ret
@@ -147,6 +150,11 @@ def edit_redirect(args):
     u = EUci()
     rname = args.pop('id')
     restrict = args.pop('restrict', '')
+    try:
+        # try to convert from single IP to ipset
+        u.delete('firewall', rname, 'src_ip')
+    except:
+        pass
     if restrict:
         sname = add_ipset(u, rname, restrict)
         u.set('firewall', rname, 'ipset', sname)
