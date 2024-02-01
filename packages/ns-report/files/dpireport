@@ -138,8 +138,19 @@ def consolidate():
 def reader():
     global flows_locks
     global flows
+
+    # wait 60 seconds for netifyd to start
+    timeout = 60
+    socket_file = os.environ.get('NETIFYD_SOCKET', '/var/run/netifyd/netifyd.sock')
+    while not os.path.exists(socket_file) and timeout > 0:
+        time.sleep(1)
+        timeout -= 1
+    if timeout == 0:
+        logging.error(f'Netifyd socket {socket_file} not found')
+        sys.exit(1)
+
     client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    client.connect(os.environ.get('NETIFYD_SOCKET', '/var/run/netifyd/netifyd.sock'))
+    client.connect(socket_file)
     logging.debug(f'Connected to socket')
     for line in client.makefile('r'):
         if not run:
