@@ -7,11 +7,6 @@
 
 set -e
 
-if [[ -n "${CI}" ]]; then
-    # Fetch all history when running con Github CI
-    git fetch --prune --unshallow
-fi
-
 OWRT_VERSION=$(git describe | cut -d'-' -f1)
 
 if [ -z "$OWRT_VERSION" ]; then
