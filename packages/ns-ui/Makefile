@@ -43,6 +43,13 @@ define Package/ns-ui/conffiles
 /etc/config/ns-ui
 endef
 
+# custom prepare step to avoid that 'dist'
+# directory get filled with multiple versions of the UI
+define Build/Prepare
+	rm -rvf $(PKG_BUILD_DIR)/../dist/* || true
+	$(PKG_UNPACK)
+endef
+
 # this is required, otherwise compile will fail
 define Build/Compile
 endef
