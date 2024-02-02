@@ -205,8 +205,8 @@ for i in data['interfaces']:
 
     if i["zone"] == "wan":
         if i["bandwidth_up"] and i["bandwidth_down"]:
-            bandwidth_up = int(float(i["bandwidth_up"].removeSuffix("kbit")) / 1000)
-            bandwidth_down = int(float(i["bandwidth_down"].removeSuffix("kbit")) / 1000)
+            bandwidth_up = int(float(i["bandwidth_up"].removesuffix("kbit")) / 1000)
+            bandwidth_down = int(float(i["bandwidth_down"].removesuffix("kbit")) / 1000)
             u.set("qosify", iname, "interface")
             u.set("qosify", iname, "name", iname)
             u.set("qosify", iname, "disabled", "0")
