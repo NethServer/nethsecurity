@@ -138,7 +138,6 @@ define Package/ns-api/install
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/config $(1)/etc/config/ns-api
 	$(INSTALL_CONF) ./files/templates $(1)/etc/config/
-	$(INSTALL_BIN) ./files/pre-commit/lan-ipv6.py $(1)/usr/libexec/ns-api/pre-commit
 endef
  
 $(eval $(call BuildPackage,ns-api))
