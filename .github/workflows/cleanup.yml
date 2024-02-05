@@ -23,12 +23,13 @@ jobs:
         env:
           DO_SPACE_ACCESS_KEY: ${{ secrets.DO_SPACE_ACCESS_KEY }}
           DO_SPACE_SECRET_KEY: ${{ secrets.DO_SPACE_SECRET_KEY }}
-          RTD_API_TOKEN:  ${{ secrets.RTD_API_TOKEN }}
         run: |
           cd builder/cleanup
           pip install -r requirements.txt
           ./cleanup.py
       - name: Update documention
+        env:
+          RTD_API_TOKEN:  ${{ secrets.RTD_API_TOKEN }}
         run: |
           curl -vL -X POST -H "Authorization: Token $RTD_API_TOKEN" \
               https://readthedocs.org/api/v3/projects/nethsecurity-docs/versions/latest/builds
