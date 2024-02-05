@@ -31,5 +31,5 @@ jobs:
         env:
           RTD_API_TOKEN:  ${{ secrets.RTD_API_TOKEN }}
         run: |
-          curl -vL -X POST -H "Authorization: Token $RTD_API_TOKEN" \
+          curl -L -X POST -H "Authorization: Token $RTD_API_TOKEN" \
               https://readthedocs.org/api/v3/projects/nethsecurity-docs/versions/latest/builds
