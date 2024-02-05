@@ -1,0 +1,34 @@
+name: Cleanup old dev versions
+
+# Once a day:
+# - remove old dev versions
+# - execute build of documentation to update download links
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    - cron:  "1 3 * * *"
+
+jobs:
+  update-package:
+    name: Cleanup old versions
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Cleanup
+        env:
+          DO_SPACE_ACCESS_KEY: ${{ secrets.DO_SPACE_ACCESS_KEY }}
+          DO_SPACE_SECRET_KEY: ${{ secrets.DO_SPACE_SECRET_KEY }}
+          RTD_API_TOKEN:  ${{ secrets.RTD_API_TOKEN }}
+        run: |
+          cd builder/cleanup
+          pip install -r requirements.txt
+          ./cleanup.py
+      - name: Update documention
+        run: |
+          curl -vL -X POST -H "Authorization: Token $RTD_API_TOKEN" \
+              https://readthedocs.org/api/v3/projects/nethsecurity-docs/versions/latest/builds
