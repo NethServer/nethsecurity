@@ -614,6 +614,13 @@ def set_network_configuration(device_type, interface_name, logical_type, interfa
             else:
                 values['ip6addr'] = ''
 
+            if interface_name == 'lan':
+                # automatic ipv6 assignment on lan interface
+                if ip6_enabled and not ip6_address:
+                    values['ip6assign'] = '64'
+                else:
+                    values['ip6assign'] = ''
+
             if zone == 'wan':
                 # gateway
                 values['gateway'] = ip4_gateway
