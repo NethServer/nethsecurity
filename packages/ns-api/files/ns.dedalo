@@ -140,6 +140,8 @@ def list_parents():
         return {"parents": []}
 
 def unregister():
+    u = EUci()
+    interface = u.get("dedalo", "config", "interface", default='')
     try:
         # the below command also set the disabled option
         subprocess.run(["/usr/bin/unregister_dedalo", token_file], check=True, capture_output=True)
@@ -153,6 +155,14 @@ def unregister():
     except Exception as e:
         print(e, file=sys.stderr)
         return utils.generic_error("firewall_cleanup_failed")
+    # force vlan down
+    if '.' in interface:
+        try:
+            subprocess.run(["/sbin/ip", "link", "delete", interface], capture_output=True)
+        except Exception as e:
+            print(e, file=sys.stderr)
+            return utils.generic_error("vlan_cleanup_failed")
+
     return {"result": "success"}
 
 def get_configuration():
@@ -198,6 +208,10 @@ def set_configuration(args):
     u.set("dedalo", "config", "dhcp_start", start)
     u.set("dedalo", "config", "dhcp_end", args["dhcp_limit"])
     u.commit("dedalo")
+    # force vlan up, otherwise it will not be loaded on reload
+    if '.' in args.get('interface', ''):
+        subprocess.run(["/sbin/ip", "link", "set", "dev", args.get('interface'), "up"], capture_output=True)
+
     try:
         subprocess.run(["/etc/init.d/dedalo", "reload"], check=True, capture_output=True)
     except:
