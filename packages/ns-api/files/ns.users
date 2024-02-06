@@ -79,7 +79,14 @@ else:
         elif action == "add-local-user":
             ret = {"id": users.add_local_user(u, args['name'], args.get('password'), args.get('description',''), args['database'], args.get("extra"))}
         elif action == "edit-local-user":
-            ret = {"id": users.edit_local_user(u, args['name'], args.get('password'), args.get('description',''), args['database'], args.get("extra"))}
+            extra = args.get("extra")
+            if not extra:
+                # preserve existing extra params, like OpenVPN config
+                info = users.get_user_by_name(u, args['name'])
+                for field in info:
+                    if field not in ('id', 'name', 'password', 'description', 'database', 'local', 'admin'):
+                        extra[field] = info[field]
+            ret = {"id": users.edit_local_user(u, args['name'], args.get('password'), args.get('description',''), args['database'], extra)}
         elif action == "delete-local-user":
             users.delete_local_user(u, args['name'], args['database'])
             ret = {"result": "success"}
