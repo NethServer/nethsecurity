@@ -208,8 +208,10 @@ def set_configuration(args):
     u.set("dedalo", "config", "dhcp_start", start)
     u.set("dedalo", "config", "dhcp_end", args["dhcp_limit"])
     u.commit("dedalo")
-    # force vlan up, otherwise it will not be loaded on reload
+    # force vlan up, otherwise it will not be loaded on dedalo reload
     if '.' in args.get('interface', ''):
+        (iname, vid) = args.get('interface').split('.')
+        subprocess.run(["/sbin/ip", "link", "add", "link", iname, "name", args.get('interface'), "type", "vlan", "id", vid], capture_output=True)
         subprocess.run(["/sbin/ip", "link", "set", "dev", args.get('interface'), "up"], capture_output=True)
 
     try:
