@@ -356,7 +356,15 @@ def set_configuration(args):
         except:
             pass
 
-    for opt in ["client_to_client", "dev_type", "ns_public_ip", "ns_auth_mode", "proto", "ns_description", "auth", "cipher", "compress"]:
+    if args.get("port") != u.get("openvpn", ovpninstance, "port", default=''):
+        try:
+            instance_num = int(re.search(r"\d+$", ovpninstance).group())
+        except:
+            instance_num = 1
+        firewall.remove_service(u, f'OpenVPNRW{instance_num}')
+        firewall.add_service(u, f'OpenVPNRW{instance_num}', args.get("port"), ['tcp', 'udp'], link= f"openvpn/{ovpninstance}")
+
+    for opt in ["client_to_client", "dev_type", "ns_public_ip", "ns_auth_mode", "proto", "ns_description", "auth", "cipher", "compress", "port"]:
         u.set("openvpn", ovpninstance, opt, args.get(opt,''))
 
     if args["ns_auth_mode"] == "username_password":
