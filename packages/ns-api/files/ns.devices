@@ -1100,6 +1100,20 @@ def list_zones_for_device_config():
     return {'zones': zones}
 
 
+def delete_bond():
+    data = json.loads(sys.stdin.read())
+    e_uci = EUci()
+    if 'name' not in data:
+        raise utils.ValidationError('name', 'required')
+    bond = e_uci.get('network', data['name'], 'proto', default='')
+    if bond != 'bonding':
+        raise utils.ValidationError('name', 'invalid', data['name'])
+
+    # all good, delete the interface
+    e_uci.delete('network', data['name'])
+    e_uci.save('network')
+
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
@@ -1157,7 +1171,10 @@ if cmd == 'list':
         'delete-device': {
             'device_name': 'string'
         },
-        'list-zones-for-device-config': {}
+        'list-zones-for-device-config': {},
+        'delete-bond': {
+            'name': 'string'
+        }
     }))
 elif cmd == 'call':
     action = sys.argv[2]
@@ -1196,6 +1213,9 @@ elif cmd == 'call':
         elif action == 'list-zones-for-device-config':
             zones = list_zones_for_device_config()
             print(json.dumps(zones))
+        elif action == 'delete-bond':
+            delete_bond()
+            print(json.dumps({'message': 'success'}))
         else:
             print(json.dumps(utils.generic_error(f'invalid method {action}')))
     except KeyError as e:
