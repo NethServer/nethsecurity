@@ -5,6 +5,7 @@
 #
 
 import os
+import time
 
 from bases.FrameworkServices.SimpleService import SimpleService
 
@@ -27,6 +28,15 @@ class Service(SimpleService):
     def __init__(self, configuration=None, name=None):
         SimpleService.__init__(self, configuration=configuration, name=name)
         self.order = ORDER
+
+        timeout = 30
+        start_time = time.time()
+        while not os.path.isdir(state_dir):
+            print(f"{state_dir} not found...")
+            if time.time() - start_time > timeout:
+                break
+            time.sleep(1)
+
         for dir in os.listdir(state_dir):
             charts['score']['lines'].append([dir])
         self.definitions = charts
