@@ -53,6 +53,7 @@ if cmd == 'list':
             'destination_address': 'String',
             'destination_port': 'String',
         },
+        'clear_config': {}
     }))
 elif cmd == 'call':
     action = sys.argv[2]
@@ -108,6 +109,9 @@ elif cmd == 'call':
                 data['destination_address'],
                 data['destination_port'],
             )
+            print(json.dumps({'message': 'success'}))
+        elif action == 'clear_config':
+            mwan.clear_config(e_uci)
             print(json.dumps({'message': 'success'}))
     except KeyError as e:
         print(json.dumps(utils.validation_error(e.args[0], 'required')))
