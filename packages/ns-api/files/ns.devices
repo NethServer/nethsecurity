@@ -161,7 +161,8 @@ def list_devices():
 
                         # ip6
                         if pppoe_device_found.get('ip6addrs') and len(pppoe_device_found.get('ip6addrs')) > 0:
-                            iface['ip6addr'] = pppoe_device_found.get('ip6addrs')[0].get('address')
+                            iface['ip6addr'] = pppoe_device_found.get('ip6addrs')[
+                                0].get('address')
 
     devices_used_by_logical_ifaces = []
 
@@ -219,6 +220,10 @@ def list_devices():
     # sorted zones and devices
 
     zones_for_ui = []
+    unknown_zone = {
+        'name': 'unknown',
+        'devices': []
+    }
     unassigned_zone = {
         'name': 'unassigned',
         'devices': []
@@ -267,7 +272,7 @@ def list_devices():
                 zone_found = get_firewall_zone(iface_found['.name'], fw_zones)
 
                 if not zone_found:
-                    unassigned_zone['devices'].append(get_name(device))
+                    unknown_zone['devices'].append(get_name(device))
                 else:
                     zone_obj = None
 
@@ -283,6 +288,7 @@ def list_devices():
                             'name': zone_found.get('name'),
                             'devices': [get_name(device)]
                         })
+    zones_for_ui.append(unknown_zone)
     zones_for_ui.append(unassigned_zone)
 
     # sort devices of every zone
@@ -694,23 +700,24 @@ def set_firewall_zone(interface_name, zone, interface_to_edit, uci):
             firewall.remove_interface_from_zone(
                 uci, interface_name, old_zone['name'])
 
-            # add interface to the new zone
-            firewall.add_interface_to_zone(uci, interface_name, zone)
+        # add interface to the new zone
+        firewall.add_interface_to_zone(uci, interface_name, zone)
 
-            # if interface has an alias, move it too
+        # if interface has an alias, move it too
 
-            ifaces_from_config = get_all_by_type_as_list(
-                uci, 'network', 'interface')
-            alias_found = get_alias_interface_from_iface_name(
-                interface_name, ifaces_from_config)
+        ifaces_from_config = get_all_by_type_as_list(
+            uci, 'network', 'interface')
+        alias_found = get_alias_interface_from_iface_name(
+            interface_name, ifaces_from_config)
 
-            if alias_found:
+        if alias_found:
+            if old_zone:
                 # remove alias interface from the old zone
                 firewall.remove_interface_from_zone(
                     uci, alias_found['.name'], old_zone['name'])
 
-                # add interface to the new zone
-                firewall.add_interface_to_zone(uci, alias_found['.name'], zone)
+            # add interface to the new zone
+            firewall.add_interface_to_zone(uci, alias_found['.name'], zone)
 
 
 def create_and_set_network_device(device_name, device_type, protocol, logical_type, ip4_mtu, ip6_mtu, ip6_enabled, bridge_device_name, attached_devices, uci):
@@ -852,6 +859,11 @@ def get_alias_interface_from_device_name(device_name, ifaces_from_config):
 def remove_interface_from_firewall_zone(iface_name, ifaces_from_config, uci):
     fw_zones = get_all_by_type_as_list(uci, 'firewall', 'zone')
     zone = get_firewall_zone(iface_name, fw_zones)
+
+    # zone not found, it probably has been deleted
+    if not zone:
+        return
+
     zone_name = zone['name']
 
     # remove interface from zone
