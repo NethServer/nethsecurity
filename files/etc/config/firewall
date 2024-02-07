@@ -24,11 +24,18 @@ config forwarding 'ns_lan2wan'
 	option src		lan
 	option dest		wan
 
-config rule 'ns_allow_webui'
-	option name 'Allow-UI-from-WAN'
+config rule 'ns_allow_https'
+	option name 'Allow-HTTPS-from-WAN'
 	option proto 'tcp'
 	option src 'wan'
 	option dest_port '443'
+	option target 'ACCEPT'
+
+config rule 'ns_allow_ui'
+	option name 'Allow-UI-from-WAN'
+	option proto 'tcp'
+	option src 'wan'
+	option dest_port '9090'
 	option target 'ACCEPT'
 
 # We need to accept udp packets on port 68,
