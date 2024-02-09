@@ -1,0 +1,3 @@
+#!/bin/sh
+
+/usr/libexec/ns-api/schedule-automatic-updates add
