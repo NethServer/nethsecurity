@@ -81,10 +81,10 @@ define Package/ns-plug/install
 	$(INSTALL_BIN) ./files/inventory $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/20_ns-plug $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/30_ns-plug_alerts $(1)/etc/uci-defaults
-	$(INSTALL_BIN) ./files/netadata_enable_alerts $(1)/usr/share/ns-plug/hooks/register
-	$(INSTALL_BIN) ./files/netadata_disable_alerts $(1)/usr/share/ns-plug/hooks/unregister
-	$(INSTALL_BIN) ./files/enable_automatic_updates $(1)/usr/share/ns-plug/hooks/register
-	$(INSTALL_BIN) ./files/disable_automatic_updates $(1)/usr/share/ns-plug/hooks/unregister
+	$(INSTALL_BIN) ./files/netadata_enable_alerts $(1)/usr/share/ns-plug/hooks/register/70netadata_enable_alerts
+	$(INSTALL_BIN) ./files/netadata_disable_alerts $(1)/usr/share/ns-plug/hooks/unregister/70netadata_disable_alerts
+	$(INSTALL_BIN) ./files/enable_automatic_updates $(1)/usr/share/ns-plug/hooks/register/60enable_automatic_updates
+	$(INSTALL_BIN) ./files/disable_automatic_updates $(1)/usr/share/ns-plug/hooks/unregister/60disable_automatic_updates
 	$(INSTALL_CONF) ./files/config $(1)/etc/config/ns-plug
 	$(INSTALL_CONF) files/ns-plug.keep $(1)/lib/upgrade/keep.d/ns-plug
 	$(INSTALL_CONF) files/health_alarm_notify.conf $(1)/etc/netdata
