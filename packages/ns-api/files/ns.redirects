@@ -174,7 +174,7 @@ def edit_redirect(args):
         return utils.generic_error("redirect_not_modified")
 
 def list_protocols():
-    return {"protocols": ["tcp", "udp", "udplite", "icmp", "esp", "ah", "sctp", "all"]}
+    return {"protocols": ["tcp", "udp", "udplite", "icmp", "esp", "ah", "sctp"]}
 
 def get_device_ips():
     ret = {}
