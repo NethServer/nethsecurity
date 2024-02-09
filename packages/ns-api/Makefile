@@ -122,8 +122,8 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.update.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.ssh $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.ssh.json $(1)/usr/share/rpcd/acl.d/
-	$(INSTALL_DATA) ./files/schedule-system-update $(1)/usr/libexec/ns-api/
-	$(INSTALL_DATA) ./files/schedule-automatic-updates $(1)/usr/libexec/ns-api/
+	$(INSTALL_BIN) ./files/schedule-system-update $(1)/usr/libexec/ns-api/
+	$(INSTALL_BIN) ./files/schedule-automatic-updates $(1)/usr/libexec/ns-api/
 	$(INSTALL_BIN) ./files/ns.reverseproxy $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.reverseproxy.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.devices $(1)/usr/libexec/rpcd/
