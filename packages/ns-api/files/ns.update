@@ -15,6 +15,7 @@ import urllib
 import subprocess
 import urllib.request
 from nethsec import utils
+from urllib.parse import urlparse
 
 # Utilities
 
@@ -40,6 +41,17 @@ def get_update_schedule():
         return int(p.stdout.strip())
     except:
         return -1
+
+def get_distfeed_channel():
+    with open('/etc/opkg/distfeeds.conf', 'r') as f:
+        for line in f.readlines():
+            try:
+                (rtype, rname, url) = line.split(" ")
+                path = urlparse(url).path[1:] # strip first /
+                return path[0:path.index('/')]
+            except:
+                continue
+    return 'stable'
 
 # APIs
 
@@ -76,7 +88,7 @@ def check_system_update():
     current_version = get_system_version()
     ret = {"currentVersion": f'NethSecurity {current_version}', "lastVersion": "", "scheduledAt": get_update_schedule()}
     try:
-        channel = "dev"
+        channel = get_distfeed_channel()
         with urllib.request.urlopen(f"https://updates.nethsecurity.nethserver.org/{channel}/latest_release") as resp:
             version = resp.read().decode().rstrip()
             if current_version != version:
