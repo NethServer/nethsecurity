@@ -1,0 +1,13 @@
+{
+  "threat-shield": {
+    "description": "Manage adblock and banip to mitigate threats",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.threatshield": [
+          "*"
+        ]
+      }
+    }
+  }
+}
