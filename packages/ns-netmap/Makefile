@@ -40,8 +40,10 @@ endef
 define Package/ns-netmap/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_DIR) $(1)/etc/config
+	$(INSTALL_DIR) $(1)/usr/libexec/ns-api/pre-commit
 	$(INSTALL_BIN) ./files/ns-netmap $(1)/usr/sbin/ns-netmap
 	$(INSTALL_CONF) ./files/config $(1)/etc/config/netmap
+	$(INSTALL_BIN) ./files/netmap.py $(1)/usr/libexec/ns-api/pre-commit/
 endef
  
 $(eval $(call BuildPackage,ns-netmap))
