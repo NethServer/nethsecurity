@@ -30,7 +30,7 @@ define Package/ns-flashstart/description
 endef
 
 define Package/ns-flashstart/conffiles
-	/etc/config/flashstart
+/etc/config/flashstart
 endef
 
 # this is required, otherwise compile will fail

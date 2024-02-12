@@ -30,7 +30,7 @@ define Package/ns-phonehome/description
 endef
 
 define Package/ns-phonehome/conffiles
-	/etc/config/phonehome
+/etc/config/phonehome
 endef
 
 # this is required, otherwise compile will fail
