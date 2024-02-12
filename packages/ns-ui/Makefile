@@ -33,9 +33,6 @@ define Package/ns-ui/description
 NethSecurity web user interface
 endef
 
-define Package/ns-ui/conffiles
-endef
-
 define Build/Configure
 endef
 

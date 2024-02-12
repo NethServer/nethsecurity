@@ -30,7 +30,7 @@ define Package/ns-plug/description
 endef
 
 define Package/ns-plug/conffiles
-	/etc/config/ns-plug
+/etc/config/ns-plug
 endef
 
 # this is required, otherwise compile will fail
