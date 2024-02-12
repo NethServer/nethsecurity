@@ -48,6 +48,10 @@ fi
 exit 0
 endef
 
+define Package/ns-plug/conffiles
+	/etc/config/dpi
+endef
+
 # this is required, otherwise compile will fail
 define Build/Compile
 endef
