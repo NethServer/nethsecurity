@@ -30,8 +30,19 @@ config rule
 	option map_to '192.168.57.0/24'
 ```
 
-After adding a rule, execute the following commands to generate the rules:
+After adding a rule, run the `ns-netmap` script.
+
+Example:
 ```
+uci set netmap.r1=rule
+uci set netmap.r1.name=source_nat2
+uci set netmap.r1.dest=10.50.50.0/24
+uci  add_list netmap.r1.device_in='eth0'
+uci  add_list netmap.r1.device_out='tunrw1'
+uci set netmap.r1.map_from=192.168.1.0/24
+uci set netmap.r1.map_to=192.168.57.0/24
 uci commit netmap
 ns-netmap
 ```
+
+The package also provides 2 scripts that are triggered on pre-commit and post-commit hooks.
