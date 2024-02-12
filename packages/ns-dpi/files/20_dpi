@@ -1,6 +1,6 @@
 #!/bin/sh
 
-[ "$(uci -q get dpi.config.status)" != "" ] && exit 0
+[ "$(uci -q get dpi.config.enabled)" != "" ] && exit 0
 
 uci -q import dpi << EOI
 config main 'config'
