@@ -92,5 +92,3 @@ else
     echo -e "Target device not found: '$target'"
     exit 1
 fi
-
-exit 0
