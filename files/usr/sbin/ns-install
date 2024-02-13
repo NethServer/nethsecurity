@@ -18,7 +18,7 @@ function print_help {
 
 function check {
     disk=$(basename $1)
-    if [ $(grep "${disk}" /proc/partitions | wc -l) -gt 1 ]; then
+    if [ $(grep -c $disk /proc/partitions) -gt 1 ]; then
         echo -e "Multiple partitions found on $1, all content on device will be deleted!"
         read -rp "Do you want to proceed? (y/N) " force
         case $force in
@@ -40,7 +40,7 @@ function install() {
     umount /rom
 
     sleep 1
-    count=$(parted -sm ${device} print 2>/dev/null | grep "^2:" | cut -d: -f3 | sed "s/MB//")
+    count=$(parted -sm $device print 2>/dev/null | grep "^2:" | cut -d: -f3 | sed "s/MB//")
     echo "Writing image... "
     dd if=$device of=$1 bs=1M count=$count
     sync
@@ -63,7 +63,7 @@ done
 
 # select existing disks
 if [ -z "$target" ]; then
-    echo "Select target disk (or any other key to exit):"
+    echo "Select target disk (or press Enter to exit):"
     counter=1
     disks="$(lsblk -nlo NAME,SIZE,TYPE,MODEL | awk '$3 ~ /^disk/ && $1 !~ /ram/ && $2 !~ /^0B$/')"
     while read -r disk size type model; do
@@ -73,7 +73,7 @@ if [ -z "$target" ]; then
     done <<< "$disks"
 
     read -rp "Your choice: " choice
-    if [ ${choice:-1} -gt 0 ] && [ ${choice} -lt ${counter} ]; then
+    if [ ${choice:-0} -gt 0 ] && [ ${choice} -lt ${counter} ]; then
 	target=$(echo "$disks" | awk 'NR=='$choice'{ print $1; }')
         target="/dev/${target}"
     else
@@ -90,7 +90,7 @@ if [ -b "${target}" ]; then
    fi
 else
     echo -e "Target device not found: '$target'"
-    error=1
+    exit 1
 fi
 
-exit ${error:-0}
+exit 0
