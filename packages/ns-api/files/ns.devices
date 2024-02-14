@@ -41,7 +41,7 @@ def list_devices():
                # discard unconfigured bridges (they would appear after bridge removal, before committing changes)
                not (is_bridge(physical_dev) and not get_interface(
                    physical_dev.get('name'), ifaces_from_config)) and
-               # discard unconfigured bond devices (they would appear after committing bond creation)
+               # discard unconfigured bond devices (let's hide them on deletion, before commit)
                not is_bond(physical_dev),
                physical_devices))
 
@@ -49,7 +49,7 @@ def list_devices():
 
     merged_devices = []
 
-    for physical_dev in physical_devices:
+    for physical_dev in filtered_physical_devices:
         device_from_config_found = None
 
         for device_from_config in devices_from_config:
@@ -128,7 +128,8 @@ def list_devices():
                     ipaddr, netmask)
         else:
             # it's a device, associate its interface
-            iface = get_interface(deviceOrIface.get('name'), ifaces_from_config)
+            iface = get_interface(
+                deviceOrIface.get('name'), ifaces_from_config)
 
             if iface:
                 # convert ip4 addresses to CIDR notation
@@ -160,7 +161,8 @@ def list_devices():
 
                         # ip6
                         if pppoe_device_found.get('ip6addrs') and len(pppoe_device_found.get('ip6addrs')) > 0:
-                            iface['ip6addr'] = pppoe_device_found.get('ip6addrs')[0].get('address')
+                            iface['ip6addr'] = pppoe_device_found.get('ip6addrs')[
+                                0].get('address')
 
     devices_used_by_logical_ifaces = []
 
@@ -179,7 +181,6 @@ def list_devices():
                     dev['slaves'] = device.get('slaves')
                     dev['bonding_policy'] = device.get('bonding_policy')
                     dev['bond_interface'] = device.get('.name')
-                    all_devices.pop(key)
 
     # filter devices
 
@@ -1121,7 +1122,6 @@ def delete_bond():
 
     # all good, delete the interface
     e_uci.delete('network', data['name'])
-    # TODO: add device removal
     e_uci.save('network')
 
 
