@@ -5,4 +5,182 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-raise NotImplemented
+import os
+import sys
+import json
+from euci import EUci
+from nethsec.utils import ValidationError
+from nethsec import utils
+
+## Utilities
+
+def list_feeds():
+    if os.path.exists('/etc/banip/banip.custom.feeds') and os.path.getsize('/etc/banip/banip.custom.feeds') > 0:
+        with open('/etc/banip/banip.custom.feeds') as f:
+            return json.loads(f.read())
+    else:
+        with open('/etc/banip/banip.feeds') as f:
+            return json.loads(f.read())
+
+def get_allow_list():
+    ret = []
+    try:
+        with open('/etc/banip/banip.allowlist') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                parts = line.split('#')
+                if len(parts) > 1:
+                    ret.append({ "address": parts[0].strip(), "description": parts[1].strip() })
+                else:
+                    ret.append({ "address": parts[0].strip(), "description": '' })
+    except:
+        return []
+    return ret
+
+def write_allow_list(allow_list):
+    with open('/etc/banip/banip.allowlist', 'w') as f:
+        for x in allow_list:
+            f.write(x['address'])
+            if x['description']:
+                f.write(' #' + x['description'])
+            f.write('\n')
+
+## APIs
+
+def list_blocklist(e_uci):
+    ret = []
+    feeds = list_feeds()
+    try:
+        enabled_feeds = list(e_uci.get_all('banip', 'global', 'ban_feed'))
+    except:
+        enabled_feeds = []
+    enterprise_subscription = e_uci.get('ns-plug', 'config', 'system_id', default='') != '' and 'my.nethesis.it' in e_uci.get('ns-plug', 'config', 'inventory_url', default='')
+    for f in feeds:
+        feed = feeds[f]
+        if f.endswith('lvl1'):
+            confidence = 10
+        elif f.endswith('lvl2'):
+            confidence = 8
+        elif f.endswith('lvl3'):
+            confidence = 6
+        else:
+            confidence = -1
+
+        if 'bl.nethesis.it' in feed['url_4']:
+            type = 'enterprise'
+        else:
+            type = 'community'
+        enabled = f in enabled_feeds
+        # show only enterprise lists if the subscription is available
+        if enterprise_subscription and type == 'community':
+            if not enabled:
+                continue
+            else:
+                type = 'unknown'
+        ret.append({ 'name': f, 'type': type, 'enabled': enabled, 'confidence': confidence, 'description': feed.get('descr')})
+    return { "data": ret }
+
+def list_settings(e_uci):
+    return { 'data': {'enabled': e_uci.get('banip', 'global', 'ban_enabled') == '1' } }
+
+def edit_blocklist(e_uci, payload):
+    feeds = list_feeds()
+    try:
+        enabled = list(e_uci.get_all('banip', 'global', 'ban_feed'))
+    except:
+        enabled = []
+    if payload['enabled'] and payload['blocklist'] not in enabled:
+        enabled.append(payload['blocklist'])
+    if not payload['enabled'] and payload['blocklist'] in enabled:
+        enabled.remove(payload['blocklist'])
+    e_uci.set('banip', 'global', 'ban_feed', enabled)
+    e_uci.save('banip')
+    return {'message': 'success'}
+
+def edit_settings(e_uci, payload):
+    if payload['enabled']:
+        e_uci.set('banip', 'global', 'ban_enabled', '1')
+    else:
+        e_uci.set('banip', 'global', 'ban_enabled', '0')
+    e_uci.save('banip')
+    return {'message': 'success'}
+
+def list_allowed():
+    return { "data": get_allow_list() }
+
+def add_allowed(payload):
+    cur = get_allow_list()
+    # extract address from cur list
+    if payload['address'] in [x['address'] for x in cur]:
+        raise ValidationError('address', 'address_already_present', payload['address'])
+    cur.append({ "address": payload['address'], "description": payload['description'] })
+    write_allow_list(cur)
+    return {'message': 'success'}
+
+def delete_allowed(payload):
+    cur = get_allow_list()
+    if payload['address'] not in [x['address'] for x in cur]:
+        raise ValidationError('address', 'address_not_found', payload['address'])
+    # remove address from cur list
+    for i in range(len(cur)):
+        if cur[i]['address'] == payload['address']:
+            del cur[i]
+            break
+    write_allow_list(cur)
+    return {'message': 'success'}
+
+def edit_allowed(payload):
+    cur = get_allow_list()
+    if payload['address'] not in [x['address'] for x in cur]:
+        raise ValidationError('address', 'address_not_found', payload['address'])
+    for i in range(len(cur)):
+        if cur[i]['address'] == payload['address']:
+            cur[i]['description'] = payload['description']
+            break
+    write_allow_list(cur)
+    return {'message': 'success'}
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({
+        'list-blocklist': {},
+        'edit-blocklist': { "blocklist": "blocklist_name", "enabled": True },
+        'list-settings': { 'data': { 'enabled': True } },
+        'edit-settings': { 'enabled': True },
+        'list-allowed': {},
+        'add-allowed': { 'address': '1.2.3.4', 'description': 'optional' },
+        'edit-allowed': { 'address': '1.2.3.4', 'description': 'optional' },
+        'delete-allowed': { 'address': '1.2.3.4' }
+    }))
+elif cmd == 'call':
+    action = sys.argv[2]
+    e_uci = EUci()
+    try:
+        if action == 'list-blocklist':
+            ret = list_blocklist(e_uci)
+        elif action == 'edit-blocklist':
+            payload = json.loads(sys.stdin.read())
+            ret = edit_blocklist(e_uci, payload)
+        elif action == 'list-settings':
+            ret = list_settings(e_uci)
+        elif action == 'edit-settings':
+            payload = json.loads(sys.stdin.read())
+            ret = edit_settings(e_uci, payload)
+        elif action == 'list-allowed':
+            ret = list_allowed()
+        elif action == 'add-allowed':
+            payload = json.loads(sys.stdin.read())
+            ret = add_allowed(payload)
+        elif action == 'edit-allowed':
+            payload = json.loads(sys.stdin.read())
+            ret = edit_allowed(payload)
+        elif action == 'delete-allowed':
+            payload = json.loads(sys.stdin.read())
+            ret = delete_allowed(payload)
+
+        print(json.dumps(ret))
+    except ValidationError as ex:
+        print(json.dumps(utils.validation_error(ex.parameter, ex.message, ex.value)))
