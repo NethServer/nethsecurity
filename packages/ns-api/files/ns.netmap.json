@@ -1,0 +1,13 @@
+{
+  "netmap-manager": {
+    "description": "Manage netmap rules",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.netmap": [
+          "*"
+        ]
+      }
+    }
+  }
+}

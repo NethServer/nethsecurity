@@ -1,0 +1,41 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Manage netmap rules
+
+import sys
+import json
+from euci import EUci
+from nethsec import firewall, utils
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({
+        "list-rules": {},
+        'add-rule': {"name": "myrule", "src": "10.50.51.0/24", "dest": "", "device_in": ["eth0"], "device_out": ["eth1"], "map_from": "10.10.10.0/24", "map_to": "192.168.1.0/24" },
+        'edit-rule': {"id": "ns_12345", "name": "myrule", "src": "", "dest": "10.50.51.0/24", "device_in": ["eth0"], "device_out": ["eth1"], "map_from": "10.10.10.0/24", "map_to": "192.168.1.0/24" },
+        'delete-rule': {"id": "ns_12345"},
+    }))
+else:
+    action = sys.argv[2]
+    e_uci = EUci()
+    try:
+        if action == "list-rules":
+            ret = {"rules": firewall.list_netmap_rules(e_uci)}
+        else:
+            data = json.loads(sys.stdin.read())
+            if action == "add-rule":
+                ret = {"id": firewall.add_netmap_rule(e_uci, data['name'], data['src'], data['dest'], data['device_in'], data['device_out'], data['map_from'], data['map_to'])}
+            elif action == "edit-rule":
+                ret = {"id": firewall.edit_netmap_rule(e_uci, data['id'], data['name'], data['src'], data['dest'], data['device_in'], data['device_out'], data['map_from'], data['map_to'])}
+            elif action == "delete-rule":
+                firewall.delete_netmap_rule(e_uci,data['id'])
+                ret = {"result": "success"}
+        print(json.dumps(ret))
+    except utils.ValidationError as ex:
+        print(json.dumps(utils.validation_error(ex.parameter, ex.message, ex.value)))
