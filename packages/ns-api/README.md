@@ -5343,6 +5343,145 @@ Response example:
 {"result": "success"}
 ```
 
+## ns.threatshield
+
+Manage banip configuration.
+
+### list-blocklist
+
+List current blocklist:
+```
+api-cli ns.threatshield list-blocklist
+```
+
+Response example:
+```json
+{
+  "data": [
+    {
+      "name": "yoroimallvl1",
+      "type": "enterprise",
+      "enabled": false,
+      "confidence": 10,
+      "description": "Yoroi malware - Level 1"
+    },
+    {
+      "name": "yoroimallvl2",
+      "type": "enterprise",
+      "enabled": false,
+      "confidence": 8,
+      "description": "Yoroi malware - Level 2"
+    }
+  ]
+}
+```
+
+Fields:
+- type can be `enterprise`, `community` or `unknown`,  the warning type is when the list is present in UCI configuration but it's not a supported feed
+- confidence can be `-1` if the value is not available
+
+
+### list-settings
+
+Show current banip settings:
+```
+api-cli ns.threatshield list-settings
+```
+
+Response example:
+```json
+{"data": {"enabled": true}}
+```
+
+### edit-settings
+
+Configure banip settings:
+```
+api-cli ns.threatshield edit-settings --data '{"enabled": true}'
+```
+
+Response example:
+```json
+{"message": "success"}
+```
+
+### edit-blocklist
+
+Enable or disable a blocklist:
+```
+api-cli ns.threatshield edit-blocklist --data '{ "blocklist": "blocklist_name", "enabled": True }'
+```
+
+### list-allowed
+
+List addresses always allowed:
+```
+api-cli ns.threatshield list-allowed
+```
+
+Response example:
+```json
+{
+  "data": [
+    {
+      "address": "10.10.0.221/24",
+      "description": "WAN"
+    },
+    {
+      "address": "52:54:00:6A:50:BF",
+      "description": "my MAC address"
+    }
+  ]
+}
+```
+
+### add-allowed
+
+Add an address which is always allowed:
+```
+api-cli ns.threatshield add-allowed --data '{"address": "1.2.3.4", "description": "my allow1"}'
+```
+
+The `address` field can be an IPv4/IPv6, a CIDR, a MAC or host name
+
+Response example:
+```json
+{"message": "success"}
+```
+
+It can raise the following validation errors:
+- `address_already_present` if the address is already inside the allow list
+
+### edit-allowed
+
+Change the description of an address already insie the allow list:
+```
+api-cli ns.threatshield edit-allowed --data '{"address": "1.2.3.4", "description": "my new desc"}'
+```
+
+Response example:
+```json
+{"message": "success"}
+```
+
+It can raise the following validation errors:
+- `address_not_found` if the address is not inside the allow list
+
+### delete-allowed
+
+Delete an address from the allow list:
+```
+api-cli ns.threatshield delete-allowed --data '{"address": "1.2.3.4"}'
+```
+
+Response example:
+```json
+{"message": "success"}
+```
+
+It can raise the following validation errors:
+- `address_not_found` if the address is not inside the allow list
+
 ## ns.qos
 
 Allows to configure QoS for each network interface available.
