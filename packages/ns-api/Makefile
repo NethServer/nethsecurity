@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-api
-PKG_VERSION:=0.0.35
+PKG_VERSION:=0.0.38
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-api-$(PKG_VERSION)
@@ -134,6 +134,8 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.commit.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.netmap $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.netmap.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.threatshield $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.threatshield.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_CONF) files/msmtp.keep $(1)/lib/upgrade/keep.d/msmtp
 	$(LN) /usr/bin/msmtp $(1)/usr/sbin/sendmail

@@ -5343,6 +5343,145 @@ Response example:
 {"result": "success"}
 ```
 
+## ns.threatshield
+
+Manage banip configuration.
+
+### list-blocklist
+
+List current blocklist:
+```
+api-cli ns.threatshield list-blocklist
+```
+
+Response example:
+```json
+{
+  "data": [
+    {
+      "name": "yoroimallvl1",
+      "type": "enterprise",
+      "enabled": false,
+      "confidence": 10,
+      "description": "Yoroi malware - Level 1"
+    },
+    {
+      "name": "yoroimallvl2",
+      "type": "enterprise",
+      "enabled": false,
+      "confidence": 8,
+      "description": "Yoroi malware - Level 2"
+    }
+  ]
+}
+```
+
+Fields:
+- type can be `enterprise` or `community`
+- confidence can be `-1` if the value is not available
+
+
+### list-settings
+
+Show current banip settings:
+```
+api-cli ns.threatshield list-settings
+```
+
+Response example:
+```json
+{"data": {"enabled": true}}
+```
+
+### edit-settings
+
+Configure banip settings:
+```
+api-cli ns.threatshield edit-settings --data '{"enabled": true}'
+```
+
+Response example:
+```json
+{"message": "success"}
+```
+
+### edit-blocklist
+
+Enable or disable a blocklist:
+```
+api-cli ns.threatshield edit-blocklist --data '{ "blocklist": "blocklist_name", "enabled": True }'
+```
+
+### list-allowed
+
+List addresses always allowed:
+```
+api-cli ns.threatshield list-allowed
+```
+
+Response example:
+```json
+{
+  "data": [
+    {
+      "address": "10.10.0.221/24",
+      "description": "WAN"
+    },
+    {
+      "address": "52:54:00:6A:50:BF",
+      "description": "my MAC address"
+    }
+  ]
+}
+```
+
+### add-allowed
+
+Add an address which is always allowed:
+```
+api-cli ns.threatshield add-allowed --data '{"address": "1.2.3.4", "description": "my allow1"}'
+```
+
+The `address` field can be an IPv4/IPv6, a CIDR, a MAC or host name
+
+Response example:
+```json
+{"message": "success"}
+```
+
+It can raise the following validation errors:
+- `address_already_present` if the address is already inside the allow list
+
+### edit-allowed
+
+Change the description of an address already insie the allow list:
+```
+api-cli ns.threatshield edit-allowed --data '{"address": "1.2.3.4", "description": "my new desc"}'
+```
+
+Response example:
+```json
+{"message": "success"}
+```
+
+It can raise the following validation errors:
+- `address_not_found` if the address is not inside the allow list
+
+### delete-allowed
+
+Delete an address from the allow list:
+```
+api-cli ns.threatshield delete-allowed --data '{"address": "1.2.3.4"}'
+```
+
+Response example:
+```json
+{"message": "success"}
+```
+
+It can raise the following validation errors:
+- `address_not_found` if the address is not inside the allow list
+
 ## ns.qos
 
 Allows to configure QoS for each network interface available.
@@ -5528,3 +5667,254 @@ Response example:
 ```
 
 The API may raise a `rule_does_not_exists` error if the rule does not exist.
+
+## ns.mwan
+
+Automates configuration of MWANs.
+
+### index_policies
+
+List all MWAN policies:
+
+```bash
+api-cli ns.mwan index_policies
+```
+
+Example response:
+
+```json
+{
+   "values": [
+      {
+         "label": "Default",
+         "members": {
+            "10": [
+               {
+                  "interface": "RED_1",
+                  "metric": "10",
+                  "name": "ns_RED_1_M10_W100",
+                  "status": "notracking",
+                  "weight": "100"
+               },
+               {
+                  "interface": "RED_2",
+                  "metric": "10",
+                  "name": "ns_RED_2_M10_W100",
+                  "status": "notracking",
+                  "weight": "100"
+               }
+            ]
+         },
+         "name": "ns_default",
+         "type": "balance"
+      }
+   ]
+}
+```
+
+Note: `type` is just a helper field, always refer to how members are disposed in the `members` field.
+
+### store_policy
+
+Store a new MWAN policy:
+
+```bash
+api-cli ns.mwan store_policy --data '{"name": "Default","interfaces": [{"name": "RED_1","metric": 10,"weight": "100"},{"name": "RED_2","metric": 10,"weight": "100"}]}'
+```
+
+Parameters:
+
+- `name`: friendly name for the policy
+- `interfaces`: list of interfaces to be included in the policy, each interface must have the following fields:
+   - `name`: name of the interface
+   - `metric`: metric to be used for the interface
+   - `weight`: weight to be used for the interface
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### edit_policy
+
+Edit an existing MWAN policy:
+
+```bash
+api-cli ns.mwan edit_policy --data '{"name": "ns_default","label": "Default","interfaces": [{"name": "RED_1","metric": 10,"weight": "100"},{"name": "RED_2","metric": 20,"weight": "100"}]}'
+```
+
+Parameters:
+
+- `name`: name of the policy to be edited
+- `label`: friendly name for the policy
+- `interfaces`: list of interfaces to be included in the policy, each interface must have the following fields:
+   - `name`: name of the interface
+   - `metric`: metric to be used for the interface
+   - `weight`: weight to be used for the interface
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### delete_policy
+
+Deletes an existing MWAN policy:
+
+```bash
+api-cli ns.mwan delete_policy --data '{"name": "ns_test"}'
+```
+
+Parameters:
+
+- `name`: name of the policy to be deleted
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### index_rules
+
+List all MWAN rules (ordered by priority):
+
+```bash
+api-cli ns.mwan index_rules
+```
+
+Example response:
+
+```json
+{
+   "values": [
+      {
+         "label": "Default Rule",
+         "name": "ns_default_rule",
+         "policy": {
+            "label": "Default",
+            "name": "ns_default"
+         },
+         "protocol": "all",
+         "source_address": "1.1.1.1/30",
+         "destination_address": "10.0.0.1/20"
+      }
+   ]
+}
+```
+
+Note: field `protocol`, `source_address` and `destination_address` can be missing from the response, in that case
+consider them to be set as `any`.
+
+### store_rule
+
+Store a new MWAN rule:
+
+```bash
+api-cli ns.mwan store_rule --data '{name": "hello",policy": "ns_default",protocol": "all",source_address": "",source_port": "",destination_address": "",destination_port": ""}'
+```
+
+Parameters:
+- `name`: friendly name for the rule
+- `policy`: name of the policy to be used, must be present in the list of policies
+- `protocol`: protocol to be used, can be `all`, `tcp`, `udp`, `icmp` or `esp`
+- `source_address`: source address to be used, can be a single IP, a CIDR or empty for `any`
+- `source_port`: source port to be used, can be a single port, a range or empty for `any`
+- `destination_address`: destination address to be used, can be a single IP, a CIDR or empty for `any`
+- `destination_port`: destination port to be used, can be a single port, a range or empty for `any`
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### order_rules
+
+Order rules by priority (highest priority first):
+
+```bash
+api-cli ns.mwan order_rules --data '{"rules": ["ns_hello", "ns_test", "ns_default_rule"]}'
+```
+
+Parameters:
+- `rules`: list of rule names in the order they should be applied
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### delete_rule
+
+Deletes an existing MWAN rule:
+
+```bash
+api-cli ns.mwan delete_rule --data '{"name": "ns_test"}'
+```
+
+Parameters:
+- `name`: name of the rule to be deleted
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### edit_rule
+
+Edit an existing MWAN rule:
+
+```bash
+api-cli ns.mwan edit_rule --data '{"name": "ns_hello","policy": "ns_default", "label": "hello", "protocol": "all","source_address": "","source_port": "","destination_address": "","destination_port": ""}'
+```
+
+Parameters:
+- `name`: name of the rule to be edited
+- `policy`: name of the policy to be used, must be present in the list of policies
+- `label`: friendly name for the rule
+- `protocol`: protocol to be used, can be `all`, `tcp`, `udp`, `icmp` or `esp`
+- `source_address`: source address to be used, can be a single IP, a CIDR or empty for `any`
+- `source_port`: source port to be used, can be a single port, a range or empty for `any`
+- `destination_address`: destination address to be used, can be a single IP, a CIDR or empty for `any`
+- `destination_port`: destination port to be used, can be a single port, a range or empty for `any`
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### clear_config
+
+Clears all MWAN configuration (useful if you want to start over configuring), will still have pending changes until you commit them.
+
+```bash
+api-cli ns.mwan clear_config
+```
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```

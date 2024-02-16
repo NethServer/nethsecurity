@@ -85,6 +85,7 @@ def list_interfaces():
                 if 'dhcp_option' in ds:
                     for opt in ds['dhcp_option']:
                         tmp = opt.split(",")
+                        tmp[0] = tmp[0].removeprefix('option:')
                         record['options'][tmp[0]] = " ".join(tmp[1:])
                 break
         ret[i] = record
@@ -148,6 +149,7 @@ def get_interface(args):
     if "dhcp_option" in dhcp:
         for opt in dhcp.get("dhcp_option"):
             tmp = opt.split(",")
+            tmp[0] = tmp[0].removeprefix('option:')
             ret["options"].append({tmp[0]: ",".join(tmp[1:])})
 
     return ret
