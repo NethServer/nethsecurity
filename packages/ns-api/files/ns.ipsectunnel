@@ -253,7 +253,8 @@ def list_wans():
     for device in ips.keys():
         if device in wans or device.startswith('pppoe'):
             for ip in ips[device]:
-                ret["wans"].append({"device": device, "ipaddr": ip})
+                if not ip.startswith("127"): # exclude bond management IP
+                    ret["wans"].append({"device": device, "ipaddr": ip})
     return ret
 
 def get_defaults():
