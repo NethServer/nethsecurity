@@ -1047,7 +1047,7 @@ def delete_alias_interface(input_data):
 def create_vlan_device(input_data):
     uci = EUci()
     vlan_type = input_data.get('vlan_type')
-    base_device_name = input_data.get('base_device_name')
+    base_device_name: str = input_data.get('base_device_name')
     vlan_id = input_data.get('vlan_id')
 
     # validate input data
@@ -1064,7 +1064,7 @@ def create_vlan_device(input_data):
     # create device
 
     device_id = utils.get_random_id()
-    device_name = f'{base_device_name}.{vlan_id}'
+    device_name = f'{base_device_name.removeprefix("bond-")}.{vlan_id}'
     uci.set('network', device_id, 'device')
     uci.set('network', device_id, 'name', device_name)
     uci.set('network', device_id, 'type', vlan_type)
