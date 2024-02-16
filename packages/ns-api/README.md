@@ -5573,6 +5573,101 @@ Example response:
 }
 ```
 
+## ns.netmap
+
+Manage netmap rules.
+
+### list-rules
+
+List existing netmap rules.
+```
+api-cli ns.netmap list-rules
+```
+
+Respose example:
+```json
+{
+  "rules": [
+    {
+      "name": "myrule",
+      "src": "10.50.51.0/24",
+      "device_in": [
+        "eth0"
+      ],
+      "device_out": [
+        "eth1"
+      ],
+      "map_from": "10.10.10.0/24",
+      "map_to": "192.168.1.0/24",
+      "id": "ns_b829ca2d"
+    },
+    {
+      "name": "myrule",
+      "dest": "10.51.52.0/24",
+      "device_in": [],
+      "device_out": [],
+      "map_from": "10.10.10.0/24",
+      "map_to": "192.168.1.0/24",
+      "id": "ns_c365af3b"
+    }
+  ]
+}
+```
+
+### add-rule
+
+Add new netmap rules.
+Add a source rule:
+```
+api-cli ns.netmap add-rule --data '{"name": "myrule", "src": "10.50.51.0/24", "dest": "", "device_in": ["eth0"], "device_out": ["eth1"], "map_from": "10.10.10.0/24", "map_to": "192.168.1.0/24"}'
+```
+
+Add a destination rule:
+```
+api-cli ns.netmap add-rule --data '{"name": "myrule", "src": "", "dest": 10.50.51.0/24"", "device_in": [], "device_out": ["eth1"], "map_from": "10.10.10.0/24", "map_to": "192.168.1.0/24"}'
+```
+
+Response example:
+```json
+{"id": "ns_9a553fa2"}
+```
+
+The API may rise the following errors:
+- name_too_long: if the length of `name` is greater than 120 characters
+- src_or_dest: if both `src` and `dest` are non-empty
+- map_from_invalid_format: if `map_from` is not a valid IP network format
+- map_to_invalid_format: if `map_to` is not a valid IP network format
+- src_invalid_format: if `src` is provided and is not a valid IP network format
+- dest_invalid_format: if `dest` is provided and is not a valid IP network format
+
+### edit-rule
+
+Edit an existing netmap rule:
+```
+api-cli ns.netmap edit-rule --data '{"id": "ns_9a553fa2", "name": "myrule2", "src": "10.50.51.0/24", "dest": "", "device_in": ["eth0"], "device_out": ["eth1"], "map_from": "10.10.10.0/24", "map_to": "192.168.1.0/24"}'
+```
+
+Response example:
+```json
+{"id": "ns_9a553fa2"}
+```
+
+The API may raise the same errors of the `add-rule` call.
+
+### delete-rule
+
+Delete an existing netmap rule:
+```
+api-cli ns.netmap delete-rule --data '{"id": "ns_9a553fa2"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+The API may raise a `rule_does_not_exists` error if the rule does not exist.
+
 ## ns.mwan
 
 Automates configuration of MWANs.
