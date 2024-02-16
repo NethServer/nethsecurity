@@ -42,7 +42,7 @@ def list_devices():
                not (is_bridge(physical_dev) and not get_interface(
                    physical_dev.get('name'), ifaces_from_config)) and
                # discard unconfigured bond devices (let's hide them on deletion, before commit)
-               not is_bond(physical_dev),
+               not (is_bond(physical_dev) and get_interface(physical_dev.get('name'), ifaces_from_config) is None),
                physical_devices))
 
     # add data from config
