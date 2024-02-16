@@ -41,8 +41,8 @@ def list_devices():
                # discard unconfigured bridges (they would appear after bridge removal, before committing changes)
                not (is_bridge(physical_dev) and not get_interface(
                    physical_dev.get('name'), ifaces_from_config)) and
-               # discard unconfigured bond devices (they would appear after committing bond creation)
-               not is_bond(physical_dev),
+               # discard unconfigured bond devices (let's hide them on deletion, before commit)
+               not (is_bond(physical_dev) and get_interface(physical_dev.get('name'), ifaces_from_config) is None),
                physical_devices))
 
     # add data from config
@@ -167,10 +167,20 @@ def list_devices():
     devices_used_by_logical_ifaces = []
 
     for device in all_devices:
-        if is_bond(device):
+        if is_bond(device) and 'slaves' in device:
             devices_used_by_logical_ifaces += device.get('slaves')
         elif is_bridge(device):
             devices_used_by_logical_ifaces += device.get('ports')
+
+    for key, device in enumerate(all_devices):
+        if device.get('proto') == 'bonding' and device.get('.type') == 'interface':
+            for dev in all_devices:
+                if dev.get('name') == 'bond-' + device.get('.name'):
+                    dev['ipaddr'] = device.get('ipaddr')
+                    dev['netmask'] = device.get('netmask')
+                    dev['slaves'] = device.get('slaves')
+                    dev['bonding_policy'] = device.get('bonding_policy')
+                    dev['bond_interface'] = device.get('.name')
 
     # filter devices
 
@@ -922,7 +932,7 @@ def unconfigure_device(iface_name):
                 device_found = dev
                 break
 
-        if device_found and not is_vlan(device_found) and not is_bond(device_found):
+        if device_found and not is_vlan(device_found):
             uci.delete('network', device_found['.name'])
 
     uci.save("firewall")
@@ -1048,7 +1058,7 @@ def delete_alias_interface(input_data):
 def create_vlan_device(input_data):
     uci = EUci()
     vlan_type = input_data.get('vlan_type')
-    base_device_name = input_data.get('base_device_name')
+    base_device_name: str = input_data.get('base_device_name')
     vlan_id = input_data.get('vlan_id')
 
     # validate input data
@@ -1065,7 +1075,7 @@ def create_vlan_device(input_data):
     # create device
 
     device_id = utils.get_random_id()
-    device_name = f'{base_device_name}.{vlan_id}'
+    device_name = f'{base_device_name.removeprefix("bond-")}.{vlan_id}'
     uci.set('network', device_id, 'device')
     uci.set('network', device_id, 'name', device_name)
     uci.set('network', device_id, 'type', vlan_type)
@@ -1110,6 +1120,20 @@ def list_zones_for_device_config():
             zones.append(zone)
 
     return {'zones': zones}
+
+
+def delete_bond():
+    data = json.loads(sys.stdin.read())
+    e_uci = EUci()
+    if 'name' not in data:
+        raise utils.ValidationError('name', 'required')
+    bond = e_uci.get('network', data['name'], 'proto', default='')
+    if bond != 'bonding':
+        raise utils.ValidationError('name', 'invalid', data['name'])
+
+    # all good, delete the interface
+    e_uci.delete('network', data['name'])
+    e_uci.save('network')
 
 
 cmd = sys.argv[1]
@@ -1169,7 +1193,10 @@ if cmd == 'list':
         'delete-device': {
             'device_name': 'string'
         },
-        'list-zones-for-device-config': {}
+        'list-zones-for-device-config': {},
+        'delete-bond': {
+            'name': 'string'
+        }
     }))
 elif cmd == 'call':
     action = sys.argv[2]
@@ -1208,6 +1235,9 @@ elif cmd == 'call':
         elif action == 'list-zones-for-device-config':
             zones = list_zones_for_device_config()
             print(json.dumps(zones))
+        elif action == 'delete-bond':
+            delete_bond()
+            print(json.dumps({'message': 'success'}))
         else:
             print(json.dumps(utils.generic_error(f'invalid method {action}')))
     except KeyError as e:
