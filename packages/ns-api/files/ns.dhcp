@@ -68,8 +68,8 @@ def list_interfaces():
         dhcps = []
     for i in interfaces:
         record = {"device": "", "start": "", "end": "", "active": False, "options": {} }
-        # skip loopback, wans and interfaces with no IP address (e.g. DHCP interfaces)
-        if i == "loopback" or i in wans or not ('ipaddr' in interfaces[i]):
+        # skip loopback, bond devices, wans and interfaces with no IP address (e.g. DHCP interfaces)
+        if i == "loopback" or i in wans or not ('ipaddr' in interfaces[i]) or interfaces[i].get('proto') == 'bonding':
             continue
 
         record['device'] = interfaces[i].get('device', '')
