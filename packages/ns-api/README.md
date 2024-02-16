@@ -5377,7 +5377,7 @@ Response example:
 ```
 
 Fields:
-- type can be `enterprise`, `community` or `unknown`,  the warning type is when the list is present in UCI configuration but it's not a supported feed
+- type can be `enterprise` or `community`
 - confidence can be `-1` if the value is not available
 
 

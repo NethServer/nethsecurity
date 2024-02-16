@@ -7,12 +7,62 @@
 
 import os
 import sys
+import base64
 import json
+import urllib
+import urllib.request
+import urllib.error
 from euci import EUci
 from nethsec.utils import ValidationError
 from nethsec import utils
+import base64
+import time
 
 ## Utilities
+
+def has_bl_entitlement(e_uci):
+    if not has_enterprise_subscription(e_uci):
+        return False
+
+    cache_file = "/tmp/bl_entitlement_cache"
+    cache_timeout = 3600
+
+    # Check if cache file exists and if it is still valid
+    if os.path.exists(cache_file) and time.time() - os.path.getmtime(cache_file) < cache_timeout:
+        with open(cache_file, 'r') as f:
+            return f.read() == "True"
+
+    url = "https://my.nethesis.it/auth/service/ng-blacklist"
+    system_id = e_uci.get('ns-plug', 'config', 'system_id', default='')
+    secret = e_uci.get('ns-plug', 'config', 'secret', default='')
+    auth_string = f"{system_id}:{secret}".encode("utf-8")
+    auth_header = f"Basic {base64.b64encode(auth_string).decode('utf-8')}"
+    headers = {
+        "Accept": "application/json",
+        "Authorization": auth_header,
+    }
+    try:
+        req = urllib.request.Request(url, headers=headers)
+        response = urllib.request.urlopen(req, timeout=20)  # Add timeout of 60 seconds
+    except urllib.error.URLError as e:
+        return False
+
+    has_bl = response.status == 200
+
+    # Cache the result in the file
+    with open(cache_file, 'w') as f:
+        f.write(str(has_bl))
+
+    return has_bl
+
+def has_enterprise_subscription(e_uci):
+    system_id = e_uci.get('ns-plug', 'config', 'system_id', default='')
+    if system_id == '':
+        return False
+    inventory_url = e_uci.get('ns-plug', 'config', 'inventory_url', default='')
+    if 'my.nethesis.it' in inventory_url:
+        return True
+    return False
 
 def list_feeds():
     if os.path.exists('/etc/banip/banip.custom.feeds') and os.path.getsize('/etc/banip/banip.custom.feeds') > 0:
@@ -52,11 +102,11 @@ def write_allow_list(allow_list):
 def list_blocklist(e_uci):
     ret = []
     feeds = list_feeds()
+    has_bl = has_bl_entitlement(e_uci)
     try:
         enabled_feeds = list(e_uci.get_all('banip', 'global', 'ban_feed'))
     except:
         enabled_feeds = []
-    enterprise_subscription = e_uci.get('ns-plug', 'config', 'system_id', default='') != '' and 'my.nethesis.it' in e_uci.get('ns-plug', 'config', 'inventory_url', default='')
     for f in feeds:
         feed = feeds[f]
         if f.endswith('lvl1'):
@@ -67,18 +117,16 @@ def list_blocklist(e_uci):
             confidence = 6
         else:
             confidence = -1
+        enabled = f in enabled_feeds
 
         if 'bl.nethesis.it' in feed['url_4']:
             type = 'enterprise'
         else:
             type = 'community'
-        enabled = f in enabled_feeds
-        # show only enterprise lists if the subscription is available
-        if enterprise_subscription and type == 'community':
-            if not enabled:
-                continue
-            else:
-                type = 'unknown'
+
+        if type == 'enterprise' and not has_bl:
+            continue
+
         ret.append({ 'name': f, 'type': type, 'enabled': enabled, 'confidence': confidence, 'description': feed.get('descr')})
     return { "data": ret }
 
