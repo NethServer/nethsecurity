@@ -5918,3 +5918,97 @@ Example response:
    "message": "success"
 }
 ```
+
+## ns.nat
+
+Manage all NAT rules.
+
+### list-rules
+
+List NAT rules:
+```
+api-cli ns.nat list-rules
+```
+
+Output example:
+```json
+{
+  "rules": [
+    {
+      "name": "source_NAT1_vpm",
+      "src": "*",
+      "src_ip": "192.168.55.0/24",
+      "dest_ip": "10.20.30.0/24",
+      "target": "SNAT",
+      "snat_ip": "10.44.44.1",
+      "id": "cfg0b93c8"
+    },
+    {
+      "name": "masquerade",
+      "src": "lan",
+      "src_ip": "192.168.1.0/24",
+      "dest_ip": "10.88.88.0/24",
+      "target": "MASQUERADE",
+      "id": "cfg0c93c8"
+    },
+    {
+      "name": "cdn_via_router",
+      "src": "lan",
+      "src_ip": "192.168.1.0/24",
+      "dest_ip": "192.168.50.0/24",
+      "target": "ACCEPT",
+      "id": "cfg0d93c8"
+    },
+    {
+      "name": "SNAT_NSEC7_style",
+      "src": "wan",
+      "src_ip": "192.168.1.44",
+      "target": "SNAT",
+      "snat_ip": "10.20.30.5",
+      "id": "cfg0e93c8"
+    }
+  ]
+}
+```
+
+### add-rule
+
+Add a new NAT rule:
+```
+api-cli ns.nat add-rule --data '{"name":"r1","src":"lan","src_ip":"7.8.9.1","dest_ip":"1.2.3.4","target":"SNAT","snat_ip":"4.5.6.7"}'
+```
+
+Response example:
+```json
+{"id": "ns_75bec982"}
+```
+
+The API can raise the following validation exceptions:
+
+- `name_too_long`: the name field length must not exceed 120 chars
+- `invalid_target`: valid targets are `ACCEPT`, `MASQUERADE`, `SNAT`
+
+### edit-rule
+
+Edit an existing NAT rule:
+```
+api-cli ns.nat edit-rule --data '{"id": "ns_75bec982", "name":"r1","src":"lan","src_ip":"7.8.9.1","dest_ip":"1.2.3.4","target":"SNAT","snat_ip":"4.5.6.7"}'
+```
+
+Response example:
+```json
+{"id": "ns_75bec982"}
+```
+
+### delete-rule
+
+Delete an existing NAT rule:
+```
+api-cli ns.nat delete-rule --data '{"id": "ns_75bec982"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
