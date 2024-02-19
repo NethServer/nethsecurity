@@ -253,6 +253,7 @@ for s in data['snats']:
     u.set("firewall", sname, "proto", [s["proto"]])
     u.set("firewall", sname, "snat_ip", s["snat_ip"])
     u.set("firewall", sname, "src_ip", s["src_ip"])
+    u.set("firewall", sname, "dest_ip", s.get("dest_ip", "0.0.0.0/0"))
     u.set("firewall", sname, "src", "wan")
 
 # Save configuration
