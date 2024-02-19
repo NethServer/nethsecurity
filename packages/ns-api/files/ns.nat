@@ -1,0 +1,77 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Manage firewall NAT rules
+
+import json
+import sys
+
+from euci import EUci
+from nethsec import utils, firewall
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({
+        'list-rules': {},
+        'add-rule': {
+            "name": "r1",
+            "src": "lan",
+            "src_ip": "7.8.9.1",
+            "dest_ip": "1.2.3.4",
+            "target": "SNAT",
+            "snat_ip": "4.5.6.7"
+        },
+        'edit-rule': {
+            "id": "ns_1234",
+            "name": "r1",
+            "src": "lan",
+            "src_ip": [],
+            "dest": "wan",
+            "dest_ip": ["1.2.3.4"],
+            "target": "ACCEPT",
+        },
+        'delete-rule': { "id": "ns_1234" },
+    }))
+elif cmd == 'call':
+    try:
+        action = sys.argv[2]
+        e_uci = EUci()
+        if action == 'list-rules':
+            print(json.dumps({'rules': firewall.list_nat_rules(e_uci)}))
+        elif action == "add-rule":
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            ret = firewall.add_nat_rule(
+                    e_uci,
+                    data['name'],
+                    data['target'],
+                    data['src'],
+                    data['src_ip'],
+                    data['dest_ip'],
+                    data['snat_ip']
+            )
+            print(json.dumps({"id": ret}))
+        elif action == "edit-rule":
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            ret = firewall.edit_nat_rule(
+                    e_uci,
+                    data['id'],
+                    data['name'],
+                    data['target'],
+                    data['src'],
+                    data['src_ip'],
+                    data['dest_ip'],
+                    data['snat_ip']
+            )
+            print(json.dumps({"id": ret}))
+        elif action == "delete-rule":
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            ret = firewall.delete_nat_rule(e_uci, data['id'])
+            print(json.dumps({"result": "success"}))
+
+    except utils.ValidationError as ex:
+        print(json.dumps(utils.validation_error(ex.parameter, ex.message, ex.value)))

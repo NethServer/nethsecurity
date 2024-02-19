@@ -1,0 +1,13 @@
+{
+  "nat-manager": {
+    "description": "NAT manager",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.nat": [
+          "*"
+        ]
+      }
+    }
+  }
+}
