@@ -266,6 +266,8 @@ def counter(service):
     ret = 0
     if service == "hosts":
         ret = count_hosts()
+    elif service == "threat_shield_ip":
+        ret = _run("grep \"$(date -d '-1 hour' +'%b %d %H:%M')\" /var/log/messages | grep kernel | grep banIP/ | wc -l")
 
     return {"count": ret}
 
