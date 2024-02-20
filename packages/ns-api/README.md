@@ -5644,12 +5644,13 @@ Reponse example:
 ### add-rule
 
 Add new netmap rules.
-Add a source rule:
+
+Add a destinarion rule:
 ```
 api-cli ns.netmap add-rule --data '{"name": "myrule", "src": "10.50.51.0/24", "dest": "", "device_in": ["eth0"], "device_out": ["eth1"], "map_from": "10.10.10.0/24", "map_to": "192.168.1.0/24"}'
 ```
 
-Add a destination rule:
+Add a source rule:
 ```
 api-cli ns.netmap add-rule --data '{"name": "myrule", "src": "", "dest": 10.50.51.0/24"", "device_in": [], "device_out": ["eth1"], "map_from": "10.10.10.0/24", "map_to": "192.168.1.0/24"}'
 ```
