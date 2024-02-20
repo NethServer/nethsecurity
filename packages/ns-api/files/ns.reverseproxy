@@ -245,6 +245,7 @@ elif cmd == 'call':
             # set default certificate for _lan
             e_uci.set('nginx', '_lan', 'ssl_certificate', valid_certificates[data['name']]['cert_path'])
             e_uci.set('nginx', '_lan', 'ssl_certificate_key', valid_certificates[data['name']]['key_path'])
+            e_uci.set('nginx', '_lan', 'uci_manage_ssl', 'custom')
 
             # submit changes
             e_uci.save('nginx')
