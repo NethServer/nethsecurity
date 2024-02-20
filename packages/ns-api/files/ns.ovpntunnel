@@ -313,9 +313,9 @@ def list_tunnels():
             clients.append(client)
         else:
             connected = ovpn.list_connected_clients(section, topology)
-            if 'client' in connected:
+            if len(connected) > 0:
                 record["connected"] = True
-                record = record | connected['client']
+                record = record | list(connected.values())[0]
 
             local = []
             remote = []
