@@ -17,6 +17,7 @@ cmd = sys.argv[1]
 if cmd == 'list':
     print(json.dumps({
         "list-rules": {},
+        "list-devices": {},
         'add-rule': {"name": "myrule", "src": "10.50.51.0/24", "dest": "", "device_in": ["eth0"], "device_out": ["eth1"], "map_from": "10.10.10.0/24", "map_to": "192.168.1.0/24" },
         'edit-rule': {"id": "ns_12345", "name": "myrule", "src": "", "dest": "10.50.51.0/24", "device_in": ["eth0"], "device_out": ["eth1"], "map_from": "10.10.10.0/24", "map_to": "192.168.1.0/24" },
         'delete-rule': {"id": "ns_12345"},
@@ -27,6 +28,8 @@ else:
     try:
         if action == "list-rules":
             ret = {"rules": firewall.list_netmap_rules(e_uci)}
+        elif action == "list-devices":
+            ret = {"devices": firewall.list_netmap_devices(e_uci)}
         else:
             data = json.loads(sys.stdin.read())
             if action == "add-rule":
