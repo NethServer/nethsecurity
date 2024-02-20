@@ -5614,6 +5614,33 @@ Respose example:
 }
 ```
 
+### list-devices
+
+List available devices:
+```
+api-cli ns.netmap list-devices
+```
+
+Reponse example:
+```json
+{
+  "devices": [
+    {
+      "device": "eth2",
+      "interface": null
+    },
+    {
+      "device": "br-lan",
+      "interface": "lan"
+    },
+    {
+      "device": "tuntun1",
+      "interface": "tun1"
+    }
+  ]
+}
+```
+
 ### add-rule
 
 Add new netmap rules.
