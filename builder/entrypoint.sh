@@ -85,6 +85,12 @@ echo "CONFIG_VERSION_PRODUCT=\"${CONFIG_VERSION_PRODUCT}\"" >> /config-tmp/brand
 echo "CONFIG_VERSION_REPO=\"${CONFIG_VERSION_REPO}\"" >> /config-tmp/branding.conf
 echo "CONFIG_VERSION_SUPPORT_URL=\"${CONFIG_VERSION_SUPPORT_URL}\"" >> /config-tmp/branding.conf
 
+# Setup output target
+if [ -z "$TARGET_VERSION" ]; then
+    echo "TARGET_VERSION env variable not set"
+    exit 1
+fi
+mv "/config-tmp/targets/${TARGET}.conf" /config-tmp/target.conf
 
 # Generate diffconfig from .conf file inside config directory
 > $OUTPUT
