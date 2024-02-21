@@ -7,7 +7,7 @@
 
 START=90
 USE_PROCD=1
-PROG=/usr/sbin/nethsecurity-api
+PROG=/usr/bin/nethsecurity-api
 
 WORK_DIR=/var/run/ns-api-server
 TOKENS_DIR=${WORK_DIR}/tokens
