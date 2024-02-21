@@ -166,6 +166,7 @@ elif cmd == 'call':
 
                 if 'chain_path' in data:
                     with open(f'/etc/nginx/custom_certs/{data["name"]}.crt', 'a') as cert:
+                        cert.write("\n")
                         with open(data['chain_path'], 'r') as chain_file:
                             cert.write(chain_file.read())
 
