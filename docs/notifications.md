@@ -16,15 +16,13 @@ This system provides functionalities for managing notifications within the envir
 
 The `notify` library in `python3-nethsec` manages notifications. Its functions are accessible through the `ns.notify` API.
 
-Notifications are non-persistent, lost upon system reboot. However, they are saved in `/var/spool/notify` within two subdirectories:
-  * `active`: For unread notifications, stored as individual JSON files for efficient access and manipulation.
-  * `archived`: For read notifications, also stored as individual JSON files for historical reference and potential retrieval.
+Notifications are non-persistent, lost upon system reboot. They are saved in a sqlite database at `/var/spool/notify/notifications.db`.
 
 ## Available Actions
 
 The notification library enables various actions on notifications:
 
-* **Listing Notifications:** Retrieving a list of all existing notifications, including their "active" or "read" state.
+* **Listing Notifications:** Retrieving a list of all existing notifications, including their "unread" (active) or "read" (not active).
 * **Adding Notification:** Creating a new notification with specified content.
 * **Deleting Notification:** Removing a notification from the system.
 * **Marking as Read:** Setting the state of a notification to "read".
@@ -42,43 +40,16 @@ If the hook file name ends with .py, it is invoked with the current Python inter
 
 ## Notification format
 
-The provided JSON format describes a notification with the following structure:
+The notifications are saved inside the database in a table named `notifications`.
+The table has the following structure:
 
-**Required Fields:**
-
-* **priority:** (integer, 1-3) - Indicates the importance level of the notification. 1 represents low, 2 medium, and 3 high.
-* **title:** (string) - The main title of the notification displayed to the user; it should identify the notification purpose.
-* **uuid:** (string) - A unique identifier for the notification, typically in the format of UUID v4.
-
-**Optional Fields:**
-
-* **message:** (string) - Additional details or explanations about the notification.
-* **payload:** (object) - Contains optional data specific to the notification. The structure and meaning of this data will depend on your application.
-* **timestamp:** (integer) - Time the notification was generated, represented as the number of seconds since January 1, 1970, 00:00:00 UTC (Unix timestamp).
-
-**Overall Structure:**
-
-The entire notification information is represented as a single JSON object. Every field within the object is a key-value pair, where the key identifies the information and the value holds the corresponding data.
-
-**Example:**
-
-```json
-{
-  "priority": 2,
-  "title": "os_update",
-  "message": "OS update available: 0.0.2",
-  "payload": {
-    "current": "0.0.1",
-    "update": "0.0.2",
-    "package": "ns-ui"
-  },
-  "timestamp": 1660594398,
-  "uuid": "850e84d1-177b-4475-823e-08a23b49fa60"
-}
-```
-
-**Key Points:**
-
-* This format provides a basic structure for managing notifications. You can adapt it to your specific needs by adding or modifying fields inside the `payload`.
-* Ensure consistency and clarity by documenting any changes you make.
-* Consider data security, especially when using personal information in the payload.
+- **id:** INTEGER type column, serves as the primary key for the table.
+- **priority:** INTEGER type column, represents the importance level of the notification. It has a default value of 1.
+  Valid values are: 0 (no priority), 1 (low), 2 (medium), and 3 (high).
+- **title:** TEXT type column, stores the main title of the notification. It is a required field and cannot be NULL.
+  The title should identify the notification purpose, and should be something like 'os_update', 'disk_alert', etc.
+- **payload:** TEXT type column, stores optional data specific to the notification. It should contain data in JSON string format.
+  It has a default value of an empty string. The field is mapped to a dictionary when read using the Python library.
+- **timestamp:** INTEGER type column, stores the time the notification was generated. It has a default value of the current Unix timestamp.
+- **active:** INTEGER type column, represents the state of the notification. It has a default value of 1, indicating that the notification is active.
+  The field value is mapped to a boolean when read using the Python library.
