@@ -86,8 +86,8 @@ echo "CONFIG_VERSION_REPO=\"${CONFIG_VERSION_REPO}\"" >> /config-tmp/branding.co
 echo "CONFIG_VERSION_SUPPORT_URL=\"${CONFIG_VERSION_SUPPORT_URL}\"" >> /config-tmp/branding.conf
 
 # Setup output target
-if [ -z "$TARGET_VERSION" ]; then
-    echo "TARGET_VERSION env variable not set"
+if [ -z "$TARGET" ]; then
+    echo "TARGET env variable not set"
     exit 1
 fi
 mv "/config-tmp/targets/${TARGET}.conf" /config-tmp/target.conf
