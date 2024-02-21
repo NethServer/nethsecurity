@@ -1,0 +1,50 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Manage notifications
+
+import sys
+import json
+from nethsec import notify
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({
+        "list-read-notifications": {},
+        "list-unread-notifications": {},
+        "add-notification": {"title": "string", "priority": "string", "payload": "object"},
+        "get-notification": {"id": "int"},
+        "mark-as-read": {"id": "int"},
+        "mark-as-unread": {"id": "int"},
+        "delete-notification": {"id": "int"}
+    }))
+else:
+    action = sys.argv[2]
+
+    if action == "list-read-notifications":
+        ret = {"notifications": notify.list_notifications({"active": 0}, order_by='timestamp', descendent=True)}
+    elif action == "list-unread-notifications":
+        ret = {"notifications": notify.list_notifications({"active": 1}, order_by='timestamp', descendent=True)}
+    else:
+        args = json.loads(sys.stdin.read())
+
+    if action == "add-notification":
+        ret = notify.add_notification(args.get("title"), args.get("priority"), args.get("payload"))
+    elif action == "get-notification":
+        ret = notify.get_notification(args.get("id"))
+    elif action == "mark-as-read":
+        notify.mark_as_read(args.get("id"))
+        ret = {"result": "success"}
+    elif action == "mark-as-unread":
+        notify.mark_as_unread(args.get("id"))
+        ret = {"result": "success"}
+    elif action == "delete-notification":
+        notify.delete_notification(args.get("id"))
+        ret = {"result": "success"}
+
+    print(json.dumps(ret))
