@@ -62,7 +62,10 @@ jobs:
         name: Publish image as temporary artifact
         with:
           name: image
-          path: bin/targets/**/nethsecurity-*.img.gz
+          compression-level: 0
+          path: |
+            bin/targets/**/nethsecurity-*.img.gz
+            !bin/targets/**/nethsecurity-*rootfs.img.gz
       - uses: BetaHuhn/do-spaces-action@v2
         name: Publish packages inside the rolling repository
         if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags') }}
