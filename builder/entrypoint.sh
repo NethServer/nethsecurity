@@ -90,7 +90,9 @@ if [ -z "$TARGET" ]; then
     echo "TARGET env variable not set"
     exit 1
 fi
-mv "/config-tmp/targets/${TARGET}.conf" /config-tmp/target.conf
+echo "Enabling $TARGET target"
+mv -v "/config-tmp/targets/${TARGET}.conf" /config-tmp/target.conf
+rm -rf /config-tmp/targets
 
 # Generate diffconfig from .conf file inside config directory
 > $OUTPUT
