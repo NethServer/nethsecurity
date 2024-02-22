@@ -9,21 +9,45 @@ nav_order: 20
 * TOC
 {:toc}
 
-NethSecurity uses [OpenWrt](https://openwrt.org/) build system.
+
+---
+
+NethSecurity runs [OpenWrt](https://openwrt.org/) build system inside a rootless [podman](https://podman.io/) container.
+This allows to build the images in a reproducible and isolated environment.
+The container image is named [builder](#builder-image).
+
+## Automatic builds (GitHub CI)
 
 Automatic builds run inside [GitHub actions](https://github.com/NethServer/nethsecurity/actions)
 on every pull request (PR), git push and git merge.
+The build runs inside a [GitHub self-hosted runner](#self-hosted-runner).
 
-To build the images locally on you machine, make sure these requirements are met:
+The GitHub actions also take care of publishing images and packages to the repository. The current logic is as follows:
+
+- If the branch is `main`, the image will be built and published to the `dev` channel (see [versioning](#versioning)).
+- If the branch is `main` and the tag is a stable version, the image will be built and published to the `stable` channel.
+- If the branch is other than `main`, the image will be built but not published to the repository.
+  Instead, an artifact will be created and available for download from the GitHub actions page for 90 days.
+
+### Build targets
+
+By default, the CI will build the `x86_64` target. To build a different target, you need to select a an alternate
+target from the [GitHub actions page](https://github.com/NethServer/nethsecurity/actions/workflows/build-image.yml).
+
+Click the `Run workflow` button and select the target from the `target` drop-down.
+Please note that occasionally, when changing the target architecture, the build system may fail the build.
+In such cases, it is recommended to delete the podman the `nethsecurity-build_dir` volume and retry the build.
+
+## Build locally
+
+To build the images locally on you machine, make sure these minimum requirements are met:
 
 - Linux distribution with Podman 3.x
 - 2GB or more of RAM
 - at least 40GB of free disk space
+- 4 or more CPU cores
 
-The build system is based on a rootless [podman](https://podman.io/) container.
-Tested on Debian 11 and Fedora 35/36.
-
-## Usage
+Tested on Debian 11, Fedora 35/36/37 and Ubuntu 23.10.
 
 Clone the repository, then to start the build just execute:
 ```
@@ -57,6 +81,7 @@ The `run` script behavior can be changed using the following environment variabl
    with the given keys
 - `NETIFYD_ACCESS_TOKEN`: GitLab private access token; if set, download and compile netifyd closed
    source plugins
+- `TARGET`: specify the target to build, if not set default is `x86_64`
 
 The `USIGN_PUB_KEY`, `USIGN_PRIV_KEY` and `NETIFYD_ACCESS_TOKEN` variables are always set as secrets
 inside the CI pipeline, but for [security reasons](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#accessing-secrets)
@@ -77,7 +102,6 @@ podman tag $TAG ghcr.io/nethserver/nethsecurity-builder:$IMAGE_TAG
 
 ## Versioning
 
-
 The versioning system encompasses three types of versions:
 
 - **Stable:** Stable versions, finalized and ready for production use. 
@@ -94,7 +118,7 @@ The generic format for a version is as follows:
 - `<owrt_release>`: Main version number of OpenWRT.
 - `<nethsecurity_release>`: NethSecurity security version in [semver](https://semver.org/) format.
 - `<commit_since_last_tag>`: Number of commits since the last version tag, present only in development versions.
-- `g<commit_hash>`: Unique identifier for the current commit, prsent only in development versions.
+- `g<commit_hash>`: Unique identifier for the current commit, present only in development versions.
 
 
 Stable version example:
@@ -121,7 +145,7 @@ Example:
 git tag 23.05.2-ns.0.0.1-alpha1
 ```
 
-Prepare a new Luci branch with NethSecurity customizations named after OpenWrt major and minor release:
+Prepare a new Luci branch with NethSecurity customization named after OpenWrt major and minor release:
 ```
 git remote add openwrt https://github.com/openwrt/luci.git
 git fetch openwrt
@@ -130,7 +154,7 @@ git push origin openwrt-23.05
 git checkout -b nethsec-23.05
 ```
 
-Now cherry-pick the commits from old branch (like `nethserc-22.03`)
+Now cherry-pick the commits from old branch (like `nethsec-22.03`)
 Then, push the changes:
 ```
 git push origin nethsec-23.05
@@ -151,6 +175,8 @@ When the builder of the image has been completed, make sure to:
 
 ## Image configuration
 
+### OpenWrt configuration
+
 All files with `.conf` extension inside the `config` directory will be merged to create the diffconfig.
 The `.conf` files must respect the syntax of OpenWrt `.config` file.
 
@@ -161,7 +187,19 @@ Best practices:
 
 See [config diff file](https://openwrt.org/docs/guide-developer/toolchain/use-buildsystem#configure_using_config_diff_file) for more info.
 
-## Custom files
+### Target configuration
+
+Target configuration is defined inside the `targets` directory under the `config` directory.
+Each target is a configuration named after the target architecture, like `x86_64.conf`.
+
+During the build process, the target will be selected using the `TARGET` environment variable.
+
+To add a new target:
+- create a new `.conf` file inside the `targets` directory
+- add the new target name inside the [GitHub actions workflow file](https://github.com/NethServer/nethsecurity/blob/main/.github/workflows/build-image.yml)
+  under the `inputs` section
+
+### Custom files
 
 All files from `files` directory will be copied inside the final image.
 
@@ -169,13 +207,13 @@ To setup a UCI default, just put a file inside `files/etc/uci-defaults`.
 
 See [UCI  defaults](https://openwrt.org/docs/guide-developer/uci-defaults) for more info.
 
-## Custom packages
+### Custom packages
 
 All new packages can be added inside the `packages` directory.
 
 See [packages doc](../packages/).
 
-## Package patches
+### Package patches
 
 Some packages do not have sources that can be patched using [quilt](https://openwrt.org/docs/guide-developer/toolchain/use-patches-with-buildsystem).
 To patch an existing package put a patch inside `patches` directory, reflecting the structure of `feeds` directory.
@@ -202,7 +240,7 @@ Finally, copy the patch outside the container and run the build.
 
 Note: before submitting a patch using this method, please try to open a pull request to the upstream repository!
 
-## Override upstream packages
+### Override upstream packages
 
 It is possible to replace upstream packages with local ones.
 This is useful when you want to use a more recent version then the one already
@@ -211,9 +249,9 @@ released by OpenWrt.
 To replace an upstream package just create a new package with the same
 name inside the `packages` directory.
 
-## LuCI web interface fork
+### LuCI web interface fork
 
-Some configurations should not be changed from LuCI to avoid problems on the underlaying system.
+Some configurations should not be changed from LuCI to avoid problems on the underlying system.
 This is the reason why, during the build, a fork of LuCI will be used.
 The fork is hosted at the following [repository](https://github.com/NethServer/luci).
 
@@ -221,12 +259,12 @@ The fork is hosted at the following [repository](https://github.com/NethServer/l
 Please make changes only to the `nethsec-{{ vparts | slice: 0,2 | join:'.' }}` branch.
 
 LuCI fork is updated on every build run.
-The original GIT commit used during the build can be found with whis command:
+The original GIT commit used during the build can be found with this command:
 ```
 opkg info luci | grep Version | cut -d'-' -f3
 ```
 
-## Package signing
+### Package signing
 
 All packages are signed with the following public key generated with [OpenBSD signify](nethsecurity-pub.key).
 
@@ -250,31 +288,7 @@ USIGN_PUB_KEY=$(cat nethsecurity-pub.key) USIGN_PRIV_KEY=$(cat nethsecurity-priv
 If the above environment variables are not set, the build system will generate a local temporary signing key.
 Builds executed inside CI will sign the packages with correct key.
 
-
-## Builder image
-
-The `nethserver/nethsecurity-builder` is a container image to build nethsecurity.
-It's based on `debian-slim` and contains a OpenWrt build environment ready to be used.
-
-### How to build it
-
-Additional requirements:
-
-- buildah
-
-Execute:
-```
-cd builder
-./build-builder
-```
-
-Publish the image:
-```
-buildah login ghcr.io
-buildah push ghcr.io/nethserver/nethsecurity-builder docker://ghcr.io/nethserver/nethsecurity-builder
-```
-
-## Netifyd plugins
+### Netifyd plugins
 
 NethSecurity uses two [netifyd](https://gitlab.com/netify.ai/public/netify-agent) proprietary plugins from [Netify](https://www.netify.ai/):
 
@@ -360,4 +374,82 @@ To manually build the stack, use:
 make -j $(nproc) package/feeds/packages/netifyd/{download,compile} V=sc
 make -j $(nproc) package/feeds/nethsecurity/netify-plugin-stats/{download,compile} V=sc
 make -j $(nproc) package/feeds/nethsecurity/netify-flow-actions/{download,compile} V=sc
+```
+
+
+## Builder image
+
+The `nethserver/nethsecurity-builder` is a container image to build nethsecurity.
+It's based on `debian-slim` and contains a OpenWrt build environment ready to be used.
+
+### How to build it
+
+Additional requirements:
+
+- buildah
+
+Execute:
+```
+cd builder
+./build-builder
+```
+
+Publish the image:
+```
+buildah login ghcr.io
+buildah push ghcr.io/nethserver/nethsecurity-builder docker://ghcr.io/nethserver/nethsecurity-builder
+```
+
+## Self-hosted runner
+
+The build system uses a GitHub hosted runner to build the images.
+
+Before proceeding, make sure that your hosted runner is fast enough to build the images.
+The runner should have:
+- 8GB or more of RAM
+- fast NVME disk
+- at least 100GB of free disk space
+- 8 or more CPU cores
+- a fast internet connection
+
+To setup a self-hosted runner, follow the [official documentation](https://docs.github.com/en/actions/hosting-your-own-runners/adding-self-hosted-runners).
+To setup a self-hosted runner on Ubuntu 23.10, follow the steps below.
+
+First, create the user `runner1` and install podman and git. Then, create the systemd service:
+```
+apt-get install podman git -y
+useradd runner1 -s /bin/bash -m
+cat <<EOF > /etc/systemd/system/runner1.service
+[Unit]
+Description=GitHub Actions runner1
+After=network.target
+
+[Service]
+ExecStart=/home/runner1/actions-runner/run.sh
+User=runner1
+WorkingDirectory=/home/runner1/actions-runner
+KillMode=process
+KillSignal=SIGTERM
+TimeoutStopSec=5min
+
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+
+Then, login as `runner1` and follow the [instructions](https://github.com/NethServer/nethsecurity/settings/actions/runners/new) to download
+and register the runner.
+   
+Finally, as root, enable and start the service:
+```
+systemctl enable --now runner1
+```
+
+The build_dir directory also keeps old versions, which speeds up the builds but quickly fills up the machine's disk.
+On a fast machine, cleaning the build_dir reduces the execution time from 7-10 minutes to 20-22 minutes.
+
+Since OpenWrt documentation suggests performing a "make clean" occasionally, and to avoid filling up the disk, a cron job is set up to clean the build_dir weekly:
+```
+echo 'runuser  -s /usr/bin/env -l runner1 podman volume rm nethsecurity-build_dir' > /etc/cron.weekly/nethsec-cleanup.sh
+chmod a+x /etc/cron.weekly/nethsec-cleanup.sh
 ```
