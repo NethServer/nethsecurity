@@ -100,9 +100,8 @@ if [[ -n "${CI}" ]]; then
     echo "VERSION=$VERSION" >> "${GITHUB_ENV}"
     echo "::notice title=VERSION::$VERSION"
     echo "REPO_CHANNEL=$REPO_CHANNEL" >> "${GITHUB_ENV}"
-    echo "::notice title=FIXED_REPOSITORY::$REPO_CHANNEL/$VERSION"
     echo "OWRT_VERSION=$OWRT_VERSION" >> "${GITHUB_ENV}"
-    echo "::notice title=ROLLING_REPOSITORY::$REPO_CHANNEL/$OWRT_VERSION"
+    echo "::notice title=REPOSITORY::$REPO_CHANNEL/$OWRT_VERSION"
     echo "::notice title=TARGET::$TARGET"
 fi
 
