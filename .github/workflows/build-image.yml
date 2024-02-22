@@ -7,6 +7,10 @@ on:
         description: "Target architecture"
         required: true
         default: 'x86_64'
+        type: choice
+        options:
+          - x86_64
+          - lamobo
   push:
     branches:
       - 'main'
