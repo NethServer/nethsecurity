@@ -1,7 +1,7 @@
 ---
 layout: default
 title: NAT helpers
-nav_order: 40
+parent: Design
 ---
 
 # NAT helpers

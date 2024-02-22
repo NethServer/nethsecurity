@@ -2,6 +2,7 @@
 layout: default
 title: Design
 nav_order: 05
+has_children: true
 ---
 
 # Design

@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Templates database
-nav_order: 50
+parent: Design
 ---
 
 # Templates database

@@ -1,7 +1,7 @@
 ---
 layout: default
-title: License
-nav_order: 70
+title: License headers
+parent: Design
 ---
 
 # License headers

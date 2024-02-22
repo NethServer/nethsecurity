@@ -1,7 +1,7 @@
 ---
 layout: default
 title: APIs
-nav_order: 20
+parent: Design
 ---
 
 # APIs

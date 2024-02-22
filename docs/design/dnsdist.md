@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Advanced DNS
-nav_order: 20
+parent: Design
 ---
 
 # dnsdist

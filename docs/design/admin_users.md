@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Administrator users
-nav_order: 40
+parent: Design
 ---
 
 # Administrator users

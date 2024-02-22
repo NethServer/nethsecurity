@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Package repositories
-nav_order: 30
+parent: Design
 ---
 
 # Package repositories

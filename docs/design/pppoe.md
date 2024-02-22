@@ -1,7 +1,7 @@
 ---
 layout: default
-title: PPPoE server
-nav_order: 30
+title: PPPoE testing server
+parent: Design
 ---
 
 # Setup PPPoE testing server
