@@ -1,7 +1,7 @@
 ---
-layout: default
 title: Notifications
-nav_order: 55
+layout: default
+parent: Design
 ---
 
 # Notification system
@@ -44,8 +44,8 @@ The notifications are saved inside the database in a table named `notifications`
 The table has the following structure:
 
 - **id:** INTEGER type column, serves as the primary key for the table.
-- **priority:** INTEGER type column, represents the importance level of the notification. It has a default value of 1.
-  Valid values are: 0 (no priority), 1 (low), 2 (medium), and 3 (high).
+- **level:** INTEGER type column, represents the importance level of the notification. It has a default value of 1.
+  Valid values are: 0 (no level), 1 (low), 2 (medium), and 3 (high).
 - **title:** TEXT type column, stores the main title of the notification. It is a required field and cannot be NULL.
   The title should identify the notification purpose, and should be something like 'os_update', 'disk_alert', etc.
 - **payload:** TEXT type column, stores optional data specific to the notification. It should contain data in JSON string format.
@@ -53,3 +53,14 @@ The table has the following structure:
 - **timestamp:** INTEGER type column, stores the time the notification was generated. It has a default value of the current Unix timestamp.
 - **active:** INTEGER type column, represents the state of the notification. It has a default value of 1, indicating that the notification is active.
   The field value is mapped to a boolean when read using the Python library.
+
+The level is inspired by syslog levels, and the title is used to identify the notification purpose. The payload is used to store additional data, and the timestamp is used to store the time the notification was generated.
+Valid levels are:
+- `0`: DEBUG
+- `1`: INFO
+- `2`: NOTICE
+- `3`: WARNING
+- `4`: ERR
+- `5`: CRIT
+- `6`: ALERT
+- `7`: EMERG
