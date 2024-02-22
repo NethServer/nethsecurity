@@ -13,7 +13,7 @@ nav_order: 20
 
 ---
 
-NethSecurity runs [OpenWrt](https://openwrt.org/) build system inside a rootless [podman](https://podman.io/) container.
+NethSecurity runs the [OpenWrt](https://openwrt.org/) build system inside a rootless [podman](https://podman.io/) container.
 This allows to build the images in a reproducible and isolated environment.
 The container image is named [builder](#builder-image).
 
@@ -23,7 +23,7 @@ Automatic builds run inside [GitHub actions](https://github.com/NethServer/neths
 on every pull request (PR), git push and git merge.
 The build runs inside a [GitHub self-hosted runner](#self-hosted-runner).
 
-The GitHub actions also take care of publishing images and packages to the repository. The current logic is as follows:
+The GitHub actions also take care of publishing images and packages to the repository. The current logic is the following:
 
 - If the branch is `main`, the image will be built and published to the `dev` channel (see [versioning](#versioning)).
 - If the branch is `main` and the tag is a stable version, the image will be built and published to the `stable` channel.
@@ -32,16 +32,16 @@ The GitHub actions also take care of publishing images and packages to the repos
 
 ### Build targets
 
-By default, the CI will build the `x86_64` target. To build a different target, you need to select a an alternate
+By default, the CI will build the `x86_64` target. To build a different target, you need to select an alternate
 target from the [GitHub actions page](https://github.com/NethServer/nethsecurity/actions/workflows/build-image.yml).
 
 Click the `Run workflow` button and select the target from the `target` drop-down.
 Please note that occasionally, when changing the target architecture, the build system may fail the build.
-In such cases, it is recommended to delete the podman the `nethsecurity-build_dir` volume and retry the build.
+In such cases, it is recommended to delete the podman `nethsecurity-build_dir` volume and retry the build.
 
 ## Build locally
 
-To build the images locally on you machine, make sure these minimum requirements are met:
+To build images locally on your machine, make sure these minimum requirements are met:
 
 - Linux distribution with Podman 3.x
 - 2GB or more of RAM
@@ -60,7 +60,7 @@ At the end, the `bin` directory will contain the output of the build.
 If a previous `bin` directory already exists, it will be renamed to `bin.bak`.
 If a previous `bin.bak` directory already exists, it will be removed.
 
-To speed up next builds, the script will also create `staging_dir` and `build_dir` directories as cache.
+To speed up successive builds, the script will also create `staging_dir` and `build_dir` directories as cache.
 To avoid cache creation, pass the `--no-cache` option: `./run --no-cache`.
 
 If you need a shell inside the build container, execute:
@@ -77,12 +77,12 @@ During the start-up, the container will:
 
 The `run` script behavior can be changed using the following environment variables:
 
-- `IMAGE_TAG`: specify the image tag of the builder, if not set default is `latest`
+- `IMAGE_TAG`: specify the image tag of the builder; if not set default is `latest`
 - `USIGN_PUB_KEY` and `USIGN_PRIV_KEY`: see [package signing section](#package-signing)
    with the given keys
 - `NETIFYD_ACCESS_TOKEN`: GitLab private access token; if set, download and compile netifyd closed
    source plugins
-- `TARGET`: specify the target to build, if not set default is `x86_64`
+- `TARGET`: specify the target to build; if not set default is `x86_64`
 
 The `USIGN_PUB_KEY`, `USIGN_PRIV_KEY` and `NETIFYD_ACCESS_TOKEN` variables are always set as secrets
 inside the CI pipeline, but for [security reasons](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#accessing-secrets)
@@ -155,7 +155,7 @@ git push origin openwrt-23.05
 git checkout -b nethsec-23.05
 ```
 
-Now cherry-pick the commits from old branch (like `nethsec-22.03`)
+Now cherry-pick the commits from the old branch (like `nethsec-22.03`)
 Then, push the changes:
 ```
 git push origin nethsec-23.05
@@ -167,11 +167,11 @@ git push --tags
 ```
 
 When the builder of the image has been completed, make sure to:
-- wipe podman volumes  otherwise the build will fail:
+- wipe podman volumes, otherwise the build will fail:
   ```
   podman volume rm nethsecurity-build_dir nethsecurity-staging_dir
   ```
-- rebuild the image using latest builder container image
+- rebuild the image using the latest builder container image
 - rebuild the documentation to update the download link: https://readthedocs.org/projects/nethsecurity-docs/
 
 ## Image configuration
@@ -202,7 +202,7 @@ To add a new target:
 
 ### Custom files
 
-All files from `files` directory will be copied inside the final image.
+All files from the `files` directory will be copied inside the final image.
 
 To setup a UCI default, just put a file inside `files/etc/uci-defaults`.
 
@@ -217,7 +217,7 @@ See [packages doc](../packages/).
 ### Package patches
 
 Some packages do not have sources that can be patched using [quilt](https://openwrt.org/docs/guide-developer/toolchain/use-patches-with-buildsystem).
-To patch an existing package put a patch inside `patches` directory, reflecting the structure of `feeds` directory.
+To patch an existing package put a patch inside the `patches` directory, reflecting the structure of the `feeds` directory.
 
 The patch can be created following these steps:
 
@@ -244,7 +244,7 @@ Note: before submitting a patch using this method, please try to open a pull req
 ### Override upstream packages
 
 It is possible to replace upstream packages with local ones.
-This is useful when you want to use a more recent version then the one already
+This is useful when you want to use a more recent version than the one already
 released by OpenWrt.
 
 To replace an upstream package just create a new package with the same
@@ -287,7 +287,7 @@ USIGN_PUB_KEY=$(cat nethsecurity-pub.key) USIGN_PRIV_KEY=$(cat nethsecurity-priv
 ```
 
 If the above environment variables are not set, the build system will generate a local temporary signing key.
-Builds executed inside CI will sign the packages with correct key.
+Builds executed inside CI will sign the packages with the correct key.
 
 ### Netifyd plugins
 
@@ -296,7 +296,7 @@ NethSecurity uses two [netifyd](https://gitlab.com/netify.ai/public/netify-agent
 - Netify Flow Actions Plugin (netify-flow-actions)
 - Netify Agent Stats Plugin (netify-plugin-stats)
 
-The plugins should be used with the latest netifyd stable version (4.2.2 at the time of writing).
+The plugins should be used with the latest netifyd stable version (4.4.3 at the time of writing).
 To create the files for the build, follow the steps below. Such steps should be needed only after a netifyd/plugin version change.
 
 Both plugins source code is hosted on a private repository at [GitLab](https://gitlab.com).
@@ -381,7 +381,7 @@ make -j $(nproc) package/feeds/nethsecurity/netify-flow-actions/{download,compil
 ## Builder image
 
 The `nethserver/nethsecurity-builder` is a container image to build nethsecurity.
-It's based on `debian-slim` and contains a OpenWrt build environment ready to be used.
+It's based on `debian-slim` and contains an OpenWrt build environment ready to be used.
 
 ### How to build it
 
@@ -403,12 +403,12 @@ buildah push ghcr.io/nethserver/nethsecurity-builder docker://ghcr.io/nethserver
 
 ## Self-hosted runner
 
-The build system uses a GitHub hosted runner to build the images.
+The build system uses a GitHub-hosted runner to build the images.
 
 Before proceeding, make sure that your hosted runner is fast enough to build the images.
 The runner should have:
 - 8GB or more of RAM
-- fast NVME disk
+- a fast NVME disk
 - at least 100GB of free disk space
 - 8 or more CPU cores
 - a fast internet connection
@@ -447,7 +447,7 @@ systemctl enable --now runner1
 ```
 
 The build_dir directory also keeps old versions, which speeds up the builds but quickly fills up the machine's disk.
-On a fast machine, cleaning the build_dir reduces the execution time from 7-10 minutes to 20-22 minutes.
+On a fast machine, cleaning the build_dir reduces the execution time from around 7-10 minutes to 20-22 minutes.
 
 Since OpenWrt documentation suggests performing a "make clean" occasionally, and to avoid filling up the disk, a cron job is set up to clean the build_dir weekly:
 ```
