@@ -6057,7 +6057,7 @@ Response example:
   "notifications": [
     {
       "id": 3,
-      "priority": "low",
+      "level": 2,
       "title": "mytest",
       "payload": {},
       "timestamp": 1708523000,
@@ -6065,7 +6065,7 @@ Response example:
     },
     {
       "id": 1,
-      "priority": "high",
+      "level": 3,
       "title": "os_update",
       "payload": {
         "new_relase": "1.2.3"
@@ -6090,7 +6090,7 @@ Response example:
   "notifications": [
     {
       "id": 2,
-      "priority": "low",
+      "level": 2,
       "title": "new_host",
       "payload": {
         "host": "7.7.7.7"
@@ -6102,11 +6102,21 @@ Response example:
 }
 ```
 
+Valid values for level are are:
+- `0`: DEBUG
+- `1`: INFO
+- `2`: NOTICE
+- `3`: WARNING
+- `4`: ERR
+- `5`: CRIT
+- `6`: ALERT
+- `7`: EMERG
+
 ### add-notification
 
 Add a new notification:
 ```
-api-cli ns.notify add-notification --data '{"priority": "high", "title": "os_update", "payload": {"new_relase": "1.2.3"}}'
+api-cli ns.notify add-notification --data '{"level": 2, "title": "os_update", "payload": {"new_relase": "1.2.3"}}'
 ```
 
 Response example:
@@ -6137,7 +6147,7 @@ Response example:
 ```json
 {
   "id": 1,
-  "priority": "high",
+  "level": 2,
   "title": "os_update",
   "payload": {
     "new_relase": "1.2.3"
