@@ -25,7 +25,7 @@ The build runs inside a [GitHub self-hosted runner](#self-hosted-runner).
 
 The GitHub actions also take care of publishing images and packages to the repository. The current logic is as follows:
 
-- If the branch is `main`, the image will be built and published to the `dev` channel (see [versioning](#versioning)).
+- If the branch is `main`, the image will be built and published to the `dev` [channel](/design/distfeed/#channels).
 - If the branch is `main` and the tag is a stable version, the image will be built and published to the `stable` channel.
 - If the branch is other than `main`, the image will be built but not published to the repository.
   Instead, an artifact will be created and available for download from the GitHub actions page for 90 days.
@@ -38,6 +38,10 @@ target from the [GitHub actions page](https://github.com/NethServer/nethsecurity
 Click the `Run workflow` button and select the target from the `target` drop-down.
 Please note that occasionally, when changing the target architecture, the build system may fail the build.
 In such cases, it is recommended to delete the podman the `nethsecurity-build_dir` volume and retry the build.
+
+Currently supported targets:
+- x86_64
+- [Lamobo BananaPi R1](https://openwrt.org/toh/hwdata/lamobo/lamobo_bananapi_r1)
 
 ## Build locally
 
