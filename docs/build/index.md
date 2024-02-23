@@ -424,6 +424,7 @@ First, create the user `runner1` and install podman and git. Then, create the sy
 ```
 apt-get install podman git -y
 useradd runner1 -s /bin/bash -m
+loginctl enable-linger runner1
 cat <<EOF > /etc/systemd/system/runner1.service
 [Unit]
 Description=GitHub Actions runner1
