@@ -70,7 +70,8 @@ def check_package_updates():
             continue
         tmp = line.split(" - ")
         ret.append({"package": tmp[0], "currentVersion": tmp[1], "latestVersion": tmp[2]})
-
+    # Sort the ret array by the "package" field
+    ret.sort(key=lambda package: package["package"])
     return {"updates": ret}
 
 def get_package_updates_lat_check():
