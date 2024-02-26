@@ -7,6 +7,7 @@
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 
@@ -226,8 +227,11 @@ elif cmd == 'call':
             e_uci.set('acme', data['name'], 'enabled', '1')
             e_uci.set('acme', data['name'], 'domains', data['domains'])
             if data['validation_method'] == 'dns':
+                e_uci.set('acme', data['name'], 'standalone', '0')
                 e_uci.set('acme', data['name'], 'dns', f'dns_{data["dns_provider"]}')
                 e_uci.set('acme', data['name'], 'credentials', data['dns_provider_options'])
+            elif data['validation_method'] == 'standalone':
+                e_uci.set('acme', data['name'], 'standalone', '1')
 
             __start_acme(e_uci)
             e_uci.save('acme')
@@ -267,15 +271,26 @@ elif cmd == 'call':
             if data['name'] not in valid_certificates:
                 raise ValidationError('name', 'invalid', data['name'])
 
-            # if acme certificate, delete from uci
+            # if acme certificate, delete it from acme configuration
             if valid_certificates[data['name']]['type'] == 'acme':
                 e_uci.delete('acme', data['name'])
+                # generate certificate prefix using requested_domains first domain
+                prefix = valid_certificates[data['name']]['requested_domains'][0]
+                # clean up acme certificates from /etc/ssl/certs
+                for entry in os.scandir('/etc/ssl/acme'):
+                    if entry.name.startswith(prefix):
+                        os.remove(entry.path)
+
+                # clean up acme directories from /etc/acme
+                for entry in os.scandir('/etc/acme'):
+                    if entry.name.startswith(prefix) and entry.is_dir():
+                        shutil.rmtree(entry.path)
+
+                __start_acme(e_uci)
+                e_uci.commit('acme')
             else:
                 os.remove(valid_certificates[data['name']]['cert_path'])
                 os.remove(valid_certificates[data['name']]['key_path'])
-
-            __start_acme(e_uci)
-            e_uci.save('acme')
 
             print(json.dumps({'message': 'success'}))
 
