@@ -99,22 +99,22 @@ config template_forwarding 'ns_lan2guest'
 # IPSec
 
 config template_rule 'ns_ipsec_esp'
-	option name 'Allow-IPSec-ESP'
+	option name 'Allow-IPsec-ESP'
 	option src 'wan'
 	option proto 'esp'
 	option target 'ACCEPT'
 
 config template_rule 'ns_ipsec_ike'
-	option name 'Allow-IPSec-IKE'
+	option name 'Allow-IPsec-IKE'
 	option src 'wan'
 	option dest_port '500'
 	option proto 'udp'
 	option target 'ACCEPT'
 
 config template_rule 'ns_ipsec_nat'
-	option name 'Allow-IPSec-NAT'
+	option name 'Allow-IPsec-NAT'
 	option src 'wan'
-	option dest_port '500'
+	option dest_port '4500'
 	option proto 'udp'
 	option target 'ACCEPT'
 
