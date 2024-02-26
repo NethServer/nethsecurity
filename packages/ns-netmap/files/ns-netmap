@@ -50,7 +50,7 @@ def generate_rules():
         else:
             device_in = None
 
-        if rule.get("device_out") != ('',) and rule.get("device_in") != None:
+        if rule.get("device_out") != ('',) and rule.get("device_out") != None:
             device_out = list(rule.get("device_out"))
         else:
             device_out = None
