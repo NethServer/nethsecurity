@@ -3,3 +3,6 @@ set nginx._lan.error_log=syslog:server=unix:/dev/log
 set nginx._lan.access_log=syslog:server=unix:/dev/log
 commit nginx
 EOI
+
+# make sure nginx does not listen on port 80 to avoid conflicts with acme.sh
+uci -q delete nginx._redirect2ssl
