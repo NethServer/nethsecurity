@@ -209,6 +209,18 @@ def check_mwan():
 
     return "error"
 
+def check_dedalo():
+    u = EUci()
+    dedalo_enabled = u.get("dedalo", "config", "disabled", default="0") == "0"
+    if not dedalo_enabled:
+        return "disabled"
+    try:
+        pa = subprocess.run(["service", "dedalo", "running"], check=False, capture_output=True)
+        if pa.returncode == 0:
+            return "ok"
+    except:
+        return "error"
+
 def get_hostname():
     with open('/proc/sys/kernel/hostname', 'r') as fp:
         return fp.read().strip()
@@ -258,6 +270,8 @@ def service_status(service):
         ret["status"] = check_banip()
     elif service == "mwan":
         ret["status"] = check_mwan()
+    elif service == "dedalo":
+        ret["status"] = check_dedalo()
     else:
         ret["status"] = check_service(service)
     return ret
