@@ -6040,3 +6040,143 @@ Response example:
 {"result": "success"}
 ```
 
+## ns.notify
+
+Manage notifications
+
+### list-unread-notifications
+
+List active (unread) notifications:
+```
+api-cli ns.notify list-uneread-notifications
+```
+
+Response example:
+```json
+{
+  "notifications": [
+    {
+      "id": 3,
+      "level": 2,
+      "title": "mytest",
+      "payload": {},
+      "timestamp": 1708523000,
+      "active": true
+    },
+    {
+      "id": 1,
+      "level": 3,
+      "title": "os_update",
+      "payload": {
+        "new_relase": "1.2.3"
+      },
+      "timestamp": 1708514004,
+      "active": true
+    }
+  ]
+}
+```
+
+### list-read-notifications
+
+List inactive (read) notifications:
+```
+api-cli ns.notify list-read-notifications
+```
+
+Response example:
+```json
+{
+  "notifications": [
+    {
+      "id": 2,
+      "level": 2,
+      "title": "new_host",
+      "payload": {
+        "host": "7.7.7.7"
+      },
+      "timestamp": 1708514648,
+      "active": false
+    }
+  ]
+}
+```
+
+Valid values for level are are:
+- `0`: DEBUG
+- `1`: INFO
+- `2`: NOTICE
+- `3`: WARNING
+- `4`: ERR
+- `5`: CRIT
+- `6`: ALERT
+- `7`: EMERG
+
+### add-notification
+
+Add a new notification:
+```
+api-cli ns.notify add-notification --data '{"level": 2, "title": "os_update", "payload": {"new_relase": "1.2.3"}}'
+```
+
+Response example:
+```json
+{"id": 1, "errors": []}
+```
+
+### delete-notification
+
+Delete an existing notification:
+```
+api-cli ns.notify delete-notification --data '{"id": 1}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+### get-notification
+
+Retrieve a notification:
+```
+api-cli ns.notify get-notification --data '{"id": 1}'
+```
+
+Response example:
+```json
+{
+  "id": 1,
+  "level": 2,
+  "title": "os_update",
+  "payload": {
+    "new_relase": "1.2.3"
+  },
+  "timestamp": 1708514004,
+  "active": true
+}
+```
+
+### mark-as-read
+
+Mark a notification as read (inactive):
+```
+api-cli ns.notify mark-as-read --data '{"id": 1}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+### mark-as-unread
+
+Mark a notification as unread (active):
+```
+api-cli ns.notify mark-as-unread --data '{"id": 1}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```

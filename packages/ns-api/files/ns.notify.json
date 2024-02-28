@@ -1,0 +1,13 @@
+{
+  "notify-manager": {
+    "description": "Manage notifications",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.notify": [
+          "*"
+        ]
+      }
+    }
+  }
+}
