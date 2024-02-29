@@ -6040,3 +6040,49 @@ Response example:
 {"result": "success"}
 ```
 
+## ns.plug
+
+Manager registration to NethSecurity controller.
+
+### status
+
+Check the status of the registration:
+```
+api-cli ns.plug status
+```
+
+Response example:
+```json
+{
+  "status": "registered", "address": "1.2.3.4"
+}
+```
+
+Possible values for `status` are `registered`, `unregistered` and `pending`.
+Addess is null if the status is `unregistered` or `pending`.
+
+### register
+
+Register the device to the NethSecurity controller:
+```
+api-cli ns.plug register --data '{"url": "https://controller.nethsecurity.org", "tls_verify": true, "system_id": "12345678-1234-5678-1234-567812345678"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+The `system_id` field can be omitted, in that case firewall will be identified by its MAC address.
+
+### unregister
+
+Unregister the device from the NethSecurity controller:
+```
+api-cli ns.plug unregister
+```
+
+Response example:
+```json
+{"result": "success"}
+```

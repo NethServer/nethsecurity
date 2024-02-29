@@ -1,0 +1,104 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Manage registration to the controller
+
+import os
+import sys
+import json
+from nethsec import utils, firewall
+from euci import EUci
+import subprocess
+
+def status():
+    u = EUci()
+    if u.get("ns-plug", "config", "server", default="") == "":
+        return {"result": "unregistered", "address": None}
+    else:
+        # if tun-plug is present
+        if os.path.exists("/usr/share/ns-plug/client.conf"):
+            try:
+                p = subprocess.run(["/sbin/ip", "-j", "address", "show", "dev", "tun-nsplug"], check=True, capture_output=True, text=True)
+                data = json.loads(p.stdout)
+                address = data[0].get('addr_info')[0].get('local')
+            except:
+                return {"result": "pending", "address": None}
+            return {"result": "registered", "address": address}
+        else:
+            return {"result": "pending", "address": None}
+
+
+def register(url, tls_verify, system_id):
+    u = EUci()
+    u.set("ns-plug", "config", "server", url)
+    if system_id:
+        u.set("ns-plug", "config", "system_id", system_id)
+    if tls_verify:
+        u.set("ns-plug", "config", "tls_verify", "1")
+    else:
+        u.set("ns-plug", "config", "tls_verify", "0")
+    u.commit("ns-plug")
+    try:
+        subprocess.run(['/etc/init.d/ns-plug', 'restart'], check=True, capture_output=True)
+    except:
+        return utils.generic_error("failed_to_restart_ns-plug")
+    firewall.add_device_to_lan(u, "tun-nsplug")
+    u.commit('firewall')
+    try:
+        subprocess.run(['/etc/init.d/firewall', 'reload'], check=True, capture_output=True)
+    except:
+        return utils.generic_error("failed_to_reload_firewall")
+    return {"result": "success"}
+
+
+def unregister():
+    u = EUci()
+    u.set("ns-plug", "config", "server", "")
+    u.set("ns-plug", "config", "system_id", "")
+    u.commit("ns-plug")
+    u.delete("rpcd", "controller")
+    u.commit("rpcd")
+    u.delete("rsyslog", "promtail")
+    u.commit("rsyslog")
+    try:
+        os.unlink("/usr/share/ns-plug/client.conf")
+    except:
+        pass
+    try:
+        subprocess.run(['/etc/init.d/ns-plug', 'restart'], check=True, capture_output=True)
+    except:
+        return utils.generic_error("failed_to_restart_ns-plug")
+    try:
+        subprocess.run(['/etc/init.d/rsyslog', 'restart'], check=True, capture_output=True)
+    except:
+        return utils.generic_error("failed_to_restart_rsyslog")
+    firewall.remove_device_from_zone(u, "tun-nsplug", "lan")
+    u.commit('firewall')
+    try:
+        subprocess.run(['/etc/init.d/firewall', 'reload'], check=True, capture_output=True)
+    except:
+        return utils.generic_error("failed_to_reload_firewall")
+    return {"result": "success"}
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({
+        "register": {"url": "https://my.controller.org", "tls_verify": False, "system_id": "392e068e-8557-4b1e-ba15-a1dfba1d59f0"},
+        "unregister": {},
+        "status":{}}))
+else:
+    action = sys.argv[2]
+    if action == "register":
+        args = json.loads(sys.stdin.read())
+        ret = register(args["url"], args["tls_verify"], args["system_id"])
+    elif action == "status":
+        ret = status()
+    elif action == "unregister":
+        ret = unregister()
+
+    print(json.dumps(ret))
