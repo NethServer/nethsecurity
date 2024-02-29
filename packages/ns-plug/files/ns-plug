@@ -65,7 +65,7 @@ do
     if [ "${http_code}" == "409" ]; then
         # Duplicate entry, cleanup uci config
         uci delete rpcd.controller
-        uci commit
+        uci commit rpcd
         exit 4
     elif [ "${http_code}" == "403" ]; then
         sleep 10
@@ -83,7 +83,7 @@ fi
 
 # Save the new password after successfull registration
 uci set rpcd.controller.password=${passwd}
-uci commit
+uci commit rpcd
 
 # Configuration received, setup the VPN
 host=$(echo ${response} | jq -r .data.host)
@@ -121,7 +121,7 @@ if [ "$(uci -q get rsyslog.promtail)" == "" ]; then
     uci set rsyslog.promtail.port=$(echo "$response" | jq -r .data.promtail_port)
     uci set rsyslog.promtail.rfc=5424
     uci set rsyslog.promtail.target=$(echo "$response" | jq -r .data.promtail_address)
-    uci commit
+    uci commit rsyslog
     /etc/init.d/rsyslog restart
     sleep 5 # wait for rsyslog
 fi
