@@ -74,15 +74,17 @@ if not product:
     except:
         product = ""
 
+with open('/etc/os-release', 'r') as file:
+    for line in file:
+        if line.startswith("VERSION_ID"):
+            nethsec_version = line.split('=')[1].split('-')[2][3:]
+            break
+
 data = {
     "$schema": "https://schema.nethserver.org/facts/2022-12.json",
     "uuid": sid,
     "installation": "nethsecurity",
     "facts": {
-        "distro": {
-            "name": "NethSecurity",
-            "version": _run('grep VERSION= /etc/os-release | cut -d= -f 2 | tr -d \'"\'')
-        },
         "processors": { 
             "count": _run("grep processor /proc/cpuinfo  | wc -l"), 
             "model":  _get_cpu_field("Model name", cpu_info),
@@ -98,7 +100,7 @@ data = {
             "system": { "used_bytes": _run("free | grep 'Mem': | awk '{print $3}'"), "available_bytes": _run("free | grep 'Mem:' | awk '{print $7}'") }
         },
         "pci": list(pci.values()),
-        "version": "1.0.0"
+        "version": nethsec_version
     }
 }
 print(json.dumps(data))
