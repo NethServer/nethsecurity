@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 #
 # Copyright (C) 2023 Nethesis S.r.l.
@@ -6,6 +6,12 @@
 #
 
 set -e
+
+boot_part=$(mount | grep boot | uniq | awk '{print $1}')
+boot_disk=${boot_part%?}
+
+data_part=$(mount | grep /mnt/data | uniq | awk '{print $1}')
+data_disk=${boot_part%?}
 
 # Removing auto-mount
 uci delete fstab.ns_data
@@ -23,3 +29,8 @@ crontab -l | grep -v "/usr/sbin/sync-data" | sort | uniq | crontab -
 # Umounting data device
 umount -f /mnt/data
 rm -rf /mnt/data
+
+# Removing parition
+if [ "$boot_disk" == "$data_disk" ]; then
+    parted "${data_disk}" rm 3
+fi
