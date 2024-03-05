@@ -21,7 +21,7 @@ Currently, the known services include:
 - Nginx: change management UI port
 
 Configuration wizards:
-- Run a first configuration with 3 zones (lan, wan, and guests): this wizard automatically creates the zone for guests.
+- Run a first configuration with 3 zones (lan, wan, and guest): this wizard automatically creates the zone for guest.
 - Run a first configuration with strict mode (where all traffic is closed from lan to wan): enable access to a list of well-known services.
 
 ## Record types

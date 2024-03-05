@@ -276,8 +276,8 @@ Response:
       "RED_1"
     ]
   },
-  "ns_guests": {
-    "name": "guests",
+  "ns_guest": {
+    "name": "guest",
     "input": "DROP",
     "forward": "DROP",
     "output": "ACCEPT"
@@ -476,13 +476,13 @@ Response:
     "src": "lan",
     "dest": "wan"
   },
-  "ns_guests2wan": {
-    "src": "guests",
+  "ns_guest2wan": {
+    "src": "guest",
     "dest": "wan"
   },
-  "ns_lan2guests": {
+  "ns_lan2guest": {
     "src": "lan",
-    "dest": "guests"
+    "dest": "guest"
   }
 }
 
