@@ -32,11 +32,11 @@ def status():
             return {"result": "pending", "address": None}
 
 
-def register(url, tls_verify, system_id):
+def register(url, tls_verify, unit_id):
     u = EUci()
     u.set("ns-plug", "config", "server", url)
-    if system_id:
-        u.set("ns-plug", "config", "system_id", system_id)
+    if unit_id:
+        u.set("ns-plug", "config", "unit_id", unit_id)
     if tls_verify:
         u.set("ns-plug", "config", "tls_verify", "1")
     else:
@@ -58,7 +58,7 @@ def register(url, tls_verify, system_id):
 def unregister():
     u = EUci()
     u.set("ns-plug", "config", "server", "")
-    u.set("ns-plug", "config", "system_id", "")
+    u.set("ns-plug", "config", "unit_id", "")
     u.commit("ns-plug")
     u.delete("rpcd", "controller")
     u.commit("rpcd")
@@ -88,14 +88,14 @@ cmd = sys.argv[1]
 
 if cmd == 'list':
     print(json.dumps({
-        "register": {"url": "https://my.controller.org", "tls_verify": False, "system_id": "392e068e-8557-4b1e-ba15-a1dfba1d59f0"},
+        "register": {"url": "https://my.controller.org", "tls_verify": False, "unit_id": "unit_name"},
         "unregister": {},
         "status":{}}))
 else:
     action = sys.argv[2]
     if action == "register":
         args = json.loads(sys.stdin.read())
-        ret = register(args["url"], args["tls_verify"], args["system_id"])
+        ret = register(args["url"], args["tls_verify"], args["unit_id"])
     elif action == "status":
         ret = status()
     elif action == "unregister":

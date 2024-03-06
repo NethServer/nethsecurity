@@ -6065,7 +6065,7 @@ Addess is null if the status is `unregistered` or `pending`.
 
 Register the device to the NethSecurity controller:
 ```
-api-cli ns.plug register --data '{"url": "https://controller.nethsecurity.org", "tls_verify": true, "system_id": "12345678-1234-5678-1234-567812345678"}'
+api-cli ns.plug register --data '{"url": "https://controller.nethsecurity.org", "tls_verify": true, "unit_id": "myunit"}'
 ```
 
 Response example:
@@ -6073,7 +6073,7 @@ Response example:
 {"result": "success"}
 ```
 
-The `system_id` field can be omitted, in that case firewall will be identified by its MAC address.
+The `unit_id` field can be omitted, in that case firewall will be identified by its MAC address.
 
 ### unregister
 
