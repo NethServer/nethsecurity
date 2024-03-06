@@ -30,9 +30,9 @@ if 'network' in changes:
     for z in zones:
         zone = zones[z]
         if zone['name'] == "wan":
-            external_if.update(utils.get_all_devices_by_zone(uci, zone['name']))
+            external_if.update(utils.get_all_devices_by_zone(uci, zone['name'], exclude_aliases=True))
         else:
-            internal_if.update(utils.get_all_devices_by_zone(uci, zone['name']))
+            internal_if.update(utils.get_all_devices_by_zone(uci, zone['name'], exclude_aliases=True))
 
     if tuple(internal_if) != uci.get("netifyd", cname, "internal_if", default=()):
         uci.set("netifyd", cname, "internal_if", list(internal_if))
