@@ -165,6 +165,13 @@ def get_interface_device(uci, ip):
 def list_active_leases():
     ret = {"leases": []}
     u = EUci()
+
+    static_leases = []
+    for l in utils.get_all_by_type(u, 'dhcp', 'host'):
+        ldata = u.get_all('dhcp', l)
+        if 'mac' in ldata and 'ip' in ldata:
+            static_leases.append(ldata['mac'].lower())
+
     with open("/tmp/dhcp.leases", "r") as fp:
         for line in fp.readlines():
             tmp = line.split(" ")
@@ -172,6 +179,9 @@ def list_active_leases():
             if tmp[3] == "*":
                 hostname = ""
             (interface, device) = get_interface_device(u, tmp[2])
+            # skip static leases
+            if tmp[1].lower() in static_leases:
+                continue
             ret['leases'].append({"timestamp": tmp[0], "macaddr": tmp[1], "ipaddr": tmp[2], "hostname": hostname, 'interface': interface, "device": device})
     return ret
 
