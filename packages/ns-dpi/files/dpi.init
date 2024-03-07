@@ -16,6 +16,8 @@ start_service() {
     procd_set_param stdout 1
     procd_set_param stderr 1
     procd_close_instance
+    # wait for startup and update signatures on upgrade and after a restore
+    /usr/sbin/screen -dmS dpi-update /bin/bash -c "sleep 30; /usr/sbin/dpi-update"
 }
 
 stop_service() {
