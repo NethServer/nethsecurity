@@ -6040,3 +6040,80 @@ Response example:
 {"result": "success"}
 ```
 
+## ns.plug
+
+Manager registration to NethSecurity controller.
+
+### status
+
+Check the status of the registration:
+```
+api-cli ns.plug status
+```
+
+Response example with connected machine:
+```json
+{
+  "status": "connected",
+  "address": "172.19.64.2",
+  "server": "https://controller.nethsecurity.org",
+  "unit_id": "NethSec",
+  "tls_verify": false
+}
+```
+
+Response example for an unconfigured machine:
+```json
+{
+  "status": "unregistered",
+  "address": null,
+  "server": null,
+  "unit_id": "NethSec",
+  "tls_verify": false
+}
+```
+
+Possible values for `status` are `connected`, `unregistered` and `pending`.
+`address` is null if the status is `unregistered` or `pending`.
+`server` is null if the status is `unregistered`.
+If unit_id is not set, default value is the hostname of the machine.
+
+### register
+
+Register the device to the NethSecurity controller:
+```
+api-cli ns.plug register --data '{"url": "https://controller.nethsecurity.org", "tls_verify": true, "unit_id": "myunit"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+The `unit_id` field can be omitted, in that case firewall will be identified by its MAC address.
+
+### unregister
+
+Unregister the device from the NethSecurity controller:
+```
+api-cli ns.plug unregister
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+### restart
+
+Restart the registration process:
+```
+api-cli ns.plug restart
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+If the restart fails return a `restart_failed` error.

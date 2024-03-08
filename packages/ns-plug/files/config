@@ -1,5 +1,6 @@
 config main 'config'
     option server ''
     option system_id ''
+    option unit_id ''
     option tls_verify '1'
     option backup_url 'https://backupd.nethesis.it/backup'

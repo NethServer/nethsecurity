@@ -13,20 +13,20 @@ UCI_CONF="ns-plug"
 CONFIG_FILE="/usr/share/ns-plug/client.conf"
 
 server=$(uci -q get ${UCI_CONF}.config.server)
-system_id=$(uci -q get ${UCI_CONF}.config.system_id)
+unit_id=$(uci -q get ${UCI_CONF}.config.unit_id)
 
 # Exit early if no server has been set
 if [ -z "${server}" ]; then
     exit 1
 fi
 
-# If no system_id has been set, just use the mac address of lan device
-if [ -z "${system_id}" ]; then
-    system_id=$(ip -br -o link show dev $(uci -q get network.lan.device) | awk '{print $3}' | sed 's/://g')
+# If no unit_id has been set, just use the mac address of lan device
+if [ -z "${unit_id}" ]; then
+    unit_id=$(ip -br -o link show dev $(uci -q get network.lan.device) | awk '{print $3}' | sed 's/://g')
 fi
 
-# No system_id, exit with error
-if [ -z "${system_id}" ]; then
+# No unit_id, exit with error
+if [ -z "${unit_id}" ]; then
     exit 1
 fi
 
@@ -60,12 +60,12 @@ watchdog=0
 response=""
 until [ "${valid}" -eq 1 ] || [ "${watchdog}" -ge "${max_attempts}" ]
 do
-    response=$(curl ${curl_opts} -H "Content-Type: application/json" ${server}/api/units/register -X POST --data '{"unit_name": "'${system_id}'", "username": "'${user}'", "password": "'${secret}'"}')
+    response=$(curl ${curl_opts} -H "Content-Type: application/json" ${server}/api/units/register -X POST --data '{"unit_name": "'${unit_id}'", "username": "'${user}'", "password": "'${secret}'"}')
     http_code=$(echo ${response} | jq -r .code)
     if [ "${http_code}" == "409" ]; then
         # Duplicate entry, cleanup uci config
         uci delete rpcd.controller
-        uci commit
+        uci commit rpcd
         exit 4
     elif [ "${http_code}" == "403" ]; then
         sleep 10
@@ -83,7 +83,7 @@ fi
 
 # Save the new password after successfull registration
 uci set rpcd.controller.password=${passwd}
-uci commit
+uci commit rpcd
 
 # Configuration received, setup the VPN
 host=$(echo ${response} | jq -r .data.host)
@@ -121,7 +121,7 @@ if [ "$(uci -q get rsyslog.promtail)" == "" ]; then
     uci set rsyslog.promtail.port=$(echo "$response" | jq -r .data.promtail_port)
     uci set rsyslog.promtail.rfc=5424
     uci set rsyslog.promtail.target=$(echo "$response" | jq -r .data.promtail_address)
-    uci commit
+    uci commit rsyslog
     /etc/init.d/rsyslog restart
     sleep 5 # wait for rsyslog
 fi

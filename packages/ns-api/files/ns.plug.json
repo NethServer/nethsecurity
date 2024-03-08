@@ -1,0 +1,13 @@
+{
+  "plug-manager": {
+    "description": "ns-plug manager",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.plug": [
+          "*"
+        ]
+      }
+    }
+  }
+}

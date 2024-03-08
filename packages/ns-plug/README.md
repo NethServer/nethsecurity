@@ -18,13 +18,15 @@ The `ns-plug` service needs only the `server` configuration option. Example:
 ```
 uci set ns-plug.config.server=https://controller.nethserver.org
 uci commit ns-plug
+/etc/init.d/ns-plug restart
 ``` 
 
-As default, `ns-plug`will identify itself using the MAC address of the LAN network interface without separators: given a MAC address like `52:54:00:6b:8a:cf`, the default `system_id` will be `5254006b8acf`.
-The system id can also be overridden using the `system_id` option. Example:
+As default, `ns-plug` will identify itself using the MAC address of the LAN network interface without separators: given a MAC address like `52:54:00:6b:8a:cf`, the default `unit_id` will be `5254006b8acf`.
+The system id can also be overridden using the `unit_id` option. Example:
 ```
-uci set ns-plug.config.system_id=392e068e-8557-4b1e-ba15-a1dfba1d59f0
+uci set ns-plug.config.unit_id=392e068e-8557-4b1e-ba15-a1dfba1d59f0
 uci commit ns-plug
+/etc/init.d/ns-plug restart
 ```
 
 On first run, `ns-plug` will create an administrator user for Luci, the user is saved inside UCI config `rpcd.controller`. The user will have a random name and a random password.
@@ -36,14 +38,18 @@ On development environments, if a valid certificate is not available, it is poss
 ```
 uci set ns-plug.config.tls_verify='0'
 uci commit ns-plug
+/etc/init.d/ns-plug restart
 ```
 
 To reset ns-plug configuration use:
 ```
 uci delete rpcd.controller
+uci commit rpcd
 uci set ns-plug.config.server=''
-uci set ns-plug.config.system_id=''
-uci commit
+uci set ns-plug.config.unit_id=''
+uci commit ns-plug
+uci delete rsyslog.promtail
+uci commit rsyslog
 rm -f /usr/share/ns-plug/client.conf
 ```
 
