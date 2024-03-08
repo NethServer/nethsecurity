@@ -23,6 +23,7 @@ if cmd == 'list':
         'list-service-suggestions': {},
         'list-host-suggestions': {},
         'list_zones': {},
+        'list_zones_no_aliases': {},
         'list_forwardings': {},
         'add-rule': {
             "name": "r1",
@@ -149,6 +150,8 @@ elif cmd == 'call':
             print(json.dumps({"message": "success"}))
         elif action == 'list_zones':
             print(json.dumps(firewall.list_zones(e_uci)))
+        elif action == 'list_zones_no_aliases':
+            print(json.dumps(firewall.list_zones_no_aliases(e_uci)))
         elif action == 'list_forwardings':
             print(json.dumps(firewall.list_forwardings(e_uci)))
         elif action == 'create_zone':

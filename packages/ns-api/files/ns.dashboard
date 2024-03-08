@@ -293,7 +293,7 @@ def list_wans():
     for i in interfaces:
         if 'device' in interfaces[i]:
             device2name[interfaces[i]['device']] = i
-    wans = utils.get_all_wan_devices(u)
+    wans = utils.get_all_wan_devices(u, exclude_aliases=True)
     for w in wans:
         ret.append({"iface": device2name.get(w,w), "device": w})
 
