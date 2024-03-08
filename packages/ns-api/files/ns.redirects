@@ -199,12 +199,25 @@ def list_zones():
 
 def list_wans():
     ret = {"wans": []}
+    seen_devices = set() # track seen devices to avoid duplicates
+    u = EUci()
     ips = get_device_ips()
-    wans = utils.get_all_wan_devices(EUci())
+    wans = utils.get_all_wan_devices(u)
+    # list configured static wans
+    for wan in wans:
+        interface = utils.get_interface_from_device(u, wan)
+        if interface:
+            ipaddr = u.get('network', interface, 'ipaddr', default=None)
+            if ipaddr and wan+ipaddr not in seen_devices:
+                 seen_devices.add(wan+ipaddr)
+                 ret["wans"].append({"device": wan, "ipaddr": ipaddr})
+    # list on-line wans, search also for dynamic IPs
     for device in ips.keys():
         if device in wans:
             for ip in ips[device]:
-                ret["wans"].append({"device": device, "ipaddr": ip})
+                if device+ip not in seen_devices:
+                    seen_devices.add(device+ip)
+                    ret["wans"].append({"device": device, "ipaddr": ip})
     return ret
 
 
