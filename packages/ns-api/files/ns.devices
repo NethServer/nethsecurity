@@ -367,7 +367,7 @@ def get_physical_devices():
             'mac': device.get('address'),
             'mtu': device.get('mtu'),
             'name': device.get('ifname'),
-            'up': 'UP' in device.get('flags')
+            'up': 'UP' in device.get('operstate')
         }
         physical_devices.append(dev)
 
