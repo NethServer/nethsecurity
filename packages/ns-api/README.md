@@ -6051,15 +6051,32 @@ Check the status of the registration:
 api-cli ns.plug status
 ```
 
-Response example:
+Response example with connected machine:
 ```json
 {
-  "status": "registered", "address": "1.2.3.4"
+  "status": "connected",
+  "address": "172.19.64.2",
+  "server": "https://controller.nethsecurity.org",
+  "unit_id": "NethSec",
+  "tls_verify": false
 }
 ```
 
-Possible values for `status` are `registered`, `unregistered` and `pending`.
-Addess is null if the status is `unregistered` or `pending`.
+Response example for an unconfigured machine:
+```json
+{
+  "status": "unregistered",
+  "address": null,
+  "server": null,
+  "unit_id": "NethSec",
+  "tls_verify": false
+}
+```
+
+Possible values for `status` are `connected`, `unregistered` and `pending`.
+`address` is null if the status is `unregistered` or `pending`.
+`server` is null if the status is `unregistered`.
+If unit_id is not set, default value is the hostname of the machine.
 
 ### register
 
@@ -6086,3 +6103,17 @@ Response example:
 ```json
 {"result": "success"}
 ```
+
+### restart
+
+Restart the registration process:
+```
+api-cli ns.plug restart
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+If the restart fails return a `restart_failed` error.

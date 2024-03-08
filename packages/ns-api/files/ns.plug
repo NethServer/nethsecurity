@@ -14,23 +14,32 @@ from nethsec import utils, firewall
 from euci import EUci
 import subprocess
 
+def get_hostname():
+    with open('/proc/sys/kernel/hostname', 'r') as fp:
+        return fp.read().strip()
+
 def status():
     u = EUci()
-    if u.get("ns-plug", "config", "server", default="") == "":
-        return {"result": "unregistered", "address": None}
-    else:
-        # if tun-plug is present
-        if os.path.exists("/usr/share/ns-plug/client.conf"):
-            try:
-                p = subprocess.run(["/sbin/ip", "-j", "address", "show", "dev", "tun-nsplug"], check=True, capture_output=True, text=True)
-                data = json.loads(p.stdout)
-                address = data[0].get('addr_info')[0].get('local')
-            except:
-                return {"result": "pending", "address": None}
-            return {"result": "registered", "address": address}
-        else:
-            return {"result": "pending", "address": None}
+    server = u.get("ns-plug", "config", "server", default=None)
+    unit_id = u.get("ns-plug", "config", "unit_id", default=get_hostname())
+    tls_verify = u.get("ns-plug", "config", "tls_verify", default="1") == "1"
+    address = None
+    if not server:
+        return {"status": "unregistered", "address": address, "server": server, "unit_id": unit_id, "tls_verify": tls_verify}
 
+    # if tun-plug is present
+    if os.path.exists("/usr/share/ns-plug/client.conf"):
+        try:
+            p = subprocess.run(["/sbin/ip", "-j", "address", "show", "dev", "tun-nsplug"], check=True, capture_output=True, text=True)
+            data = json.loads(p.stdout)
+            address = data[0].get('addr_info')[0].get('local')
+        except:
+            status = "pending"
+    else:
+        status = "pending"
+    if address is not None:
+        status = "connected"
+    return {"status": status, "address": address, "server": server, "unit_id": unit_id, "tls_verify": tls_verify}
 
 def register(url, tls_verify, unit_id):
     u = EUci()
@@ -90,7 +99,9 @@ if cmd == 'list':
     print(json.dumps({
         "register": {"url": "https://my.controller.org", "tls_verify": False, "unit_id": "unit_name"},
         "unregister": {},
-        "status":{}}))
+        "status":{},
+        "restart": {}
+        }))
 else:
     action = sys.argv[2]
     if action == "register":
@@ -100,5 +111,11 @@ else:
         ret = status()
     elif action == "unregister":
         ret = unregister()
+    elif action == "restart":
+        ret = {"result": "success"}
+        try:
+            subprocess.run(['/etc/init.d/ns-plug', 'restart'], check=True, capture_output=True)
+        except:
+            ret = utils.generic_error("restart_failed")
 
     print(json.dumps(ret))
