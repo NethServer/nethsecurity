@@ -6057,7 +6057,8 @@ Response example with connected machine:
   "status": "connected",
   "address": "172.19.64.2",
   "server": "https://controller.nethsecurity.org",
-  "unit_id": "NethSec",
+  "unit_name": "NethSec",
+  "unit_id": "94615a9e-2fae-4ac4-91b0-6c03e624ab48",
   "tls_verify": false
 }
 ```
@@ -6068,7 +6069,8 @@ Response example for an unconfigured machine:
   "status": "unregistered",
   "address": null,
   "server": null,
-  "unit_id": "NethSec",
+  "unit_name": "NethSec",
+  "unit_id": "94615a9e-2fae-4ac4-91b0-6c03e624ab48",
   "tls_verify": false
 }
 ```
@@ -6076,21 +6078,20 @@ Response example for an unconfigured machine:
 Possible values for `status` are `connected`, `unregistered` and `pending`.
 `address` is null if the status is `unregistered` or `pending`.
 `server` is null if the status is `unregistered`.
-If unit_id is not set, default value is the hostname of the machine.
+If `unit_name` has not been previously set, default value is the hostname of the machine.
+The `unit_id` is automatically generated on the first registration and can be used to identify the firewall.
 
 ### register
 
 Register the device to the NethSecurity controller:
 ```
-api-cli ns.plug register --data '{"url": "https://controller.nethsecurity.org", "tls_verify": true, "unit_id": "myunit"}'
+api-cli ns.plug register --data '{"url": "https://controller.nethsecurity.org", "tls_verify": true, "unit_name": "fw.test.local"}'
 ```
 
 Response example:
 ```json
 {"result": "success"}
 ```
-
-The `unit_id` field can be omitted, in that case firewall will be identified by its MAC address.
 
 ### unregister
 
@@ -6103,6 +6104,8 @@ Response example:
 ```json
 {"result": "success"}
 ```
+
+Please note that the unregister will also cleanup the `unit_id` and `unit_name` fields.
 
 ### restart
 
