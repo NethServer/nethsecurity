@@ -61,7 +61,7 @@ watchdog=0
 response=""
 until [ "${valid}" -eq 1 ] || [ "${watchdog}" -ge "${max_attempts}" ]
 do
-    response=$(curl ${curl_opts} -H "Content-Type: application/json" ${server}/api/units/register -X POST --data '{"unit_name": "'${unit_id}'", "username": "'${user}'", "password": "'${secret}'", "unit_name": "'${unit_name}'"}')
+    response=$(curl ${curl_opts} -H "Content-Type: application/json" ${server}/api/units/register -X POST --data '{"unit_id": "'${unit_id}'", "username": "'${user}'", "password": "'${secret}'", "unit_name": "'${unit_name}'"}')
     http_code=$(echo ${response} | jq -r .code)
     if [ "${http_code}" == "409" ]; then
         # Duplicate entry, cleanup uci config
