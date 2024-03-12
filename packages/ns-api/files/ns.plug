@@ -77,7 +77,6 @@ def register(url, tls_verify, unit_name):
 def unregister():
     u = EUci()
     u.set("ns-plug", "config", "server", "")
-    u.set("ns-plug", "config", "unit_id", "")
     u.set("ns-plug", "config", "unit_name", "")
     u.commit("ns-plug")
     u.delete("rpcd", "controller")

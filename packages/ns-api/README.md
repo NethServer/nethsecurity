@@ -6105,7 +6105,7 @@ Response example:
 {"result": "success"}
 ```
 
-Please note that the unregister will also cleanup the `unit_id` and `unit_name` fields.
+Please note that the unregister will also cleanup the `unit_name` field.
 
 ### restart
 
