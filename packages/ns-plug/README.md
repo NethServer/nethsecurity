@@ -14,20 +14,17 @@ The client is composed by 3 main parts:
 - `/etc/init.d/ns-plug`: start `ns-plug` script as a daemon, it automatically restarts the service if the configuration changes
 - `/etc/config/ns-plug`: UCI configuration file
 
-The `ns-plug` service needs only the `server` configuration option. Example:
+The `ns-plug` service needs at least the following options:
+- the `server`: an HTTPS URL of the controller
+- the `unit_id`: a UUID identifier of the machine
+
+Example:
 ```
 uci set ns-plug.config.server=https://controller.nethserver.org
+uci set ns-plug.config.unit_id=$(34f15657-9fce-4e36-8046-6d116ef07b57)
 uci commit ns-plug
 /etc/init.d/ns-plug restart
 ``` 
-
-As default, `ns-plug` will identify itself using the MAC address of the LAN network interface without separators: given a MAC address like `52:54:00:6b:8a:cf`, the default `unit_id` will be `5254006b8acf`.
-The system id can also be overridden using the `unit_id` option. Example:
-```
-uci set ns-plug.config.unit_id=392e068e-8557-4b1e-ba15-a1dfba1d59f0
-uci commit ns-plug
-/etc/init.d/ns-plug restart
-```
 
 On first run, `ns-plug` will create an administrator user for Luci, the user is saved inside UCI config `rpcd.controller`. The user will have a random name and a random password.
 At start-up, the service will try to register to the remote controller. If the system has been already approved, `ns-plug` will download the VPN configuration and connect to the controller. Otherwise, it will poll the controller every 10 seconds waiting for approval.
