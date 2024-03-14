@@ -11,10 +11,13 @@
 
 UCI_CONF="ns-plug"
 CONFIG_FILE="/usr/share/ns-plug/client.conf"
+source /etc/os-release
 
 server=$(uci -q get ${UCI_CONF}.config.server)
 unit_id=$(uci -q get ${UCI_CONF}.config.unit_id)
 unit_name=$(uci -q get ${UCI_CONF}.config.unit_name)
+system_id=$(uci -q get ${UCI_CONF}.config.system_id)
+subscription_type=$(uci -q get ${UCI_CONF}.config.type)
 
 # Exit early if no server has been set
 if [ -z "${server}" ]; then
@@ -61,7 +64,7 @@ watchdog=0
 response=""
 until [ "${valid}" -eq 1 ] || [ "${watchdog}" -ge "${max_attempts}" ]
 do
-    response=$(curl ${curl_opts} -H "Content-Type: application/json" ${server}/api/units/register -X POST --data '{"unit_id": "'${unit_id}'", "username": "'${user}'", "password": "'${secret}'", "unit_name": "'${unit_name}'"}')
+    response=$(curl ${curl_opts} -H "Content-Type: application/json" ${server}/api/units/register -X POST --data '{"unit_id": "'${unit_id}'", "username": "'${user}'", "password": "'${secret}'", "unit_name": "'${unit_name}'", "version": "'${VERSION_ID}'", "subscription_type": "'${subscription_type}'", "system_id": "'${system_id}'"}')
     http_code=$(echo ${response} | jq -r .code)
     if [ "${http_code}" == "409" ]; then
         # Duplicate entry, cleanup uci config
