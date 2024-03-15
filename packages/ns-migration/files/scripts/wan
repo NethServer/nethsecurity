@@ -29,7 +29,7 @@ metric = 10
 # fetch what kind of policy we are migrating
 policy_type = data['general']['mode']
 # prep providers, sort by desc weight
-data['providers'].sort(key=lambda x: x['weight'], reverse=True)
+data['providers'].sort(key=lambda x: int(x['weight']), reverse=True)
 
 # for each provider, generate interface
 for provider in data['providers']:
