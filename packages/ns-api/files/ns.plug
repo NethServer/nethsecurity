@@ -29,7 +29,9 @@ def status():
     u = EUci()
     server = u.get("ns-plug", "config", "server", default=None)
     unit_name = u.get("ns-plug", "config", "unit_name", default=get_hostname())
-    unit_id = u.get("ns-plug", "config", "unit_id", default=generate_unit_id(u))
+    unit_id = u.get("ns-plug", "config", "unit_id", default='')
+    if not unit_id:
+        unit_id = generate_unit_id(u)
     tls_verify = u.get("ns-plug", "config", "tls_verify", default="1") == "1"
     address = None
     if not server:
@@ -52,7 +54,9 @@ def status():
 def register(url, tls_verify, unit_name):
     u = EUci()
     # make sure unit_id is set even if status() was not called
-    u.get("ns-plug", "config", "unit_id", default=generate_unit_id(u))
+    unit_id = u.get("ns-plug", "config", "unit_id", default="")
+    if not unit_id:
+        unit_id = generate_unit_id(u)
     u.set("ns-plug", "config", "server", url)
     if not unit_name:
         u.set("ns-plug", "config", "unit_name", get_hostname())
