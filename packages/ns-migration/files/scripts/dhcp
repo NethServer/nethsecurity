@@ -70,7 +70,7 @@ for s in data['servers']:
         tmp = opt.split(",")
         name = options.get(tmp[0])
         if name:
-            dhcp_options.append(f'{name},{",".join(tmp[1:])}')
+            dhcp_options.append(f'option:{name},{",".join(tmp[1:])}')
     if dhcp_options:
         u.set("dhcp", sname, "dhcp_option", dhcp_options)
     if s["domain"]:
