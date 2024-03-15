@@ -6,6 +6,7 @@
 #
 
 import hashlib
+import ipaddress
 import nsmigration
 from nethsec import firewall, utils
 from euci import UciExceptionNotFound
@@ -14,6 +15,7 @@ from euci import UciExceptionNotFound
 vlans = dict()
 skipped_vlans = list()
 alias_zones = dict()
+devices = dict()
 
 def exists(key):
     try:
@@ -83,6 +85,7 @@ for v in data['vlans']:
         skipped_vlans.append(v)
         continue
 
+    devices[nsmigration.remap(v["hwaddr"], nmap)] = 1
     create_vlan(v)
 
 # Create bonds
@@ -118,8 +121,10 @@ for b in data['bridges']:
     for p in b["ports"]:
         if p['type'] == 'ethernet':
             bdevice = utils.get_device_name(nsmigration.remap(p['hwaddr'], nmap))
+            devices[nsmigration.remap(p["hwaddr"], nmap)] = 1
         elif p['type'] == 'vlan':
             bdevice = vlans[f"{p['hwaddr']}.{p['vid']}"]
+            devices[nsmigration.remap(p["hwaddr"], nmap)] = 1
         else:
             # virtual device like bonds
             bdevice = p['device']
@@ -148,12 +153,16 @@ for a in data['aliases']:
             device = f'@{i}'
         # alias over ethernet interface
         else:
-            # normal interfaces do not require the @ prefix
+            # normal interfaces uses @ prefix with interface name
+            # the name will be resolved at the end
             device = utils.get_device_name(nsmigration.remap(a['hwaddr'], nmap))
             if not device:
                 print(f"Skipping alias for device {device}")
                 continue
             aname = utils.sanitize(device)+"_"+str(acount)
+            device = f'FIXME|{device}'
+
+        devices[nsmigration.remap(a["hwaddr"], nmap)] = 1
     # alias over logical interface
     else:
         aname = utils.sanitize(a["device"])+str(acount)
@@ -168,8 +177,8 @@ for a in data['aliases']:
     nsmigration.vprint(f'Creating alias {aname}')
     u.set("network", aname, "interface") # create named record
     u.set("network", aname, "device", device)
-    u.set("network", aname, "ipaddr", a["ipaddr"])
-    u.set("network", aname, "netmask", a["netmask"])
+    ipaddr = ipaddress.IPv4Interface(f'{a["ipaddr"]}/{a["netmask"]}')
+    u.set("network", aname, "ipaddr", [ipaddr.with_prefixlen])
     u.set("network", aname, "proto", a["proto"])
     if a["gateway"]:
         u.set("network", aname, "gateway", a["gateway"])
@@ -197,6 +206,7 @@ for i in data['interfaces']:
         else:
             u.set("network", iname, "device", i["device"])
     else:
+        devices[nsmigration.remap(i["hwaddr"], nmap)] = 1
         ndevice = utils.get_device_name(nsmigration.remap(i['hwaddr'], nmap))
         if 'vid' in i:
             u.set("network", iname, "device", f'{ndevice}.{i["vid"]}')
@@ -255,6 +265,30 @@ for s in data['snats']:
     u.set("firewall", sname, "src_ip", s["src_ip"])
     u.set("firewall", sname, "dest_ip", s.get("dest_ip", "0.0.0.0/0"))
     u.set("firewall", sname, "src", "wan")
+
+# Loop through aliases and fix dangling references to interface
+# This should be done as last thing, because when creating aliases
+# the interfaces are still not created
+interfaces = utils.get_all_by_type(u, 'network', 'interface')
+for i in interfaces:
+    device = interfaces[i].get('device', '')
+    if device.startswith('FIXME|'):
+        device = device.split('|')[1]
+        # map the device to the interface
+        interface = utils.get_interface_from_device(u, device)
+        if interface:
+            nsmigration.vprint(f'Mapping alias {device} to {interface}')
+            u.set("network", i, 'device', f'@{interface}')
+        else:
+            # fallback to the name the device: the configuration works but the UI will probably fail
+            u.set("network", i, 'device', f'@{device}')
+
+# Create all physical devices: this is not required by UCI but for the UI
+for d in devices.keys():
+    did = utils.get_random_id()
+    u.set("network", did, "device")
+    u.set("network", did, "name", utils.get_device_name(d))
+    u.set("network", did, "ipv6", "0")
 
 # Save configuration
 u.commit("network")
