@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
+import random
 import hashlib
 import ipaddress
 import nsmigration
@@ -16,6 +17,7 @@ vlans = dict()
 skipped_vlans = list()
 alias_zones = dict()
 devices = dict()
+bond_zones = dict()
 
 def exists(key):
     try:
@@ -88,8 +90,12 @@ for v in data['vlans']:
     devices[nsmigration.remap(v["hwaddr"], nmap)] = 1
     create_vlan(v)
 
-# Create bonds
+# Create bonds: 3 records required
+# - bond interface with management ip address
+# - bond device
+# - real interface attached to bond
 for b in data['bonds']:
+    # create bond interface
     bname = utils.sanitize(b["name"])
     nsmigration.vprint(f"Creating bond {b['name']}")
     u.set("network", bname, "interface") # create named record
@@ -105,9 +111,25 @@ for b in data['bonds']:
     if b["bonding_policy"] != "802.3ad":
         u.set("network", bname, "link_monitoring", "mii")
         u.set("network", bname, "miimon", "100")
+    u.set("network", bname, "netmask", "255.255.255.255")
+    u.set("network", bname, "ipaddr", f"127.{random.randint(1, 254)}.{random.randint(1, 254)}.1")
+
+    # create interface attached to bond
+    iname = utils.sanitize(f'{b["name"]}_{b["zone"]}')
+    if not b["zone"] in bond_zones:
+        bond_zones[b["zone"]] = list()
+    bond_zones[b["zone"]].append(iname) # attach to the zone later
+    u.set("network", iname, "interface") # create named record
+    u.set("network", iname, "device", f'bond-{bname}')
     for opt in ('ipaddr', 'netmask', 'gateway'):
         if opt in b and str(b[opt]) != "":
-            u.set("network", bname, opt, b[opt])
+            u.set("network", iname, opt, b[opt])
+
+    # create bond device
+    bid = utils.get_random_id()
+    u.set("network", bid, "device")
+    u.set("network", bid, "name", f"bond-{bname}")
+    u.set("network", bid, "ipv6", "0")
 
 # Create bridges
 for b in data['bridges']:
@@ -233,6 +255,12 @@ for z in data['zones']:
     u.set("firewall", zname, "output", z["output"])
     u.set("firewall", zname, "input", z["input"])
     u.set("firewall", zname, "forward", z["forward"])
+    if z["name"] in bond_zones:
+        for b in bond_zones[z["name"]]:
+            base_name = b.split("_")[0]
+            if base_name in z["network"]:
+                z["network"].remove(base_name) # avoid duplicate bond like bond0 and bond0_lan
+        z["network"] = z["network"] + bond_zones[z["name"]]
     u.set("firewall", zname, "network", [utils.sanitize(n) for n in z["network"]])
     if z["name"].startswith("wan"): # setup masquerading for wans
         u.set("firewall", zname, "masq", '1')
