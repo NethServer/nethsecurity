@@ -17,11 +17,13 @@ The client is composed by 3 main parts:
 The `ns-plug` service needs at least the following options:
 - the `server`: an HTTPS URL of the controller
 - the `unit_id`: a UUID identifier of the machine
+- the `token`: the registration token available inside the controller
 
 Example:
 ```
 uci set ns-plug.config.server=https://controller.nethserver.org
 uci set ns-plug.config.unit_id=$(34f15657-9fce-4e36-8046-6d116ef07b57)
+uci set ns-plug.config.token=xxxxxxxxxxxxxxxxxxxxxxxxxxxx
 uci commit ns-plug
 /etc/init.d/ns-plug restart
 ``` 
@@ -44,6 +46,7 @@ uci delete rpcd.controller
 uci commit rpcd
 uci set ns-plug.config.server=''
 uci set ns-plug.config.unit_id=''
+uci set ns-plug.config.token=''
 uci commit ns-plug
 uci delete rsyslog.promtail
 uci commit rsyslog
