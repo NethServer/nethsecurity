@@ -6070,7 +6070,7 @@ Response example for an unconfigured machine:
   "address": null,
   "server": null,
   "unit_name": "NethSec",
-  "unit_id": "94615a9e-2fae-4ac4-91b0-6c03e624ab48",
+  "unit_id": "",
   "tls_verify": false
 }
 ```
@@ -6079,13 +6079,13 @@ Possible values for `status` are `connected`, `unregistered` and `pending`.
 `address` is null if the status is `unregistered` or `pending`.
 `server` is null if the status is `unregistered`.
 If `unit_name` has not been previously set, default value is the hostname of the machine.
-The `unit_id` is automatically generated on the first registration and can be used to identify the firewall.
+The `unit_id` is generated from the controller and contained inside the join_code.
 
 ### register
 
 Register the device to the NethSecurity controller:
 ```
-api-cli ns.plug register --data '{"url": "https://controller.nethsecurity.org", "tls_verify": true, "unit_name": "fw.test.local"}'
+api-cli ns.plug register --data '{"join_code": "eyJmcWRuIjoiY29udHJvbGxlci5ncy5uZXRoc2VydmVyLm5ldCIsInRva2VuIjoiMTIzNCIsInVuaXRfaWQiOiI5Njk0Y2Y4ZC03ZmE5LTRmN2EtYjFjNC1iY2Y0MGUzMjhjMDIifQ==", "tls_verify": true, "unit_name": "fw.test.local"}'
 ```
 
 Response example:
