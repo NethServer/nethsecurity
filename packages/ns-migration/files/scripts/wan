@@ -31,6 +31,8 @@ policy_type = data['general']['mode']
 # prep providers, sort by desc weight
 data['providers'].sort(key=lambda x: int(x['weight']), reverse=True)
 
+wans = {}
+
 # for each provider, generate interface
 for provider in data['providers']:
     # get interface name, could have been moved during migration
@@ -48,6 +50,8 @@ for provider in data['providers']:
         nsmigration.vprint(f"Skipping provider {provider['name']}")
         continue
 
+    # map old name to new one, it will be used on rules
+    wans[provider.get('name')] = f"{interface_name}_only"
     if policy_type == 'backup':
         interfaces.append({
             'name': interface_name,
@@ -72,6 +76,10 @@ else:
 # create mwan policy
 mwan.store_policy(u, policy_name, interfaces)
 
+# generate one policy for each interface to create divert rules
+for i in interfaces:
+    mwan.store_policy(u, f'{i.get("name")}_only', [i])
+
 # sort rules by position
 data['rules'].sort(key=lambda x: x['position'])
 # create mwan rules
@@ -84,7 +92,7 @@ for rule in data['rules']:
     mwan.store_rule(
         u,
         rule.get('name'),
-        utils.get_id(policy_name),
+        utils.get_id(wans.get(rule.get('use_policy'))),
         rule.get('proto'),
         rule.get('src_ip'),
         rule.get('src_port'),
