@@ -16,7 +16,7 @@ from euci import EUci
 from nethsec import utils
 
 MIGRATE_DIR = '/tmp/migration'
-MIGRATE_PATH = f'{MIGRATE_DIR}/export.tar.gz'
+UPLOAD_PATH = '/var/run/ns-api-server/uploads/'
 
 def get_ip(device):
     try:
@@ -32,29 +32,28 @@ cmd = sys.argv[1]
 
 if cmd == 'list':
     print(json.dumps({
-        'upload': {
-            'archive': 'str',
-        },
-        'list-devices': {},
-        'migrate': { "mappings": [{"old": "52:54:00:75:1C:C1", "new": "53:54:44:75:1A:AA"}] }
+        'list-source-devices': { 'archive': 'upload-918c041b-f5ae-4cbb-aa57-8a886f99aadb' },
+        'list-target-devices': {},
+        'migrate': { "mappings": [{"old": "52:54:00:75:1C:C1", "new": "53:54:44:75:1A:AA"}], 'archive': 'upload-918c041b-f5ae-4cbb-aa57-8a886f99aadb' }
     }))
 elif cmd == 'call':
     action = sys.argv[2]
     if action == 'migrate':
         try:
             data = json.load(sys.stdin)
+            export_archive = f'{UPLOAD_PATH}{data["archive"]}'
             cmd = ['/usr/sbin/ns-import']
             for m in data['mappings']:
                 cmd.append("-m")
                 cmd.append(f'{m["old"]}={m["new"]}')
-            cmd.append(MIGRATE_PATH)
+            cmd.append(export_archive)
             subprocess.run(cmd, check=True, capture_output=True)
             # return success
             print(json.dumps({'result': 'success'}))
         except RuntimeError as error:
             print(json.dumps(utils.generic_error(error.args[0])))
 
-    elif action == 'upload':
+    elif action == 'list-source-devices':
         ret = []
         try:
             # read input and prepare the paths
@@ -63,8 +62,8 @@ elif cmd == 'call':
                 shutil.rmtree(MIGRATE_DIR, ignore_errors=True)
             os.makedirs(MIGRATE_DIR, exist_ok=True)
             # write the archive and explode it
-            open(MIGRATE_PATH, 'wb').write(base64.b64decode(data['archive']))
-            subprocess.run(['/bin/tar', 'xzf', MIGRATE_PATH, '-C', MIGRATE_DIR], check=True)
+            export_archive = f'{UPLOAD_PATH}{data["archive"]}'
+            subprocess.run(['/bin/tar', 'xzf', export_archive, '-C', MIGRATE_DIR], check=True)
             with open(f'{MIGRATE_DIR}/export/network.json', 'r') as fp:
                 data = json.load(fp)
             # return the list of interfaces from the archive
@@ -74,7 +73,7 @@ elif cmd == 'call':
         except RuntimeError as error:
             print(json.dumps(utils.generic_error(error.args[0])))
 
-    elif action == 'list-devices':
+    elif action == 'list-target-devices':
         u = EUci()
         ret = []
         try:
