@@ -332,8 +332,17 @@ for i in interfaces:
             # fallback to the name the device: the configuration works but the UI will probably fail
             u.set("network", i, 'device', f'@{device}')
 
+# Avoid duplicate devices
+existing_devices = []
+for d in utils.get_all_by_type(u, 'network', 'device'):
+    device = u.get('network', d, 'name', default=None)
+    if device:
+        existing_devices.append(device)
+
 # Create all physical devices: this is not required by UCI but for the UI
 for d in devices.keys():
+    if utils.get_device_name(d) in existing_devices:
+        continue
     did = utils.get_random_id()
     u.set("network", did, "device")
     u.set("network", did, "name", utils.get_device_name(d))
