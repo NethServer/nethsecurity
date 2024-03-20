@@ -26,6 +26,16 @@ def exists(key):
     except UciExceptionNotFound:
         return False
 
+def get_alias_by_device(u, device):
+    if not device or device == '@None':
+        return None
+
+    for i in utils.get_all_by_type(u, 'network', 'interface'):
+        if u.get('network', i, 'device', default=None) == device:
+            return i
+
+    return None
+
 def create_vlan(v):
     if 'hwaddr' in v:
         iname = utils.get_device_name(nsmigration.remap(v["hwaddr"], nmap))
@@ -170,9 +180,12 @@ for a in data['aliases']:
             if vlan is None:
                 nsmigration.vprint(f'Skipping alias for non-exiting vlan {a["vid"]} on {a["hwaddr"]}')
                 continue
-            aname = utils.sanitize(vlan)+str(acount)
+            aname = "al_" + utils.sanitize(vlan)+str(acount)
             i = utils.get_interface_from_device(u, vlan)
-            device = f'@{i}'
+            if i:
+                device = f'@{i}'
+            else:
+                device = f'FIXME|{vlan}'
         # alias over ethernet interface
         else:
             # normal interfaces uses @ prefix with interface name
@@ -187,27 +200,35 @@ for a in data['aliases']:
         devices[nsmigration.remap(a["hwaddr"], nmap)] = 1
     # alias over logical interface
     else:
-        aname = utils.sanitize(a["device"])+str(acount)
+        aname = "al_" + utils.sanitize(a["device"])+str(acount)
         # add @ prefix for bridges and bonds
         if a["device"].startswith("br") or  a["device"].startswith("bond"):
             device = f'@{utils.get_interface_from_device(u, a["device"])}'
         else:
             device = utils.get_interface_from_device(u, a["device"])
-    if device is None:
+    if not device:
         nsmigration.vprint(f'Skipping alias {aname}')
         continue
-    nsmigration.vprint(f'Creating alias {aname}')
-    u.set("network", aname, "interface") # create named record
-    u.set("network", aname, "device", device)
+
     ipaddr = ipaddress.IPv4Interface(f'{a["ipaddr"]}/{a["netmask"]}')
-    u.set("network", aname, "ipaddr", [ipaddr.with_prefixlen])
-    u.set("network", aname, "proto", a["proto"])
-    if a["gateway"]:
-        u.set("network", aname, "gateway", a["gateway"])
-    acount = acount - 1
-    if not a['zone'] in alias_zones:
-        alias_zones[a['zone']] = list()
-    alias_zones[a['zone']].append(aname)
+    alias_id = get_alias_by_device(u, device)
+    if alias_id:
+        nsmigration.vprint(f'Updating alias {aname}')
+        cur_ips = list(u.get_all("network", alias_id, "ipaddr"))
+        cur_ips.append(ipaddr.with_prefixlen)
+        u.set("network", alias_id, "ipaddr", cur_ips)
+    else:
+        nsmigration.vprint(f'Creating alias {aname}')
+        u.set("network", aname, "interface") # create named record
+        u.set("network", aname, "device", device)
+        u.set("network", aname, "ipaddr", [ipaddr.with_prefixlen])
+        u.set("network", aname, "proto", a["proto"])
+        if a["gateway"]:
+            u.set("network", aname, "gateway", a["gateway"])
+        acount = acount - 1
+        if not a['zone'] in alias_zones:
+            alias_zones[a['zone']] = list()
+        alias_zones[a['zone']].append(aname)
 
 # Create interfaces
 for i in data['interfaces']:
