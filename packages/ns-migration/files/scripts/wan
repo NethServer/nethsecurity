@@ -72,25 +72,11 @@ else:
 # create mwan policy
 mwan.store_policy(u, policy_name, interfaces)
 
-# sort rules by position
-data['rules'].sort(key=lambda x: x['position'])
-# create mwan rules
-for rule in data['rules']:
-    # normalize src_ip, src_port, dest_ip, dest_port to null if empty string
-    for opt in ['src_ip', 'src_port' , 'dest_ip', 'dest_port']:
-        if rule.get(opt, None) == '':
-            rule[opt] = None
-    # simply store the rule
-    mwan.store_rule(
-        u,
-        rule.get('name'),
-        utils.get_id(policy_name),
-        rule.get('proto'),
-        rule.get('src_ip'),
-        rule.get('src_port'),
-        rule.get('dest_ip'),
-        rule.get('dest_port')
-    )
+# generate one policy for each interface to ease divert rules creation
+for i in interfaces:
+    mwan.store_policy(u, f'{i.get("name")}_only', [i])
+
+# divert rule are not migrated
 
 # push default rule to the end
 length = len(u.get_all('mwan3'))

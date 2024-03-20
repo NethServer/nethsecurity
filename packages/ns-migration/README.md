@@ -173,13 +173,13 @@ The `wan` script will import:
 - multiwan mode (balance/backup)
 - provider weight
 - IP to check WAN connectivity
-- divert rules
 
 The following NS7 features will not be migrated:
 
 - time matches for rules (not supported by mwan3)
 - mail notification on WAN status change
 - `MaxNumberPacketLoss` and `MaxPercentPacketLoss` tracking options
+- policy routing (divert rules)
 
 Differences since NS7:
 
