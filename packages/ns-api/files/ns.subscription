@@ -12,6 +12,7 @@ import json
 import subprocess
 from datetime import datetime
 from nethsec import utils
+from euci import EUci
 
 def register(args):
     if "secret" not in args or not args["secret"]:
@@ -41,10 +42,12 @@ def unregister():
 def info():
     try:
         ret = {}
-        p = subprocess.run(["/usr/sbin/subscription-info"], check=True, capture_output=True)
+        p = subprocess.run(["/usr/sbin/subscription-info", "1"], check=True, capture_output=True)
         data = json.loads(p.stdout)
     except:
-        return utils.generic_error("no_subscription_info_found")
+        u = EUci()
+        sid = u.get('ns-plug', 'config', 'system_id', default=None)
+        data = {"subscription": {"valid_until": None, "status": None, "subscription_plan": {"name": '-'}}, 'id': None, "uuid": sid}
 
     if not data["uuid"]:
         return {"systemd_id": ""}
