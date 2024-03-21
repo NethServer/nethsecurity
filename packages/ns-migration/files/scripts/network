@@ -131,9 +131,14 @@ for b in data['bonds']:
     bond_zones[b["zone"]].append(iname) # attach to the zone later
     u.set("network", iname, "interface") # create named record
     u.set("network", iname, "device", f'bond-{bname}')
-    for opt in ('ipaddr', 'netmask', 'gateway'):
-        if opt in b and str(b[opt]) != "":
-            u.set("network", iname, opt, b[opt])
+    if 'ipaddr' in b and str(b['ipaddr']) != "":
+        u.set("network", iname, 'ipaddr', b['ipaddr'])
+        u.set("network", iname, 'proto', 'static')
+        for opt in ('netmask', 'gateway'):
+            if opt in b and str(b[opt]) != "":
+                u.set("network", iname, opt, b[opt])
+    else:
+        u.set("network", iname, 'proto', 'dhcp')
 
     # create bond device
     bid = utils.get_random_id()
