@@ -199,7 +199,7 @@ for a in data['aliases']:
             if not device:
                 print(f"Skipping alias for device {device}")
                 continue
-            aname = utils.sanitize(device)+"_"+str(acount)
+            aname = "al_" + utils.sanitize(device)+"_"+str(acount)
             device = f'FIXME|{device}'
 
         devices[nsmigration.remap(a["hwaddr"], nmap)] = 1
@@ -207,10 +207,7 @@ for a in data['aliases']:
     else:
         aname = "al_" + utils.sanitize(a["device"])+str(acount)
         # add @ prefix for bridges and bonds
-        if a["device"].startswith("br") or  a["device"].startswith("bond"):
-            device = f'@{utils.get_interface_from_device(u, a["device"])}'
-        else:
-            device = utils.get_interface_from_device(u, a["device"])
+        device = f'FIXME|{a["device"]}'
     if not device:
         nsmigration.vprint(f'Skipping alias {aname}')
         continue
