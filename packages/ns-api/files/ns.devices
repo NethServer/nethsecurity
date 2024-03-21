@@ -337,7 +337,8 @@ def get_interface(device_name, ifaces_from_config):
 
 
 def is_bridge(device):
-    if device.get('type') == 'bridge' or re.match(r"br[0-9]+", device.get('name', '')):
+    # regexp: match bridged but not vlan over bridges
+    if device.get('type') == 'bridge' or re.match(r"^br[0-9]+(?!\.)", device.get('name', '')):
         return True
     else:
         return False
