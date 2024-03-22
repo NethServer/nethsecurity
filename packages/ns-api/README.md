@@ -3612,7 +3612,7 @@ Example response:
 
 ### backup
 
-Runs a backup of the system, returning a the name of the result file to download, the backup will be encoded with the passphrase set with `set-passphrase` API.
+Runs a backup of the system, returning the name of the result file to download, the backup will be encoded with the passphrase set with `set-passphrase` API.
 
 ```bash
 api-cli ns.backup backup
@@ -3800,7 +3800,7 @@ Response example:
 
 Upload a NS7 migration archive:
 ```
-api-cli ns.migration upload --data '{"archive": "upload-1e20f4b3-e581-454c-9162-ca33885eb223"}' 
+api-cli ns.migration list-source-devices --data '{"archive": "upload-1e20f4b3-e581-454c-9162-ca33885eb223"}' 
 ```
 
 The archive field is the name of file uploaded with the POST /files API.
