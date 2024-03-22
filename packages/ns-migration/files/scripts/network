@@ -18,6 +18,7 @@ skipped_vlans = list()
 alias_zones = dict()
 devices = dict()
 bond_zones = dict()
+bonds = dict()
 
 def exists(key):
     try:
@@ -126,6 +127,7 @@ for b in data['bonds']:
 
     # create interface attached to bond
     iname = utils.sanitize(f'{b["name"]}_{b["zone"]}')
+    bonds[b["name"]] = iname
     if not b["zone"] in bond_zones:
         bond_zones[b["zone"]] = list()
     bond_zones[b["zone"]].append(iname) # attach to the zone later
@@ -326,7 +328,11 @@ for i in interfaces:
     if device.startswith('FIXME|'):
         device = device.split('|')[1]
         # map the device to the interface
-        interface = utils.get_interface_from_device(u, device)
+        # if the interface is a bond, resolve the interface with the zone not the fake bond interface
+        if device.startswith('bond'):
+            interface = bonds[device]
+        else:
+            interface = utils.get_interface_from_device(u, device)
         if interface:
             nsmigration.vprint(f'Mapping alias {device} to {interface}')
             u.set("network", i, 'device', f'@{interface}')
