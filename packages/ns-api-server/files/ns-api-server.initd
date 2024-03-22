@@ -11,7 +11,6 @@ PROG=/usr/bin/nethsecurity-api
 
 WORK_DIR=/var/run/ns-api-server
 TOKENS_DIR=${WORK_DIR}/tokens
-STATIC_DIR=${WORK_DIR}/static
 SECRETS_DIR=/etc/ns-api-server
 UPLOAD_FILE_PATH=${WORK_DIR}/uploads
 UPLOAD_FILE_MAX_SIZE=64 # 64MB
@@ -20,7 +19,6 @@ start_service() {
     procd_open_instance
 
     local issuer_2fa="$(uci_get system.@system[0].hostname)"
-    mkdir -m 0755 -p ${STATIC_DIR}
     mkdir -m 0700 -p ${TOKENS_DIR}
     mkdir -m 0700 -p ${SECRETS_DIR}
 

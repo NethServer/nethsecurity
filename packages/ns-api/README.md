@@ -3612,7 +3612,7 @@ Example response:
 
 ### backup
 
-Runs a backup of the system, returning a `base64` encoding of the result file, the backup will be encoded with the passphrase set with `set-passphrase` API.
+Runs a backup of the system, returning the name of the result file to download, the backup will be encoded with the passphrase set with `set-passphrase` API.
 
 ```bash
 api-cli ns.backup backup
@@ -3622,26 +3622,27 @@ Example response:
 
 ```json
 {
-   "backup": "H4sIAAAAAAAAA+w9a3PbNr..."
+   "backup": "backup-vtEUjmUAaMzxAzAsIJmr"
 }
 ```
 
 ### restore
 
 Restore the system with the given backup, once successful, restarts the system.
+Before invokig this API, the file must have been uploaded with the `files` API.
 
 Required parameters:
 
 - `backup`: contains the backup to restore, must be a `base64` encoded string
 
 ```bash
-api-cli ns.backup restore --data '{"backup": "H4sIAAAAAAAAA+w9a3PbNr..."}' 
+api-cli ns.backup restore --data '{"backup": "backup-vtEUjmUAaMzxAzAsIJmr"}' 
 ```
 
 Optional `passphrase` can be given to decrypt the file:
 
 ```bash
-api-cli ns.backup restore --data '{"backup": "H4sIAAAAAAAAA+w9a3PbNr...", "passphrase": "very-cool-passphrase"}'
+api-cli ns.backup restore --data '{"backup": "backup-vtEUjmUAaMzxAzAsIJmr", "passphrase": "very-cool-passphrase"}'
 ```
 
 Example response:
@@ -3728,6 +3729,7 @@ Example response:
 ### registered-download-backup
 
 Download a backup from the remote server.
+The returned file name must be downloaded with the `files` API.
 
 Required parameters:
 
@@ -3741,7 +3743,7 @@ Example response:
 
 ```json
 {
-   "backup": "H4sIAAAAAAAAA+w9a3PbNr..."
+   "backup": "backup-lGUGdQZLAuFlhfegTNYQ"
 }
 ```
 
@@ -3767,11 +3769,11 @@ Example response:
 
 Manage migration from NS7
 
-### list-devices
+### list-target-devices
 
-List existing devices:
+List existing target devices:
 ```
-api-clit ns.migration list-devices
+api-clit ns.migration list-target-devices
 ```
 
 Response example:
@@ -3794,12 +3796,14 @@ Response example:
 }
 ```
 
-### upload
+### list-source-devices
 
 Upload a NS7 migration archive:
 ```
-api-cli ns.migration upload --data '{"archive": "H4sIAAAAAAAAA+w9a3PbNr..."}' 
+api-cli ns.migration list-source-devices --data '{"archive": "upload-1e20f4b3-e581-454c-9162-ca33885eb223"}' 
 ```
+
+The archive field is the name of file uploaded with the POST /files API.
 
 This API can return a validation error if the given file is not a valid NS7 migration export archive.
 
@@ -3827,7 +3831,7 @@ Response example:
 
 Execute the migration:
 ```
-api-cli ns.migration migrate --data '{"mappings": [{"old": "52:54:00:75:1C:C1", "new": "53:54:44:75:1A:AA"}]}'
+api-cli ns.migration migrate --data '{"mappings": [{"old": "52:54:00:75:1C:C1", "new": "53:54:44:75:1A:AA"}], "archive": "upload-1e20f4b3-e581-454c-9162-ca33885eb223"}'
 ```
 
 Response example:
