@@ -43,7 +43,7 @@ def has_bl_entitlement(e_uci):
     }
     try:
         req = urllib.request.Request(url, headers=headers)
-        response = urllib.request.urlopen(req, timeout=20)  # Add timeout of 60 seconds
+        response = urllib.request.urlopen(req, timeout=20)  # Add timeout of 20 seconds
     except urllib.error.URLError as e:
         return False
 
@@ -59,8 +59,7 @@ def has_enterprise_subscription(e_uci):
     system_id = e_uci.get('ns-plug', 'config', 'system_id', default='')
     if system_id == '':
         return False
-    inventory_url = e_uci.get('ns-plug', 'config', 'inventory_url', default='')
-    if 'my.nethesis.it' in inventory_url:
+    if e_uci.get('ns-plug', 'config', 'type', default='') == "enterprise":
         return True
     return False
 
@@ -124,8 +123,10 @@ def list_blocklist(e_uci):
         else:
             type = 'community'
 
-        if type == 'enterprise' and not has_bl:
-            continue
+        # list enabled enterprise lists, even if there is no Internet connection
+        if not enabled:
+            if type == 'enterprise' and not has_bl:
+                continue
 
         ret.append({ 'name': f, 'type': type, 'enabled': enabled, 'confidence': confidence, 'description': feed.get('descr')})
     return { "data": ret }
