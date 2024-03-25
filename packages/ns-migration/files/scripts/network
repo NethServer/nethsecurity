@@ -5,7 +5,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
+import random
 import hashlib
+import ipaddress
 import nsmigration
 from nethsec import firewall, utils
 from euci import UciExceptionNotFound
@@ -14,6 +16,9 @@ from euci import UciExceptionNotFound
 vlans = dict()
 skipped_vlans = list()
 alias_zones = dict()
+devices = dict()
+bond_zones = dict()
+bonds = dict()
 
 def exists(key):
     try:
@@ -21,6 +26,16 @@ def exists(key):
         return True
     except UciExceptionNotFound:
         return False
+
+def get_alias_by_device(u, device):
+    if not device or device == '@None':
+        return None
+
+    for i in utils.get_all_by_type(u, 'network', 'interface'):
+        if u.get('network', i, 'device', default=None) == device:
+            return i
+
+    return None
 
 def create_vlan(v):
     if 'hwaddr' in v:
@@ -83,10 +98,15 @@ for v in data['vlans']:
         skipped_vlans.append(v)
         continue
 
+    devices[nsmigration.remap(v["hwaddr"], nmap)] = 1
     create_vlan(v)
 
-# Create bonds
+# Create bonds: 3 records required
+# - bond interface with management ip address
+# - bond device
+# - real interface attached to bond
 for b in data['bonds']:
+    # create bond interface
     bname = utils.sanitize(b["name"])
     nsmigration.vprint(f"Creating bond {b['name']}")
     u.set("network", bname, "interface") # create named record
@@ -102,9 +122,31 @@ for b in data['bonds']:
     if b["bonding_policy"] != "802.3ad":
         u.set("network", bname, "link_monitoring", "mii")
         u.set("network", bname, "miimon", "100")
-    for opt in ('ipaddr', 'netmask', 'gateway'):
-        if opt in b and str(b[opt]) != "":
-            u.set("network", bname, opt, b[opt])
+    u.set("network", bname, "netmask", "255.255.255.255")
+    u.set("network", bname, "ipaddr", f"127.{random.randint(1, 254)}.{random.randint(1, 254)}.1")
+
+    # create interface attached to bond
+    iname = utils.sanitize(f'{b["name"]}_{b["zone"]}')
+    bonds[b["name"]] = iname
+    if not b["zone"] in bond_zones:
+        bond_zones[b["zone"]] = list()
+    bond_zones[b["zone"]].append(iname) # attach to the zone later
+    u.set("network", iname, "interface") # create named record
+    u.set("network", iname, "device", f'bond-{bname}')
+    if 'ipaddr' in b and str(b['ipaddr']) != "":
+        u.set("network", iname, 'ipaddr', b['ipaddr'])
+        u.set("network", iname, 'proto', 'static')
+        for opt in ('netmask', 'gateway'):
+            if opt in b and str(b[opt]) != "":
+                u.set("network", iname, opt, b[opt])
+    else:
+        u.set("network", iname, 'proto', 'dhcp')
+
+    # create bond device
+    bid = utils.get_random_id()
+    u.set("network", bid, "device")
+    u.set("network", bid, "name", f"bond-{bname}")
+    u.set("network", bid, "ipv6", "0")
 
 # Create bridges
 for b in data['bridges']:
@@ -118,8 +160,10 @@ for b in data['bridges']:
     for p in b["ports"]:
         if p['type'] == 'ethernet':
             bdevice = utils.get_device_name(nsmigration.remap(p['hwaddr'], nmap))
+            devices[nsmigration.remap(p["hwaddr"], nmap)] = 1
         elif p['type'] == 'vlan':
             bdevice = vlans[f"{p['hwaddr']}.{p['vid']}"]
+            devices[nsmigration.remap(p["hwaddr"], nmap)] = 1
         else:
             # virtual device like bonds
             bdevice = p['device']
@@ -143,40 +187,52 @@ for a in data['aliases']:
             if vlan is None:
                 nsmigration.vprint(f'Skipping alias for non-exiting vlan {a["vid"]} on {a["hwaddr"]}')
                 continue
-            aname = utils.sanitize(vlan)+str(acount)
+            aname = "al_" + utils.sanitize(vlan)+str(acount)
             i = utils.get_interface_from_device(u, vlan)
-            device = f'@{i}'
+            if i:
+                device = f'@{i}'
+            else:
+                device = f'FIXME|{vlan}'
         # alias over ethernet interface
         else:
-            # normal interfaces do not require the @ prefix
+            # normal interfaces uses @ prefix with interface name
+            # the name will be resolved at the end
             device = utils.get_device_name(nsmigration.remap(a['hwaddr'], nmap))
             if not device:
                 print(f"Skipping alias for device {device}")
                 continue
-            aname = utils.sanitize(device)+"_"+str(acount)
+            aname = "al_" + utils.sanitize(device)+"_"+str(acount)
+            device = f'FIXME|{device}'
+
+        devices[nsmigration.remap(a["hwaddr"], nmap)] = 1
     # alias over logical interface
     else:
-        aname = utils.sanitize(a["device"])+str(acount)
+        aname = "al_" + utils.sanitize(a["device"])+str(acount)
         # add @ prefix for bridges and bonds
-        if a["device"].startswith("br") or  a["device"].startswith("bond"):
-            device = f'@{utils.get_interface_from_device(u, a["device"])}'
-        else:
-            device = utils.get_interface_from_device(u, a["device"])
-    if device is None:
+        device = f'FIXME|{a["device"]}'
+    if not device:
         nsmigration.vprint(f'Skipping alias {aname}')
         continue
-    nsmigration.vprint(f'Creating alias {aname}')
-    u.set("network", aname, "interface") # create named record
-    u.set("network", aname, "device", device)
-    u.set("network", aname, "ipaddr", a["ipaddr"])
-    u.set("network", aname, "netmask", a["netmask"])
-    u.set("network", aname, "proto", a["proto"])
-    if a["gateway"]:
-        u.set("network", aname, "gateway", a["gateway"])
-    acount = acount - 1
-    if not a['zone'] in alias_zones:
-        alias_zones[a['zone']] = list()
-    alias_zones[a['zone']].append(aname)
+
+    ipaddr = ipaddress.IPv4Interface(f'{a["ipaddr"]}/{a["netmask"]}')
+    alias_id = get_alias_by_device(u, device)
+    if alias_id:
+        nsmigration.vprint(f'Updating alias {aname}')
+        cur_ips = list(u.get_all("network", alias_id, "ipaddr"))
+        cur_ips.append(ipaddr.with_prefixlen)
+        u.set("network", alias_id, "ipaddr", cur_ips)
+    else:
+        nsmigration.vprint(f'Creating alias {aname}')
+        u.set("network", aname, "interface") # create named record
+        u.set("network", aname, "device", device)
+        u.set("network", aname, "ipaddr", [ipaddr.with_prefixlen])
+        u.set("network", aname, "proto", a["proto"])
+        if a["gateway"]:
+            u.set("network", aname, "gateway", a["gateway"])
+        acount = acount - 1
+        if not a['zone'] in alias_zones:
+            alias_zones[a['zone']] = list()
+        alias_zones[a['zone']].append(aname)
 
 # Create interfaces
 for i in data['interfaces']:
@@ -197,6 +253,7 @@ for i in data['interfaces']:
         else:
             u.set("network", iname, "device", i["device"])
     else:
+        devices[nsmigration.remap(i["hwaddr"], nmap)] = 1
         ndevice = utils.get_device_name(nsmigration.remap(i['hwaddr'], nmap))
         if 'vid' in i:
             u.set("network", iname, "device", f'{ndevice}.{i["vid"]}')
@@ -223,6 +280,12 @@ for z in data['zones']:
     u.set("firewall", zname, "output", z["output"])
     u.set("firewall", zname, "input", z["input"])
     u.set("firewall", zname, "forward", z["forward"])
+    if z["name"] in bond_zones:
+        for b in bond_zones[z["name"]]:
+            base_name = b.split("_")[0]
+            if base_name in z["network"]:
+                z["network"].remove(base_name) # avoid duplicate bond like bond0 and bond0_lan
+        z["network"] = z["network"] + bond_zones[z["name"]]
     u.set("firewall", zname, "network", [utils.sanitize(n) for n in z["network"]])
     if z["name"].startswith("wan"): # setup masquerading for wans
         u.set("firewall", zname, "masq", '1')
@@ -255,6 +318,43 @@ for s in data['snats']:
     u.set("firewall", sname, "src_ip", s["src_ip"])
     u.set("firewall", sname, "dest_ip", s.get("dest_ip", "0.0.0.0/0"))
     u.set("firewall", sname, "src", "wan")
+
+# Loop through aliases and fix dangling references to interface
+# This should be done as last thing, because when creating aliases
+# the interfaces are still not created
+interfaces = utils.get_all_by_type(u, 'network', 'interface')
+for i in interfaces:
+    device = interfaces[i].get('device', '')
+    if device.startswith('FIXME|'):
+        device = device.split('|')[1]
+        # map the device to the interface
+        # if the interface is a bond, resolve the interface with the zone not the fake bond interface
+        if device.startswith('bond'):
+            interface = bonds[device]
+        else:
+            interface = utils.get_interface_from_device(u, device)
+        if interface:
+            nsmigration.vprint(f'Mapping alias {device} to {interface}')
+            u.set("network", i, 'device', f'@{interface}')
+        else:
+            # fallback to the name the device: the configuration works but the UI will probably fail
+            u.set("network", i, 'device', f'@{device}')
+
+# Avoid duplicate devices
+existing_devices = []
+for d in utils.get_all_by_type(u, 'network', 'device'):
+    device = u.get('network', d, 'name', default=None)
+    if device:
+        existing_devices.append(device)
+
+# Create all physical devices: this is not required by UCI but for the UI
+for d in devices.keys():
+    if utils.get_device_name(d) in existing_devices:
+        continue
+    did = utils.get_random_id()
+    u.set("network", did, "device")
+    u.set("network", did, "name", utils.get_device_name(d))
+    u.set("network", did, "ipv6", "0")
 
 # Save configuration
 u.commit("network")

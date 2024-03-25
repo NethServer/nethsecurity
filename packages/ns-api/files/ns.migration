@@ -55,6 +55,8 @@ elif cmd == 'call':
 
     elif action == 'list-source-devices':
         ret = []
+        bridges = {}
+        devices = {}
         try:
             # read input and prepare the paths
             data = json.load(sys.stdin)
@@ -66,9 +68,24 @@ elif cmd == 'call':
             subprocess.run(['/bin/tar', 'xzf', export_archive, '-C', MIGRATE_DIR], check=True)
             with open(f'{MIGRATE_DIR}/export/network.json', 'r') as fp:
                 data = json.load(fp)
+            devices = data.get('devices')
             # return the list of interfaces from the archive
             for i in data['interfaces']:
+                if i.get('name').startswith('br'):
+                    bridges[i.get('name')] = {"role": i.get("role"), "ipaddr": i.get('ipaddr')}
+                if not i.get("hwaddr"):
+                    continue
                 ret.append({"name": i.get('name'), "hwaddr": i.get('hwaddr'), "ipaddr": i.get('ipaddr'), "role": i.get("role")})
+            for b in data["bridges"]:
+                for p in b["ports"]:
+                    if p.get('hwaddr'):
+                        br = bridges.get(b.get('name'))
+                        iname = devices.get(p.get('hwaddr'))
+                        ret.append({"name": f"{iname} ({b.get('name')})", "hwaddr": p.get('hwaddr'), "ipaddr": br.get('ipaddr'), "role": br.get('role')})
+            for b in data["bonds"]:
+                for s in b["slaves"]:
+                    iname =  devices.get(s)
+                    ret.append({"name": f"{iname} ({b.get('name')})", "hwaddr": s, "ipaddr": b.get('ipaddr'), "role": b.get('zone')})
             print(json.dumps({'devices': ret}))
         except RuntimeError as error:
             print(json.dumps(utils.generic_error(error.args[0])))
