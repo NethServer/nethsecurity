@@ -30,6 +30,17 @@ def get_device_ips():
             ret[name].append(addr.get('local', ''))
     return ret
 
+def get_wan_by_ip(u, ipaddr):
+    device = None
+    ip_map = get_device_ips()
+    for d in ip_map:
+        if ipaddr in ip_map[d]:
+            device = d
+    if device:
+        return utils.get_interface_from_device(u, device)
+    else:
+        # Fallback to general wan
+        return 'wan'
 
 def next_id():
     max_id = 0
@@ -132,7 +143,7 @@ def setup_tunnel(u, iname, args):
     u.set('network', dname, 'zone', 'ipsec')
     u.set('network', dname, 'proto', 'xfrm')
     u.set('network', dname, 'multicast', 'true')
-    u.set('network', dname, 'tunlink', 'wan')
+    u.set('network', dname, 'tunlink', get_wan_by_ip(u, args['local_ip']))
     u.set('network', dname, 'ns_link', link)
 
     # create route
