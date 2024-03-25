@@ -6124,3 +6124,54 @@ Response example:
 ```
 
 If the restart fails return a `restart_failed` error.
+
+## ns.netifyd
+
+Manage netifyd sink configuration.
+
+### status
+
+Check the status of the sink confinguration:
+```
+api-cli ns.netifyd status
+```
+
+Response example with connected machine:
+```json
+{
+  "uuid": "QD-SC-WB-N7",
+  "enabled": true
+}
+```
+
+Response example for an unconfigured machine:
+```json
+{
+  "uuid": "QD-SC-WB-N7",
+  "enabled": false
+}
+```
+
+### enable
+
+Enable the sink to Neitfyd cloud:
+```
+api-cli ns.netifyd enable
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+### disable
+
+Disable the sink to Neitfyd cloud:
+```
+api-cli ns.netifyd disable
+```
+
+Response example:
+```json
+{"result": "success"}
+```

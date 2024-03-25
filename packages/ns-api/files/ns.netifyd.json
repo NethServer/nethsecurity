@@ -1,0 +1,13 @@
+{
+  "netifyd-manager": {
+    "description": "netifyd manager",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.plug": [
+          "*"
+        ]
+      }
+    }
+  }
+}
