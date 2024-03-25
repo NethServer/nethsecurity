@@ -193,7 +193,7 @@ def list_zones():
     ret = {"zones": []}
     for z in utils.get_all_by_type(EUci(), 'firewall', 'zone').values():
         name =  z.get('name', '')
-        if name and name not in ['wan', 'lan']:
+        if name and name != 'wan':
             ret['zones'].append(name)
     return ret
 
