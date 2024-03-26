@@ -65,7 +65,7 @@ if [ -z "$OWRT_VERSION" ]; then
 fi
 
 : "${CONFIG_GRUB_TITLE:=NethSecurity}"
-: "${CONFIG_VERSION_BUG_URL:=https://github.com/NethServer/dev/issues}"
+: "${CONFIG_VERSION_BUG_URL:=https://github.com/NethServer/nethsecurity/issues}"
 : "${CONFIG_VERSION_DIST:=NethSecurity}"
 : "${CONFIG_VERSION_HOME_URL:=https://github.com/nethserver/nethsecurity}"
 : "${CONFIG_VERSION_MANUFACTURER:=Nethesis}"
