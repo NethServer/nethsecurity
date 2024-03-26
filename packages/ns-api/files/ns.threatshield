@@ -25,7 +25,7 @@ def has_bl_entitlement(e_uci):
         return False
 
     cache_file = "/tmp/bl_entitlement_cache"
-    cache_timeout = 3600
+    cache_timeout = 3600 * 6 # 6 hours
 
     # Check if cache file exists and if it is still valid
     if os.path.exists(cache_file) and time.time() - os.path.getmtime(cache_file) < cache_timeout:
