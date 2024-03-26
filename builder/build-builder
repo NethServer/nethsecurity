@@ -46,12 +46,6 @@ buildah run --user build ${container} -- bash -c "cd /home/build/openwrt && sed 
 echo "Setup fast feed download"
 buildah run --user build ${container} -- bash -c "cd /home/build/openwrt && sed -i 's/src-git-full/src-git/' feeds.conf.default"
 
-luci_branch="nethsec-"$(echo $OWRT_VERSION | cut -d'.' -f 1,2)
-echo "Switch to LuCI NethServer fork"
-buildah run --user build ${container} -- bash -c "cd /home/build/openwrt && grep -v 'git.openwrt.org/project/luci.git' feeds.conf.default > feeds.tmp"
-buildah run --user build ${container} -- bash -c "cd /home/build/openwrt && echo 'src-git luci https://github.com/NethServer/luci.git;$luci_branch' >> feeds.tmp"
-buildah run --user build ${container} -- bash -c "cd /home/build/openwrt && mv feeds.tmp feeds.conf.default"
-
 echo "Update feeds"
 buildah run --user build ${container} -- bash -c "cd /home/build/openwrt && ./scripts/feeds update && ./scripts/feeds install -a"
 

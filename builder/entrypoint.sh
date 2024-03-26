@@ -25,9 +25,6 @@ echo "src-link nethsecurity /home/build/openwrt/nspackages" >> feeds.conf.defaul
 ./scripts/feeds update nethsecurity
 ./scripts/feeds install -a -p nethsecurity
 
-# Update LuCI fork
-./scripts/feeds update luci
-
 # Replace upstream packages
 for d in $(find /home/build/openwrt/nspackages/ -maxdepth 1 -type d)
 do
