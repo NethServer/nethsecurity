@@ -148,25 +148,6 @@ Create a tag that contains the new OpenWrt release followed by a NethSecurity un
 Example:
 ```
 git tag 23.05.2-ns.0.0.1-alpha1
-```
-
-Prepare a new Luci branch with NethSecurity customization named after OpenWrt major and minor release:
-```
-git remote add openwrt https://github.com/openwrt/luci.git
-git fetch openwrt
-git checkout -b openwrt-23.05 openwrt/openwrt-23.05
-git push origin openwrt-23.05
-git checkout -b nethsec-23.05
-```
-
-Now cherry-pick the commits from the old branch (like `nethsec-22.03`)
-Then, push the changes:
-```
-git push origin nethsec-23.05
-```
-
-Finally, push the tags to start the build process:
-```
 git push --tags
 ```
 
