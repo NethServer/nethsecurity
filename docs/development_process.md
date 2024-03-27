@@ -27,10 +27,6 @@ feature, inside a tracker. There are two kind of issues:
 Bugs and enhancements will always produce some code changes inside one or more
 Git repositories.
 
-Each repository is associated with one or more container images. Changes to the code
-produce new releases of modules.
-
-
 ### Do I need to open a new issue?
 
 Yes, if what you’re talking about will produce some code.
@@ -43,7 +39,7 @@ Creation of issues can be avoided only for trivial fixes which require
 no QA effort.
 
 Issues are not a to-do list. Issues track the status changes of a job, the
-output of the job will be a new container image resolving the issue itself.
+output of the job will be a new package or image resolving the issue itself.
 If you are exploring some esoteric paths for new feature or hunting
 something like a [heisenbug](http://en.wikipedia.org/wiki/Heisenbug>),
 please open a discussion with your thoughts.
