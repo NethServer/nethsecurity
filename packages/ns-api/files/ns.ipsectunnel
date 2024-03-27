@@ -17,22 +17,9 @@ from nethsec import utils, firewall, ipsec, ovpn
 
 ## Utils
 
-def get_device_ips():
-    ret = {}
-    p = subprocess.run(["/sbin/ip", "-j", "address"], check=True, text=True, capture_output=True)
-    data = json.loads(p.stdout)
-    for interface in data:
-        ipaddr = []
-        name = interface.get("ifname")
-        for addr in interface.get("addr_info", []):
-            if name not in ret:
-                ret[name] = []
-            ret[name].append(addr.get('local', ''))
-    return ret
-
 def get_wan_by_ip(u, ipaddr):
     device = None
-    ip_map = get_device_ips()
+    ip_map = utils.get_all_device_ips()
     for d in ip_map:
         if ipaddr in ip_map[d]:
             device = d
@@ -257,17 +244,6 @@ def get_tunnel(id):
 
     return ret
 
-def list_wans():
-    ret = {"wans": []}
-    ips = get_device_ips()
-    wans = utils.get_all_wan_devices(EUci())
-    for device in ips.keys():
-        if device in wans or device.startswith('pppoe'):
-            for ip in ips[device]:
-                if not ip.startswith("127"): # exclude bond management IP
-                    ret["wans"].append({"device": device, "ipaddr": ip})
-    return ret
-
 def get_defaults():
     u = EUci()
     num = 1
@@ -368,7 +344,7 @@ else:
     elif action == "get-defaults":
         ret = get_defaults()
     elif action == "list-wans":
-        ret = list_wans()
+        ret = {"wans": utils.get_all_wan_ips(EUci())}
     elif action == "list-algs":
         ret = list_algs()
     else:
