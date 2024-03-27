@@ -116,7 +116,7 @@ future changes and a reference for documentation and support requests.
 Issues recorded as project draft cards constitute the project roadmap and
 are published here:
 
-[https://github.com/orgs/NethServer/projects/8](https://github.com/orgs/NethServer/projects/8)
+[https://github.com/orgs/NethServer/projects/10](https://github.com/orgs/NethServer/projects/10)
 
 ### Issue labels
 
