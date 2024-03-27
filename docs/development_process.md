@@ -84,6 +84,8 @@ How to write a feature or enhancement:
 * Text presentation and images matter: they make the whole report more readable
   and understandable
 
+Also remember to attach labels to the issue, to help the team to categorize it.
+
 More information:
 
 * [Mozilla bug writing guidelines](https://bugzilla.mozilla.org/page.cgi?id=bug-writing.html)
@@ -118,7 +120,7 @@ are published here:
 
 [https://github.com/orgs/NethServer/projects/10](https://github.com/orgs/NethServer/projects/10)
 
-### Issue labels
+### Issue labels and tags
 
 Issues can be tagged using a set of well-known labels that indicate the status:
 
@@ -133,12 +135,19 @@ Other labels can be used to categorize the issue:
 - `feature`: a new feature or an enhancement
 - `firewall`: a bug or feature related to the firewall
 - `controller`: a bug or feature related to the controller
-- `ui`: a bug or feature related to the user interface
 - `docs`: a bug or feature related to the documentation
-- `backend`: a bug or feature related to the backend
 
 Before introducing new labels, please discuss them with the development team
 and make sure to describe carefully the new label inside the [label page](https://github.com/NethServer/nethsecurity/labels).
+
+An issue should be associated to a [Milestone](https://github.com/NethServer/nethsecurity/milestones?with_issues=no) when it is planned to be released.
+It's a good practice to associate the issue to the `NethSecurity 8` project to track the progress of the issue.
+
+An issue inside the `NethSecurity 8` project could also have one or more extra fields:
+- `Implementation`: it can be `Frontend`, `Backend` or `Frontend/Backend` to indicate the area of the code that will be affected by the issue
+- `Iteration`: it indicates the iteration of the issue, the iteration is a sequence of steps to reach the final goal. The iteration usually has start and end dates
+- `Mockup`: it can be empty if no mockup is needed, or `Ready` if the mockup is ready, or `Not ready` if the mockup is not ready yet. If an issue is marked
+   as `Not ready` the developer should wait for the mockup to be ready before starting the implementation
 
 ### Process the issue
 
