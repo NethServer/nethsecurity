@@ -1,0 +1,34 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# APIs used only by the controller
+
+import sys
+import json
+import subprocess
+from nethsec import utils
+from euci import EUci
+
+def get_hostname():
+    with open('/proc/sys/kernel/hostname', 'r') as fp:
+        return fp.read().strip()
+
+def info():
+    u = EUci()
+    ret = {"unit_name": "", "version": "", "subscription_type": "", "system_id": "", "ssh_port": 22, "fqdn": get_hostname()}
+    return ret
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({"info": {}}))
+elif cmd == 'call':
+    action = sys.argv[2]
+    if action == "info":
+        ret = info()
+
+    print(json.dumps(ret))
