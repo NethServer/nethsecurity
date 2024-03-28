@@ -1,0 +1,13 @@
+{
+  "controller-manager": {
+    "description": "APIs called from controller",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.controller": [
+          "*"
+        ]
+      }
+    }
+  }
+}
