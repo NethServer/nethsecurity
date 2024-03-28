@@ -6175,3 +6175,7 @@ Response example:
 ```json
 {"result": "success"}
 ```
+
+## ns.controller
+
+### info
