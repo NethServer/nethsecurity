@@ -52,4 +52,4 @@ if 'network' in changes:
 if commit:
     uci.commit("netifyd")
     uci.commit("dpi")
-    subprocess.run(["/etc/init.d/netifyd", "reload"])
+    subprocess.run(["/etc/init.d/netifyd", "restart"])
