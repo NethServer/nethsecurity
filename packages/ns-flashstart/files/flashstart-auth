@@ -18,7 +18,7 @@ u = EUci()
 if not u.get("flashstart", "global", "enabled", default=False):
     sys.exit('0')
 
-user = u.get("flashstart", "global", "user", default="")
+user = u.get("flashstart", "global", "username", default="")
 password = u.get("flashstart", "global", "password", default="")
 counter = 0
 for wan in utils.get_all_wan_devices(u):
