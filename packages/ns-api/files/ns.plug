@@ -80,7 +80,6 @@ def unregister():
     u.set("ns-plug", "config", "server", "")
     u.set("ns-plug", "config", "unit_name", "")
     u.commit("ns-plug")
-    u.delete("rpcd", "controller")
     u.commit("rpcd")
     u.delete("rsyslog", "promtail")
     u.commit("rsyslog")
