@@ -55,7 +55,8 @@ def register(join_code, tls_verify, unit_name):
     u.set("ns-plug", "config", "server", "https://"+config["fqdn"])
     u.set("ns-plug", "config", "token", config["token"])
     if not unit_name:
-        u.set("ns-plug", "config", "unit_name", get_hostname())
+        unit_name = get_hostname()
+    u.set("ns-plug", "config", "unit_name", unit_name)
     if tls_verify:
         u.set("ns-plug", "config", "tls_verify", "1")
     else:
