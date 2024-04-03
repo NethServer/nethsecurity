@@ -17,7 +17,7 @@ enabled=$(/sbin/uci get flashstart.global.enabled)
 if [ "$enabled" = "1" ]; then
     echo "addLocal('0.0.0.0:5300', { reusePort=true })" > "$conf"
     echo "newServer({address='185.236.104.104', name='flashstart1'})" >> "$conf"
-    echo "newServer({address='185.236.104.105', name='flashstart1'})" >> "$conf"
+    echo "newServer({address='185.236.105.105', name='flashstart2'})" >> "$conf"
 
     if [ "$dnsdist" = 0 ]; then
         /sbin/uci set dnsdist.general.enabled=1
