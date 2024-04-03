@@ -7,11 +7,16 @@
 
 # APIs used only by the controller
 
+import os
 import sys
 import json
 import subprocess
 from nethsec import utils
 from euci import EUci
+
+AUTHORIZED_KEYS = "/etc/dropbear/authorized_keys"
+
+# Utility functions
 
 def get_hostname():
     with open('/proc/sys/kernel/hostname', 'r') as fp:
@@ -25,6 +30,27 @@ def get_version():
                 version = line[line.index('=')+2:-2]
                 return version.replace("-", " ", 1)
     return version
+
+def parse_key(line):
+    # parse key: <type> <data> <comment>
+    tmp = line.strip().split(" ")
+    key = f"{tmp[0]} {tmp[1]}"
+    comment = ""
+    if len(tmp) > 2:
+        comment = " ".join(tmp[2:])
+
+    return key, comment
+
+def parse_authorized_keys():
+    keys = {}
+    with open(AUTHORIZED_KEYS, "r") as f:
+        for line in f.readlines():
+            # parse key: <type> <dat> <comment>, comment is optional
+            key, comment = parse_key(line)
+            keys[key] = comment
+    return keys
+
+# API functions
 
 def info():
     ret = {"unit_name": "", "version": "", "subscription_type": "", "system_id": "", "ssh_port": -1, "fqdn": ""}
@@ -40,13 +66,63 @@ def info():
     ret["subscription_type"] = u.get("ns-plug", "config", "type", default="")
     return ret
 
+def add_ssh_key(ssh_key):
+    try:
+        # verify if the key is valid
+        subprocess.run(["ssh-keygen", "-l", "-f", "-"], input=ssh_key.encode(), check=True, capture_output=True)
+    except subprocess.CalledProcessError:
+        return utils.generic_error("invalid_ssh_key")
+
+    # create the file if it doesn't exist with correct permissions 0600
+    if not os.path.exists(AUTHORIZED_KEYS):
+        with open(AUTHORIZED_KEYS, "w") as f:
+            pass
+    os.chown(AUTHORIZED_KEYS, 0, 0)
+    os.chmod(AUTHORIZED_KEYS, 0o600)
+
+    # check if the key is already in the file, ignore comment
+    keys = parse_authorized_keys()
+    parsed_key, _ = parse_key(ssh_key)
+    if parsed_key in keys.keys():
+        return {"result": "success"}
+
+    # add the key to the file, including comment
+    with open(AUTHORIZED_KEYS, "a") as f:
+        f.write(ssh_key + "\n")
+
+    return {"result": "success"}
+
+def remove_ssh_key(ssh_key):
+    try:
+        # verify if the key is valid
+        subprocess.run(["ssh-keygen", "-l", "-f", "-"], input=ssh_key.encode(), check=True, capture_output=True)
+    except subprocess.CalledProcessError:
+        return utils.generic_error("invalid_ssh_key")
+
+    # read the whole AUTHORIZED_KEYS file
+    # then write it back without the key
+    keys = parse_authorized_keys()
+    with open(AUTHORIZED_KEYS, "w") as f:
+        for key in keys.keys():
+            parsed_key, comment = parse_key(ssh_key)
+            if key != parsed_key:
+                f.write(f"{key} {keys[key]}\n")
+
+    return {"result": "success"}
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
-    print(json.dumps({"info": {}}))
+    print(json.dumps({"info": {}, "add-ssh-key": {"ssh_key": "ssh-rsa AAAAB3xxxxxb6O6m5"}, "remove-ssh-key": {"ssh_key": "ssh-rsa AAAAB3xxxxxb6O6m5"}}))
 elif cmd == 'call':
     action = sys.argv[2]
     if action == "info":
         ret = info()
+    elif action == "add-ssh-key":
+        args = json.loads(sys.stdin.read())
+        ret = add_ssh_key(args["ssh_key"])
+    elif action == "remove-ssh-key":
+        args = json.loads(sys.stdin.read())
+        ret = remove_ssh_key(args["ssh_key"])
 
     print(json.dumps(ret))
