@@ -1,0 +1,52 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# APIs used only by the controller
+
+import sys
+import json
+import subprocess
+from nethsec import utils
+from euci import EUci
+
+def get_hostname():
+    with open('/proc/sys/kernel/hostname', 'r') as fp:
+        return fp.read().strip()
+
+def get_version():
+    version = ""
+    with open('/etc/os-release', 'r') as f:
+        for line in f.readlines():
+            if line.startswith("PRETTY_NAME"):
+                version = line[line.index('=')+2:-2]
+                return version.replace("-", " ", 1)
+    return version
+
+def info():
+    ret = {"unit_name": "", "version": "", "subscription_type": "", "system_id": "", "ssh_port": -1, "fqdn": ""}
+    u = EUci()
+    for section in u.get_all("dropbear"):
+        if u.get("dropbear", section, "Port", default=None):
+            ret["ssh_port"] = int(u.get("dropbear", section, "Port"))
+            break
+    ret["version"] = get_version()
+    ret["unit_name"] = u.get("ns-plug", "config", "unit_name", default=get_hostname())
+    ret["fqdn"] = get_hostname()
+    ret["system_id"] = u.get("ns-plug", "config", "system_id", default="")
+    ret["subscription_type"] = u.get("ns-plug", "config", "type", default="")
+    return ret
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({"info": {}}))
+elif cmd == 'call':
+    action = sys.argv[2]
+    if action == "info":
+        ret = info()
+
+    print(json.dumps(ret))

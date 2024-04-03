@@ -6175,3 +6175,27 @@ Response example:
 ```json
 {"result": "success"}
 ```
+
+## ns.controller
+
+This API is designed to be called from the controller:
+it simplifies the communication between the controller and the managed devices.
+
+### info
+
+Get the information of the device:
+```
+api-cli ns.controller info
+```
+
+Response example:
+```json
+{
+  "unit_name": "MyFirewall",
+  "version": "NethSecurity 8 23.05.2-ns.0.0.2-beta2-88-gd3a896a",
+  "subscription_type": "enterprise",
+  "system_id": "xxxxxxxxxxxxxxx",
+  "ssh_port": 22,
+  "fqdn": "fw.local"
+}
+```
