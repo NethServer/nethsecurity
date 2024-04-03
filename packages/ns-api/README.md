@@ -5076,6 +5076,8 @@ Response example for a ldap database:
     "user_dn": "ou=People,dc=directory,dc=nh",
     "user_attr": "uid",
     "user_cn": "cn",
+    "bind_dn": "cn=admin,dc=directory,dc=nh",
+    "bind_password": "pass",
     "start_tls": "0",
     "tls_reqcert": "never",
     "description": "OpenLDAP NS7",
@@ -5089,7 +5091,7 @@ Response example for a ldap database:
 
 Add new remote LDAP database:
 ```
-api cli ns.users add-ldap-database --data '{"name": "ns7", "uri": "ldap://192.168.100.234", "schema": "rfc2307", "base_dn": "dc=directoy,dc=nh", "user_dn": "ou=People,dc=directory,dc=nh", "user_attr": "uid", "user_cn": "cn", "start_tls": false, "tls_reqcert": "never", "description": "OpenLDAP NS7"}'
+api cli ns.users add-ldap-database --data '{"name": "ns7", "uri": "ldap://192.168.100.234", "schema": "rfc2307", "base_dn": "dc=directoy,dc=nh", "user_dn": "ou=People,dc=directory,dc=nh", "user_attr": "uid", "user_cn": "cn", "start_tls": false, "tls_reqcert": "never", "description": "OpenLDAP NS7", "bind_dn": "cn=admin,dc=directory,dc=nh", "bind_password": "pass"}'
 ```
 
 Response example:
@@ -5104,7 +5106,7 @@ May raise the following validation errors:
 
 Edit a remote LDAP database:
 ```
-api-cli ns.users add-ldap-database --data '{"name": "ns7", "uri": "ldap://192.168.100.234", "schema": "rfc2307", "base_dn": "dc=directoy,dc=nh", "user_dn": "ou=People,dc=directory,dc=nh", "user_attr": "uid", "user_cn": "cn", "start_tls": false, "tls_reqcert": "never", "description": "OpenLDAP NS7"}'
+api-cli ns.users add-ldap-database --data '{"name": "ns7", "uri": "ldap://192.168.100.234", "schema": "rfc2307", "base_dn": "dc=directoy,dc=nh", "user_dn": "ou=People,dc=directory,dc=nh", "user_attr": "uid", "user_cn": "cn", "start_tls": false, "tls_reqcert": "never", "description": "OpenLDAP NS7", "bind_dn": "cn=admin,dc=directory,dc=nh", "bind_password": "pass"}'
 ```
 
 Response example:
