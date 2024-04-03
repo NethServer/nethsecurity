@@ -6199,3 +6199,33 @@ Response example:
   "fqdn": "fw.local"
 }
 ```
+
+### add-ssh-key
+
+Add a new SSH key to the device:
+```
+api-cli ns.controller add-ssh-key --data '{"ssh_key": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQ...."}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+The API does not fail if the key is already present but it will not add it again.
+It can raise the error `invalid_ssh_key` if the key is not a valid SSH key.
+
+### remove-ssh-key
+
+Delete an existing SSH key from the device:
+```
+api-cli ns.controller remove-ssh-key --data '{"ssh_key": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQ...."}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+The API does not fail if the key is not present but it will not delete it.
+It can raise the error `invalid_ssh_key` if the key is not a valid SSH key.
