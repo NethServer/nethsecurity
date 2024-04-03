@@ -251,7 +251,10 @@ def remove_instance(instance):
     except:
         pass
     u.commit("openvpn")
-    firewall.delete_linked_sections(u, f"openvpn/{instance}")
+    try:
+        firewall.delete_linked_sections(u, f"openvpn/{instance}")
+    except:
+        pass
     u.commit('firewall')
     u.commit('network')
     # make sure the firewall is reloaded to open the port
@@ -545,14 +548,11 @@ def import_users(ovpninstance):
     db_users = users.list_users(u, db)
     db_is_remote = users.get_database_type(u, db) == "ldap"
     for user in db_users:
-        # create user for remote db, if needed
-        if users.get_user_by_name(u, user["name"], db) is None and db_is_remote:
-            user_id = users.add_remote_user(u, user["name"], db)
         ret = add_user({"instance": ovpninstance, "enabled": "1", "username": user["name"], "expiration": "3650", "ipaddr": ""})
         if not ret ==  {"result": "success"}:
             errors.append(user["id"])
     if errors:
-        return utils.generic_error("user_import_failed-" + '-'.join(errors))
+        return utils.generic_error("user_import_failed")
     else:
         return {"result": "success"}
 
