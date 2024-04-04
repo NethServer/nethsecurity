@@ -1,8 +1,17 @@
 #!/usr/bin/python3
 
 #
-# Copyright (C) 2022 Nethesis S.r.l.
+# Copyright (C) 2022-2024 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
+#
+
+#
+# Exit codes:
+# 0 - on success
+# 1 - on error
+# 2 - on authentication error
+#
+# Output results on stdout, output errors on stderr
 #
 
 import sys
@@ -12,59 +21,35 @@ import argparse
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-def send_request(url, data):
+def send_request(url, data, session=None):
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
 
     postdata = json.dumps(data).encode()
-    headers = {"Content-Type": "application/json; charset=UTF-8"}
+    headers = {"Content-Type": "application/json"}
+    if session:
+        headers["Authorization"] = f"Bearer {session}"
     httprequest = Request(url, data=postdata, method="POST", headers=headers)
 
     with urlopen(httprequest, context=ctx) as response:
         return json.loads(response.read().decode())
 
 def auth(user, password):
-    data = {
-        "id": 1,
-        "jsonrpc": "2.0",
-        "method": "call",
-        "params": [
-            "00000000000000000000000000000000",
-            "session",
-            "login",
-            { "username": user, "password": password }
-        ]
-    }
-
-    resp = send_request(url, data)
-    try:
-        return resp['result'][1]['ubus_rpc_session']
-    except:
-        return None
+    resp = send_request(url + "/login", {"username": user, "password": password})
+    return resp.get('token')
 
 def call_api(session, path, method, params=dict()):
-    data = {
-        "id": 1,
-        "jsonrpc": "2.0",
-        "method": "call",
-        "params": [
-            session,
-            path,
-            method,
-            params
-        ]
-    }
-
-    return send_request(url, data)
+    data = {"path": path, "method": method, "payload": params}
+    return send_request(url + "/ubus/call", data, session)
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument("path", help="API path")
 parser.add_argument("method", help="API method")
-parser.add_argument("-U", "--user", help="Use given user for login. Default is: root", default='root')
-parser.add_argument("-P", "--password", help="Use given password for log. Default is: Nethesis,1234", default='Nethesis,1234')
-parser.add_argument("-u", "--url", help="API url", default='https://localhost/ubus')
+parser.add_argument("-l", "--user", help="Use given user for login. Default is: root", default='root')
+parser.add_argument("-p", "--password", help="Use given password for log. Default is: Nethesis,1234", default='Nethesis,1234')
+parser.add_argument("-u", "--url", help="Base API url", default='https://localhost/api')
 parser.add_argument("-d", "--data",  help="Add parameters in JSON format to API cal, syntax example: '{\"param1\": \"value1\"}', Use '-' to read from stdin.")
 args = parser.parse_args()
 url = args.url
@@ -78,18 +63,16 @@ try:
 except:
    params = dict()
 
-session = auth(args.user, args.password)
-if not session:
-    print("Bad authentication")
-    sys.exit(1)
-response = call_api(session, args.path, args.method, params)
-if 'result' in response:
-    if len(response['result']) > 1:
-        print(json.dumps(response['result'][1]))
-        sys.exit(0)
-    else:
-        print("Generic error")
-        sys.exit(response['result'][0])
-else:
-    print(f'Error: {response["error"]["message"]}')
+try:
+    session = auth(args.user, args.password)
+except Exception as e:
+    print(e, file=sys.stderr)
+    sys.exit(2)
+
+try:
+    response = call_api(session, args.path, args.method, params)
+    if response.get('code') == 200:
+        print(json.dumps(response.get('data')))
+except Exception as e:
+    print(e, file=sys.stderr)
     sys.exit(1)
