@@ -52,6 +52,13 @@ If no credentials are given, it uses the default ones:
 
 You can use this method to automate the configuration and to test existing APIs.
 
+Exit statuses:
+- 0 on success
+- 1 on error
+- 2 on authentication error
+
+The api-cli command outputs the results on standard output and HTTP errors on standard error.
+
 Example with default credentials:
 ```
 api-cli ns.dashboard system-info
@@ -63,6 +70,16 @@ api-cli --password mypass ns.dashboard system-info
 ```
 
 You can pass parameters to the APIs:
+```
+/usr/bin/api-cli ns.dashboard counter --data '{"service": "hosts"}'
+```
+
+Example of bash script:
+```bash
+hosts=$(echo '{"service": "hosts"}' | /usr/bin/api-cli ns.dashboard counter --data - | jq .result.count)
+echo "Known hosts: $hosts"
+```
+
 ## Conventions
 
 APIs are invoked using the [api-server](../packages/ns-api-server).
