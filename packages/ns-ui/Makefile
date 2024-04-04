@@ -38,6 +38,7 @@ endef
 
 define Package/ns-ui/conffiles
 /etc/config/ns-ui
+/www-ns/branding.js
 endef
 
 # custom prepare step to avoid that 'dist'
