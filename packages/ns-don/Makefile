@@ -29,17 +29,6 @@ define Package/ns-don/description
 	Connect to a remote Windmill installation
 endef
 
-define Package/ns-don/firewall_config
-
-set firewall.ns_don_include=include
-set firewall.ns_don_include.type='script'
-set firewall.ns_don_include.path='/opt/don/don.user'
-set firewall.ns_don_include.fw4_compatible='1'
-
-commit
-
-endef
-
 # this is required, otherwise compile will fail
 define Build/Compile
 endef
@@ -48,12 +37,12 @@ define Package/ns-don/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_DIR) $(1)/etc/don
+	$(INSTALL_DIR) $(1)/usr/share/nftables.d/chain-pre/input
 	$(INSTALL_BIN) ./files/don $(1)/usr/sbin
-	$(INSTALL_BIN) ./files/don-fw $(1)/usr/sbin
-	$(INSTALL_DATA) ./files/don.user $(1)/etc/don
 	$(INSTALL_CONF) ./files/20_ns_don $(1)/etc/uci-defaults
 	$(INSTALL_CONF) ./files/nethesis.pub $(1)/etc/don
 	$(INSTALL_CONF) ./files/nethesis.pem $(1)/etc/don
+	$(INSTALL_DATA) ./files/20-don.nft $(1)/usr/share/nftables.d/chain-pre/input
 endef
  
 $(eval $(call BuildPackage,ns-don))

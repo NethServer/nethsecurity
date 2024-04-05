@@ -42,7 +42,6 @@ function cleanup
     if [ "$session" != "" ]; then
         ubus call session destroy '{"ubus_rpc_session": "'$session'"}'
     fi
-    /usr/sbin/don-fw stop
 }
 
 function show_credentials
@@ -166,8 +165,6 @@ EOF
     mkdir -m 0700 -p /var/empty
     /usr/sbin/sshd -f $sshd_conf
     cat $(uci -q get don.config.ssh_key) > $auth_keys
-
-    /usr/sbin/don-fw start
 
     # Enable UI access
     uci set rpcd.ns_don=login
