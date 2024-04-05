@@ -19,6 +19,7 @@ elif cmd == 'call':
     action = sys.argv[2]
     if action == "reset":
         try:
+            p = subprocess.run(["/usr/sbin/remove-storage"], check=False, capture_output=True)
             p = subprocess.run(["/sbin/firstboot", "-y"], check=True)
             p = subprocess.run(["/sbin/reboot"], check=True)
             ret = {"result": "success"}
