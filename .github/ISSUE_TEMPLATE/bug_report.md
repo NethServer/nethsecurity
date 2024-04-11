@@ -26,6 +26,8 @@ labels: bug
 // Fill with NethSecurity version number and relevant package versions. 
 // You can find the package versions typing in a shell prompt
 // opkg list ns-\* | sort
+//
+// Also take a look to the troubleshooting guide: https://docs.nethsecurity.org/en/latest/troubleshooting.html
 
 **See also**
 
