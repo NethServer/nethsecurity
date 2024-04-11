@@ -58,8 +58,11 @@ elif cmd == 'call':
                     for dnsmasq in get_all_by_type(e_uci, 'dhcp', 'dnsmasq'):
                         # supporting at the moment only one dhcp
                         e_uci.set('flashstart', 'ns_old_conf', 'dnsmasq')
-                        e_uci.set('flashstart', 'ns_old_conf', 'server',
-                                  e_uci.get('dhcp', dnsmasq, 'server', list=True))
+                        try:
+                            cur_server = e_uci.get_all('dhcp', dnsmasq, 'server')
+                        except:
+                            cur_server = []
+                        e_uci.set('flashstart', 'ns_old_conf', 'server', cur_server)
                         # add flashstart as only DNS
                         e_uci.set('dhcp', dnsmasq, 'server', ['127.0.0.1#5300'])
 
