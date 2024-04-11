@@ -46,18 +46,35 @@ please open a discussion with your thoughts.
 Then create a new issue only when you’re ready to write a formal description
 and produce some output object.
 
+### New feature request
+
+A feature request is a formal description of a new feature or an enhancement.
+It should be discussed with the community before opening an issue.
+
 A process for a new feature should be something like this:
 
 - open a new topic on [http://community.nethserver.org](http://community.nethserver.org) and discuss it
 
-- if a feature is planned for the future it is also recorded in a [project
-  draft card](https://github.com/orgs/NethServer/projects/10)
+- if a feature is planned for the future it must also recorded in the project as a [draft card](https://github.com/orgs/NethServer/projects/10),
+  the card should be descriptive enough to be understandable by everyone and contain a link to the discussion (even if the discussion has been done a private channel)
 
 - ongoing development can be tracked inside a [draft pull request](#draft-pull-requests)
 
-- once the work on the feature starts, open the issue on GitHub
+- once the work on the feature starts, convert the card to an issue or open the issue on GitHub
   [https://github.com/NethServer/nethsecurity/issues/new](https://github.com/NethServer/nethsecurity/issues/new)
 
+### Project board
+
+The project board is a tool to track the progress of the issues and requests. It is divided into columns that represent the status of the issue. The columns are:
+
+- **Triage**: new issues are placed here, the team will evaluate them and assign the right labels and milestone
+- **Ready**: issues that are ready to be worked on, they have all the information needed to start the implementation.
+  When someone starts working on an issue, they move it to the **In progress** column
+- **In progress**: issues that are being worked on, they are assigned to a developer or a desginer.
+  If a design is needed the card should have the Mockup field set to ``Need mockup``, a designer should be assigned to the issue.
+  When the mockup is ready the designer should set the Mockup field to ``Ready`` and the developer can start the implementation.
+- **Backlog**: issues that are not planned for the current release
+- **Done**: issues that have been completed and closed
 
 ### Writing issues
 
@@ -142,7 +159,7 @@ It's a good practice to associate the issue to the `NethSecurity 8` project to t
 An issue inside the `NethSecurity 8` project could also have one or more extra fields:
 - `Implementation`: it can be `Frontend`, `Backend` or `Frontend/Backend` to indicate the area of the code that will be affected by the issue
 - `Iteration`: it indicates the iteration of the issue, the iteration is a sequence of steps to reach the final goal. The iteration usually has start and end dates
-- `Mockup`: it can be empty if no mockup is needed, or `Ready` if the mockup is ready, or `Not ready` if the mockup is not ready yet. If an issue is marked
+- `Mockup`: it can be empty if no mockup is needed, or `Ready` if the mockup is ready, or `Need Mockup` if the mockup is not ready yet. If an issue is marked
    as `Not ready` the developer should wait for the mockup to be ready before starting the implementation
 
 ### Process the issue
