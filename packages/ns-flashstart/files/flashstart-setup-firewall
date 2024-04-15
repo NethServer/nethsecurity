@@ -39,7 +39,7 @@ for z in zones:
     u.set('firewall', zname, 'name', f'Flashstart-intercept-DNS-from-{z}')
     u.set('firewall', zname, 'src', z)
     u.set('firewall', zname, 'src_dport', 53)
-    u.set('firewall', zname, 'dest_port', 5300)
+    u.set('firewall', zname, 'dest_port', 53)
     u.set('firewall', zname, 'proto', "tcp udp")
     u.set('firewall', zname, 'target', 'DNAT')
     u.set('firewall', zname, 'ipset', f'!{bname}')
