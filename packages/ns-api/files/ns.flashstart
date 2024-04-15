@@ -86,6 +86,7 @@ elif cmd == 'call':
             e_uci.commit('dhcp')
             e_uci.commit('flashstart')
             subprocess.run(['flashstart-apply'], check=True)
+            subprocess.run(['/etc/init.d/dnsmasq', 'restart'], check=True, capture_output=True)
 
             print(json.dumps({"message": "success"}))
 
