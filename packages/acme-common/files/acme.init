@@ -39,16 +39,9 @@ load_options() {
 	export domains
 	export main_domain
 	main_domain="$(first_arg $domains)"
-	config_get keylength "$section" keylength
-	if [ "$keylength" ]; then
-		log warn "Option \"keylength\" is deprecated, please use key_type (e.g., ec256, rsa2048) instead."
-		case $keylength in
-		ec-*) key_type=${keylength/-/} ;;
-		*) key_type=rsa$keylength ;;
-		esac
-	else
-		config_get key_type "$section" key_type ec256
-	fi
+	config_get keylength "$section" keylength 2048
+	export keylength
+	config_get key_type "$section" key_type ec256
 	export key_type
 	config_get dns "$section" dns
 	export dns

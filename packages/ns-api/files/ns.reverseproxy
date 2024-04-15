@@ -226,12 +226,11 @@ elif cmd == 'call':
             e_uci.set('acme', data['name'], 'cert')
             e_uci.set('acme', data['name'], 'enabled', '1')
             e_uci.set('acme', data['name'], 'domains', data['domains'])
+            e_uci.set('acme', data['name'], 'key_type', 'rsa2048')
+            e_uci.set('acme', data['name'], 'validation_method', data['validation_method'])
             if data['validation_method'] == 'dns':
-                e_uci.set('acme', data['name'], 'standalone', '0')
                 e_uci.set('acme', data['name'], 'dns', f'dns_{data["dns_provider"]}')
                 e_uci.set('acme', data['name'], 'credentials', data['dns_provider_options'])
-            elif data['validation_method'] == 'standalone':
-                e_uci.set('acme', data['name'], 'standalone', '1')
 
             __start_acme(e_uci)
             e_uci.save('acme')
