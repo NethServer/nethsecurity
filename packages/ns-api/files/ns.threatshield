@@ -17,6 +17,7 @@ from nethsec.utils import ValidationError
 from nethsec import utils
 import base64
 import time
+import subprocess
 
 ## Utilities
 
@@ -95,6 +96,7 @@ def write_allow_list(allow_list):
             if x['description']:
                 f.write(' #' + x['description'])
             f.write('\n')
+    subprocess.run(["/etc/init.d/banip", "reload"], capture_output=True)
 
 ## APIs
 
