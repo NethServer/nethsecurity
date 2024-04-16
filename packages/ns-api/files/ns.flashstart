@@ -8,6 +8,7 @@
 import json
 import subprocess
 import sys
+import ipaddress
 
 import nethsec.firewall
 from euci import EUci
@@ -58,13 +59,20 @@ elif cmd == 'call':
                     for dnsmasq in get_all_by_type(e_uci, 'dhcp', 'dnsmasq'):
                         # supporting at the moment only one dhcp
                         e_uci.set('flashstart', 'ns_old_conf', 'dnsmasq')
+                        preserved_forwarders = []
                         try:
                             cur_server = e_uci.get_all('dhcp', dnsmasq, 'server')
                         except:
                             cur_server = []
+                        for server in cur_server:
+                            # preserve all forwarders thar are not simple IP address, like /domain/1.2.3.4
+                            try:
+                                ipaddress.ip_address(server)
+                            except:
+                                preserved_forwarders.append(server)
                         e_uci.set('flashstart', 'ns_old_conf', 'server', cur_server)
                         # add flashstart as only DNS
-                        e_uci.set('dhcp', dnsmasq, 'server', ['127.0.0.1#5300'])
+                        e_uci.set('dhcp', dnsmasq, 'server', preserved_forwarders + ['127.0.0.1#5300'])
 
                 # flashstart will be disabled
                 else:
@@ -86,6 +94,7 @@ elif cmd == 'call':
             e_uci.commit('dhcp')
             e_uci.commit('flashstart')
             subprocess.run(['flashstart-apply'], check=True)
+            subprocess.run(['/etc/init.d/dnsmasq', 'restart'], check=True, capture_output=True)
 
             print(json.dumps({"message": "success"}))
 
