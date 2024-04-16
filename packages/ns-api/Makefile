@@ -153,6 +153,7 @@ define Package/ns-api/install
 	$(INSTALL_BIN) ./files/post-commit/restart-netdata.py $(1)/usr/libexec/ns-api/post-commit/
 	$(INSTALL_BIN) ./files/pre-commit/fix-redirect-reflections.py $(1)/usr/libexec/ns-api/pre-commit
 	$(INSTALL_BIN) ./files/post-commit/configure-netifyd.py $(1)/usr/libexec/ns-api/post-commit
+	$(INSTALL_BIN) ./files/post-commit/reload-ipsets.py $(1)/usr/libexec/ns-api/post-commit
 endef
  
 $(eval $(call BuildPackage,ns-api))
