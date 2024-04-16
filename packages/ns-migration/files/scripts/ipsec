@@ -34,6 +34,8 @@ for p in data['proposals']:
     nsmigration.vprint(f'Creating crypto proposal {pname}')
     u.set("ipsec", pname, "crypto_proposal")
     for option in p:
+        if option == 'ns_link':
+            p[option] = f'ipsec/{utils.get_id(p[option])}'
         u.set("ipsec", pname, option, p[option])
 
 for t in data['tunnels']:
@@ -44,6 +46,8 @@ for t in data['tunnels']:
     for option in t:
         if option == 'crypto_proposal':
             t[option] = [utils.get_id(t[option])]
+        elif option == 'ns_link':
+            t[option] = f'ipsec/{utils.get_id(t[option])}'
         u.set("ipsec", tname, option, t[option])
  
 for r in data['remotes']:
@@ -54,6 +58,8 @@ for r in data['remotes']:
     for option in r:
         if option == 'crypto_proposal' or option == 'tunnel':
             r[option] = [utils.get_id(r[option])]
+        elif option == 'ns_link':
+            r[option] = f'ipsec/{utils.get_id(r[option])}'
         u.set("ipsec", rname, option, r[option])
  
 for r in data['routes']:
@@ -61,6 +67,8 @@ for r in data['routes']:
     nsmigration.vprint(f'Creating route {rname}')
     u.set("network", rname, "route")
     for option in r:
+        if option == 'ns_link':
+            r[option] = f'ipsec/{utils.get_id(r[option])}'
         u.set("network", rname, option, r[option])
 
 for i in data['interfaces']:
@@ -69,6 +77,8 @@ for i in data['interfaces']:
     hwaddr = i.pop('hwaddr', None)
     u.set("network", iname, "interface")
     for option in i:
+        if option == 'ns_link':
+            i[option] = f'ipsec/{utils.get_id(i[option])}'
         u.set("network", iname, option, i[option])
 
     # Attach the interface to the physical wan, if present
