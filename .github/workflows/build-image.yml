@@ -40,6 +40,8 @@ jobs:
       USIGN_PRIV_KEY: ${{ secrets.USIGN_PRIV_KEY }}
       NETIFYD_ACCESS_TOKEN: ${{ secrets.NETIFYD_ACCESS_TOKEN }}
       TARGET: ${{ github.event.inputs.target }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -130,3 +132,8 @@ jobs:
         if: ${{ github.ref == 'refs/heads/main' }}
         run: |
           tools/issue-comment
+      - id: bumper
+        name: Bump ns-packages
+        if: ${{ github.ref == 'refs/heads/main' }}
+        run: |
+          tools/package-bumber
