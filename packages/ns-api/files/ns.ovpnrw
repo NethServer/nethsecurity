@@ -531,7 +531,11 @@ def add_user(args):
     ovpn_config={"openvpn_enabled":  args.get("enabled", "1"), "openvpn_ipaddr": args.get("ipaddr", ""), "openvpn_2fa": generate_2fa_secret()}
 
     if u.get("users", db) == "ldap":
-        users.add_remote_user(u, args["username"], db, extra_fields=ovpn_config)
+        # remote user
+        if users.get_user_by_name(u, args['username'], db):
+            users.edit_remote_user(u, args["username"], db, extra_fields=ovpn_config)
+        else:
+            users.add_remote_user(u, args["username"], db, extra_fields=ovpn_config)
     else:
         users.edit_local_user(u, args['username'], extra_fields=ovpn_config)
     u.commit("users")
