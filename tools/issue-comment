@@ -16,7 +16,6 @@
 # - REPO_CHANNEL
 # - OWRT_VERSION
 
-echo "$VERSION"
 if [[ -z "$VERSION" || -z "$CDN_NAME" || -z "$REPO_CHANNEL" || -z "$OWRT_VERSION" ]]; then
    exit 1
 fi
