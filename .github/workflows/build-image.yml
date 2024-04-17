@@ -136,4 +136,4 @@ jobs:
         name: Bump ns-packages
         if: ${{ github.ref == 'refs/heads/main' }}
         run: |
-          tools/package-bumber
+          tools/package-bumper
