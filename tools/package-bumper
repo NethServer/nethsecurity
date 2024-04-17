@@ -42,8 +42,8 @@ if [ ${#packages[@]} -gt 0 ]; then
         sed -i "s/PKG_VERSION:=${cur_release}/PKG_VERSION:=${new_release}/" ${dir}/Makefile
         package_name=$(basename $dir)
         echo "Bump ${package_name} from ${cur_release} to ${new_release}"
-        git add ${dir}/Makefile && git commit -m "${package_name}: bump to ${new_release}"
-        git push -f
+        git add ${dir}/Makefile && git commit --author "github-actions[bot] <github-actions[bot]@users.noreply.github.com>" -m "${package_name}: bump to ${new_release}"
+        git push --set-upstream origin bump-ns-packages
         gh pr create --title "chore: bump ns packages (automatic)" --fill-verbose -B main
     done
 else
