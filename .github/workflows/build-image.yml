@@ -125,3 +125,8 @@ jobs:
           cdn_domain: ${{ env.CDN_DOMAIN }}
           source: latest_release
           out_dir: ${{ env.REPO_CHANNEL }}/
+      - id: issue_comment
+        name: Add comment for issue ready to be tested
+        if: ${{ github.ref == 'refs/heads/main' }}
+        run: |
+          tools/issue-comment
