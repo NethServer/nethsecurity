@@ -43,10 +43,8 @@ if [ ${#packages[@]} -gt 0 ]; then
         package_name=$(basename $dir)
         echo "Bump ${package_name} from ${cur_release} to ${new_release}"
         git add ${dir}/Makefile && git commit -m "${package_name}: bump to ${new_release}"
+        git push -f
     done
-    echo "Branch bump-ns-packages created. Please review and push the changes:"
-    echo
-    echo "git push -f origin bump-ns-packages"
 else
     echo "No packages to bump."
 fi
