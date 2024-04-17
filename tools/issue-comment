@@ -1,0 +1,46 @@
+#!/bin/bash
+
+#
+# Search for a reference to a Pull Request or Issue in the latest commit.
+# If the reference is a Pull Request search for the associated issue.
+# If the issue is found and status is open:
+# - add a comment with the testing version image
+# - add the testing label to the issue
+#
+# The script has been designed to be run on CI only when running on main branch
+# without a tag.
+#
+# Required env variables:
+# - VERSION
+# - CDN_NAME
+# - REPO_CHANNEL
+# - OWRT_VERSION
+
+echo "$VERSION"
+if [[ -z "$VERSION" || -z "$CDN_NAME" || -z "$REPO_CHANNEL" || -z "$OWRT_VERSION" ]]; then
+   exit 1
+fi
+
+image_url="https://${CDN_NAME}/${REPO_CHANNEL}/8-${VERSION}"/targets/x86/64/nethsecurity-8-${VERSION}-x86-64-generic-squashfs-combined-efi.img.gz
+
+log=$(git log -1 --pretty=%B)
+reg='#([0-9]+)'
+
+if [[ "$log" =~ $reg ]]; then
+    number="${BASH_REMATCH[1]}"
+    id=$(gh issue view --json id $number -q .id)
+    if [[ "$id" == PR_* ]]; then
+        # Search for issue reference inside the PR body
+        if [[ "$(gh pr view $number --json body -q .body)" =~ $reg ]]; then
+            issue_number="${BASH_REMATCH[1]}"
+        fi
+    elif [[ "$id" == I_* ]]; then
+        # Comment directly to the issue
+        issue_number=$number
+    fi
+    state=$(gh issue view --json state $issue_number -q .state)
+    if [[ "$state" == "OPEN" ]]; then
+        gh issue comment $issue_number --body "Testing image version: [8-$VERSION]($image_url)"
+        gh issue edit $issue_number --add-label "testing"
+    fi
+fi
