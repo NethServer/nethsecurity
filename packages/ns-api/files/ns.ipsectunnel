@@ -57,22 +57,31 @@ def list_tunnels():
     ret = []
     u = EUci()
     for r in utils.get_all_by_type(u, 'ipsec', 'remote'):
-        try:
-            tunnels = u.get_all('ipsec', r, 'tunnel')
-            for t in tunnels:
-                t_config = u.get_all('ipsec', t)
-                if t_config:
-                    ret.append({
-                        'id': r,
-                        'name': u.get('ipsec', r, 'ns_name', default=r),
-                        'local': list(t_config.get('local_subnet', ())),
-                        'remote': list(t_config.get('remote_subnet', ())),
-                        'enabled': u.get('ipsec', r, 'enabled', default='1'),
-                        'connected': is_connected(r)
-                    })
-        except Exception as e:
-            print(e, file=sys.stderr)
-            return {"tunnels": []}
+        local = set()
+        remote = set()
+        tunnel = {
+            'id': r,
+            'name': u.get('ipsec', r, 'ns_name', default=r),
+            'enabled': u.get('ipsec', r, 'enabled', default='1'),
+            'connected': is_connected(r)
+        }
+        tunnels = u.get_all('ipsec', r, 'tunnel')
+        for t in tunnels:
+            t_config = u.get_all('ipsec', t)
+            try:
+                tmp = u.get_all('ipsec', t, 'local_subnet')
+                local = local | set(tmp)
+            except:
+                continue
+            try:
+                tmp = u.get_all('ipsec', t, 'remote_subnet')
+                remote = remote | set(tmp)
+            except:
+               continue
+        tunnel['local'] = list(local)
+        tunnel['remote'] = list(remote)
+        ret.append(tunnel)
+
 
     return {"tunnels": ret}
 
@@ -84,7 +93,7 @@ def add_tunnel(args):
 def setup_tunnel(u, iname, args):
     ike_p = f'{iname}_ike'
     esp_p = f'{iname}_esp'
-    tunnel = f'{iname}_tunnel'
+    tunnel_base = f'{iname}_tunnel'
 
     link = f'ipsec/{iname}'
     # create proposals
@@ -97,18 +106,27 @@ def setup_tunnel(u, iname, args):
         u.set('ipsec', esp_p, opt, args['esp'][opt])
     u.set('ipsec', esp_p, 'ns_link', link)
 
-    # create tunnel
-    u.set('ipsec', tunnel, 'tunnel')
-    for opt in ['ipcomp', 'dpdaction', 'remote_subnet', 'local_subnet']:
-        u.set('ipsec', tunnel, opt, args[opt])
-
-    u.set('ipsec', tunnel, 'rekeytime', args['esp']['rekeytime'])
-    u.set('ipsec', tunnel, 'crypto_proposal', [esp_p])
-    u.set('ipsec', tunnel, 'closeaction', 'none')
-    u.set('ipsec', tunnel, 'startaction', 'start')
+    # create tunnels
+    tunnels = []
+    ti = 1
     if_id = next_id()
-    u.set('ipsec', tunnel, 'if_id', if_id)
-    u.set('ipsec', tunnel, 'ns_link', link)
+    for ls in args['local_subnet']:
+        for rs in args['remote_subnet']:
+            tunnel =  f'{tunnel_base}_{ti}'
+            u.set('ipsec', tunnel, 'tunnel')
+            for opt in ['ipcomp', 'dpdaction']:
+                u.set('ipsec', tunnel, opt, args[opt])
+            u.set('ipsec', tunnel, 'local_subnet', [ls])
+            u.set('ipsec', tunnel, 'remote_subnet', [rs])
+
+            u.set('ipsec', tunnel, 'rekeytime', args['esp']['rekeytime'])
+            u.set('ipsec', tunnel, 'crypto_proposal', [esp_p])
+            u.set('ipsec', tunnel, 'closeaction', 'none')
+            u.set('ipsec', tunnel, 'startaction', 'start')
+            u.set('ipsec', tunnel, 'if_id', if_id)
+            u.set('ipsec', tunnel, 'ns_link', link)
+            tunnels.append(tunnel)
+            ti = ti + 1
 
     # create remote
     u.set('ipsec', iname, 'remote')
@@ -118,7 +136,7 @@ def setup_tunnel(u, iname, args):
         u.set('ipsec', iname, opt, args[opt])
     u.set('ipsec', iname, 'crypto_proposal', [ike_p])
     u.set('ipsec', iname, 'rekeytime', args['ike']['rekeytime'])
-    u.set('ipsec', iname, 'tunnel', [tunnel])
+    u.set('ipsec', iname, 'tunnel', tunnels)
 
     u.save('ipsec')
 
@@ -163,9 +181,12 @@ def edit_tunnel(args):
 
 def delete_tunnel(id):
     u = EUci()
-    if_id = ''
+    if_id = None
     try:
-        if_id = u.get('ipsec', f'{id}_tunnel', 'if_id')
+        for tunnel in utils.get_all_by_type(u, 'ipsec', 'tunnel'):
+            if tunnel.startswith(f'{id}_tunnel'):
+                 if_id = u.get('ipsec', f'{id}_tunnel', 'if_id', default=None)
+                 u.delete(tunnel)
         u.delete('ipsec', id)
         u.save('ipsec')
     except:
@@ -226,6 +247,8 @@ def get_tunnel(id):
     esp_p = f'{id}_esp'
     tunnel = f'{id}_tunnel'
     ret = {'ike': {}, 'esp': {}}
+    local = set()
+    remote = set()
     for opt in ['encryption_algorithm', 'hash_algorithm', 'dh_group']:
         ret['ike'][opt] = u.get('ipsec', ike_p, opt, default="")
     for opt in ['encryption_algorithm', 'hash_algorithm', 'dh_group']:
@@ -233,8 +256,18 @@ def get_tunnel(id):
 
     for opt in ['ipcomp', 'dpdaction']:
         ret[opt] = u.get('ipsec', tunnel, opt, default="")
-    for opt in ['remote_subnet', 'local_subnet']:
-        ret[opt] = u.get('ipsec', tunnel, opt, default=[], list=True)
+
+    for t in utils.get_all_by_type(u, 'ipsec', 'tunnel'):
+        if t.startswith(tunnel):
+            try:
+                tmpl = u.get_all('ipsec', t, 'local_subnet')
+                local = local | set(tmpl)
+                tmpr = u.get_all('ipsec', t, 'remote_subnet')
+                remote = remote | set(tmpr)
+            except:
+                continue
+    ret['local_subnet'] = list(local)
+    ret['remote_subnet'] = list(remote)
 
     ret['esp']['rekeytime'] = u.get('ipsec', tunnel, 'rekeytime', default='3600')
     ret['ns_name'] = u.get('ipsec', id, 'ns_name', default=id)
