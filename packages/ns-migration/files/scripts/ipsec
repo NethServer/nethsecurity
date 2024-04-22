@@ -56,20 +56,24 @@ for r in data['remotes']:
     nsmigration.vprint(f'Creating remote {rname}')
     u.set("ipsec", rname, "remote")
     for option in r:
-        if option == 'crypto_proposal' or option == 'tunnel':
+        if option == 'crypto_proposal':
             r[option] = [utils.get_id(r[option])]
         elif option == 'ns_link':
             r[option] = f'ipsec/{utils.get_id(r[option])}'
+        elif option == 'tunnel':
+            r[option] = list(map(lambda x: utils.get_id(x), r[option]))
         u.set("ipsec", rname, option, r[option])
  
+rid = 1
 for r in data['routes']:
-    rname = utils.get_id(f"route_{r['interface']}")
+    rname = utils.get_id(f"route_{r['interface']}_{rid}")
     nsmigration.vprint(f'Creating route {rname}')
     u.set("network", rname, "route")
     for option in r:
         if option == 'ns_link':
             r[option] = f'ipsec/{utils.get_id(r[option])}'
         u.set("network", rname, option, r[option])
+    rid = rid + 1
 
 for i in data['interfaces']:
     iname = i.pop('name')
