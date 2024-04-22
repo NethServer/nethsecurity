@@ -325,7 +325,7 @@ def set_configuration(args):
     db_is_local = users.get_database_type(u, args["ns_user_db"]) == "local"
 
     if args["dev_type"] == "tap":
-        u.set("openvpn", ovpninstance, "dev", "taprw")
+        u.set("openvpn", ovpninstance, "dev", f"taprw{instance_num}")
         u.set("openvpn", ovpninstance, "ns_bridge", args["ns_bridge"])
         (ip, mask) = get_ip_and_mask(args["ns_bridge"])
         if not ip or not mask:
