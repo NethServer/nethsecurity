@@ -39,6 +39,50 @@ def get_bridge_by_ip(ip):
                 return section
     return None
 
+def add_tap_to_bridge(u, bridge, interface):
+    if bridge is None or interface is None:
+        return
+    bridge_device = u.get("network", bridge, "device", default=None)
+    if not bridge_device:
+        return
+    devices = utils.get_all_by_type(u, "network", "device")
+    for d in devices:
+        device = devices[d]
+        if device.get("name") == bridge_device and device.get("type") == "bridge":
+            try:
+                ports = u.get_all("network", d, "ports")
+                if interface not in ports:
+                    ports = list(ports)
+                    ports.append(interface)
+                    u.set("network", d, "ports", ports)
+                    u.save("network")
+            except:
+                pass
+            finally:
+                return
+
+def remove_tap_from_bridge(u, bridge, interface):
+    if bridge is None or interface is None:
+        return
+    bridge_device = u.get("network", bridge, "device", default=None)
+    if not bridge_device:
+        return
+    devices = utils.get_all_by_type(u, "network", "device")
+    for d in devices:
+        device = devices[d]
+        if device.get("name") == bridge_device and device.get("type") == "bridge":
+            try:
+                ports = u.get_all("network", d, "ports")
+                if interface in ports:
+                    ports = list(ports)
+                    ports.remove(interface)
+                    u.set("network", d, "ports", ports)
+                    u.save("network")
+            except:
+                pass
+            finally:
+                return
+
 def get_ip_and_mask(bridge):
     u = EUci()
     interfaces = utils.get_all_by_type(u, "network", "interface")
@@ -330,6 +374,7 @@ def set_configuration(args):
         (ip, mask) = get_ip_and_mask(args["ns_bridge"])
         if not ip or not mask:
             return utils.validation_error("ns_bridge", "bridge_not_found", args["ns_bridge"])
+        add_tap_to_bridge(u, args["ns_bridge"], f"taprw{instance_num}")
         ipnet = ipaddress.IPv4Network(f"{ip}/{mask}", strict=False).network_address
         if ipaddress.ip_address(args['ns_pool_start']) not in ipaddress.ip_network(f'{ipnet}/{mask}'):
             return utils.validation_error("ns_pool_start", "start_not_in_network", args['ns_pool_start'])
@@ -353,9 +398,14 @@ def set_configuration(args):
         u.set("openvpn", ovpninstance, "server", f"{server_net} {ovpn.to_netmask(server_mask)}")
         u.set("openvpn", ovpninstance, "client_connect", f"\"/usr/libexec/ns-openvpn/openvpn-connect {ovpninstance}\"")
         u.set("openvpn", ovpninstance, "client_disconnect", f"\"/usr/libexec/ns-openvpn/openvpn-disconnect {ovpninstance}\"")
+        old_dev = u.get("openvpn", ovpninstance, "dev", default=None)
+        old_bridge = u.get("openvpn", ovpninstance, "ns_bridge", default=None)
         u.set("openvpn", ovpninstance, "dev", f"tunrw{instance_num}")
         try:
-            u.delete("openvpn", ovpninstance, "server_bridge")
+            if old_bridge:
+                remove_tap_from_bridge(u, old_bridge, old_dev)
+                u.delete("openvpn", ovpninstance, "server_bridge")
+                u.delete("openvpn", ovpninstance, "ns_bridge")
         except:
             pass
 
