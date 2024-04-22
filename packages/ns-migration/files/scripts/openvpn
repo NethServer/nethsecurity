@@ -25,6 +25,44 @@ def save_cert(path, data):
     gid = grp.getgrnam("nogroup").gr_gid
     os.chown(path, uid, gid)
 
+def is_bridge(u, name):
+    devices = utils.get_all_by_type(u, "network", "device")
+    for d in devices:
+        device = devices[d]
+        if device.get("name") == name and device.get("type") == "bridge":
+            return True
+    return False
+
+def get_bridge_by_ip(u, ip):
+    for section in utils.get_all_by_type(u, "network", "interface"):
+        if u.get("network", section, "proto", default="") == "static":
+            device = u.get("network", section, "device", default="")
+            if is_bridge(u, device) and u.get("network", section, "ipaddr", default="") == ip:
+                return section
+    return None
+
+def add_tap_to_bridge(u, bridge, interface):
+    if bridge is None or interface is None:
+        return
+    bridge_device = u.get("network", bridge, "device", default=None)
+    if not bridge_device:
+        return
+    devices = utils.get_all_by_type(u, "network", "device")
+    for d in devices:
+        device = devices[d]
+        if device.get("name") == bridge_device and device.get("type") == "bridge":
+            try:
+                ports = u.get_all("network", d, "ports")
+                if interface not in ports:
+                    ports = list(ports)
+                    ports.append(interface)
+                    u.set("network", d, "ports", ports)
+                    u.commit("network")
+            except:
+                pass
+            finally:
+                return
+
 
 iname="ns_roadwarrior1"
 cert_dir=f"/etc/openvpn/{iname}/pki/"
@@ -51,14 +89,27 @@ u.set("openvpn", iname, "openvpn")
 # local-service option is enabled
 if data['rw']['options'].get('topology') == 'net30':
     data['rw']['options']['topology' ] = 'subnet'
-# Force device name
-data['rw']['options']['dev'] = 'tunrw1'
 for option in data['rw']['options']:
     nsmigration.vprint(f"Setting OpenVPN Road Warrior option {option}")
     u.set("openvpn", iname, option, data['rw']['options'][option])
 
-# Force device type
-u.set("openvpn", iname, 'dev_type', data['rw']['options'].get('dev_type', 'tun'))
+# Force device type and name
+if data['rw']['options'].get('dev', '').startswith("tun"):
+    dev_type ='tun'
+else:
+    dev_type ='tap'
+
+u.set("openvpn", iname, 'dev_type', dev_type)
+if dev_type == 'tap':
+    u.set("openvpn", iname, 'dev', 'taprw1')
+    ip = data['rw']['options'].pop("server_bridge").split(" ", 1)
+    ns_bridge = get_bridge_by_ip(u, ip[0])
+    if ns_bridge:
+        u.set("openvpn", iname, 'ns_bridge', ns_bridge)
+        add_tap_to_bridge(u, ns_bridge, 'taprw1')
+else:
+    u.set("openvpn", iname, 'dev', 'tunrw1')
+
 # Setup server certificates
 save_cert(os.path.join(cert_dir, 'ca.crt'), data['rw']['ca']['ca.crt'])
 save_cert(os.path.join(cert_dir, 'index'), data['rw']['ca']['certindex'])
