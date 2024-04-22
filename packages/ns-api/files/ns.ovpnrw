@@ -287,6 +287,12 @@ def remove_instance(instance):
     device = u.get("openvpn", instance, "dev", default='')
     if device:
         firewall.remove_device_from_zone(u, device, 'rwopenvpn')
+
+    old_bridge = u.get("openvpn", instance, "ns_bridge", default=None)
+    if old_bridge:
+        old_dev = u.get("openvpn", instance, "dev", default=None)
+        remove_tap_from_bridge(u, old_bridge, old_dev)
+
     u.delete("openvpn", instance)
     shutil.rmtree(f"/etc/openvpn/{instance}", ignore_errors=True)
     try:
