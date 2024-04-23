@@ -67,7 +67,7 @@ def list_interfaces():
     if not dhcps:
         dhcps = []
     for i in interfaces:
-        record = {"device": "", "start": "", "end": "", "active": False, "options": {} }
+        record = {"device": "", "start": "", "end": "", "active": False, "options": {}, "force": False }
         # skip loopback, bond devices, wans, aliases and interfaces with no IP address (e.g. DHCP interfaces)
         if i == "loopback" or i in wans or not ('ipaddr' in interfaces[i]) or interfaces[i].get('proto') == 'bonding' or interfaces[i].get('device', '').startswith('@'):
             continue
@@ -81,6 +81,7 @@ def list_interfaces():
                     continue
                 (record['first'], record['last']) = conf_to_range(interfaces[i]['ipaddr'], interfaces[i]['netmask'], ds.get('start', 100), ds.get('limit', 150))
                 record['active'] = ds.get('dhcpv4', 'server') == 'server'
+                record['force'] = ds.get('force', '0') == '1'
                 record['options']['leasetime'] = ds.get('leasetime', '12h')
                 if 'dhcp_option' in ds:
                     for opt in ds['dhcp_option']:
@@ -114,6 +115,7 @@ def edit_interface(args):
     u.set("dhcp", args['interface'], "start", start)
     u.set("dhcp", args['interface'], "leasetime", args["leasetime"])
     u.set("dhcp", args['interface'], "interface", args['interface'])
+    u.set("dhcp", args['interface'], "force", '1' if args.get('force', False) else '0')
     opts = []
     for opt in args['options']:
         k = list(opt.keys())[0]
@@ -146,6 +148,7 @@ def get_interface(args):
         (ret['first'], ret['last']) = conf_to_range(interface['ipaddr'], interface['netmask'], dhcp.get('start', 100), dhcp.get('limit', 150))
     ret["leasetime"] = dhcp.get("leasetime")
     ret["active"] = dhcp.get("dhcpv4", "server") == "server"
+    ret["force"] = dhcp.get('force', '0') == "1"
     if "dhcp_option" in dhcp:
         for opt in dhcp.get("dhcp_option"):
             tmp = opt.split(",")
@@ -270,7 +273,7 @@ if cmd == 'list':
         "list-interfaces": {},
         "list-dhcp-options": {},
         "get-interface": {"interface": "lan"},
-        "edit-interface": {"interface": "lan", "first": "192.168.100.2", "last": "192.168.100.150", "leasetime": "12h", "active": True, "options": [
+        "edit-interface": {"interface": "lan", "first": "192.168.100.2", "last": "192.168.100.150", "leasetime": "12h", "active": True, "force": True, "options": [
             {"router": "192.168.100.1"},
             {"domain-name": "nethserver.org"},
             {"dns-server": "1.1.1.1,8.8.8.8"},
