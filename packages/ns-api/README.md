@@ -1905,7 +1905,8 @@ IPv4 response example:
       "mtu": "1500",
       "onlink": "1",
       "disabled": "0",
-      "ns_description": ""
+      "ns_description": "",
+      "readonly": true
     },
     "cfg09c8b4": {
       "target": "192.168.4.0/24",
@@ -1917,7 +1918,8 @@ IPv4 response example:
       "mtu": "1500",
       "onlink": "0",
       "disabled": "1",
-      "ns_description": ""
+      "ns_description": "",
+      "readonly": false
     }
   }
 }
