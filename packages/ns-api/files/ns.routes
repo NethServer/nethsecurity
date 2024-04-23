@@ -64,6 +64,7 @@ def list_routes(protocol):
         route["onlink"] = r.get("onlink", "0")
         route["disabled"] = r.get("disabled", "0")
         route["ns_description"] = r.get("ns_description", "")
+        route["readonly"] = r.get("ns_link", "").startswith("ipsec/")
         ret["routes"][section] = route
 
     return ret
