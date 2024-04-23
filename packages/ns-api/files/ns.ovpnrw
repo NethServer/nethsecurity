@@ -500,7 +500,7 @@ def list_users(ovpninstance):
         if user["expiration"] and user["expiration"] < int(datetime.now(timezone.utc).timestamp()):
             user["expired"] = True
         ret.append(user)
-    return {"users": ret}
+    return {"users": sorted(ret, key=lambda u: u['name'])}
 
 def disconnect_user(ovpninstance, username):
     u = EUci()
