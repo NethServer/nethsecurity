@@ -1,0 +1,85 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2024 Nethesi3 S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Scan network
+
+import re
+import sys
+import json
+import socket
+import subprocess
+from euci import EUci
+from nethsec import utils
+
+def list_interfaces():
+    ret = []
+    u = EUci()
+    wans = []
+    interfaces = utils.get_all_by_type(u, 'network', 'interface')
+    for device in  utils.get_all_wan_devices(u):
+        iname = utils.get_interface_from_device(u, device)
+        if iname:
+            wans.append(iname)
+    for i in interfaces:
+        record = {"device": "", "start": "", "end": "", "active": False, "options": {}, "force": False }
+        # skip loopback, bond devices, wans, aliases, ipsec, tun, tap, wg
+        if re.match(r'^(loopback|tun|tap|ipsec|wg)', i) or i in wans or interfaces[i].get('device', '').startswith('@'):
+            continue
+        ret.append({"interface": i, "device": interfaces[i].get('device', '')})
+
+    return {"interfaces": ret}
+
+def scan(device):
+    ret = []
+    # scan the network using arpscan and add the results to the return value
+    try:
+        p = subprocess.run(["arp-scan", "-I", device, "-l", "-x", "--macfile=/usr/share/arp-scan/mac-vendor.txt", "--ouifile=/usr/share/arp-scan/ieee-oui.txt"], capture_output=True, check=True, text=True)
+        for line in p.stdout.splitlines():
+            parts = line.split()
+            if len(parts) < 2:
+                continue
+            try:
+                hostname = socket.getnameinfo((parts[1], 0), 0)[0]
+            except:
+                hostname = ""
+            ret.append({"mac": parts[1], "ip": parts[0], "hostname": hostname, "description": parts[2] if len(parts) > 2 else ""})
+    except Exception as e:
+        pass
+
+    # read also /proc/net/arp, format is
+    # IP address       HW type     Flags       HW address            Mask     Device
+    try:
+        with open('/proc/net/arp', 'r') as arp_file:
+            for line in arp_file:
+                if line.startswith("IP address"):
+                    continue
+                parts = re.split(r'\s+', line)
+                if len(parts) < 4:
+                    continue
+                if parts[3] == "00:00:00:00:00:00":
+                    continue
+                try:
+                    hostname = socket.getnameinfo((parts[0], 0), 0)[0]
+                except:
+                    hostname = ""
+                ret.append({"mac": parts[3], "ip": parts[0], "hostname": hostname, "description": ""})
+    except Exception as e:
+        pass
+
+    return {"hosts": ret}
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({"list-interfaces": {}, "scan": {"device": "eth0"}}))
+else:
+    action = sys.argv[2]
+    if action == "list-interfaces":
+        print(json.dumps(list_interfaces()))
+    elif action == "scan":
+        args = json.loads(sys.stdin.read())
+        print(json.dumps(scan(args['device'])))

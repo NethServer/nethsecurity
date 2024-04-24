@@ -6236,3 +6236,53 @@ Response example:
 
 The API does not fail if the key is not present but it will not delete it.
 It can raise the error `invalid_ssh_key` if the key is not a valid SSH key.
+
+## ns.scan
+
+Scan network to find existing hsots.
+
+### list-interfaces
+
+List all available interfaces:
+```
+api-cli ns.scan list-interfaces
+```
+
+Response example:
+```json
+{
+  "interfaces": [
+    {
+      "interface": "lan",
+      "device": "br-lan"
+    }
+  ]
+}
+```
+
+### scan
+
+Scan the given device and return the results:
+```
+api-cli ns.scan scan --data '{"device": "br-lan"}'
+```
+
+Response example:
+```json
+{
+  "hosts": [
+    {
+      "mac": "54:xx:xx:xx:xx:29",
+      "ip": "192.168.1.3",
+      "hostname": "",
+      "description": "REALTEK"
+    },
+    {
+      "mac": "00:xx:xx:xx:xx:3b",
+      "ip": "",
+      "hostname": "host.nethserver.org",
+      "description": ""
+    }
+  ]
+}
+```
