@@ -74,7 +74,7 @@ else:
         elif action == "get-ldap-defaults":
             ret = {"defaults": users.get_ldap_defaults(args['uri'], args['schema'])}
         elif action == "test-ldap":
-            ret = {"users": users.list_remote_users(args['uri'], args['user_dn'], args['user_attr'], args['user_cn'], args['start_tls'], args['tls_reqcert'], args.get("bind_dn"), args.get("bind_password"))}
+            ret = {"users": users.list_remote_users(args['uri'], args['user_dn'], args['user_attr'], args['user_cn'], args['start_tls'], args['tls_reqcert'], args.get("bind_dn"), args.get("bind_password"), args.get("schema"))}
 
         elif action == "add-local-user":
             ret = {"id": users.add_local_user(u, args['name'], args.get('password'), args.get('description',''), args['database'], args.get("extra"))}
