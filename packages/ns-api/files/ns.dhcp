@@ -81,7 +81,14 @@ def list_interfaces():
                     continue
                 (record['first'], record['last']) = conf_to_range(interfaces[i]['ipaddr'], interfaces[i]['netmask'], ds.get('start', 100), ds.get('limit', 150))
                 record['active'] = ds.get('dhcpv4', 'server') == 'server'
-                record['force'] = ds.get('force', '0') == '1'
+                # handle existing active configurations:
+                # - old default was force off, as OpenWrt
+                # - new default for non active-dhcp server should be on
+                if record['active']:
+                    force_default = '0'
+                else:
+                    force_default = '1'
+                record['force'] = ds.get('force', force_default) == '1'
                 record['options']['leasetime'] = ds.get('leasetime', '12h')
                 if 'dhcp_option' in ds:
                     for opt in ds['dhcp_option']:
@@ -148,7 +155,14 @@ def get_interface(args):
         (ret['first'], ret['last']) = conf_to_range(interface['ipaddr'], interface['netmask'], dhcp.get('start', 100), dhcp.get('limit', 150))
     ret["leasetime"] = dhcp.get("leasetime")
     ret["active"] = dhcp.get("dhcpv4", "server") == "server"
-    ret["force"] = dhcp.get('force', '0') == "1"
+    # handle existing active configurations:
+    # - old default was force off, as OpenWrt
+    # - new default for non active-dhcp server should be on
+    if ret['active']:
+        force_default = '0'
+    else:
+        force_default = '1'
+    ret['force'] = dhcp.get('force', force_default) == '1'
     if "dhcp_option" in dhcp:
         for opt in dhcp.get("dhcp_option"):
             tmp = opt.split(",")
