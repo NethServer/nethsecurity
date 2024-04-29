@@ -1,0 +1,13 @@
+{
+  "scan-manager": {
+    "description": "Scan networks",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.scan": [
+          "*"
+        ]
+      }
+    }
+  }
+}
