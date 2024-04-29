@@ -43,3 +43,26 @@ Bumped packages can then be installed directly from the repository.
 
 The script searches only for ns-* packages that it bumps the version and creates a commit for each package.
 Finally it pushes the commits and creates a PR.
+
+## changelog
+
+Create a changelog in JSON format from a given GitHub project.
+It searches all the cards inside the the column that starts with the given name (default is "Done").
+
+Usage example:
+```
+GITHUB_ORG=nethserver GITHUB_PROJECT=10 GITHUB_TOKEN=xxxxxx COLUMN_NAME=Done ./changelog
+```
+
+You can pass the obtained JSON to ChatGPT (or another model) with a prompt like:
+```
+Create a detailed changelog from the below JSON file.
+Split the changes between new features and bug fixes.
+Make sure to include all changes.
+
+Use this template for each record:
+- This is the title: this is a brief description in one line
+
+Do not use capital letter after column char.
+Do not include links to external resources.
+```

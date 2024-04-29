@@ -1,0 +1,122 @@
+#!/usr/bin/python
+
+import requests
+import json
+import sys
+import os
+
+# GitHub organization and project ID
+org = os.environ.get("GITHUB_ORG", "")
+if not org:
+    sys.exit("GitHub organization not found")
+project_id = os.environ.get("GITHUB_PROJECT_ID", "10")
+if not project_id:
+    sys.exit("GitHub project ID not found")
+
+# GitHub token (replace 'YOUR_TOKEN' with your personal access token)
+github_token = os.environ.get("GITHUB_TOKEN", "")
+if not github_token:
+    sys.exit("GitHub token not found")
+
+column_name = os.environ.get("COLUMN_NAME", "Done")
+
+# GraphQL queries
+query_id = '''
+query {
+  organization(login: "%s") {
+    projectV2(number: %s) {
+      id
+    }
+  }
+}
+''' % (org, project_id)
+
+query_items = '''
+query {
+  node(id: "%s") {
+    ... on ProjectV2 {
+      items(first: 100) {
+        nodes {
+          id
+          fieldValues(first: 8) {
+            nodes {
+              ... on ProjectV2ItemFieldTextValue {
+                text
+                field {
+                  ... on ProjectV2FieldCommon {
+                    name
+                  }
+                }
+              }
+              ... on ProjectV2ItemFieldDateValue {
+                date
+                field {
+                  ... on ProjectV2FieldCommon {
+                    name
+                  }
+                }
+              }
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field {
+                  ... on ProjectV2FieldCommon {
+                    name
+                  }
+                }
+              }
+            }
+          }
+          content {
+            ... on DraftIssue {
+              title
+              body
+            }
+            ... on Issue {
+              title
+              body
+            }
+            ... on PullRequest {
+              title
+              body
+            }
+          }
+        }
+      }
+    }
+  }
+}
+'''
+
+
+# GitHub API endpoint
+api_endpoint = "https://api.github.com/graphql"
+
+# Construct request headers with authorization token
+headers = {
+    "Authorization": f"Bearer {github_token}",
+    "Accept": "application/json"
+}
+
+# Function to make a GraphQL request
+def graphql_request(query):
+    response = requests.post(api_endpoint, json={"query": query}, headers=headers)
+    return response.json()
+
+# Get project ID
+response_id = graphql_request(query_id)
+project_id = response_id["data"]["organization"]["projectV2"]["id"]
+
+# Get project items
+response_items = graphql_request(query_items % project_id)['data']['node']['items']['nodes']
+issues = []
+for item in response_items:
+    issue = {"title": "", "body": ""}
+    for node in item['fieldValues']['nodes']:
+        if 'field' in node and node['field'].get('name', '') == 'Status':
+            if node.get('name').startswith(column_name):
+                issue['title'] = item['content']['title']
+                issue['body'] = item['content']['body']
+                issues.append(issue)
+                continue
+
+print(json.dumps(issues, indent=2))
