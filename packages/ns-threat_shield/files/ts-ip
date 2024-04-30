@@ -9,6 +9,18 @@
 # Threat shield: add Nethesis categories to banip
 #
 
+. /lib/functions.sh
+
+keep=''
+
+handle_blocklist() {
+    # preserve only non-enteprise lists
+    if ! echo $1 | grep -q -E '^yoroi|^nethesis' ; then
+        keep="$keep $1"
+    fi
+}
+
+
 function exit_error {
     >&2 echo "[ERROR] $@"
     exit 1
@@ -27,7 +39,15 @@ if [ ! -z "$SYSTEM_SECRET" ] && [ ! -z "$SYSTEM_ID" ]; then
 else
     allow=$(uci -q get banip.global.ban_allowurl | tr " " "\n" | grep bl.nethesis.it)
     if [ "$allow" != "" ]; then
+        # cleanup allowlist
         uci del_list banip.global.ban_allowurl="$allow"
+        # remove premium blocklist
+        config_load banip
+        config_list_foreach global ban_feed handle_blocklist
+        uci -q delete banip.global.ban_feed
+        for k in $keep; do
+            uci add_list banip.global.ban_feed=$k
+        done
         uci commit banip
     fi
     > /etc/banip/banip.custom.feeds
