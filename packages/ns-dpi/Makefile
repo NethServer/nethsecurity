@@ -61,6 +61,7 @@ define Package/ns-dpi/install
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_DIR) $(1)/etc/xtables
+	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/unregister
 	$(INSTALL_CONF) ./files/connlabel.conf $(1)/etc/xtables
 	$(INSTALL_BIN) ./files/dpi.init $(1)/etc/init.d/dpi
 	$(INSTALL_BIN) ./files/dpi $(1)/usr/sbin/
@@ -69,6 +70,7 @@ define Package/ns-dpi/install
 	$(INSTALL_BIN) ./files/dpi-update $(1)/usr/sbin/
 	$(INSTALL_CONF) ./files/20_dpi $(1)/etc/uci-defaults
 	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/register
+	$(INSTALL_BIN) ./files/70dpi $(1)/usr/share/ns-plug/hooks/unregister/
 	$(LN) /usr/sbin/dpi-update $(1)/usr/share/ns-plug/hooks/register/80dpi-update
 endef
 

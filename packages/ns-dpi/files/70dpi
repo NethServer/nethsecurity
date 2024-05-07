@@ -1,0 +1,15 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+#
+# DPI: remove premium signatures
+#
+
+rm -f /etc/netify.d/netify-categories.json
+rm -f /etc/netify.d/netify-apps.conf
+
+/etc/init.d/netifyd reload
