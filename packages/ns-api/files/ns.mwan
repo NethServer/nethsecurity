@@ -53,7 +53,16 @@ if cmd == 'list':
             'destination_address': 'String',
             'destination_port': 'String',
         },
-        'clear_config': {}
+        'clear_config': {},
+        'set_default_config': {
+            'track_ip': 'String',
+            'ping_timeout': 'String',
+            'ping_interval': 'String',
+            'ping_failure_interval': 'String',
+            'interface_down_threshold': 'String',
+            'interface_up_threshold': 'String',
+        },
+        'get_default_config': {}
     }))
 elif cmd == 'call':
     action = sys.argv[2]
@@ -113,6 +122,21 @@ elif cmd == 'call':
         elif action == 'clear_config':
             mwan.clear_config(e_uci)
             print(json.dumps({'message': 'success'}))
+        elif action == 'set_default_config':
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            mwan.set_default_config(
+                e_uci,
+                data['track_ip'],
+                data['ping_timeout'],
+                data['ping_interval'],
+                data['ping_failure_interval'],
+                data['interface_down_threshold'],
+                data['interface_up_threshold'],
+            )
+            print(json.dumps({'message': 'success'}))
+        elif action == 'get_default_config':
+            print(json.dumps({'values': mwan.get_default_config(e_uci)}))
+
     except KeyError as e:
         print(json.dumps(utils.validation_error(e.args[0], 'required')))
     except json.JSONDecodeError:
