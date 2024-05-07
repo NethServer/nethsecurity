@@ -42,10 +42,10 @@ if [ ${#packages[@]} -gt 0 ]; then
         sed -i "s/PKG_VERSION:=${cur_release}/PKG_VERSION:=${new_release}/" ${dir}/Makefile
         package_name=$(basename $dir)
         echo "Bump ${package_name} from ${cur_release} to ${new_release}"
-        git add ${dir}/Makefile && git commit --author "github-actions[bot] <github-actions[bot]@users.noreply.github.com>" -m "${package_name}: bump to ${new_release}"
-        git push -f --set-upstream origin bump-ns-packages
-        gh pr create --title "chore: bump ns packages (automatic)" --body "Bump ns-packages that has not still been released" --fill-verbose -B main || exit 0
+        git commit ${dir}/Makefile --author "github-actions[bot] <github-actions[bot]@users.noreply.github.com>" -m "${package_name}: bump to ${new_release}"
     done
+    git push -f --set-upstream origin bump-ns-packages
+    gh pr create --title "chore: bump ns packages (automatic)" --body "Bump ns-packages that has not still been released" --fill-verbose -B main || exit 0
 else
     echo "No packages to bump."
 fi
