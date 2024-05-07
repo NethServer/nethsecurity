@@ -39,14 +39,14 @@ case "$type" in
         system_id=$(curl -s -m $timeout --retry 3 -L \
         -H "Content-Type: application/json" -H "Accept: application/json" \
         -H "Authorization: token $secret" \
-        "$url/machine/info" | jq -r ".uuid" 2>/dev/null)
+        "${url}machine/info" | jq -r ".uuid" 2>/dev/null)
         ;;
     enterprise)
         url="https://my.nethesis.it/api/"
 
         system_id=$(curl -s -m $timeout --retry 3 -L \
         -H "Content-Type: application/json" -H "Accept: application/json" \
-        -d '{"secret": "'$secret'"}' "$url/systems/info" | jq -r ".uuid" 2>/dev/null)
+        -d '{"secret": "'$secret'"}' "${url}systems/info" | jq -r ".uuid" 2>/dev/null)
         ;;
     *)
         exit_error "Invalid type '$type'"
