@@ -50,26 +50,6 @@ def scan(device):
     except Exception as e:
         pass
 
-    # read also /proc/net/arp, format is
-    # IP address       HW type     Flags       HW address            Mask     Device
-    try:
-        with open('/proc/net/arp', 'r') as arp_file:
-            for line in arp_file:
-                if line.startswith("IP address"):
-                    continue
-                parts = re.split(r'\s+', line)
-                if len(parts) < 4:
-                    continue
-                if parts[3] == "00:00:00:00:00:00":
-                    continue
-                try:
-                    hostname = socket.getnameinfo((parts[0], 0), 0)[0]
-                except:
-                    hostname = ""
-                ret.append({"mac": parts[3], "ip": parts[0], "hostname": hostname, "description": ""})
-    except Exception as e:
-        pass
-
     return {"hosts": ret}
 
 cmd = sys.argv[1]
