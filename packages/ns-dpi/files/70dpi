@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 #
 # Copyright (C) 2024 Nethesis S.r.l.
@@ -6,10 +6,10 @@
 #
 
 #
-# DPI: remove premium signatures
+# DPI: remove premium signatures, restore the ones from the rom
 #
 
-rm -f /etc/netify.d/netify-categories.json
-rm -f /etc/netify.d/netify-apps.conf
+rm -f /etc/netify.d/{netify-categories.json,netify-apps.conf}
+cp /rom/etc/netify.d/{netify-categories.json,netify-apps.conf} /etc/netify.d/
 
 /etc/init.d/netifyd reload
