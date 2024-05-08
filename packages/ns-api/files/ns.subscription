@@ -55,7 +55,7 @@ def info():
     active = data["subscription"]["status"] == "valid"
     try:
         date =  datetime.strptime(data["subscription"]["valid_until"], '%Y-%m-%dT%H:%M:%S.%fZ')
-        expiration = int(datetime.timestamp(date))
+        expiration = int(datetime.timestamp(date))*1000
     except:
         expiration = 0
 
