@@ -237,6 +237,10 @@ for a in data['aliases']:
 # Create interfaces
 for i in data['interfaces']:
     iname = utils.sanitize(i["interface"])
+    if i["proto"] == "pppoe":
+        iname = iname[0:8] # make sure interface name is 8 chars max, reserve space for "pppoe-" prefix
+    else:
+        iname = iname[0:14] # make sure interface name is 15 chars max
     nsmigration.vprint(f'Creating interface {iname}')
     u.set("network", iname, "interface") # create named record
     u.set("network", iname, "proto", i["proto"])
