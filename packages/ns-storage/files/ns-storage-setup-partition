@@ -15,7 +15,7 @@ dev=${dev::-1}
 preserve=${1:-100}
 
 # find free space
-free_part=$(parted -s -m $dev unit MiB print free 2>/dev/null | grep free)
+free_part=$(parted -s -m $dev unit MiB print free 2>/dev/null | grep free | tail -n -1)
 
 if [ -z "${free_part}" ]; then
     # no free space
