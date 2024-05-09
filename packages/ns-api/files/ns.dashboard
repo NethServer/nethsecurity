@@ -14,7 +14,7 @@ import json
 import subprocess
 import urllib.request
 from euci import EUci
-from nethsec import utils
+from nethsec import utils, ovpn
 
 def get_uptime():
     with open('/proc/uptime', 'r') as f:
@@ -115,6 +115,9 @@ def count_hosts():
         for line in fp.readlines():
             ret = ret + 1
     return ret
+
+def count_openvpn_rw():
+    return len(ovpn.list_connected_clients('ns_roadwarrior1').keys())
 
 def check_ts_dns():
     u = EUci()
@@ -282,6 +285,8 @@ def counter(service):
         ret = count_hosts()
     elif service == "threat_shield_ip":
         ret = _run("grep \"$(date -d '-1 hour' +'%b %e %H:%M')\" /var/log/messages | grep kernel | grep banIP/ | wc -l")
+    elif service == "openvpn_rw":
+        ret = count_openvpn_rw()
 
     return {"count": ret}
 
