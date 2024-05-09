@@ -11,7 +11,7 @@ parent: Design
 
 ## Reference
 
-All APIs are documented inside the [ns-api](../packages/ns-api) package.
+All APIs are documented inside the [ns-api](../../packages/ns-api) package.
 
 ## Usage
 
