@@ -40,6 +40,7 @@ define Package/ns-threat_shield/install
 	$(INSTALL_DIR) $(1)/etc/banip
 	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/register
 	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/unregister
+	$(INSTALL_DIR) $(1)/usr/libexec/ns-api/post-commit
 	$(INSTALL_BIN) ./files/ts-dns $(1)/usr/sbin/ts-dns
 	$(INSTALL_BIN) ./files/ts-ip $(1)/usr/sbin/ts-ip
 	$(INSTALL_BIN) ./files/20_threat_shield $(1)/etc/uci-defaults
@@ -50,6 +51,7 @@ define Package/ns-threat_shield/install
 	$(INSTALL_DIR) $(1)/usr/share/threat_shield
 	$(INSTALL_DATA) ./files/nethesis-dns.sources $(1)/usr/share/threat_shield
 	$(INSTALL_DATA) ./files/banip.nethesis.feeds $(1)/etc/banip
+	$(INSTALL_BIN) ./files/adjust-banip.py $(1)/usr/libexec/ns-api/post-commit/
 	gzip -9n $(1)/usr/share/threat_shield/nethesis-dns.sources
 endef
 
