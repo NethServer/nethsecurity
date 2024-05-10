@@ -255,6 +255,27 @@ def interface_traffic(interface):
 
     return ret
 
+def ipsec_is_connected(id):
+    try:
+        p = subprocess.run(["swanctl", "--list-sas", "--ike", id], capture_output=True, text=True, check=True)
+        for l in p.stdout.split("\n"):
+            if 'ESTABLISHED' in l:
+                return True
+    except:
+        return False
+    return False
+
+
+def ipsec_tunnels():
+    ret = {"enabled": 0, "connected": 0}
+    u = EUci()
+    for r in utils.get_all_by_type(u, 'ipsec', 'remote'):
+        if u.get('ipsec', r, 'enabled', default='1') == '1':
+            ret["enabled"] += 1
+        if ipsec_is_connected(r):
+            ret["connected"] += 1
+    return {"result": ret}
+
 def service_status(service):
     ret = {"status": "disabled"}
     if service == "internet":
@@ -307,7 +328,7 @@ def list_wans():
 cmd = sys.argv[1]
 
 if cmd == 'list':
-    print(json.dumps({"system-info": {}, "list-wans":{}, "service-status": {"service": "myservice"}, "counter": {"service": "hosts"}, "interface-traffic": {"interface": "eth0"}}))
+    print(json.dumps({"system-info": {}, "list-wans":{}, "service-status": {"service": "myservice"}, "counter": {"service": "hosts"}, "interface-traffic": {"interface": "eth0"}, "ipsec-tunnels": {}}))
 elif cmd == 'call':
     action = sys.argv[2]
     if action == "system-info":
@@ -323,5 +344,7 @@ elif cmd == 'call':
     elif action == "interface-traffic":
         args = json.loads(sys.stdin.read())
         ret = interface_traffic(args["interface"])
+    elif action == "ipsec-tunnels":
+        ret = ipsec_tunnels()
 
     print(json.dumps({"result": ret}))

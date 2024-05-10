@@ -2238,6 +2238,23 @@ Response example:
 }
 ```
 
+### ipsec-tunnels
+
+Count enabled and connected IPsec tunnels:
+```
+api-cli ns.dashboard ipsec-tunnels
+```
+
+Response example:
+```json
+{
+  "result": {
+    "enabled": 2,
+    "connected": 1
+  }
+}
+```
+
 ## ns.subscription
 
 Manage server subscription for [my.nethesis.it](https://my.nethesis.it) and [my.nethserver.com](https://my.nethserver.com).
