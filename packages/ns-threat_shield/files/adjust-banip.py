@@ -11,7 +11,7 @@ import subprocess
 from euci import EUci
 
 # The changes variable is already within the scope from the caller
-if 'banip' in changes:
+if 'banip' in changes or 'network' in changes:
     uci = EUci()
     enabled = uci.get('banip', 'global', 'ban_enabled', default='0')
     try:
@@ -22,5 +22,11 @@ if 'banip' in changes:
 
     if running and not enabled:
         subprocess.run(["/etc/init.d/banip", "stop"])
-    if not running and enabled:
+    elif not running and enabled:
+        subprocess.run(["/etc/init.d/banip", "start"])
+    else:
+        # force nft rules reload for wan changes
+        # a restart is not good because sometimes banip
+        # service executes a reload and not a real restart
+        subprocess.run(["/etc/init.d/banip", "stop"])
         subprocess.run(["/etc/init.d/banip", "start"])
