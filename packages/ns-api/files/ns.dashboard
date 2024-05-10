@@ -348,7 +348,7 @@ def list_wans():
 cmd = sys.argv[1]
 
 if cmd == 'list':
-    print(json.dumps({"system-info": {}, "list-wans":{}, "service-status": {"service": "myservice"}, "counter": {"service": "hosts"}, "interface-traffic": {"interface": "eth0"}, "ipsec-tunnels": {}}))
+    print(json.dumps({"system-info": {}, "list-wans":{}, "service-status": {"service": "myservice"}, "counter": {"service": "hosts"}, "interface-traffic": {"interface": "eth0"}, "ipsec-tunnels": {}, "ovpn-tunnels": {}}))
 elif cmd == 'call':
     action = sys.argv[2]
     if action == "system-info":
