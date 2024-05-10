@@ -82,8 +82,8 @@ def list_devices():
 
     for ovpn_dev in openvpn_config:
         if ovpn_dev.get('.name').startswith('ns_'):
-            # hide non-configurated vpn networks
-            if not ovpn_dev.get('ns_description'):
+            # skip unconfigured roadwarrior
+            if ovpn_dev.get('ns_auth_mode') and not ovpn_dev.get('ns_description'):
                 continue
             if ovpn_dev.get('ns_auth_mode', None):
                 # road warrior server
