@@ -2165,6 +2165,7 @@ api-cli ns.dashboard counter --data '{"service": "hosts"}'
 Supported services are:
 - `hosts`: return the number of hosts as seen by ARP protocol
 - `threat_shield_ip`: return the number of blocked IPs in the last hour
+- `openvpn_rw`: return the number of clients connected to `ns_roadwarrior1` instance
 
 Response example:
 ```json
