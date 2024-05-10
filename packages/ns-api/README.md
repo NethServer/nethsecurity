@@ -2255,6 +2255,23 @@ Response example:
 }
 ```
 
+### ovpn-tunnels
+
+Count enabled and connected OpenVPN tunnels:
+```
+api-cli ns.dashboard ovpn-tunnels
+```
+
+Response example:
+```json
+{
+  "result": {
+    "enabled": 2,
+    "connected": 1
+  }
+}
+```
+
 ## ns.subscription
 
 Manage server subscription for [my.nethesis.it](https://my.nethesis.it) and [my.nethserver.com](https://my.nethserver.com).
