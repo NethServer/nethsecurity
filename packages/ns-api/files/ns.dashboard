@@ -265,7 +265,6 @@ def ipsec_is_connected(id):
         return False
     return False
 
-
 def ipsec_tunnels():
     ret = {"enabled": 0, "connected": 0}
     u = EUci()
@@ -275,6 +274,27 @@ def ipsec_tunnels():
         if ipsec_is_connected(r):
             ret["connected"] += 1
     return {"result": ret}
+
+def ovpn_tunnels():
+    u = EUci()
+    ret = {"enabled": 0, "connected": 0}
+    for section in u.get_all('openvpn'):
+        vpn = u.get_all("openvpn", section)
+        # skip custom config and roadwarrior
+        if not section.startswith("ns_") or 'ns_auth_mode' in vpn:
+            continue
+        if vpn.get("enabled", "0") == "1":
+            ret["enabled"] += 1
+
+        if vpn.get("client", "0") == "1" or vpn.get("ns_client", "0") == "1":
+            connected = ovpn.list_connected_clients(section, 'p2p')
+            if 'stats' in connected:
+                ret["connected"] += 1
+        else:
+            connected = ovpn.list_connected_clients(section, vpn.get("topology", "subnet"))
+            if len(connected) > 0:
+                ret["connected"] += 1
+    return ret
 
 def service_status(service):
     ret = {"status": "disabled"}
@@ -346,5 +366,7 @@ elif cmd == 'call':
         ret = interface_traffic(args["interface"])
     elif action == "ipsec-tunnels":
         ret = ipsec_tunnels()
+    elif action == "ovpn-tunnels":
+        ret = ovpn_tunnels()
 
     print(json.dumps({"result": ret}))
