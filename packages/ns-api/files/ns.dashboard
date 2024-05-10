@@ -273,7 +273,7 @@ def ipsec_tunnels():
             ret["enabled"] += 1
         if ipsec_is_connected(r):
             ret["connected"] += 1
-    return {"result": ret}
+    return ret
 
 def ovpn_tunnels():
     u = EUci()
