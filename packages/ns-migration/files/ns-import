@@ -73,14 +73,14 @@ uci commit
 service network restart
 service firewall restart
 service system restart
-service ts-ip restart
+service banip stop
+service banip start # a restart is not enough
 try_restart dnsmasq
 try_restart dropbear
 try_restart cron
 try_restart sysntpd
 try_restart ns-plug
 ts-dns
-try_restart adblock
 try_restart openvpn
 try_restart mwan3
 try_restart swanctl
