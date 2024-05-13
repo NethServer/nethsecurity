@@ -33,6 +33,7 @@ function install() {
     # Find boot device and umount it
     part=$(mount | grep boot | uniq | awk '{print $1}')
     device=${part::-1}
+    disk=$(basename "$device")
     if [ $device == $1 ]; then echo "Error: can't install on source disk" >&2 ; exit 1; fi
     umount /boot
     umount /boot
@@ -43,6 +44,13 @@ function install() {
     count=$(parted -sm $device print 2>/dev/null | grep "^2:" | cut -d: -f3 | sed "s/MB//")
     echo "Writing image... "
     dd if=$device of=$1 bs=1M count=$count
+    # check if the installation disk partition has been modified
+    if ! lsblk -n --raw $device | grep part | grep -q "^${disk}128"; then
+        echo "Fixing partition table..."
+        sync
+        sleep 1
+        sgdisk -r 3:128 $1
+    fi
     sync
     echo 3 > /proc/sys/vm/drop_caches
     sleep 1
@@ -50,14 +58,6 @@ function install() {
     halt
 }
 
-# check the installation disk is valid
-part=$(mount | grep boot | uniq | awk '{print $1}')
-device=${part::-1}
-disk=$(basename "$device")
-if ! lsblk -n --raw $device | grep part | grep -q "^${disk}128"; then
-    echo "Partition 128 not found: install disk corrupeted! Please rewrite the installation disk again."
-    exit 1
-fi
 
 force=0
 while getopts "hft::" opt; do
