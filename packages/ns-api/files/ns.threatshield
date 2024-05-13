@@ -153,6 +153,9 @@ def edit_blocklist(e_uci, payload):
 def edit_settings(e_uci, payload):
     if payload['enabled']:
         e_uci.set('banip', 'global', 'ban_enabled', '1')
+        e_uci.set('banip', 'global', 'ban_fetchcmd', 'curl')
+        e_uci.set('banip', 'global', 'ban_protov4', '1')
+        e_uci.set('banip', 'global', 'ban_protov6', '1')
     else:
         e_uci.set('banip', 'global', 'ban_enabled', '0')
     e_uci.save('banip')
