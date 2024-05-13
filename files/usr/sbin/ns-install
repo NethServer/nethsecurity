@@ -50,6 +50,14 @@ function install() {
     halt
 }
 
+# check the installation disk is valid
+part=$(mount | grep boot | uniq | awk '{print $1}')
+device=${part::-1}
+disk=$(basename "$device")
+if ! lsblk -n --raw $device | grep part | grep -q "^${disk}128"; then
+    echo "Partition 128 not found: install disk corrupeted! Please rewrite the installation disk again."
+    exit 1
+fi
 
 force=0
 while getopts "hft::" opt; do
