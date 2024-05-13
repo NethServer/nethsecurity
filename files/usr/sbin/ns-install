@@ -32,7 +32,7 @@ function check {
 function install() {
     # Find boot device and umount it
     part=$(lsblk -l | grep "/rom" | awk '{print $1}')
-    device=${part::-1}
+    device="/dev/"${part::-1}
     if [ $device == $1 ]; then echo "Error: can't install on source disk" >&2 ; exit 1; fi
     umount /boot || /bin/true
     umount /boot || /bin/true
