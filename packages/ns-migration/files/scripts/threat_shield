@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 #
-# Copyright (C) 2022 Nethesis S.r.l.
+# Copyright (C) 2024 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
@@ -13,13 +13,25 @@ import nsmigration
 if not data:
     sys.exit(0)
 
-for o in data['ts-ip']:
-    u.set('threat_shield', 'config', o, data['ts-ip'][o])
-u.set('threat_shield', 'config', 'log_blocked', '1')
+# Migrate threat shield IP configuration to banip
+u.set('banip', 'global', 'ban_enabled', data['ts-ip']['status'])
+u.set('banip', 'global', 'ban_feed', data['ts-ip']['categories'])
+if data["ts-ip"]["allow"]:
+    with open("/etc/banip/banip.allowlist", 'w') as file:
+        for item in data["ts-ip"]["allow"]:
+            file.write(str(item) + '\n')
 
-for o in data['ts-dns']:
-    u.set('adblock', 'global', o, data['ts-dns'][o])
+# Setup static configuration
+u.set('banip', 'global', 'ban_fetchcmd', 'curl')
+u.set('banip', 'global', 'ban_protov4', '1')
+u.set('banip', 'global', 'ban_protov6', '1')
 
-# Save configuration
-u.commit("adblock")
-u.commit("threat_shield")
+# Fix wan configuration
+changes = ["banip"]
+exec(open("/usr/libexec/ns-api/pre-commit/configure-banip-wans.py").read())
+
+# Save banip configuration
+u.commit("banip")
+
+# Do not migrate threat shield DNS because there is no UI for it
+

@@ -73,7 +73,8 @@ uci commit
 service network restart
 service firewall restart
 service system restart
-service ts-ip restart
+service banip stop
+service banip start # a restart is not enough
 try_restart dnsmasq
 try_restart dropbear
 try_restart cron
