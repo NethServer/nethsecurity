@@ -248,13 +248,8 @@ The following NS7 features will not be migrated:
 The `threat_shield` script will import:
 
 - IP blacklist configuration with status (enabled/disabled), categories and local white list
-- DNS blacklist configuration with status (enabled/disabled), categories and host bypass
 
 If the categories comes from a community repositories, you should reconfigure after the import.
-
-Differences since NS7:
-
-- if enabled, DNS proxy is active for all zones
 
 See also [ns-threat_shield](../ns-threat_shield).
 
