@@ -31,17 +31,18 @@ function check {
 
 function install() {
     # Find boot device and umount it
-    part=$(mount | grep boot | uniq | awk '{print $1}')
+    part=$(lsblk -l | grep "/rom" | awk '{print $1}')
     device=${part::-1}
+    device="/dev/"${part::-1}
     disk=$(basename "$device")
     if [ $device == $1 ]; then echo "Error: can't install on source disk" >&2 ; exit 1; fi
-    umount /boot
-    umount /boot
-    umount /overlay
-    umount /rom
+    umount /boot || /bin/true
+    umount /boot || /bin/true
+    umount /overlay || /bin/true
+    umount /rom || /bin/true
 
     sleep 1
-    count=$(parted -sm $device print 2>/dev/null | grep "^2:" | cut -d: -f3 | sed "s/MB//")
+    count=$(parted -sm $device print 2>/dev/null | tail -n1 | cut -d: -f3 | sed "s/MB//")
     echo "Writing image... "
     dd if=$device of=$1 bs=1M count=$count
     # check if the installation disk partition has been modified
