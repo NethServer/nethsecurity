@@ -31,15 +31,16 @@ function check {
 
 function install() {
     # Find boot device and umount it
-    part=$(lsblk -l | grep "/rom" | awk '{print $1}')
-    device=${part::-1}
-    device="/dev/"${part::-1}
-    disk=$(basename "$device")
+    part=$(lsblk -ln | grep "/rom" | awk '{print $1}')
+    disk=$(lsblk -lno pkname /dev/$part)
+    device="/dev/$disk"
     if [ $device == $1 ]; then echo "Error: can't install on source disk" >&2 ; exit 1; fi
-    umount /boot || /bin/true
-    umount /boot || /bin/true
-    umount /overlay || /bin/true
-    umount /rom || /bin/true
+    if mount | grep -q /boot; then
+        umount /boot 2>/dev/null
+        umount /boot 2>/dev/null
+    fi
+    umount /overlay
+    umount /rom
 
     sleep 1
     count=$(parted -sm $device print 2>/dev/null | tail -n1 | cut -d: -f3 | sed "s/MB//")
