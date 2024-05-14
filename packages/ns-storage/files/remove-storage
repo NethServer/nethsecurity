@@ -7,11 +7,11 @@
 
 set -e
 
-boot_part=$(mount | grep boot | uniq | awk '{print $1}')
-boot_disk=${boot_part%?}
+rom_part=$(lsblk -ln | grep "/rom" | uniq | awk '{print $1}')
+rom_disk=$(lsblk -lno pkname /dev/$rom_part)
 
 data_part=$(mount | grep /mnt/data | uniq | awk '{print $1}')
-data_disk=${boot_part%?}
+data_disk=$(lsblk -lno pkname $data_part)
 
 # Removing auto-mount
 uci delete fstab.ns_data
@@ -31,6 +31,6 @@ umount -f /mnt/data
 rm -rf /mnt/data
 
 # Removing parition
-if [ "$boot_disk" == "$data_disk" ]; then
-    parted "${data_disk}" rm 3
+if [ "$rom_disk" == "$data_disk" ]; then
+    parted "/dev/${data_disk}" rm 3
 fi

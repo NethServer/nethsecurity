@@ -10,8 +10,8 @@
 
 set -e
 
-dev=$(mount | grep /boot | uniq | awk '{print $1}')
-dev=${dev::-1}
+part=$(lsblk -ln | grep "/rom" | uniq | awk '{print $1}')
+dev="/dev/$(lsblk -lno pkname /dev/$part)"
 preserve=${1:-100}
 
 pnum=$(lsblk ${dev} -o TYPE -n | grep part | wc -l)
