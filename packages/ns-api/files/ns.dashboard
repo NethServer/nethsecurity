@@ -224,6 +224,29 @@ def check_dedalo():
     except:
         return "error"
 
+def check_dns_configured():
+    # search for all wans, if there is at least a static wan
+    # return "warning" if dnsmasq does not have upstream dns set
+    u = EUci()
+    check_forwarder = False
+    wans = utils.get_all_wan_devices(u, exclude_aliases=True)
+    for w in wans:
+        i = utils.get_interface_from_device(u, w)
+        if u.get("network", i, "proto", default = "") == "static":
+            check_forwarder = True
+            break
+
+    if not check_forwarder:
+        return "ok"
+    else:
+        for section in u.get("dhcp"):
+            if u.get("dhcp", section) == "dnsmasq":
+                try:
+                    u.get_all("dhcp", section, "server")
+                except:
+                    return "warning"
+    return "ok"
+
 def get_hostname():
     with open('/proc/sys/kernel/hostname', 'r') as fp:
         return fp.read().strip()
@@ -316,6 +339,8 @@ def service_status(service):
         ret["status"] = check_mwan()
     elif service == "dedalo":
         ret["status"] = check_dedalo()
+    elif service == "dns-configured":
+        ret["status"] = check_dns_configured()
     else:
         ret["status"] = check_service(service)
     return ret
