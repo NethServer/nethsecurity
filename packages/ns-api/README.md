@@ -2142,7 +2142,7 @@ Retrive the status of a service:
 api-cli ns.dashboard service-status --data '{"service": "internet"}'
 ```
 
-Supported services are: `internet`, `banip`, `dedalo`, `netifyd`, `threat_shield_dns`, `adblock`, `threat_shield_ip`, `openvpn_rw`, `flashstart`, `mwan`
+Supported services are: `internet`, `banip`, `dedalo`, `netifyd`, `threat_shield_dns`, `adblock`, `threat_shield_ip`, `openvpn_rw`, `flashstart`, `mwan`, `dns-configured`
 
 Valid return statuses are: `disabled`, `ok`, `error`, `warning`
 
