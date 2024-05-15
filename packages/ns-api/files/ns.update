@@ -16,6 +16,7 @@ import subprocess
 import urllib.request
 from nethsec import utils
 from urllib.parse import urlparse
+from euci import EUci
 
 # Utilities
 
@@ -86,14 +87,18 @@ def install_package_updates():
     return {"result": "success"}
 
 def check_system_update():
+    e_uci = EUci()
     current_version = get_system_version()
     ret = {"currentVersion": f'NethSecurity {current_version}', "lastVersion": "", "scheduledAt": get_update_schedule()}
     try:
-        channel = get_distfeed_channel()
-        with urllib.request.urlopen(f"https://updates.nethsecurity.nethserver.org/{channel}/latest_release") as resp:
-            version = resp.read().decode().rstrip()
-            if current_version != version:
-                ret["lastVersion"] = f'NethSecurity {version}'
+        url = e_uci.get('ns-plug', 'config', 'repository_url')
+        if (e_uci.get('ns-plug', 'config', 'system_id', default=None) is None):
+            url = f"{url}/{get_distfeed_channel()}"
+
+        p = subprocess.run(["/usr/bin/curl", "-L", "-s", f"{url}/latest_release"], check=True, capture_output=True, text=True)
+        version = p.stdout.rstrip()
+        if current_version != version:
+            ret["lastVersion"] = f'NethSecurity {version}'
     except Exception as e:
         print(e, file=sys.stderr)
     return ret

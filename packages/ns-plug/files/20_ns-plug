@@ -5,5 +5,17 @@ crontab -l | grep -q '/usr/sbin/send-backup' || echo '02 2 * * * sleep $(( RANDO
 crontab -l | grep -q '/usr/sbin/send-heartbeat' || echo '*/10 * * * * sleep $(( RANDOM % 60 )); /usr/sbin/send-heartbeat' >> /etc/crontabs/root
 crontab -l | grep -q '/usr/sbin/send-inventory' || echo '05 3 * * * sleep $(( RANDOM % 1800 )); /usr/sbin/send-inventory' >> /etc/crontabs/root
 
+if [ "$(uci -q get ns-plug.config.repository_url)" = "" ]; then
+    if [ "$(uci -q get ns-plug.config.system_id)" != "" ]; then
+        type="$(uci -q get ns-plug.config.type)"
+        system_id="$(uci -q get ns-plug.config.system_id)"
+        secret="$(uci -q get ns-plug.config.secret)"
+        uci set ns-plug.config.repository_url="https://$system_id:$secret@distfeed.nethesis.it/repository/$type/nethsecurity"
+    else
+        uci set ns-plug.config.repository_url="https://updates.nethsecurity.nethserver.org"
+    fi
+    uci commit ns-plug
+fi
+
 # restore subscription channel on upgrade
 /usr/sbin/distfeed-setup
