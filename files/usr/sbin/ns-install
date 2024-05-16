@@ -31,18 +31,28 @@ function check {
 
 function install() {
     # Find boot device and umount it
-    part=$(mount | grep boot | uniq | awk '{print $1}')
-    device=${part::-1}
+    part=$(lsblk -ln | grep "/rom" | awk '{print $1}')
+    disk=$(lsblk -lno pkname /dev/$part)
+    device="/dev/$disk"
     if [ $device == $1 ]; then echo "Error: can't install on source disk" >&2 ; exit 1; fi
-    umount /boot
-    umount /boot
+    if mount | grep -q /boot; then
+        umount /boot 2>/dev/null
+        umount /boot 2>/dev/null
+    fi
     umount /overlay
     umount /rom
 
     sleep 1
-    count=$(parted -sm $device print 2>/dev/null | grep "^2:" | cut -d: -f3 | sed "s/MB//")
+    count=$(parted -sm $device print 2>/dev/null | tail -n1 | cut -d: -f3 | sed "s/MB//")
     echo "Writing image... "
     dd if=$device of=$1 bs=1M count=$count
+    # check if the installation disk partition has been modified
+    if ! lsblk -n --raw $device | grep part | grep -q "^${disk}128"; then
+        echo "Fixing partition table..."
+        sync
+        sleep 1
+        sgdisk -r 3:128 $1
+    fi
     sync
     echo 3 > /proc/sys/vm/drop_caches
     sleep 1
