@@ -74,10 +74,13 @@ if not product:
     except:
         product = ""
 
+nethsec_version = ""
+version = ""
 with open('/etc/os-release', 'r') as file:
     for line in file:
-        if line.startswith("VERSION_ID"):
+        if line.startswith("VERSION_ID="):
             nethsec_version = line.split('=')[1].split('-')[2][3:]
+            version = line.split('=')[1].replace('"','').rstrip()
             break
 
 data = {
@@ -85,6 +88,10 @@ data = {
     "uuid": sid,
     "installation": "nethsecurity",
     "facts": {
+        "distro": {
+            "name": "NethSecurity",
+            "version": version
+        },
         "processors": { 
             "count": _run("grep processor /proc/cpuinfo  | wc -l"), 
             "model":  _get_cpu_field("Model name", cpu_info),
