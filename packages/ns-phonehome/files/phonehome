@@ -11,6 +11,7 @@ import json
 import uuid
 import subprocess
 from euci import EUci
+from nethsec import inventory
 
 def _run(cmd):
     try:
@@ -83,6 +84,12 @@ with open('/etc/os-release', 'r') as file:
             version = line.split('=')[1].replace('"','').rstrip()
             break
 
+features = {}
+for func in dir(inventory):
+    if func.startswith("fact_"):
+        method = getattr(inventory, func)
+        features[func.removeprefix('fact_')] = method(EUci())
+
 data = {
     "$schema": "https://schema.nethserver.org/facts/2022-12.json",
     "uuid": sid,
@@ -107,7 +114,8 @@ data = {
             "system": { "used_bytes": _run("free | grep 'Mem': | awk '{print $3}'"), "available_bytes": _run("free | grep 'Mem:' | awk '{print $7}'") }
         },
         "pci": list(pci.values()),
-        "version": nethsec_version
+        "version": nethsec_version,
+        "features": features
     }
 }
 print(json.dumps(data))

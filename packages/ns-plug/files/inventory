@@ -9,7 +9,7 @@ import json
 import subprocess
 from euci import EUci
 from struct import pack
-from nethsec import utils
+from nethsec import utils, inventory
 from socket import inet_ntoa
 
 def _run(cmd):
@@ -106,6 +106,12 @@ for section in utils.get_all_by_type(u, 'network', 'interface'):
                 network['props']["bridge"] = u.get('network', d, 'ports')
     networks[device] = network
 
+features = {}
+for func in dir(inventory):
+    if func.startswith("fact_"):
+        method = getattr(inventory, func)
+        features[func.removeprefix('fact_')] = method(EUci())
+
 data = {
     "arp_macs": _run('cat /proc/net/arp | grep -v IP | wc -l'),
     "dmi": { "product": { "name": product, "uuid": _run("cat /sys/class/dmi/id/product_uuid") }, "bios": { "version": _run("cat /sys/devices/virtual/dmi/id/bios_version"), "vendor": _run("cat /sys/devices/virtual/dmi/id/bios_vendor")}, "board": { "product": board, "manufacturer": _run("cat /sys/devices/virtual/dmi/id/sys_vendor") }},
@@ -142,7 +148,8 @@ data = {
         }
     },
     "rpms": { "nethserver-firewall-base-ui": _run("opkg status ns-ui | grep Version | awk '{print $2}'") },
-    "public_ip": _run("curl https://ifconfig.co")
+    "public_ip": _run("curl https://ifconfig.co"),
+    "features": features
 }
 
 print(json.dumps(data))
