@@ -434,17 +434,23 @@ def set_configuration(args):
         u.set("openvpn", ovpninstance, "verify_client_cert", "none")
         u.set("openvpn", ovpninstance, "username_as_common_name", "1")
         u.set("openvpn", ovpninstance, "script_security", "3")
+        try:
+            u.delete("openvpn", ovpninstance, "reneg_sec")
+        except:
+            pass
     elif args["ns_auth_mode"] == "certificate":
         try:
             u.delete("openvpn", ovpninstance, "auth_user_pass_verify")
             u.delete("openvpn", ovpninstance, "verify_client_cert")
             u.delete("openvpn", ovpninstance, "username_as_common_name")
             u.delete("openvpn", ovpninstance, "script_security")
+            u.delete("openvpn", ovpninstance, "reneg_sec")
         except:
             pass
     elif args["ns_auth_mode"] == "username_otp_certificate":
         u.set("openvpn", ovpninstance, "auth_user_pass_verify", "/usr/libexec/ns-openvpn/openvpn-otp-auth via-env")
         u.set("openvpn", ovpninstance, "script_security", "3")
+        u.set("openvpn", ovpninstance, "reneg_sec", "0")
         try:
             u.delete("openvpn", ovpninstance, "verify_client_cert")
             u.delete("openvpn", ovpninstance, "username_as_common_name")
@@ -459,6 +465,7 @@ def set_configuration(args):
         try:
             u.delete("openvpn", ovpninstance, "verify_client_cert")
             u.delete("openvpn", ovpninstance, "username_as_common_name")
+            u.delete("openvpn", ovpninstance, "reneg_sec")
         except:
             pass
     else:
@@ -717,6 +724,8 @@ def download_user_configuration(ovpninstance, username):
     if u.get("openvpn", ovpninstance, "auth_user_pass_verify", default=""):
         config = config + "auth-user-pass\n"
         config = config + "auth-nocache\n"
+    if u.get("openvpn", ovpninstance, "ns_auth_mode", default="") == "username_otp_certificate":
+        config = config + "reneg-sec 0\n"
     config = config + f"port {u.get('openvpn', ovpninstance, 'port')}\n"
     try:
         remote = u.get_all("openvpn", ovpninstance, 'ns_public_ip')
