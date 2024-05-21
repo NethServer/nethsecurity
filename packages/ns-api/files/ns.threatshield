@@ -153,9 +153,8 @@ def edit_blocklist(e_uci, payload):
 def set_default(e_uci, option, value):
     try:
         e_uci.get('banip', 'global', option)
-    pass:
+    except:
         e_uci.set('banip', 'global', option, value)
-
 
 def edit_settings(e_uci, payload):
     if payload['enabled']:
