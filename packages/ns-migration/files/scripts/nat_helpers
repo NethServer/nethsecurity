@@ -1,0 +1,24 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+
+> /etc/modules.d/ns-nathelpers
+
+# Configure FTP helpers
+for m in $(opkg files kmod-nf-nathelper | grep -e '\.ko$' | cut -d'/' -f 5 | cut -d'.' -f1); do
+    echo $m >> /etc/modules.d/ns-nathelpers
+done
+
+# Configure all extra helpers
+for m in $(opkg files kmod-nf-nathelper-extra | grep -e '\.ko$' | cut -d'/' -f 5 | cut -d'.' -f1); do
+    echo $m >> /etc/modules.d/ns-nathelpers
+done
+
+# Load all helpers
+for m in $(cat /etc/modules.d/ns-nathelpers); do
+    modprobe $m
+done
