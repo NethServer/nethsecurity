@@ -45,6 +45,7 @@ To enable only the FTP helper:
 ```
 echo -ne "nf_conntrack_ftp\nnf_nat_ftp\n" > /etc/modules.d/ns-nathelpers
 load-kernel-modules
+service firewall restart
 ```
 
 ## Enable SIP helper (SIP ALG)
@@ -52,7 +53,8 @@ load-kernel-modules
 To enable only SIP helper with default configuration and load it at boot, use:
 ```
 echo nf_nat_sip > /etc/modules.d/ns-nathelpers
-reboot
+load-kernel-modules
+service firewall restart
 ```
 The `nf_nat_sip` module will automatically load the `nf_conntrack_sip` module.
 
@@ -79,6 +81,7 @@ Enable SIP helper with non-default parameters:
 echo nf_conntrack_sip sip_external_media=1 > /etc/modules.d/ns-nathelpers
 echo nf_nat_sip >> /etc/modules.d/ns-nathelpers
 load-kernel-modules
+service firewall restart
 ```
 
 When setting non-default parameters, it's recommended to reboot the system to ensure the correct module parameters are applied.
