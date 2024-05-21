@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-migration
-PKG_VERSION:=0.0.9
+PKG_VERSION:=0.0.10
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-migration-$(PKG_VERSION)
