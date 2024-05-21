@@ -12,8 +12,8 @@
 exit_code=0
 
 # Load all module
-for line in "$(grep -v '^#' /etc/modules.d/ns-nathelpers)"; do
-    module=$(echo $line | awk '{print $1}')
+grep -v '^#' /etc/modules.d/ns-nathelpers | while IFS= read -r line ; do
+    module=$(echo "$line" | awk '{print $1}')
     modprobe $module
     for param in $(echo $line | awk '{for(i=2;i<=NF;++i)print $i}'); do
         # Set parameter using /sys since modprobe doesn't support parameters
