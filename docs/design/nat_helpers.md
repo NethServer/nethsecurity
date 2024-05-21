@@ -6,16 +6,20 @@ parent: Design
 
 # NAT helpers
 
-As default the image does not contain many NAT helpers.
-To install extra helpers like SIP ALG use:
+The image contains already all commonly used NAT helpers,
+but helpers are not loaded by default on a new installation.
+
+Please note that after migration, all NAT helpers are loaded
+by default to preserve NethServer 7 behavior.
+
+The `kmod-nf-nathelper` package provides the following helpers:
+`opkg files kmod-nf-nathelper | grep -e '\.ko$' | cut -d'/' -f 5 | cut -d'.' -f1`
 ```
-opkg update
-opkg install kmod-nf-nathelper-extra
+nf_nat_ftp
+nf_conntrack_ftp
 ```
 
-Modules listed inside inside `/etc/modules.d/nf-nathelper-extra` are automatically loaded.
-
-The `kmod-nf-nathelper-extra` provides the following helpers: 
+The `kmod-nf-nathelper-extra` package provides the following helpers:
 `opkg files kmod-nf-nathelper-extra | grep -e '\.ko$' | cut -d'/' -f 5 | cut -d'.' -f1`
 ```
 nf_conntrack_pptp
@@ -35,11 +39,19 @@ nf_conntrack_h323
 nf_nat_irc
 ```
 
+## FTP helper
+
+To enable only the FTP helper:
+```
+echo -ne "nf_conntrack_ftp\nnf_nat_ftp\n" > /etc/modules.d/ns-nathelpers
+reboot
+```
+
 ## SIP helper (SIP ALG)
 
 To enable only SIP helper with default configuration and load it at boot, use:
 ```
-echo nf_nat_sip > /etc/modules.d/nf-nat-sip
+echo nf_nat_sip > /etc/modules.d/ns-nathelpers
 reboot
 ```
 The `nf_nat_sip` module will automatically load the `nf_conntrack_sip` module.
@@ -64,7 +76,7 @@ From [kernel source](https://github.com/torvalds/linux/blob/v5.10/net/netfilter/
 
 Enable SIP helper with non-default parameters:
 ```
-echo nf_conntrack_sip sip_external_media=1 sip_direct_media=1 > /etc/modules.d/nf-nat-sip
-echo nf_nat_sip >> /etc/modules.d/nf-nat-sip
+echo nf_conntrack_sip sip_external_media=1 sip_direct_media=1 > /etc/modules.d/ns-nathelpers
+echo nf_nat_sip >> /etc/modules.d/ns-nathelpers
 reboot
 ```
