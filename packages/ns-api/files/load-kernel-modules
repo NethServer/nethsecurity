@@ -1,0 +1,30 @@
+#!/bin/bash
+
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Load all kernel modules from /etc/modules.d/ns-nathelpers
+# Example:
+# nf_conntrack_sip sip_external_media=1 sip_direct_media=1
+
+exit_code=0
+
+# Load all module
+for line in "$(grep -v '^#' /etc/modules.d/ns-nathelpers)"; do
+    module=$(echo $line | awk '{print $1}')
+    modprobe $module
+    for param in $(echo $line | awk '{for(i=2;i<=NF;++i)print $i}'); do
+        # Set parameter using /sys since modprobe doesn't support parameters
+        key=$(echo $param | cut -d= -f1)
+        value=$(echo $param | cut -d= -f2)
+        echo $value > /sys/module/$module/parameters/$key
+        if [ $? -ne 0 ]; then
+            exit_code=99
+        fi
+    done
+done
+
+# Special exit code 99 means that at least one parameter failed to be set
+exit $exit_code

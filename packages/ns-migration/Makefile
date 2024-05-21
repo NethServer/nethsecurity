@@ -52,6 +52,7 @@ define Package/ns-migration/install
 	$(INSTALL_BIN) ./files/scripts/openvpn_tunnels $(1)/usr/share/ns-migration/40openvpn_tunnels
 	$(INSTALL_BIN) ./files/scripts/ipsec $(1)/usr/share/ns-migration/40ipsec
 	$(INSTALL_BIN) ./files/scripts/hotspot $(1)/usr/share/ns-migration/40hotspot
+	$(INSTALL_BIN) ./files/scripts/nat_helpers $(1)/usr/share/ns-migration/40nat_helpers
 	$(INSTALL_BIN) ./files/scripts/rules $(1)/usr/share/ns-migration/50rules
 	$(INSTALL_BIN) ./files/scripts/redirects $(1)/usr/share/ns-migration/50redirects
 	$(INSTALL_BIN) ./files/scripts/reverse_proxy $(1)/usr/share/ns-migration/60reverse_proxy
