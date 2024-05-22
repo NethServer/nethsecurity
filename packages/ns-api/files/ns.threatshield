@@ -159,11 +159,11 @@ def set_default(e_uci, option, value):
 def edit_settings(e_uci, payload):
     if payload['enabled']:
         e_uci.set('banip', 'global', 'ban_enabled', '1')
-        set_default('ban_fetchcmd', 'curl')
-        set_default('ban_protov4', '1')
-        set_default('ban_protov6', '1')
-        set_default('ban_nftexpiry', '30m')
-        set_default('ban_logcount', '3')
+        set_default(e_uci, 'ban_fetchcmd', 'curl')
+        set_default(e_uci, 'ban_protov4', '1')
+        set_default(e_uci, 'ban_protov6', '1')
+        set_default(e_uci, 'ban_nftexpiry', '30m')
+        set_default(e_uci, 'ban_logcount', '3')
     else:
         e_uci.set('banip', 'global', 'ban_enabled', '0')
     e_uci.save('banip')
