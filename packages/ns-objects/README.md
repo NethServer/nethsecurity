@@ -81,24 +81,21 @@ config ldap 'ad1'
 	option schema 'ad'
 ```
 
-## Users and groups
+## Users
 
 A user is a dynamic entity representing a user with all physical and virtual devices belonging to a person like PCs, mobile phones or VPN road warrior accesses.
 The user can connect to local services like VPNs.
 
-A group is a dynamic entity representing a list of users.
-
-Users and groups are saved inside the `/etc/config/users` UCI configuration file with the following types:
+Users are saved inside the `/etc/config/users` UCI configuration file with the following types:
 - `user` for users
-- `group` for groups
 
-User and group objects are identified by a random section name, but they both contain:
+User objects are identified by a random section name, but they both contain:
 - a field named `database` which is a reference to the associated database, like `main`
 - a special field named `name` which must be unique inside the associated database
 
-## Local users and groups
+## Local users
 
-Local users and groups are the ones associated to a database of type `local`.
+Local users are the ones associated to a database of type `local`.
 
 For local users, the `name` field must also meet the following requirements
 
@@ -107,19 +104,13 @@ For local users, the `name` field must also meet the following requirements
 The local `user` object can have the following non-mandatory options:
 
 - `description`: a longer label for the user, like "Name Surname"
-- `macaddr`: list of MAC addresses belonging to the user's devices
-- `ipaddr`: list of IP addresses
-- `domain`: list of DNS names resolved to IP address, each DNS name is a `domain` record inside the [`dhcp` database](https://openwrt.org/docs/guide-user/base-system/dhcp_configuration#hostnames)
-- `host`: list of DHCP reservations resolved to IP addresses, each reservation is a `host` record inside the [`dhcp` database](https://openwrt.org/docs/guide-user/base-system/dhcp#static_leases)
 - `password`: shadow password hash, shadow format: `$<alg>$<salt>$<hash>`, where `alg` is always set to `6` (SHA-512)
 - `openvpn_ipaddr`: an OpenVPN RoadWarrior IP address reserved for the user
 - `openvpn_enabled`: can be `0` or `1`, if set to `0` the user can't authenticate itself inside OpenVPN
 - `openvpn_2fa`: it's a string containing the secret for OpenVPN OTP authentication
 
-The local `group` object can have the following non-mandatory options:
+A user device identified by a MAC address can be associated to a user by creating ad DHCP reservation and adding the reservation to the user as a `host` record.
 
-- `description`: a longer label for the group, like "Tech people"
-- `user`: a list of `user` objects
 
 Example of local users:
 ```
@@ -127,17 +118,11 @@ config user 'ns_rand123'
 	option name "goofy"
 	option database "main"
 	option description 'Goofy Doe'
-	list macaddr '52:54:00:9d:3d:e5'
-	list ipaddr '192.168.100.23'
-	list domain 'ns_goofy_name'
-	list host 'ns_goofy_pc'
 
 config user 'ns_rand456'
 	option name "Daisy"
 	option database "main"
 	option label "Daisy White"
-	list ipaddr '192.168.100.22'
-	list ipaddr '2001:db8:3333:4444:5555:6666:7777:8888'
 ```
 
 Example of local user with OpenVPN access and a reserved IP:
@@ -152,30 +137,18 @@ config user
 	option password "$6$o5l7kWSclhvn5HM5$hRN60ONxiKnb1RZJP14M1oTXYICFS4G998tCasf04j7Gm60p5G9Jkmewqa0LKAcdWwiIijPwowSlA78wx/kP3Q=="
 ```
 
-Example of a local group:
-```
-config group
-	option name 'vip'
-	option database "main"
-	option description 'Very Important People'
-	list user 'goofy'
-	list user 'daisy'
-```
-
 ## Remote users
 
-Remote users and groups are the ones associated to a database of type `ldap`.
+Remote users are the ones associated to a database of type `ldap`.
 Each user represent a users inside a remote LDAP database.
 
 The remote `user` object can have the following non-mandatory options:
 
-- `macaddr`: list of MAC addresses belonging to the user's devices
-- `ipaddr`: list of IP addresses
-- `domain`: list of DNS names resolved to IP address, each DNS name is a `domain` record inside the [`dhcp` database](https://openwrt.org/docs/guide-user/base-system/dhcp_configuration#hostnames)
-- `host`: list of DHCP reservations resolved to IP addresses, each reservation is a `host` record inside the [`dhcp` database](https://openwrt.org/docs/guide-user/base-system/dhcp#static_leases)
 - `openvpn_ipaddr`: an OpenVPN RoadWarrior IP address reserved for the user
 - `openvpn_enabled`: can be `0` or `1`, if set to `0` the user can't authenticate itself inside OpenVPN
 - `openvpn_2fa`: it's a string containing the secret for OpenVPN OTP authentication
+
+A user device identified by a MAC address can be associated to a user by creating ad DHCP reservation and adding the reservation to the user as a `host` record.
 
 Example of a remote user with OpenVPN access and a reserved IP:
 ```
@@ -187,14 +160,284 @@ config user
 	option openvpn_2fa "3PGEK5B7RBSODTUW6KAQUMED7ZAJ4ZEJ"
 ```
 
-# Hosts
+# Host set
 
-Objects of type `host` are used only as labels inside the UI to display details on firewall rules source and destinations.
-If the user changes the IP address of an host object, such change is not propagated to any configuration file.
+Objects of type `host` represent a set of IP addresses.
+When used inside a firewall rule, the host set object is expanded to a list of IP addresses.
+
+Host sets have a special field named `family` which can be `ipv4` or `ipv6`.
+
+Example of `/etc/config/objects` for IPv4:
+```
+config host 'myhost4'
+	option description 'Myhost4 set'
+    option family 'ipv4'
+	list ipaddr '192.168.100.24'
+	list ipaddr '192.168.1.0/24'
+```
+
+The `ipaddr` of an IPv4 host set can be:
+- IPv4 address like `192.168.1.1`
+- IPv4 CIDR network like `192.168.1.0/24`
+- IPv4 range like `192.168.1.3-192.168.10`
+- a dhcp reservation like `dhcp/ns_xxxyy`
+- a domain name like `dhcp/ns_aaaabbb`
+- a vpn user like `vpn/ns_uuuuu`, the user must have an `openvpn_ipaddr` field set
+
+Example of `/etc/config/objects` for IPv6:
+```
+config host 'myhost6'
+	option description 'Myhost6 set'
+    option family 'ipv6'
+	list ipaddr '2001:db8:3333:4444:5555:6666:7777:8888'
+	list ipaddr '2001:db8:3333:4444:5555:6666:7777:8888'
+```
+
+The `ipaddr` of an IPv6 host set can be:
+- IPv6 address like `2001:db8:3333:4444:5555:6666:7777:8888`
+- IPv6 CIDR network like `2001:db8::/95`
+- IPv6 range like `2001:db8:3333:4444:5555:6666:7777:8888-2001:db8:3333:4444:5555:6666:7777:8890`
+- a domain name like `dhcp/ns_aaaabbb`
+
+DHCP reservation and VPN users are not supported in IPv6 host sets because both reservations and VPN users are always translated to IPv4 addresses.
+
+# Domain set
+
+Objects of type `domain` represent a set of DNS names resolved to IP addresses.
 
 Example of `/etc/config/objects`:
 ```
-config host 'myhost'
-	option description 'Myhost'
-	list ipaddr '192.168.100.24'
+config domain 'myset'
+	option name 'MySet'
+	option description 'Mydomain set'
+	option family 'ipv4'
+	option timeout '600'
+	list domain 'www.nethsecurity.org'
+	list domain 'www.nethserver.org'
 ```
+
+The record can have the following fields:
+- `name`: the name of the object, it can contains only ASCII alphanumeric characters, maximum length is 16 characters
+- `family`: can be `ipv4` or `ipv6`
+- `timeout`: the timeout in seconds for the DNS resolution, default is `600` seconds
+- `domain`: a list of valid DNS names
+
+When used inside a firewall rule, the `domain` object is expanded to a nft set.
+Given the above example, the corresponding ipset inside `/etc/config/firewall` will be:
+```
+config ipset
+	option name 'myset_v4'
+	option family 'ipv4'
+	option timeout '600'
+	option counters '1'
+	list match 'ip'
+	option ns_link 'objects/myset'
+```
+
+The nft set is populated with the IP addresses resolved by dnsmasq.
+Given the above example, the corresponding nft set inside `/etc/config/dhcp` will be:
+```
+config ipset
+	list name 'myset_v4'
+	list domain 'www.nethsecurity.org
+	list domain 'www.nethserver.org'
+	option table_family 'inet'
+	option ns_link 'objects/myset'
+```
+
+# Rules and objects
+
+Objects can be used inside:
+
+- firewall rules
+- port forwards (redirects)
+- multiwan rules
+- dpi rules and exceptions
+
+Objects are referenced by rules usually using the `ns_src` and `ns_dst` fields.
+Each field refers to an object inside a database, it has the following format: `<database_name>/<record_id>`.
+
+Possible object types:
+
+- host from `dhcp` db, usually a static lease
+- domain from `dhcp` db, usually a domain name
+- host set from `objects` db
+- domain set from `objects` db
+
+Not all object types can be used in all sections, for example an host set can't be used in a multiwan rule.
+
+Like for `ns_service` field, the UI could allow to select a custom source (or destination) without an object: in this case the user can enter one or more IPs.
+
+If `ns_src` or `ns_dst` is non-empty, the user can select only one existing object. When the API saves the rules, it automatically compiles all required standard fields (like `src_ip` and `dest_ip`): the rule is still a valid uci rule that can be edited also from command line. If the rule is modified from the UI, all standard fields will be overwritten.
+
+Standard fields are updated when:
+- a rule is created or modified
+- a redirect is created or modified
+- an object is created, modified or deleted
+
+Known fw4 limitations:
+1. A rule can only use one ipset for the source or destination, but not both.
+2. Ipsets can only contain entries with the same timeout. Therefore, if an ipset contains entries with a timeout of 0, it cannot contain entries with a timeout of 600.
+3. It's not possible to create a rule that matches "an ipaddress or a MAC address". 
+
+## Firewall rules
+
+Supported object types for firewall rules are:
+
+- a static lease, a record of type `host` from `dhcp` db
+- a dns name, a record of type `domain` from `dhcp` db
+- an host set, a record of type `host` from `objects` db
+- a domain set, a record of type `domain` from `objects` db
+- a vpn user, a record of type `user` from `users` db with `openvpn_ipaddr`
+
+Objects can be used inside the following fields:
+
+- `ns_src`: the source object
+- `ns_dst`: the destination object
+
+Also the following rules apply:
+- A rule can use either a list of IP addresses or a list of objects as the source or destination, but the two cannot be mixed.
+- An object of type host/dhcp/dns can be used as the source or destination of a rule and will be expanded into a list of IP addresses.
+- An object of type user can also be used as the source or destination of a rule and will be expanded into a list of IP addresses. 
+
+Due to fw4 limitation (see number 1 above), to allow a rule that involves a user and a DNS host (e.g., goofy user cannot access my.site.org), the user must be represented as a list of IP addresses rather than an ipset.
+
+Example of rule with host object inside `/etc/config/firewall`:
+```
+config rule 'r2'
+    option name 'r2'
+    option src '*'
+    option dest 'lan'
+    list dest_ip '1.2.3.4'
+    option target 'ACCEPT'
+    option ns_service 'ssh'
+    option ns_src 'dhcp/d1'
+    list src_ip '192.168.100.1'
+    list proto 'tcp'
+    list proto 'udp'
+    option dest_port '22'
+    option enabled '1'
+    option log '0'
+```
+
+Example of host object inside `/etc/config/dhcp`:
+```
+config domain 'd1'
+    option name 'test.name.org'
+    option ip '192.168.100.1'
+```
+
+Example of rule with domain set object inside `/etc/config/firewall`:
+```
+config rule 'r3'
+	option name 'r3'
+	option src '*'
+	option dest 'lan'
+	option target 'ACCEPT'
+	option ns_dst 'objects/myset'
+	option ipset 'myset dst'
+	list src_ip ''
+```
+
+Example of domain set object inside `/etc/config/objects`:
+```
+config domain 'myset'
+	option name 'MySet'
+	option description 'Mydomain set'
+	option family 'ipv4'
+	option timeout '600'
+	list domain 'www.nethsecurity.org'
+	list domain 'www.nethserver.org'
+```
+
+The `ns_src` field can change different fields in the rule:
+
+- if the object is a domain set: removes `src_ip`, add `ipset` with the name of the domain set and `src` as direction
+- in all other cases: removes `ipset`, add `src_ip` with the list of IP addresses of the object
+
+The `ns_dst` field can change different fields in the rule:
+
+- if the object is a domain set: removes `dest_ip`, add `ipset` with the name of the domain set and `dst` as direction
+- in all other cases: removes `ipset`, add `dest_ip` with the list of IP addresses of the object
+
+## Port forwards
+
+Objects can be used inside the following fields:
+
+- `ns_src`: the source object, it is mapped to an ipset and can be used to limit the access to the port forward to a list of IP addresses
+- `ns_dst`: the destination object
+
+Supported object types depends on the field:
+
+- `ns_src` can be any type of object
+- `ns_dst` can be an object with only one IP address, like:
+  - a static lease, a record of type `host` from `dhcp` db
+  - a dns name, a record of type `domain` from `dhcp` db
+  - a vpn user, a record of type `user` from `users` db with `openvpn_ipaddr`
+  
+Example of port forward with domain set object inside `/etc/config/firewall`:
+```
+config redirect 'ns_c708dacb'
+        option src 'wan'
+        option target 'DNAT'
+        option dest_ip '5.6.7.8'
+        option enabled '1'
+        option log '0'
+        option name 'pf1'
+        option reflection '0'
+        option src_dport '5566'
+		option ns_src 'objects/myset'
+        option ipset 'myset src_net'
+        list proto 'tcp'
+        list proto 'udp'
+        option src_dip '10.10.0.221'
+```
+
+The `ns_src` field can be used as allow list for the port forward and can change different fields in the port forward:
+
+- if the object is a domain set: delete existing ipset, add `ipset` field with the name of the domain set and sets also `src_net` as direction
+- in all other cases: delete existing ipset, add an `ipset` with static entries and creates a new ipset with the name of the object and sets also `src_net` as direction
+
+The `ns_dst` field can be any type of object except a domain set. It changes only the `dest_ip` in the port forward.
+If the objects has a list of IP addresses, the `dest_ip` is set to the first element of the IP addresses list.
+
+## Multiwan rules
+
+Objects can be used inside the following fields:
+
+- `ns_src`: the source object
+- `ns_dst`: the destination object
+
+Supported object types depends on the field:
+
+- `ns_src` can be an object with only one IP address, like:
+
+  - a static lease, a record of type `host` from `dhcp` db
+  - a dns name, a record of type `domain` from `dhcp` db
+  - a vpn user, a record of type `user` from `users` db with `openvpn_ipaddr`
+
+- `ns_dst` can be only a domain set object, because it's the only one that has an ipset already configured
+
+Example of multiwan rule with domain set object inside `/etc/config/mwan3`:
+```
+config rule 'ns_r1'
+	option label 'r1'
+	option use_policy 'ns_default'
+	option sticky '0'
+	option proto 'tcp'
+	option ns_src 'dhcp/ns_host1'
+	option src_ip '1.2.3.4'
+	option ipset 'myset'
+	option ns_dst 'objects/myset'
+```
+
+## DPI rules and exceptions
+
+DPI rules and exceptions can use the following object types:
+
+- a static lease, a record of type `host` from `dhcp` db
+- a dns name, a record of type `domain` from `dhcp` db
+- a vpn user, a record of type `user` from `users` db with `openvpn_ipaddr`- host set from `objects` db
+- an host set, a record of type `host` from `objects` db
+
+See [ns-dpi](../ns-dpi/) package for more details.
