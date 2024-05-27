@@ -75,12 +75,10 @@ if not product:
     except:
         product = ""
 
-nethsec_version = ""
 version = ""
 with open('/etc/os-release', 'r') as file:
     for line in file:
         if line.startswith("VERSION_ID="):
-            nethsec_version = line.split('=')[1].split('-')[2][3:]
             version = line.split('=')[1].replace('"','').rstrip()
             break
 
@@ -114,7 +112,6 @@ data = {
             "system": { "used_bytes": _run("free | grep 'Mem': | awk '{print $3}'"), "available_bytes": _run("free | grep 'Mem:' | awk '{print $7}'") }
         },
         "pci": list(pci.values()),
-        "version": nethsec_version,
         "features": features
     }
 }
