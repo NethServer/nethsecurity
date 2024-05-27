@@ -1,0 +1,37 @@
+name: Sync packages
+
+on:
+  workflow_call:
+    inputs:
+      new_release:
+        description: 'If `latest_release` file should be updated.'
+        default: false
+        type: boolean
+  workflow_dispatch:
+    inputs:
+      new_release:
+        description: 'If `latest_release` file should be updated.'
+        default: false
+        type: boolean
+
+env:
+  MAJOR_VERSION: 23.05.3
+
+jobs:
+  sync:
+    name: Moving dev packages to stable
+    runs-on: ubuntu-latest
+    env:
+      RCLONE_CONFIG_SPACES_TYPE: s3
+      RCLONE_CONFIG_SPACES_PROVIDER: DigitalOcean
+      RCLONE_CONFIG_SPACES_ENV_AUTH: false
+      RCLONE_CONFIG_SPACES_ACCESS_KEY_ID: ${{ secrets.DO_SPACE_ACCESS_KEY }}
+      RCLONE_CONFIG_SPACES_SECRET_ACCESS_KEY: ${{ secrets.DO_SPACE_SECRET_KEY }}
+      RCLONE_CONFIG_SPACES_ENDPOINT: ams3.digitaloceanspaces.com
+      RCLONE_CONFIG_SPACES_ACL: public-read
+    steps:
+      - name: Copy packages
+        run: rclone sync -M --no-update-modtime -v spaces:nethsecurity/dev/${{ env.MAJOR_VERSION }}/ spaces:nethsecurity/stable/${{ env.MAJOR_VERSION }}/
+      - name: Update latest release
+        if: github.event.inputs.new_release
+        run: rclone copy -v spaces:nethsecurity/dev/latest_release spaces:nethsecurity/stable/latest_release
