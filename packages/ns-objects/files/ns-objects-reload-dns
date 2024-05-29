@@ -1,0 +1,32 @@
+#!/usr/bin/python
+
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Execute a DNS query for each domain in all domain sets.
+# Dnsmasq will automatically populate the ipset with the resolved IP addresses.
+
+import json
+import sys
+
+from euci import EUci
+from nethsec import utils, firewall
+import socket
+
+
+def reload():
+    e_uci = EUci()
+    for domain_set in utils.get_all_by_type(e_uci, 'objects', 'domain'):
+        try:
+            domains = e_uci.get_all('objects', domain_set, 'domain')
+        except:
+            continue
+        for domain in domains:
+            try:
+                ip_address = socket.gethostbyname(domain)
+            except socket.gaierror:
+                continue
+
+reload()
