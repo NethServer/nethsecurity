@@ -38,7 +38,9 @@ if cmd == 'list':
             "enabled": True,
             "log": False,
             "ns_tag": [],
-            "add_to_top": False
+            "add_to_top": False,
+            "ns_src": "database/id",
+            "ns_dst": "database/id"
         },
         'edit-rule': {
             "id": "ns_1234",
@@ -54,7 +56,9 @@ if cmd == 'list':
             "enabled": True,
             "log": False,
             "ns_tag": [],
-            "add_to_top": False
+            "add_to_top": False,
+            "ns_src": "database/id",
+            "ns_dst": "database/id"
         },
         'delete-rule': { "id": "ns_1234" },
         'enable-rule': { "id": "ns_1234" },
@@ -110,7 +114,9 @@ elif cmd == 'call':
                     data['enabled'],
                     data['log'],
                     data['ns_tag'],
-                    data['add_to_top']
+                    data['add_to_top'],
+                    data.get('ns_src'),
+                    data.get('ns_dst')
             )
             print(json.dumps({"id": ret}))
         elif action == "edit-rule":
@@ -129,7 +135,9 @@ elif cmd == 'call':
                     data['ns_service'],
                     data['enabled'],
                     data['log'],
-                    data['ns_tag']
+                    data['ns_tag'],
+                    data.get('ns_src'),
+                    data.get('ns_dst')
             )
             print(json.dumps({"id": ret}))
         elif action == "delete-rule":
