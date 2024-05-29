@@ -239,7 +239,7 @@ Given the above example, the corresponding nft set inside `/etc/config/dhcp` wil
 ```
 config ipset
 	list name 'myset_v4'
-	list domain 'www.nethsecurity.org
+	list domain 'www.nethsecurity.org'
 	list domain 'www.nethserver.org'
 	option table_family 'inet'
 	option ns_link 'objects/myset'
