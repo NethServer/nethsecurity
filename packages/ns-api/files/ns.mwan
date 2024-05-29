@@ -37,6 +37,8 @@ if cmd == 'list':
             'destination_address': 'String',
             'destination_port': 'String',
             'sticky': 'Boolean',
+            'ns_src': 'String',
+            'ns_dst': 'String',
         },
         'order_rules': {
             'rules': 'String'
@@ -54,6 +56,8 @@ if cmd == 'list':
             'destination_address': 'String',
             'destination_port': 'String',
             'sticky': 'Boolean',
+            'ns_src': 'String',
+            'ns_dst': 'String',
         },
         'clear_config': {},
         'set_default_config': {
@@ -98,6 +102,8 @@ elif cmd == 'call':
                 data['destination_address'],
                 data['destination_port'],
                 data['sticky'],
+                data.get('ns_src'),
+                data.get('ns_dst'),
             )
             print(json.dumps({'message': 'success'}))
         elif action == 'order_rules':
@@ -121,6 +127,8 @@ elif cmd == 'call':
                 data['destination_address'],
                 data['destination_port'],
                 data['sticky'],
+                data.get('ns_src'),
+                data.get('ns_dst'),
             )
             print(json.dumps({'message': 'success'}))
         elif action == 'clear_config':
