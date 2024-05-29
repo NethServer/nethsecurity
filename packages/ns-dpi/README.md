@@ -29,8 +29,7 @@ Rule options:
 - `criteria`: DPI expression to match the traffic
   - the criteria must terminate with `;` when using complex expressions
   - use the `"` symbol to enclose strings, double-qoutes will be then translated to `'` inside the plugin configuration file (`/etc/netify.d/netify-flow-actions.json`)
-- `user_src` or `group_src`: match all traffic from the given [user or group object](../ns-objects);
-  when using `user_src` or `group_src` all criteria must use complex expressions
+- `source`: match all traffic from the given address, it accepts also an object like `<database>/<id>`;  when using an object make sure to not use complex criteria
 - `action`: valid actions are:
   - `block`: matching traffic will be blocked
   - `bulk`: matching traffic will be moved to low priority QoS class named `Bulk`
@@ -38,11 +37,13 @@ Rule options:
   - `video`: matching traffic will be moved to high priority QoS class named `Video`
   - `voice`: matching traffic will be moved to very high priority QoS class named `Voice`
 - `description`: an optional rule description
+- `device`: optional device name, if set the rule will be applied only to the given device, example `br-lan`
+- `application`: list of applications to match, the list can contain application names like `netify.amazon-prime`
 - `enabled`: can be `0` or `1`, if set to `1` the rule will be enabled
 
 Global exemptions options:
 
-- `criteria`: global exemption criteria, usually it's an IP address
+- `criteria`: global exemption criteria, usually it's an IP address; it can also be an object like `<database>/<id>`
 - `enabled`: can be `0` or `1`, if set to `1` enable the exemption
 - `description`: an optional exemption description
 
@@ -62,34 +63,35 @@ config main 'config'
 	list popular_filters 'DoH'
 
 config rule
-	option action 'block'
-	option criteria 'ai:netify.twitter'
-	option description 'Block Twitter for everyone'
-	option enabled 1
-
-config rule
 	option action 'bulk'
 	option criteria 'local_ip == 192.168.100.22 && application == "netify.facebook";'
 	option description 'Low priority for 192.168.100.22 when accessing Facebook'
 	option enabled 1
 
-config rule
+config rule 'ns_e775b8a7'
+	option enabled '1'
+	option device 'br-lan'
 	option action 'block'
-	option criteria 'app == "netify.twitter"'
-	option user_src 'goofy'
-	option description 'Block Twitter for user Goofy'
-	option enabled 1
+	list application 'netify.amazon-prime'
+	option description 'Block Amazon Prime for everyone'
 
 config rule
 	option action 'block'
-	option criteria 'app == "netify.twitter" or app =="netify.instagram"'
-	option group_src 'vip'
-	option description 'Block Twitter and Instagrm for group vip'
+	list application 'netify.twitter
+	list application 'netify.instagram'
+	list source 'objects/ns_hostset_1'
+	list source 'dhcp/ns_reservation_1'
+	option description 'Block Twitter and Instagrm for some hosts'
 	option enabled 1
 
 config exemption
 	option criteria '192.168.1.22'
 	option description 'Important host'
+	option enabled '1'
+
+config exemption
+	option criteria 'dhcp/ns_271ca281'
+	option description 'Important host with a reservation'
 	option enabled '1'
 ```
 
