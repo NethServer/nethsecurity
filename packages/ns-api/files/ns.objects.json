@@ -1,0 +1,13 @@
+{
+  "objects-manager": {
+    "description": "Objects manager",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.objects": [
+          "*"
+        ]
+      }
+    }
+  }
+}
