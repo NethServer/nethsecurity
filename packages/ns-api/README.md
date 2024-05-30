@@ -6421,3 +6421,148 @@ Example response:
    "message": "success"
 }
 ```
+
+## Objects
+
+Manage domain sets and host sets.
+
+### list-domain-sets
+
+List all domain sets:
+```
+api-cli ns.objects list-domain-sets
+```
+
+Response example:
+```json
+{
+  "values": [
+    {
+      "domain": [
+        "www.nethsecurity.org",
+        "www.nethserver.org"
+      ],
+      "family": "ipv4",
+      "id": "ns_71b3a490",
+      "matches": [],
+      "name": "myset",
+      "timeout": "600",
+      "used": false
+    }
+  ]
+}
+```
+
+If `used` field is `true` the domain set is used and the `matches` field will contain the list of matched records where the domain set is used.
+
+### add-domain-set
+
+Create a new domain set:
+```
+api-cli ns.objects add-domain-set --data '{"name": "myset", "domain": ["www.nethsecurity.org", "www.nethserver.org"], "family": "ipv4"}'
+```
+
+Response example:
+```json
+{"id": "ns_21d2fee8"}
+```
+
+It can raise the following validation errors:
+- `invalid_family` if the family is not `ipv4` or `ipv6`
+- `name_too_long`: if the length of `name` is greater than 16 characters
+
+### edit-domain-set
+
+Edit an existing domain set:
+```
+api-cli ns.objects edit-domain-set --data '{"id": "ns_71b3a490", "name": "myset_new", "domain": ["www.test.org", "www.nethserver.org"], "family": "ipv4"}'
+```
+
+Response example:
+```json
+{"id": "ns_21d2fee8"}
+```
+
+It can raise the following validation errors:
+- `invalid_family` if the family is not `ipv4` or `ipv6`
+- `name_too_long`: if the length of `name` is greater than 16 characters
+- `domain_set_does_not_exists` if the domain set does not exist
+
+### delete-domain-set
+
+Delete an existing domain set:
+```
+api-cli ns.objects delete-domain-set --data '{"id": "ns_71b3a490"}'
+```
+
+Response example:
+```json
+{"message": "success"}
+```
+
+It can raise the following validation errors:
+- `invalid_family` if the family is not `ipv4` or `ipv6`
+- `domain_set_is_used` if the domain set is used in a rule. Error example:
+   ```json
+  {"validation": {"errors": [{"parameter": "id", "message": "domain_set_is_used", "value": ["firewall/ns_xxx"]}]}}
+  ```
+
+### add-host-set
+
+Create a new host set:
+```
+api-cli ns.objects add-host-set --data '{"name": "myset", "family": "ipv4", "ipaddr": ["1.2.3.4", "objects/ns_04fadb5c"]}'
+```
+
+Response example:
+```json
+{"id": "ns_21d2fee8"}
+```
+
+It can raise the following validation errors:
+- `invalid_family` if the family is not `ipv4` or `ipv6`
+- `name_too_long` if the length of `name` is greater than 16 characters
+- `invalid_name` if the name contains special chars, it must contains onlu number and letters
+- `object_does_not_exists` if the referenced object does not exist
+- `loop_detected` if the object references itself
+- `invalid_ipaddr` if the IP address is not a valid IPv4/IPv6 address depending on the family
+
+### edit-host-set
+
+Edit an existing host set:
+```
+api-cli ns.objects edit-host-set --data '{"id": "ns_71b3a490", "name": "myset_new", "family": "ipv4", "ipaddr": ["6.7.8.9"]}'
+```
+
+Response example:
+```json
+{"id": "ns_21d2fee8"}
+```
+
+It may raise the following validation errors:
+- `host_set_does_not_exists` if the host set does not exist
+- `invalid_family` if the family is not `ipv4` or `ipv6`
+- `name_too_long` if the length of `name` is greater than 16 characters
+- `invalid_name` if the name contains special chars, it must contains onlu number and letters
+- `object_does_not_exists` if the referenced object does not exist
+- `loop_detected` if the object references itself
+- `invalid_ipaddr` if the IP address is not a valid IPv4/IPv6 address depending on the family
+
+### delete-host-set
+
+Delete an existing host set:
+```
+api-cli ns.objects delete-host-set --data '{"id": "ns_71b3a490"}'
+```
+
+Response example:
+```json
+{"message": "success"}
+```
+
+It may raise the following validation errors:
+- `host_set_does_not_exists` if the host set does not exist
+- `host_set_is_used` if the host set is used in a rule, error example:
+  ```json
+  {"validation": {"errors": [{"parameter": "id", "message": "host_set_is_used", "value": ["firewall/ns_allow_OpenVPNRW1"]}]}}
+  ```
