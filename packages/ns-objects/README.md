@@ -167,6 +167,8 @@ When used inside a firewall rule, the host set object is expanded to a list of I
 
 Host sets have a special field named `family` which can be `ipv4` or `ipv6`.
 
+A singleton host set is a special host set with only one IP address.
+
 Example of `/etc/config/objects` for IPv4:
 ```
 config host 'myhost4'
@@ -415,8 +417,16 @@ Supported object types depends on the field:
   - a static lease, a record of type `host` from `dhcp` db
   - a dns name, a record of type `domain` from `dhcp` db
   - a vpn user, a record of type `user` from `users` db with `openvpn_ipaddr`
+  - a singleton host set, a record of type `host` from `objects` db with only one IP address
 
-- `ns_dst` can be only a domain set object, because it's the only one that has an ipset already configured
+- `ns_dst` can be:
+
+  - a domain set object, a record of type `domain` from `objects` db
+  - a dns name, a record of type `domain` from `dhcp` db
+  - a host set object, a record of type `host` from `objects` db
+  - a vpn user, a record of type `user` from `users` db with `openvpn_ipaddr`
+  - a singleton host set, a record of type `host` from `objects` db with only one IP address
+
 
 Example of multiwan rule with domain set object inside `/etc/config/mwan3`:
 ```
