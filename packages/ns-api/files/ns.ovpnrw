@@ -16,7 +16,7 @@ import pyotp
 import ipaddress
 import subprocess
 from euci import EUci
-from nethsec import utils, ovpn, firewall, users
+from nethsec import utils, ovpn, firewall, users, objects
 from datetime import datetime, timezone
 
 ## Utils
@@ -523,6 +523,9 @@ def list_users(ovpninstance):
             user["expiration"] = get_cert_expiration(ovpninstance, user["name"])
         if user["expiration"] and user["expiration"] < int(datetime.now(timezone.utc).timestamp()):
             user["expired"] = True
+        used, matches = objects.is_used_object(u, f'users/{user["id"]}')
+        user['used'] = used
+        user['matches'] = matches
         ret.append(user)
     return {"users": sorted(ret, key=lambda u: u['name'])}
 
@@ -675,6 +678,9 @@ def delete_user(ovpninstance, username):
     user_id = get_user_id(username, db_users)
     if user_id == None:
         return utils.validation_error("username", "user_not_found", username)
+    used, matches = objects.is_used_object(u, f'users/{user_id}')
+    if used:
+        return utils.validation_error("username", "user_is_used", matches)
 
     try:
         u.delete("users", user_id, "openvpn_enabled")
