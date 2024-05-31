@@ -11,7 +11,7 @@ import sys
 import json
 import subprocess
 from euci import EUci
-from nethsec import utils
+from nethsec import utils, objects
 
 def list_records():
     ret = {"records": []}
@@ -20,7 +20,8 @@ def list_records():
         rdata = u.get_all('dhcp', r)
         name = rdata.get('name','')
         ip = rdata.get('ip', '')
-        ret['records'].append({"record": r, "ip": ip, "name": name, "description": rdata.get("ns_description", ""), 'wildcard': is_wildcard(u, ip, name)})
+        used, matches = objects.is_used_object(u, f'dhcp/{r}')
+        ret['records'].append({"record": r, "ip": ip, "name": name, "description": rdata.get("ns_description", ""), 'wildcard': is_wildcard(u, ip, name), 'used': used, 'matches': matches})
     return ret
 
 def add_record(args):
@@ -100,6 +101,9 @@ def get_record(args):
 
 def delete_record(args):
     u = EUci()
+    used, matches = objects.is_used_object(u, f'dhcp/{args["record"]}')
+    if used:
+        return utils.validation_error("record", "dns_record_is_used", matches)
     try:
         record = u.get_all('dhcp', args['record'])
         remove_wildcard(u, record.get("ip", ''), record.get('name', ''))
