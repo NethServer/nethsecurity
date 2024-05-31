@@ -2518,7 +2518,9 @@ Response example:
       "hostname": "W80B-2",
       "interface": "blue",
       "device": "eth2.1",
-      "description": "description 1"
+      "description": "description 1",
+      "used": false,
+      "matches": []
     },
     {
       "lease": "ns_lease2",
@@ -2527,13 +2529,16 @@ Response example:
       "hostname": "W90B-1",
       "interface": "blue",
       "device": "eth2.1",
-      "description": "description 2"
+      "description": "description 2",
+      "used": true,
+      "matches": ["firewall/ns_allow_xxx"]
     }
   ]
 }
 ```
 
 The `lease` field contains the lease id which can be used to retrive the lease configuration.
+The `used` field is `true` if the user has been used as firewall objects. The `matches` field contains the firewall objects where the user has been used.
 
 ### get-static-lease
 
@@ -2572,6 +2577,11 @@ Successfull response example:
 Error response example:
 ```json
 {"error": "lease_not_found"}
+```
+
+It can raise the `static_lease_is_used` validation error if the lease is currently used as firewall object. The error is like:
+```json
+{"validation": {"errors": [{"parameter": "lease", "message": "static_lease_is_used", "value": ["firewall/ns_allow_xxx"]}]}}
 ```
 
 ### add-static-lease
