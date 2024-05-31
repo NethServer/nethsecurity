@@ -2649,14 +2649,17 @@ Response example:
       "record": "cfg0af37d",
       "ip": "1.2.3.4",
       "name": "host1.nethesis.it",
-      "description": ""
-      "wildcard": true
+      "description": "",
+      "wildcard": true,
+      "used": true,
+      "matches": ["firewall/ns_allow_xxx"]
     }
   ]
 }
 ```
 
 The `record` field is the id of the DNS record.
+If `used` is `true`, the record is used as firewall object. The `matches` field contains the firewall objects where the record has been used.
 
 ### get-record
 
@@ -2719,6 +2722,11 @@ Successful response example:
 Error response example:
 ```json
 {"error": "record_not_found"}
+```
+
+It may raise `dns_record_is_used` validation error if the record is currently used as firewall object. The error is like:
+```json
+{"validation": {"errors": [{"parameter": "record", "message": "dns_record_is_used", "value": ["firewall/ns_allow_xxx"]}]}}
 ```
 
 ### get-config
