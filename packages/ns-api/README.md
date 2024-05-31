@@ -1270,6 +1270,8 @@ Response example:
       "connected": false,
       "expiration": "",
       "expired": false
+      "used": false,
+      "matches": []
     },
     {
       "local": true,
@@ -1288,7 +1290,9 @@ Response example:
       "bytes_sent": "3091",
       "since": 1701701676,
       "expiration": 2012741635,
-      "expired": false
+      "expired": false,
+      "used": true,
+      "matches": ["firewall/ns_allow_xx"]
     }
   ]
 }
@@ -1304,6 +1308,8 @@ If `connected` field is `true`, the user object should contain also:
 - `bytes_received`
 - `bytes_sent`
 - `since`, connected since the given timestamp
+
+The `used` field is `true` if the user has been used as firewall objects. The `matches` field contains the firewall objects where the user has been used.
 
 ### list-auth-modes
 
@@ -1543,7 +1549,13 @@ Response example:
 {"result": "success"}
 ```
 
-Throws a validation error if the user is not found.
+The API can raise the following validation errors:
+- `user_not_found` if the user is not found
+- `user_is_used` if the user is currently used as firewall object, error is like:
+  ```json
+  {"validation": {"errors": [{"parameter": "username", "message": "user_is_used", "value": ["firewall/ns_allow_OpenVPNRW1"]}]}}
+  ```
+
 
 ### regenerate-user-certificate
 
