@@ -39,4 +39,4 @@ jobs:
         run: rclone sync -M --no-update-modtime -v spaces:nethsecurity/dev/${{ env.MAJOR_VERSION }}/ spaces:nethsecurity/stable/${{ env.MAJOR_VERSION }}/
       - name: Update latest release
         if: github.event.inputs.new_release
-        run: rclone copy -v spaces:nethsecurity/dev/latest_release spaces:nethsecurity/stable/latest_release
+        run: rclone sync -v spaces:nethsecurity/dev/latest_release spaces:nethsecurity/stable/latest_release
