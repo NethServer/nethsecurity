@@ -28,7 +28,6 @@ start_service() {
         ISSUER_2FA=${issuer_2fa} \
         SECRETS_DIR=${SECRETS_DIR} \
         TOKENS_DIR=${TOKENS_DIR} \
-        STATIC_DIR=${STATIC_DIR} \
         UPLOAD_FILE_PATH=${UPLOAD_FILE_PATH} \
         UPLOAD_FILE_MAX_SIZE=${UPLOAD_FILE_MAX_SIZE}
 
