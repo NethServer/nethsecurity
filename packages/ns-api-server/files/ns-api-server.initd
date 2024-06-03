@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-START=90
+START=99
 USE_PROCD=1
 PROG=/usr/bin/nethsecurity-api
 
