@@ -32,8 +32,9 @@ jobs:
     steps:
       - name: Install rclone
         run: |
-          sudo apt-get update
-          sudo apt-get install -y rclone
+          TMP_FILE=$(mktemp)
+          wget https://downloads.rclone.org/v1.66.0/rclone-v1.66.0-linux-amd64.deb -O "$TMP_FILE"
+          sudo dpkg -i "$TMP_FILE"
       - name: Copy packages
         run: rclone sync -M --no-update-modtime -v spaces:nethsecurity/dev/${{ env.MAJOR_VERSION }}/ spaces:nethsecurity/stable/${{ env.MAJOR_VERSION }}/
       - name: Update latest release
