@@ -6,7 +6,7 @@ This package manages the firewall objects and users.
 
 ## Databases
 
-The `/etc/config/users` UCI configuration manage manages the configuration of user databases.
+The `/etc/config/users` UCI configuration manages the configuration of user databases.
 It implements 2 kind of database:
 
 - local UCI database
@@ -172,8 +172,8 @@ A singleton host set is a special host set with only one IP address.
 Example of `/etc/config/objects` for IPv4:
 ```
 config host 'myhost4'
-	option description 'Myhost4 set'
-    option family 'ipv4'
+	option name 'Myhost4'
+	option family 'ipv4'
 	list ipaddr '192.168.100.24'
 	list ipaddr '192.168.1.0/24'
 ```
@@ -189,8 +189,8 @@ The `ipaddr` of an IPv4 host set can be:
 Example of `/etc/config/objects` for IPv6:
 ```
 config host 'myhost6'
-	option description 'Myhost6 set'
-    option family 'ipv6'
+	option name 'Myhost6'
+	option family 'ipv6'
 	list ipaddr '2001:db8:3333:4444:5555:6666:7777:8888'
 	list ipaddr '2001:db8:3333:4444:5555:6666:7777:8888'
 ```
@@ -211,7 +211,6 @@ Example of `/etc/config/objects`:
 ```
 config domain 'myset'
 	option name 'MySet'
-	option description 'Mydomain set'
 	option family 'ipv4'
 	option timeout '600'
 	list domain 'www.nethsecurity.org'
@@ -228,7 +227,7 @@ When used inside a firewall rule, the `domain` object is expanded to a nft set.
 Given the above example, the corresponding ipset inside `/etc/config/firewall` will be:
 ```
 config ipset
-	option name 'myset_v4'
+	option name 'myset
 	option family 'ipv4'
 	option timeout '600'
 	option counters '1'
@@ -240,7 +239,7 @@ The nft set is populated with the IP addresses resolved by dnsmasq.
 Given the above example, the corresponding nft set inside `/etc/config/dhcp` will be:
 ```
 config ipset
-	list name 'myset_v4'
+	list name 'myset'
 	list domain 'www.nethsecurity.org'
 	list domain 'www.nethserver.org'
 	option table_family 'inet'
@@ -345,7 +344,6 @@ Example of domain set object inside `/etc/config/objects`:
 ```
 config domain 'myset'
 	option name 'MySet'
-	option description 'Mydomain set'
 	option family 'ipv4'
 	option timeout '600'
 	list domain 'www.nethsecurity.org'
