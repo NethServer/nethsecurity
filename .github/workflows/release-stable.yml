@@ -30,6 +30,10 @@ jobs:
       RCLONE_CONFIG_SPACES_ENDPOINT: ams3.digitaloceanspaces.com
       RCLONE_CONFIG_SPACES_ACL: public-read
     steps:
+      - name: Install rclone
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rclone
       - name: Copy packages
         run: rclone sync -M --no-update-modtime -v spaces:nethsecurity/dev/${{ env.MAJOR_VERSION }}/ spaces:nethsecurity/stable/${{ env.MAJOR_VERSION }}/
       - name: Update latest release
