@@ -42,6 +42,18 @@ Available options:
 - `nsui_enable`: it can be `0` or `1`; if set to `1` ns-ui is enabled on port 443
 - `nsui_extra_port`: listen port for ns-ui extra instance, it must be a valid TCP port
 - `nsui_extra_enable`: it can be `0` or `1`; if set to `1` ns-ui is enabled on port set with `nsui_extra_port` option
+- `api_server_delay`: if set, delay the start of the ns-api-server service during boot of the given amount of seconds
+
+### Delay API server start
+
+If the API server does not start correctly a boot, a delay could be needed.
+Usually, a delay of one second during boot is enough. To set it, execute:
+```
+uci set ns-ui.config.api_server_delay=1
+uci commit ns-ui
+```
+
+To test it, reboot the machine.
 
 ## UI development
 

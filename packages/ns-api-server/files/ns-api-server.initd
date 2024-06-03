@@ -15,6 +15,14 @@ SECRETS_DIR=/etc/ns-api-server
 UPLOAD_FILE_PATH=${WORK_DIR}/uploads
 UPLOAD_FILE_MAX_SIZE=64 # 64MB
 
+boot() {
+    local boot_delay="$(uci_get ns-ui.config.api_server_delay)"
+    if [ ! -z "$boot_delay" ]; then
+        sleep $boot_delay
+    fi
+    start "$@"
+}
+
 start_service() {
     procd_open_instance
 
