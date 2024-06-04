@@ -77,5 +77,5 @@ To enable CORS on the server, just apply the below patch:
 
 Then, restart the API server:
 ```
-/etc/init.d ns-api-server restart
+/etc/init.d/ns-api-server restart
 ```
