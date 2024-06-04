@@ -11,7 +11,7 @@ import json
 import sys
 
 from euci import EUci
-from nethsec import utils, firewall
+from nethsec import utils, firewall, objects
 
 cmd = sys.argv[1]
 
@@ -22,6 +22,7 @@ if cmd == 'list':
         'list-input-rules': {},
         'list-service-suggestions': {},
         'list-host-suggestions': {},
+        'list-object-suggestions': {},
         'list_zones': {},
         'list_zones_no_aliases': {},
         'list_forwardings': {},
@@ -98,6 +99,8 @@ elif cmd == 'call':
             print(json.dumps({'services': firewall.list_service_suggestions()}))
         elif action == 'list-host-suggestions':
             print(json.dumps({'hosts': firewall.list_host_suggestions(e_uci)}))
+        elif action == 'list-object-suggestions':
+            print(json.dumps({'objects': objects.list_objects(e_uci)}))
         elif action == "add-rule":
             data = json.JSONDecoder().decode(sys.stdin.read())
             ret = firewall.add_rule(
