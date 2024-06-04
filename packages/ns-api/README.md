@@ -350,6 +350,53 @@ Response:
 }
 ```
 
+### list-object-suggestions
+
+List suggestions for objects:
+```
+api-cli ns.firewall list-object-suggestions
+```
+
+Response:
+```json
+{
+  "objects": [
+    {
+      "name": "myset",
+      "family": "ipv4",
+      "id": "ns_3cf75e0e",
+      "singleton": false,
+      "type": "host_set"
+    },
+    {
+      "name": "MySet",
+      "description": "Mydomain set",
+      "family": "ipv4",
+      "id": "myset",
+      "type": "domain_set"
+    },
+    {
+      "id": "users/ns_af3425ab",
+      "name": "giacomo",
+      "type": "vpn_user",
+      "family": "ipv4"
+    },
+    {
+      "id": "dhcp/ns_271ca281",
+      "name": "reserve1",
+      "type": "dhcp_static_lease",
+      "family": "ipv4"
+    },
+    {
+      "id": "dhcp/ns_9e7f705e",
+      "name": "test1.domain",
+      "type": "dns_record",
+      "family": "ipv4"
+    }
+  ]
+}
+```
+
 ### add-rule
 
 Add a rule:
