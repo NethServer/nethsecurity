@@ -6125,6 +6125,40 @@ Example response:
 }
 ```
 
+### list_object_suggestions
+List all available objects that can be used in MWAN rules:
+
+```bash
+api-cli ns.mwan list_object_suggestions
+```
+
+Example response:
+
+```json
+{
+  "objects": {
+    "ns_src": [
+      {
+        "name": "h1",
+        "family": "ipv4",
+        "id": "ns_04fadb5c",
+        "singleton": true,
+        "type": "host_set"
+      }
+    ],
+    "ns_dst": [
+      {
+        "name": "MySet",
+        "description": "Mydomain set",
+        "family": "ipv4",
+        "id": "myset",
+        "type": "domain_set"
+      }
+    ]
+  }
+}
+```
+
 ## ns.nat
 
 Manage all NAT rules.
