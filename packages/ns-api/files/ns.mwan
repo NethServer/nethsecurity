@@ -9,7 +9,7 @@ import json
 import sys
 
 from euci import EUci
-from nethsec import mwan, utils
+from nethsec import mwan, utils, objects
 
 cmd = sys.argv[1]
 
@@ -68,7 +68,8 @@ if cmd == 'list':
             'interface_down_threshold': 'String',
             'interface_up_threshold': 'String',
         },
-        'get_default_config': {}
+        'get_default_config': {},
+        'list_object_suggestions': {}
     }))
 elif cmd == 'call':
     action = sys.argv[2]
@@ -148,6 +149,12 @@ elif cmd == 'call':
             print(json.dumps({'message': 'success'}))
         elif action == 'get_default_config':
             print(json.dumps({'values': mwan.get_default_config(e_uci)}))
+        elif action == "list_object_suggestions":
+            objects = {
+                "ns_src": objects.list_objects(e_uci, singleton_only=True, include_domain_sets=False),
+                "ns_dst": objects.list_objects(e_uci, singleton_only=True, include_domain_sets=True)
+            }
+            print(json.dumps({"objects": objects}))
 
     except KeyError as e:
         print(json.dumps(utils.validation_error(e.args[0], 'required')))
