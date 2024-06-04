@@ -3076,6 +3076,57 @@ Response example:
 }
 ```
 
+### list-object-suggestions
+
+List firewall objects suggestions:
+```
+api-cli ns.redirects list-object-suggestions
+```
+
+Response example:
+```json
+  "objects": {
+    "ns_src": [
+      {
+        "name": "h1",
+        "family": "ipv4",
+        "id": "ns_04fadb5c",
+        "singleton": true,
+        "type": "host_set"
+      },
+      {
+        "name": "myset",
+        "family": "ipv4",
+        "id": "ns_3cf75e0e",
+        "singleton": false,
+        "type": "host_set"
+      },
+      {
+        "name": "MySet",
+        "description": "Mydomain set",
+        "family": "ipv4",
+        "id": "myset",
+        "type": "domain_set"
+      }
+    ],
+    "ns_dst": [
+      {
+        "name": "h1",
+        "family": "ipv4",
+        "id": "ns_04fadb5c",
+        "singleton": true,
+        "type": "host_set"
+      },
+      {
+        "id": "dhcp/ns_9e7f705e",
+        "name": "test1.domain",
+        "type": "dns_record",
+        "family": "ipv4"
+      }
+    ]
+  }
+```
+
 ## ns.dpi
 
 Manage netifyd DPI engine.

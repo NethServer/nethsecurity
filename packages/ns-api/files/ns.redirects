@@ -213,6 +213,13 @@ def list_zones():
             ret['zones'].append(name)
     return ret
 
+def list_object_suggestions(u):
+    return {
+        "ns_src": objects.list_objects(u),
+        "ns_dst": objects.list_objects(u, singleton_only=True, include_domain_sets=False)
+    }
+
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
@@ -226,7 +233,8 @@ if cmd == 'list':
             "disable-redirect": {"id": "ns_redirect1"},
             "list-protocols": {},
             "list-wans": {},
-            "list-zones": {}
+            "list-zones": {},
+            "list-object-suggestions": {}
         }))
 elif cmd == 'call':
     action = sys.argv[2]
@@ -238,6 +246,8 @@ elif cmd == 'call':
         ret = {"wans": utils.get_all_wan_ips(EUci())}
     elif action == "list-zones":
         ret = list_zones()
+    elif action == "list-object-suggestions":
+        ret = {"objects": list_object_suggestions(EUci())}
     else:
         args = json.loads(sys.stdin.read())
 
