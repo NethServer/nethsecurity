@@ -183,7 +183,7 @@ The `ipaddr` of an IPv4 host set can be:
 - IPv4 CIDR network like `192.168.1.0/24`
 - IPv4 range like `192.168.1.3-192.168.10`
 - a dhcp reservation like `dhcp/ns_xxxyy`
-- a domain name like `dhcp/ns_aaaabbb`
+- a record dns name like `dhcp/ns_aaaabbb`
 - a vpn user like `vpn/ns_uuuuu`, the user must have an `openvpn_ipaddr` field set
 
 Example of `/etc/config/objects` for IPv6:
@@ -199,7 +199,7 @@ The `ipaddr` of an IPv6 host set can be:
 - IPv6 address like `2001:db8:3333:4444:5555:6666:7777:8888`
 - IPv6 CIDR network like `2001:db8::/95`
 - IPv6 range like `2001:db8:3333:4444:5555:6666:7777:8888-2001:db8:3333:4444:5555:6666:7777:8890`
-- a domain name like `dhcp/ns_aaaabbb`
+- a record dns name like `dhcp/ns_aaaabbb`
 
 DHCP reservation and VPN users are not supported in IPv6 host sets because both reservations and VPN users are always translated to IPv4 addresses.
 
@@ -261,7 +261,7 @@ Each field refers to an object inside a database, it has the following format: `
 Possible object types:
 
 - host from `dhcp` db, usually a static lease
-- domain from `dhcp` db, usually a domain name
+- dns record from `dhcp` db, usually a domain name
 - host set from `objects` db
 - domain set from `objects` db
 
@@ -372,7 +372,7 @@ Supported object types depends on the field:
 - `ns_src` can be any type of object
 - `ns_dst` can be an object with only one IP address, like:
   - a static lease, a record of type `host` from `dhcp` db
-  - a dns name, a record of type `domain` from `dhcp` db
+  - a dns record, a record of type `domain` from `dhcp` db
   - a vpn user, a record of type `user` from `users` db with `openvpn_ipaddr`
   
 Example of port forward with domain set object inside `/etc/config/firewall`:
@@ -413,14 +413,14 @@ Supported object types depends on the field:
 - `ns_src` can be an object with only one IP address, like:
 
   - a static lease, a record of type `host` from `dhcp` db
-  - a dns name, a record of type `domain` from `dhcp` db
+  - a dns record, a record of type `domain` from `dhcp` db
   - a vpn user, a record of type `user` from `users` db with `openvpn_ipaddr`
   - a singleton host set, a record of type `host` from `objects` db with only one IP address
 
 - `ns_dst` can be:
 
   - a domain set object, a record of type `domain` from `objects` db
-  - a dns name, a record of type `domain` from `dhcp` db
+  - a dns record, a record of type `domain` from `dhcp` db
   - a host set object, a record of type `host` from `objects` db
   - a vpn user, a record of type `user` from `users` db with `openvpn_ipaddr`
   - a singleton host set, a record of type `host` from `objects` db with only one IP address
@@ -444,7 +444,7 @@ config rule 'ns_r1'
 DPI rules and exceptions can use the following object types:
 
 - a static lease, a record of type `host` from `dhcp` db
-- a dns name, a record of type `domain` from `dhcp` db
+- a dns record, a record of type `domain` from `dhcp` db
 - a vpn user, a record of type `user` from `users` db with `openvpn_ipaddr`- host set from `objects` db
 - an host set, a record of type `host` from `objects` db
 
