@@ -20,14 +20,21 @@ from nethsec import utils, firewall, ipsec, ovpn
 def get_wan_by_ip(u, ipaddr):
     device = None
     ip_map = utils.get_all_device_ips()
+    try:
+        fallback = get_all_wan_devices(u, True)[0] # fallback to first wan
+    except:
+        fallback = 'wan'
     for d in ip_map:
         if ipaddr in ip_map[d]:
             device = d
     if device:
-        return utils.get_interface_from_device(u, device)
+        ret = utils.get_interface_from_device(u, device)
+        if ret:
+            return ret
+        else:
+            return fallback
     else:
-        # Fallback to general wan
-        return 'wan'
+        return fallback
 
 def next_id():
     max_id = 0
