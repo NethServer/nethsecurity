@@ -1,9 +1,12 @@
 # NethSecurity
 
-NethSecurity is the successor of [NethServer 7 firewall suite](https://docs.nethserver.org/).
-It is a downstream rebuild of [OpenWrt](https://openwrt.org/).
+NethSecurity is an Open Source Linux firewall, a downstream rebuild of [OpenWrt](https://openwrt.org/).
+It's the successor of [NethServer 7 firewall suite](https://docs.nethserver.org/).
 
-See the [official documentation](https://docs.nethsecurity.org/).
+External links:
+- [Official site](https://www.nethsecurity.org/)
+- [Administrator documentation](https://docs.nethsecurity.org/)
+- [Developer documentation](https://dev.nethsecurity.irg/)
 
 Questions? Ask the [community](https://community.nethserver.org/).
 
