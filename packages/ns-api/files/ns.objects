@@ -45,8 +45,8 @@ if cmd == 'list':
         'delete-host-set': {
             'id': 'str'
         },
-        'delete-rule': {
-            'config-name': 'str'
+        'get-info': {
+            'ids': ['firewall/xxx', 'mwan3/yyy']
         }
     }))
 elif cmd == 'call':
@@ -83,6 +83,11 @@ elif cmd == 'call':
                 raise utils.ValidationError('id', 'object_is_used', matches)
             objects.delete_host_set(e_uci, data['id'])
             print(json.dumps({'message': 'success'}))
+        elif action == 'get-info':
+            info = {}
+            for id in data['ids']:
+                info[id] = objects.get_info(e_uci, id)
+            print(json.dumps({'info': info}))
     except KeyError as e:
         print(json.dumps(utils.validation_error(e.args[0], 'required')))
     except utils.ValidationError as e:
