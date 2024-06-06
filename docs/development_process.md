@@ -70,7 +70,7 @@ The project board is a tool to track the progress of the issues and requests. It
 - **Triage**: new issues are placed here, the team will evaluate them and assign the right labels and milestone
 - **Ready**: issues that are ready to be worked on, they have all the information needed to start the implementation.
   When someone starts working on an issue, they move it to the **In progress** column
-- **In progress**: issues that are being worked on, they are assigned to a developer or a desginer.
+- **In progress**: issues that are being worked on, they are assigned to a developer or a designer.
   If a design is needed the card should have the Mockup field set to ``Need mockup``, a designer should be assigned to the issue.
   When the mockup is ready the designer should set the Mockup field to ``Ready`` and the developer can start the implementation.
   A card assigned to a developer must be converted to an issue.
@@ -225,7 +225,7 @@ After the *QA member* has completed the testing phase:
 
 When the package is CLOSED, all related [documentation](#documentation) must be in place.
 
-At any time of the issue lifecycle they ensure that there are no release
+At any time of the issue life-cycle they ensure that there are no release
 conflict with other issues.
 
 ## Pull requests
@@ -323,7 +323,7 @@ OpenWrt roughly follows the [semantic versioning](https://semver.org/) rules, bu
 - do not use pre-release version numbers
 - do not use metadata version numbers
 
-NethSecuirty image versioning is documented [here](../build/#versioning).
+NethSecurity image versioning is documented [here](../build/#versioning).
 
 ## Commit message style guide
 
@@ -331,6 +331,58 @@ Individual commits should contain a cohesive set of changes to the code. These
 [seven rules](http://chris.beams.io/posts/git-commit/#seven-rules) summarize how a good commit message should be composed.
 
 Please follow OpenWrt [submission guidelines](https://openwrt.org/submitting-patches#submission_guidelines).
+
+## Report vulnerabilities
+
+If you find a security vulnerability in NethSecurity, please report it to the security team by writing an email to sviluppo@nethesis.it
+or by using GitHub dedicated [security report tools](https://github.com/NethServer/nethsecurity/security/advisories/new).
+Please do not report security vulnerabilities as GitHub issues.
+
+### Handling security vulnerabilities
+
+The security team will evaluate the report and will contact the reporter to discuss the issue.
+If the issue is confirmed, the security team will work with the development team to fix the issue.
+The security team will evaluate the severity of the issue and will decide if the issue should be kept private until a fix is available.
+
+This is the process:
+
+1. open a draft security advisory on GitHub
+2. assign the issue to the development team
+3. the development team will work on the fix
+4. the security team will review the fix
+5. the fix will be released as soon as possible and announced to the users using community channels; the fix usually includes new packages along with a new image
+6. depending on the severity of the issue, the development team will decide how long to wait before a full disclosure, usually between 15 and 30 days, to give users time to update their systems.
+   The disclosure will be be done by publishing the security advisory on GitHub and eventually by updating the community channels
+
+## Release process
+
+The release process is a set of steps to prepare a new image or a new package release.
+
+### New image
+
+A new image should be released when:
+
+- a new OpenWrt release is available
+- a new security fix is available
+- a group of relevant features are ready to be released
+
+See the [build process](../build) for more information.
+
+### Packages
+
+A new package should be released when:
+
+- a new bug fix is available
+- a new feature that does not require new software dependencies is available
+
+When releasing a package, remember to:
+- ensure that the package has been tested by the QA team
+- update the package version in the Makefile
+- initiate the release process
+
+Unfortunately, when a new package is created, it is initially placed in the dev channel. Before it can be released, it is necessary to ensure that there are no ongoing QA processes and that all packages in the repository are ready for release. Due to the way the build system works, partial release of a package is not possible.
+
+When ready, launch the [Release Stable](https://github.com/NethServer/nethsecurity/actions/workflows/release-stable.yml) action on GitHub. This action will synchronize the packages from the dev channel to the stable channel; images will not be released. Leave the "If latest_release file should be updated" checkbox unchecked.
 
 ## Documentation
 
