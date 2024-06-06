@@ -6617,6 +6617,50 @@ Response example:
 
 If `used` field is `true` the domain set is used and the `matches` field will contain the list of matched records where the domain set is used.
 
+### list-host-sets
+
+List all host sets:
+```
+api-cli ns.objects list-host-sets
+```
+
+Response example:
+```json
+{
+  "values": [
+    {
+      "name": "h1",
+      "family": "ipv4",
+      "ipaddr": [
+        "1.2.3.4"
+      ],
+      "id": "ns_04fadb5c",
+      "singleton": true,
+      "subtype": "host",
+      "used": true,
+      "matches": [
+        "firewall/ns_9addc806",
+        "objects/ns_3cf75e0e"
+      ]
+    },
+    {
+      "name": "myset",
+      "family": "ipv4",
+      "ipaddr": [
+        "1.2.3.4",
+        "objects/ns_04fadb5c"
+      ],
+      "id": "ns_3cf75e0e",
+      "singleton": false,
+      "used": false,
+      "matches": []
+    }
+  ]
+}
+```
+
+Available subtypes are `host`, `cidr`  and `range`.
+
 ### add-domain-set
 
 Create a new domain set:
@@ -6728,3 +6772,23 @@ It may raise the following validation errors:
   ```json
   {"validation": {"errors": [{"parameter": "id", "message": "host_set_is_used", "value": ["firewall/ns_allow_OpenVPNRW1"]}]}}
   ```
+### get-info
+
+Return the information about the object matches:
+```
+api-cli ns.objects get-info --data '{"ids": ["firewall/ns_71b3a490"]}'
+```
+
+Response example:
+```json
+{
+  "info": {
+    "firewall/ns_9addc806": {
+      "database": "firewall",
+      "id": "ns_9addc806",
+      "name": "t1",
+      "type": "rule"
+    }
+  }
+}
+```
