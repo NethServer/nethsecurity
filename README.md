@@ -6,7 +6,7 @@ It's the successor of [NethServer 7 firewall suite](https://docs.nethserver.org/
 External links:
 - [Official site](https://www.nethsecurity.org/)
 - [Administrator documentation](https://docs.nethsecurity.org/)
-- [Developer documentation](https://dev.nethsecurity.irg/)
+- [Developer documentation](https://dev.nethsecurity.org/)
 
 Questions? Ask the [community](https://community.nethserver.org/).
 
