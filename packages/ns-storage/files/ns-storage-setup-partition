@@ -30,6 +30,13 @@ start_new=${start_current::-3}
 # preserve some space for future use
 start_new=$((start_new + preserve))
 
+# handle nvme
+if [[ "$dev" =~ ^/dev/nvme ]]; then
+  part="${dev}p3"
+else
+  part="${dev}3"
+fi
+
 parted -s --fix -a optimal ${dev} unit MiB mkpart ext4 ${start_new}MiB 100% &>/dev/null
-mkfs.ext4 -q -O ^has_journal -F "${dev}"3 &>/dev/null
-echo '{"device": "'${dev}3'"}'
+mkfs.ext4 -q -O ^has_journal -F "${part}" &>/dev/null
+echo '{"device": "'${part}'"}'
