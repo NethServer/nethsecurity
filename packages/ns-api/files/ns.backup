@@ -129,7 +129,7 @@ elif cmd == 'call':
             # reboot takes a few seconds to complete, enough to send the response
             print(json.dumps({'message': 'success'}))
         except RuntimeError as error:
-            print(json.dumps(utils.generic_error(error.args[0])))
+            print(json.dumps(utils.validation_error('passphrase',error.args[0])))
 
     elif action == 'set-passphrase':
         try:
