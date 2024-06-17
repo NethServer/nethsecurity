@@ -5880,7 +5880,8 @@ Example response:
          },
          "protocol": "all",
          "source_address": "1.1.1.1/30",
-         "destination_address": "10.0.0.1/20"
+         "destination_address": "10.0.0.1/20",
+         "sticky": false
       }
    ]
 }
@@ -5894,7 +5895,7 @@ consider them to be set as `any`.
 Store a new MWAN rule:
 
 ```bash
-api-cli ns.mwan store_rule --data '{name": "hello",policy": "ns_default",protocol": "all",source_address": "",source_port": "",destination_address": "",destination_port": ""}'
+api-cli ns.mwan store_rule --data '{"name": "hello","policy": "ns_default","protocol": "all","source_address": "","source_port": "","destination_address": "","destination_port": "", "sticky": false}'
 ```
 
 Parameters:
@@ -5905,6 +5906,7 @@ Parameters:
 - `source_port`: source port to be used, can be a single port, a range or empty for `any`
 - `destination_address`: destination address to be used, can be a single IP, a CIDR or empty for `any`
 - `destination_port`: destination port to be used, can be a single port, a range or empty for `any`
+- `sticky`: Allow traffic from the same source IP address within the timeout limit to use same wan interface as prior session (Boolean default false)
 
 Example response:
 
@@ -5957,7 +5959,7 @@ Example response:
 Edit an existing MWAN rule:
 
 ```bash
-api-cli ns.mwan edit_rule --data '{"name": "ns_hello","policy": "ns_default", "label": "hello", "protocol": "all","source_address": "","source_port": "","destination_address": "","destination_port": ""}'
+api-cli ns.mwan edit_rule --data '{"name": "ns_hello","policy": "ns_default", "label": "hello", "protocol": "all","source_address": "","source_port": "","destination_address": "","destination_port": "", "sticky": false}'
 ```
 
 Parameters:
@@ -5969,6 +5971,7 @@ Parameters:
 - `source_port`: source port to be used, can be a single port, a range or empty for `any`
 - `destination_address`: destination address to be used, can be a single IP, a CIDR or empty for `any`
 - `destination_port`: destination port to be used, can be a single port, a range or empty for `any`
+- `sticky`: Allow traffic from the same source IP address within the timeout limit to use same wan interface as prior session (Boolean default false)
 
 Example response:
 
