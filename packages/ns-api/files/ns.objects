@@ -56,7 +56,7 @@ elif cmd == 'call':
         if action == 'list-domain-sets':
             print(json.dumps({'values': objects.list_domain_sets(e_uci)}))
         elif action == 'list-hosts':
-            print(json.dumps({'values': objects.list_objects(e_uci, include_domain_sets=False)}))
+            print(json.dumps({'values': objects.list_objects(e_uci, include_domain_sets=False, expand=True)}))
         else:
             data = json.JSONDecoder().decode(sys.stdin.read())
         if action == 'add-domain-set':

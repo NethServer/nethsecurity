@@ -6643,6 +6643,9 @@ Response example:
       "type": "dns_record",
       "subtype": "dns_record",
       "family": "ipv4",
+      "ipaddr": [
+        "8.8.8.8"
+      ],
       "used": false,
       "matches": []
     }
