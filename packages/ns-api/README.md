@@ -6598,9 +6598,9 @@ Response example:
 
 If `used` field is `true` the domain set is used and the `matches` field will contain the list of matched records where the domain set is used.
 
-### list-host-sets
+### list-hosts
 
-List all host sets:
+List all hosts including host sets, VPN user, DHCP reservations and DNS records:
 ```
 api-cli ns.objects list-host-sets
 ```
@@ -6615,7 +6615,7 @@ Response example:
       "ipaddr": [
         "1.2.3.4"
       ],
-      "id": "ns_04fadb5c",
+      "id": "objects/ns_04fadb5c",
       "singleton": true,
       "subtype": "host",
       "used": true,
@@ -6631,8 +6631,18 @@ Response example:
         "1.2.3.4",
         "objects/ns_04fadb5c"
       ],
-      "id": "ns_3cf75e0e",
+      "id": "objects/ns_3cf75e0e",
       "singleton": false,
+      "subtype": "host_set",
+      "used": false,
+      "matches": []
+    },
+    {
+      "id": "dhcp/ns_60a053b9",
+      "name": "g1",
+      "type": "dns_record",
+      "subtype": "dns_record",
+      "family": "ipv4",
       "used": false,
       "matches": []
     }
