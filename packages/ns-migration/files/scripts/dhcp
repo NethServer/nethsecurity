@@ -27,7 +27,10 @@ def list_dhcp_options():
 # Set global options
 for section in u.get("dhcp"):
     if u.get("dhcp", section) == "dnsmasq":
-        u.set("dhcp", section, "dhcpleasemax", data['general']["dhcpleasemax"])
+        dhcpleasemax = data['general'].get("dhcpleasemax", 0)
+        # default value is 1000 leases
+        if dhcpleasemax > 1000:
+            u.set("dhcp", section, "dhcpleasemax", dhcpleasemax)
         u.set("dhcp", section, "rebind_protection", data['general'].get('rebind_protection', '0'))
         # add ns_ prefix to the section
         u.rename("dhcp", section, utils.get_id("dnsmasq"))
