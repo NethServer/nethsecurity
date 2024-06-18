@@ -16,7 +16,7 @@ cmd = sys.argv[1]
 if cmd == 'list':
     print(json.dumps({
         'list-domain-sets': {},
-        'list-host-sets': {},
+        'list-hosts': {},
         'add-domain-set': {
             'name': 'str',
             'family': 'str',
@@ -55,8 +55,8 @@ elif cmd == 'call':
     try:
         if action == 'list-domain-sets':
             print(json.dumps({'values': objects.list_domain_sets(e_uci)}))
-        elif action == 'list-host-sets':
-            print(json.dumps({'values': objects.list_host_sets(e_uci)}))
+        elif action == 'list-hosts':
+            print(json.dumps({'values': objects.list_objects(e_uci, include_domain_sets=False)}))
         else:
             data = json.JSONDecoder().decode(sys.stdin.read())
         if action == 'add-domain-set':
