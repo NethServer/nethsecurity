@@ -17,11 +17,16 @@ import subprocess
 from euci import EUci
 from nethsec import users
 
+def debug(msg):
+    if os.environ.get("debug", False):
+        print(f'[DEBUG] {msg}', file=sys.stderr)
+
 username = os.environ.get("username")
 password = os.environ.get("password")
 config_path = os.environ.get("config")
 
 instance = re.sub(r'^openvpn-|\.conf$', '', config_path)
+debug(f"Instance: {instance}")
 
 ldap = {}
 uci = EUci()
@@ -30,15 +35,21 @@ try:
     ldap = uci.get_all("users", db)
 except:
     # user db not set or not found
+    debug("Error: user db not found")
     sys.exit(5)
 
+debug(f"Username: {username}")
+debug(f"Database: {db}")
 user = users.get_user_by_name(uci, username, db)
+debug(f"User: {user}")
 if user is None:
     # user not found
+    debug(f"Error: user '{user}' not found")
     sys.exit(4)
 
 if not "openvpn_enabled" in user or user["openvpn_enabled"] != "1":
     # user not enabled
+    debug(f"Error: user '{user}' disabled")
     sys.exit(3)
 
 uri = ldap.get("uri", "")
@@ -48,27 +59,39 @@ user_dn = ldap.get("user_dn", base_dn)
 user_attr = ldap.get("user_attr", "uid")
 tls_reqcert = ldap.get("tls_reqcert", "never")
 starttls = int(ldap.get("starttls", 0))
+user_bind_dn = ldap.get("user_bind_dn")
 
 if not uri or not base_dn:
     # no info to connect ldap db
+    debug(f"Error: invalid LDAP URI or base DN")
     sys.exit(2)
+
+if user_bind_dn:
+    # use custom user bind dn
+    # use the specified string and replace the user
+    bind_dn = user_bind_dn.replace('%u', username)
+else:
+    # calculate the bind DN using user_attr
+    bind_dn = f"{user_attr}={username},{user_dn}"
 
 ldapsearch_command = [
     "/usr/bin/ldapsearch",
     "-H", uri,
     "-b", base_dn,
-    "-D", f"{user_attr}={username},{user_dn}",
+    "-D", bind_dn,
     "-w", password,
-    f"{user_attr}={username}"
+    base_dn # static filter to limit the number of returned attributes and entries
 ]
 if ldap.get("starttls", '1') == 1:
     ldapsearch_command.append("-Z")
 
 env = os.environ.copy()
 env['LDAPTLS_REQCERT'] = tls_reqcert
+debug(f"Command: LDAPTLS_REQCERT={tls_reqcert} " + " ".join(ldapsearch_command))
 
 try:
     subprocess.run(ldapsearch_command, env=env, check=True, capture_output=True)
+    debug("Success")
     sys.exit(0)
 except Exception as e:
     print(e, file=sys.stderr)
