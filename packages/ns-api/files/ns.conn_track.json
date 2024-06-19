@@ -1,0 +1,13 @@
+{
+  "connection_tracker": {
+    "description": "List and manage connection entries using conntrack",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.conn_track": [
+          "*"
+        ]
+      }
+    }
+  }
+}

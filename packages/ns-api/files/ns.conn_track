@@ -1,0 +1,45 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import json
+import sys
+
+from nethsec import connection_management
+from nethsec.utils import ValidationError, generic_error
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({
+        'list': {},
+        'drop': {
+            'id': ''
+        },
+        'drop_all': {}
+    }))
+elif cmd == 'call':
+    action = sys.argv[2]
+    if action == 'list':
+        print(json.dumps(connection_management.list_connections()))
+    elif action == 'drop':
+        data = json.loads(sys.stdin.read())
+        if 'id' not in data:
+            raise ValidationError('id', 'required')
+        try:
+            connection_management.drop_connection(data['id'])
+            json.dump({'message': 'success'}, sys.stdout)
+        except ValueError as e:
+            # this connection is not found, probably already dropped
+            pass
+        except RuntimeError as e:
+            json.dump(generic_error('command failed'), sys.stdout)
+    elif action == 'drop_all':
+        try:
+            connection_management.drop_all_connections()
+            json.dump({'message': 'success'}, sys.stdout)
+        except RuntimeError as e:
+            json.dump(generic_error('command failed'), sys.stdout)
