@@ -62,6 +62,7 @@ define Package/ns-plug/install
 	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/register
 	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/unregister
 	$(INSTALL_DIR) $(1)/usr/sbin
+	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
@@ -79,7 +80,7 @@ define Package/ns-plug/install
 	$(INSTALL_BIN) ./files/unregister $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/subscription-info $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/inventory $(1)/usr/sbin
-	$(INSTALL_BIN) ./files/ns-download $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/ns-download $(1)/usr/bin
 	$(INSTALL_BIN) ./files/20_ns-plug $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/30_ns-plug_alerts $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/netadata_enable_alerts $(1)/usr/share/ns-plug/hooks/register/70netadata_enable_alerts
