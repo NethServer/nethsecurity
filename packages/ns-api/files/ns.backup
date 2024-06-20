@@ -50,9 +50,21 @@ def create_backup():
             raise RuntimeError('backup failed')
     return file_name
 
+def is_encrypted(file_path):
+    try:
+        # Run the 'file' command on the specified file
+        result = subprocess.run(['file', file_path], capture_output=True, text=True, check=True)
+        # Check if the output contains indications of PGP encryption
+        if "GPG" in result.stdout:
+            return True
+        else:
+            return False
+    except subprocess.CalledProcessError as e:
+        return False
+
 def restore_backup(archive, passphrase=None):
     try:
-        if passphrase is not None:
+        if is_encrypted(archive) and passphrase is not None:
             subprocess.run([
                 '/usr/bin/gpg',
                 '--decrypt',
@@ -63,7 +75,8 @@ def restore_backup(archive, passphrase=None):
                 archive
             ], check=True, capture_output=True)
             shutil.move(f'{archive}.decrypted', archive)
-
+        elif is_encrypted(archive) and passphrase is None:
+            raise RuntimeError('passphrase required')
         # run sysupgrade to restore backup file
         subprocess.run(['/sbin/sysupgrade', '-r', archive], check=True, capture_output=True)
 
