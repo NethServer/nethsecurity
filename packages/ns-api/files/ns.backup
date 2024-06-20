@@ -177,7 +177,7 @@ elif cmd == 'call':
             subprocess.run(['/usr/sbin/remote-backup', 'download', data['file'], backup_path],
                            check=True, capture_output=True)
             # fetch completed successfully, restore system
-            restore_backup(backup_path, None)
+            restore_backup(backup_path, data.get('passphrase', None))
             # restore successful, restart the system
             subprocess.run(['/sbin/reboot'], check=True, capture_output=True)
             # reboot takes a few seconds to complete, enough to send the response
