@@ -4,6 +4,7 @@
 # Search for ns packages that have been updated since the last release.
 # If the package has been updated, bump the version number, create a branch and
 # add a commit for each package.
+# Ignore packages with an external versioning.
 #
 # It must be executed from the root of the repository:
 # builder/bumper.sh
@@ -11,7 +12,7 @@
 # prepare empty packages array
 packages=()
 
-for dir in $(find packages/ -maxdepth 1 -type d -name ns-\*)
+for dir in $(find packages/ -maxdepth 1 -type d -name ns-* ! -name ns-ui ! -name ns-api-server ! -name python3-nethsec)
 do
     if [ "${dir}" == "packages/" ]; then
         continue
