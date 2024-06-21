@@ -187,7 +187,7 @@ elif cmd == 'call':
         except KeyError as error:
             print(json.dumps(utils.validation_error('file', 'required')))
         except RuntimeError as error:
-            print(json.dumps(utils.generic_error(error.args[0])))
+            print(json.dumps(utils.validation_error('passphrase',error.args[0])))
 
     elif action == 'registered-download-backup':
         os.makedirs(DOWNLOAD_PATH, exist_ok=True)
