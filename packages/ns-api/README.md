@@ -2585,7 +2585,7 @@ Response example:
 ```
 
 The `lease` field contains the lease id which can be used to retrive the lease configuration.
-The `used` field is `true` if the user has been used as firewall objects. The `matches` field contains the firewall objects where the user has been used.
+The `used` field is `true` if the lease has been used as firewall objects. The `matches` field contains the firewall objects where the lease has been used.
 
 ### get-static-lease
 
@@ -6126,6 +6126,7 @@ Example response:
 ```
 
 ### list_object_suggestions
+
 List all available objects that can be used in MWAN rules:
 
 ```bash
@@ -6621,7 +6622,7 @@ If `used` field is `true` the domain set is used and the `matches` field will co
 
 List all hosts including host sets, VPN user, DHCP reservations and DNS records:
 ```
-api-cli ns.objects list-host-sets
+api-cli ns.objects list-hosts
 ```
 
 Response example:
@@ -6672,7 +6673,7 @@ Response example:
 }
 ```
 
-Available subtypes are `host`, `cidr`  and `range`.
+Available subtypes are `host`, `cidr`, `range`, `dhcp_static_lease`, `dns_record`, `host_set`, `vpn_user`.
 
 ### add-domain-set
 
@@ -6762,7 +6763,7 @@ It may raise the following validation errors:
 - `host_set_does_not_exists` if the host set does not exist
 - `invalid_family` if the family is not `ipv4` or `ipv6`
 - `name_too_long` if the length of `name` is greater than 16 characters
-- `invalid_name` if the name contains special chars, it must contains onlu number and letters
+- `invalid_name` if the name contains special chars, it must contains only number and letters
 - `object_does_not_exists` if the referenced object does not exist
 - `loop_detected` if the object references itself
 - `invalid_ipaddr` if the IP address is not a valid IPv4/IPv6 address depending on the family
