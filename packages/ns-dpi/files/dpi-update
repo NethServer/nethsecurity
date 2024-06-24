@@ -17,6 +17,7 @@ trap "rm -rf $TMP_DIR" EXIT SIGINT SIGTERM
 
 SYSTEM_SECRET=$(uci -q get ns-plug.config.secret)
 SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
+TYPE=$(uci -q get ns-plug.config.type)
 
 if [ -z "$SYSTEM_SECRET" ] || [ -z "$SYSTEM_ID" ]; then
     exit 0
@@ -30,6 +31,7 @@ options="settings_version=$version&settings_format=netifyd"
 curl_cmd='/usr/bin/curl -L -s -f -m 60'
 
 base_url=$(echo $HOST | sed -e "s/__USER__/$SYSTEM_ID/" -e "s/__PASSWORD__/$SYSTEM_SECRET/")
+base_url="$base_url/$TYPE"
 
 $curl_cmd "$base_url/applications?$options" -o "$TMP_DIR/netify-apps.conf"
 $curl_cmd "$base_url/categories?$options" -o "$TMP_DIR/netify-categories.json"
