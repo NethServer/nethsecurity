@@ -24,19 +24,22 @@ if cmd == 'list':
 elif cmd == 'call':
     action = sys.argv[2]
     if action == 'list':
-        print(json.dumps(conntrack.list_connections()))
+        print(json.dumps({
+            'data': conntrack.list_connections()
+        }))
     elif action == 'drop':
         data = json.loads(sys.stdin.read())
         if 'id' not in data:
             raise ValidationError('id', 'required')
         try:
             conntrack.drop_connection(data['id'])
-            json.dump({'message': 'success'}, sys.stdout)
         except ValueError as e:
             # this connection is not found, probably already dropped
             pass
         except RuntimeError as e:
             json.dump(generic_error('command failed'), sys.stdout)
+
+        json.dump({'message': 'success'}, sys.stdout)
     elif action == 'drop_all':
         try:
             conntrack.drop_all_connections()
