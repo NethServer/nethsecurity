@@ -8,7 +8,7 @@
 import json
 import sys
 
-from nethsec import connection_management
+from nethsec import conntrack
 from nethsec.utils import ValidationError, generic_error
 
 cmd = sys.argv[1]
@@ -24,13 +24,13 @@ if cmd == 'list':
 elif cmd == 'call':
     action = sys.argv[2]
     if action == 'list':
-        print(json.dumps(connection_management.list_connections()))
+        print(json.dumps(conntrack.list_connections()))
     elif action == 'drop':
         data = json.loads(sys.stdin.read())
         if 'id' not in data:
             raise ValidationError('id', 'required')
         try:
-            connection_management.drop_connection(data['id'])
+            conntrack.drop_connection(data['id'])
             json.dump({'message': 'success'}, sys.stdout)
         except ValueError as e:
             # this connection is not found, probably already dropped
@@ -39,7 +39,7 @@ elif cmd == 'call':
             json.dump(generic_error('command failed'), sys.stdout)
     elif action == 'drop_all':
         try:
-            connection_management.drop_all_connections()
+            conntrack.drop_all_connections()
             json.dump({'message': 'success'}, sys.stdout)
         except RuntimeError as e:
             json.dump(generic_error('command failed'), sys.stdout)
