@@ -25,8 +25,8 @@ if cmd == 'list':
         "edit-local-database": {"name": "local", "description": "Local users"},
         "delete-local-database": {"name": "local"},
         
-        "add-ldap-database": {"name": "ldap", "uri": "ldap://ldap.example.com", "schema": "rfc2307", "base_dn": "dc=example,dc=com", "user_dn": "ou=People,dc=example,dc=com", "user_attr": "uid", "user_cn": "cn", "start_tls": False, "tls_reqcert": "never", "description": "LDAP users", "bind_dn": "cn=admin,dc=example,dc=com", "bind_password": "password"},
-        "edit-ldap-database": {"name": "ldap", "uri": "ldap://ldap.example.com", "schema": "rfc2307", "base_dn": "dc=example,dc=com", "user_dn": "ou=People,dc=example,dc=com", "user_attr": "uid", "user_cn": "cn", "start_tls": False, "tls_reqcert": "never", "description": "LDAP users", "bind_dn": "cn=admin,dc=example,dc=com", "bind_password": "password"},
+        "add-ldap-database": {"name": "ldap", "uri": "ldap://ldap.example.com", "schema": "rfc2307", "base_dn": "dc=example,dc=com", "user_dn": "ou=People,dc=example,dc=com", "user_attr": "uid", "user_cn": "cn", "start_tls": False, "tls_reqcert": "never", "description": "LDAP users", "bind_dn": "cn=admin,dc=example,dc=com", "bind_password": "password", "user_bind_dn": "%s@example.com"},
+        "edit-ldap-database": {"name": "ldap", "uri": "ldap://ldap.example.com", "schema": "rfc2307", "base_dn": "dc=example,dc=com", "user_dn": "ou=People,dc=example,dc=com", "user_attr": "uid", "user_cn": "cn", "start_tls": False, "tls_reqcert": "never", "description": "LDAP users", "bind_dn": "cn=admin,dc=example,dc=com", "bind_password": "password", "user_bind_dn": "%s@example.com"},
         "delete-ldap-database": {"name": "ldap"},
         "get-database": {"name": "ldap"},
         "get-ldap-defaults": {"uri": "ldap://ldap.example.com", "schema": "rfc2307"},
@@ -61,10 +61,10 @@ else:
             ret = {"result": "success"}
 
         elif action == "add-ldap-database":
-            users.add_ldap_database(u, args['name'], args['uri'], args['schema'], args['base_dn'], args['user_dn'], args['user_attr'], args['user_cn'], args['start_tls'], args['tls_reqcert'], args['description'], args.get('bind_dn'), args.get('bind_password'))
+            users.add_ldap_database(u, args['name'], args['uri'], args['schema'], args['base_dn'], args['user_dn'], args['user_attr'], args['user_cn'], args['start_tls'], args['tls_reqcert'], args['description'], args.get('bind_dn'), args.get('bind_password'), args.get("user_bind_dn"))
             ret = {"result": "success"}
         elif action == "edit-ldap-database":
-            users.edit_ldap_database(u, args['name'], args['uri'], args['schema'], args['base_dn'], args['user_dn'], args['user_attr'], args['user_cn'], args['start_tls'], args['tls_reqcert'], args['description'], args.get('bind_dn'), args.get('bind_password'))
+            users.edit_ldap_database(u, args['name'], args['uri'], args['schema'], args['base_dn'], args['user_dn'], args['user_attr'], args['user_cn'], args['start_tls'], args['tls_reqcert'], args['description'], args.get('bind_dn'), args.get('bind_password'), args.get("user_bind_dn"))
             ret = {"result": "success"}
         elif action == "delete-ldap-database":
             users.delete_ldap_database(u, args['name'])

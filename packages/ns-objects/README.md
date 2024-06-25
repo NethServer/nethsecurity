@@ -33,8 +33,11 @@ It also has the following fields:
 - `tls_reqcert`: enable or disable certificate validation, see valid values for `TLS_REQCERT` inside [OpenLDAP documentation](https://www.openldap.org/doc/admin21/tls.html)
 - `base_dn`: LDAP base DN
 - `user_dn`: LDAP user DN; if not present, default is equal as `base_dn`
-- `user_attr`: user attribute to identify the user; usually is `cn` for Active Directory and `uid` for OpenLDAP
+- `user_attr`: user attribute to identify the user; usually is `cn` for Active Directory and `uid` for OpenLDAP; the `user_attr` is used to calculate
+  the Distinct Name (DN) of the user by concatenating the `user_attr` with the `user_dn`
 - `user_cn`: user attribute that contains the user complete name
+- `user_bind_dn`: if set, it takes precedence over `user_attr` and it's used to bind the user to the LDAP server. It accepts the `%u` placeholder that will be replaced with the user name
+  Usage example for Active Directory: `%u@mydomain.local` or `mydomain\%u`
 - `starttls`: can be `0` or `1`, if set to `1` enable StartTLS
 
 OpenLDAP example:
@@ -47,6 +50,7 @@ config ldap 'ldap1'
 	option user_dn 'ou=People,dc=directory,dc=nh'
 	option user_attr 'uid'
 	option user_cn 'cn'
+	option user_bind_dn ''
 	option starttls '0'
 	option schema 'rfc2307'
 ```
@@ -61,6 +65,7 @@ config ldap 'ad1'
 	option user_dn 'cn=users,dc=ad,dc=nethserver,dc=org'
 	option user_attr 'cn'
 	option user_cn 'cn'
+	option user_bind_dn '%u@nethserver.org'
 	option starttls '0'
 	option schema 'ad'
 ```
