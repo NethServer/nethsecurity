@@ -16,6 +16,10 @@ import subprocess
 with open('/etc/config/mwan3', 'w') as file:
     pass
 
+# Set default mask
+u.set('mwan3', 'globals', 'globals')
+u.set('mwan3', 'globals', 'mmx_mask', '0x3F00')
+
 # General configuration
 u.set('ns-api', 'defaults_mwan', 'ping_interval', data['general']['interval'])
 u.set('ns-api', 'defaults_mwan', 'tracking_reliability', data['general']['reliability'])
@@ -30,6 +34,12 @@ metric = 10
 policy_type = data['general']['mode']
 # prep providers, sort by desc weight
 data['providers'].sort(key=lambda x: int(x['weight']), reverse=True)
+
+# do not enable mwan if not provider is configured
+if len(data['providers']) <= 0:
+    u.commit('mwan3')
+    u.commit('ns-api')
+    exit(0)
 
 # for each provider, generate interface
 for provider in data['providers']:
