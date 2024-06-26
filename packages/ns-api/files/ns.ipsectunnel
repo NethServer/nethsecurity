@@ -261,12 +261,15 @@ def get_tunnel(id):
     for opt in ['encryption_algorithm', 'hash_algorithm', 'dh_group']:
         ret['esp'][opt] = u.get('ipsec', esp_p, opt, default="")
 
-    for opt in ['ipcomp', 'dpdaction']:
-        ret[opt] = u.get('ipsec', tunnel, opt, default="")
-
     for t in utils.get_all_by_type(u, 'ipsec', 'tunnel'):
         if t.startswith(tunnel):
             try:
+                if 'ipcomp' not in ret:
+                    ret['ipcomp'] = u.get('ipsec', t, 'ipcomp', default="")
+                if 'dpdaction' not in ret:
+                    ret['dpdaction'] = u.get('ipsec', t, 'dpdaction', default="")
+                if 'rekeytime' not in ret['esp']:
+                    ret['esp']['rekeytime'] = u.get('ipsec', t, 'rekeytime', default='3600')
                 tmpl = u.get_all('ipsec', t, 'local_subnet')
                 local = local | set(tmpl)
                 tmpr = u.get_all('ipsec', t, 'remote_subnet')
@@ -276,7 +279,6 @@ def get_tunnel(id):
     ret['local_subnet'] = list(local)
     ret['remote_subnet'] = list(remote)
 
-    ret['esp']['rekeytime'] = u.get('ipsec', tunnel, 'rekeytime', default='3600')
     ret['ns_name'] = u.get('ipsec', id, 'ns_name', default=id)
     for opt in ['gateway', 'keyexchange', 'local_identifier', 'local_ip', 'enabled', 'remote_identifier', 'pre_shared_key']:
         ret[opt] = u.get('ipsec', id, opt, default="")
