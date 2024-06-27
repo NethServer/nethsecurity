@@ -6,3 +6,5 @@ EOI
 
 # make sure nginx does not listen on port 80 to avoid conflicts with acme.sh
 uci -q delete nginx._redirect2ssl
+
+exit 0
