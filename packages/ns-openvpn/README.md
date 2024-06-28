@@ -168,6 +168,22 @@ As default, all logs are sent to `/var/log/messages`.
 
 To generate a valid `.ovpn` file, see the `download-user-configuration` API inside the [ns-api](../ns-api/#nsovpnrw) page.
 
+### Debug remote authentication
+
+To debug the remote authentication process, you can use the following command:
+
+```bash
+debug=1 config=openvpn-ns_roadwarrior1.conf username=giacomo password=Nethesis,1234 /usr/libexec/ns-openvpn/openvpn-remote-auth
+echo $? # should return 0
+```
+
+
+Assuming the authentication is based on username and password, specify the `username` and `password` variable of your test user.
+Depending on the authentication method, the `username` and `password` can have different meanings.
+
+The `debug` variable can be set to `1` to enable debug messages.
+The `config` parameter is the OpenVPN configuration file, the value reported inside the example is correct in most cases.
+
 ## OpenVPN tunnels
 
 Tunnels are normal `openvpn` sections inside `/etc/config/openvpn`.
