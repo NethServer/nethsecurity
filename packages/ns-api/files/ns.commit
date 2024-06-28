@@ -29,7 +29,8 @@ def execute_hook(directory, changes):
                 syslog.syslog(syslog.LOG_ERR, f"{e}")
                 errors.append(script)
                 continue
-    return errors
+    # the changes object could have been updated by a pre-commit hook
+    return changes, errors
 
 
 cmd = sys.argv[1]
@@ -41,9 +42,11 @@ elif cmd == 'call':
     u = EUci()
     args = json.loads(sys.stdin.read())
     if action == 'commit':
-        pre_errors = execute_hook("/usr/libexec/ns-api/pre-commit", args['changes'])
-        for config in args["changes"]:
+        changes, pre_errors = execute_hook("/usr/libexec/ns-api/pre-commit", args['changes'])
+        # commit changes returned from pre-commit hook: an hook could force the commit
+        # of a specific database by adding the db nane to the changes object
+        for config in changes:
             u.commit(config)
-        post_errors = execute_hook("/usr/libexec/ns-api/post-commit", args['changes'])
+        changes, post_errors = execute_hook("/usr/libexec/ns-api/post-commit", args['changes'])
         subprocess.run(["/bin/ubus", "call", "uci", "reload_config"], check=True)
         print(json.dumps({"pre_errors": pre_errors, "post_errors": post_errors}))
