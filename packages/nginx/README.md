@@ -21,7 +21,7 @@ The `location` object can contain any `nginx` directive, plus the following spec
 
 If a directive can be used multiple times, it's represented as a UCI list.
 
-The `nginx-proxy` utility reads all the location objects from UCI config and creates the nginx configuration
+The `nginx-proxy-gen` utility reads all the location objects from UCI config and creates the nginx configuration
 inside `/etc/nginx/conf.d/<server>.proxy` files, like `/etc/nginx/conf.d/_lan.proxy`.
 Then, the generated files must be explicitly added to the `include` option of the server object.
 
@@ -48,7 +48,7 @@ config location 'ns_location1'
 
 To enable the rule:
 ```
-nginx-proxy
+nginx-proxy-gen
 uci add_list nginx._lan.include='conf.d/_lan.proxy'
 uci commit nginx
 /etc/init.d/nginx restart
@@ -67,7 +67,7 @@ config location 'ns_server2_location1'
 
 To enable the rule:
 ```
-nginx-proxy
+nginx-proxy-gen
 uci add_list nginx.ns_server2.include='conf.d/ns_server2.proxy'
 uci commit nginx
 /etc/init.d/nginx restart
@@ -102,6 +102,6 @@ config server 'ns_server1'
 
 To enable the rule:
 ```
-nginx-proxy
+nginx-proxy-gen
 /etc/init.d/nginx restart
 ```
