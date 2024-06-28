@@ -36,7 +36,18 @@ It also has the following fields:
 - `user_attr`: user attribute to identify the user; usually is `cn` for Active Directory and `uid` for OpenLDAP; the `user_attr` is used to calculate
   the Distinct Name (DN) of the user by concatenating the `user_attr` with the `user_dn`
 - `user_cn`: user attribute that contains the user complete name
-- `user_bind_dn`: if set, it takes precedence over `user_attr` and it's used to bind the user to the LDAP server. It accepts the `%u` placeholder that will be replaced with the user name
+- `user_bind_dn`: if set, it takes precedence over `user_attr` and it's used to bind the user to the LDAP server.
+  This field is mainly used for OpenVPN road warrior authentication.
+  It accepts the `%u` placeholder that will be replaced with the user name. Note that the user name must exists inside the `users` database
+  to make it work with OpenVPN authentication.
+  Example: if user_bind_dn is set to `%u@domain.local` and the user name is `john`, there should be entry of user type inside users database like this:
+  ```
+  config user 'ns_ee00e667'
+	option database 'ns7ad'
+	option name 'john'
+	option openvpn_enabled '1'
+	option openvpn_2fa 'HWBPSTBYCOBGNYI4RIJVJPG3CGPEHPCK'
+  ```
   Usage example for Active Directory: `%u@mydomain.local` or `mydomain\%u`
 - `starttls`: can be `0` or `1`, if set to `1` enable StartTLS
 
