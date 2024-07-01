@@ -6325,3 +6325,99 @@ Response example:
   ]
 }
 ```
+
+## ns.conntrack
+
+List and delete conntrack entries.
+
+### list
+
+List all conntrack entries:
+
+```bash
+api-cli ns.conntrack list
+```
+
+Example response:
+
+```json
+{
+   "data": [
+      {
+         "destination": "192.168.122.155",
+         "destination_stats": {
+            "bytes": "9996",
+            "packets": "119"
+         },
+         "id": "3363877713",
+         "protocol": "icmp",
+         "source": "192.168.122.1",
+         "source_stats": {
+            "bytes": "9996",
+            "packets": "119"
+         },
+         "timeout": "29"
+      },
+      {
+         "destination": "127.0.0.1",
+         "destination_port": "8090",
+         "destination_stats": {
+            "bytes": "2233",
+            "packets": "5"
+         },
+         "id": "4275285926",
+         "protocol": "tcp",
+         "source": "127.0.0.1",
+         "source_port": "53740",
+         "source_stats": {
+            "bytes": "741",
+            "packets": "5"
+         },
+         "state": "TIME_WAIT",
+         "timeout": "5"
+      }
+   ]
+}
+```
+
+Fields that might miss from some entries:
+
+- `start_port`
+- `end_port`
+- `unreplied`
+- `state`
+
+### drop
+
+Drop a conntrack entry, use the `id` provided by the `list` command:
+
+```bash
+api-cli ns.conntrack drop --data '{"id": "3363877713"}'
+```
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+Note: if the entry does not exist, the API will still return a `success`, this is to avoid the drop of connection that
+already expired.
+
+## drop_all
+
+Drop all conntrack entries:
+
+```bash
+api-cli ns.conntrack drop_all
+```
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```

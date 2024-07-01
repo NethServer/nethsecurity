@@ -144,6 +144,8 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.netifyd.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.controller $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.controller.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.conntrack $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.conntrack.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.scan $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.scan.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
