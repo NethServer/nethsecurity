@@ -384,6 +384,21 @@ Unfortunately, when a new package is created, it is initially placed in the dev 
 
 When ready, launch the [Release stable packages](https://github.com/NethServer/nethsecurity/actions/workflows/release-stable.yml) action on GitHub. This action will synchronize the packages from the dev channel to the stable channel; images will not be released. Leave the "If latest_release file should be updated" checkbox unchecked.
 
+
+The subscription repository, located at `distfeed.nethesis.it`, automatically pulls updates from the stable channel on a nightly basis. This process ensures that the repository stays current with the latest stable releases.
+
+Update schedule:
+1. nightly: New packages are pulled from the stable channel
+2. one-week delay: After the initial pull, there is a one-week holding period
+3. release: Following the holding period, the updated packages are released to subscription machines
+
+This staged approach allows for:
+- regular updates to the repository
+- a buffer period for additional testing and verification
+- controlled distribution to end-users
+
+The one-week delay helps ensure stability by providing time for any potential issues to be identified and addressed before wider distribution.
+
 ## Documentation
 
 The developer must take care to write all documentation on:
