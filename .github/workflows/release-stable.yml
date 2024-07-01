@@ -1,4 +1,4 @@
-name: Sync packages
+name: Release stable packages
 
 on:
   workflow_call:

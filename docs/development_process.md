@@ -382,7 +382,7 @@ When releasing a package, remember to:
 
 Unfortunately, when a new package is created, it is initially placed in the dev channel. Before it can be released, it is necessary to ensure that there are no ongoing QA processes and that all packages in the repository are ready for release. Due to the way the build system works, partial release of a package is not possible.
 
-When ready, launch the [Release Stable](https://github.com/NethServer/nethsecurity/actions/workflows/release-stable.yml) action on GitHub. This action will synchronize the packages from the dev channel to the stable channel; images will not be released. Leave the "If latest_release file should be updated" checkbox unchecked.
+When ready, launch the [Release stable packages](https://github.com/NethServer/nethsecurity/actions/workflows/release-stable.yml) action on GitHub. This action will synchronize the packages from the dev channel to the stable channel; images will not be released. Leave the "If latest_release file should be updated" checkbox unchecked.
 
 ## Documentation
 
