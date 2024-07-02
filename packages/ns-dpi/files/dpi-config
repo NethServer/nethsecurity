@@ -8,7 +8,7 @@
 from euci import EUci
 import json
 import subprocess
-from nethsec import utils, users
+from nethsec import utils, objects
 
 def get_interface_ips(interface):
     ret = list()
@@ -25,27 +25,6 @@ def get_interface_ips(interface):
                     ret.append(addr['address'])
 
     return ret
-
-def user_to_criteria(uci, user):
-    criteria = []
-    (ipv4, ipv6) = users.get_user_addresses(uci, user)
-    return entries_to_criteria(ipv4, ipv6, users.get_user_macs(uci, user))
-
-def group_to_criteria(uci, group):
-    criteria = []
-    (ipv4, ipv6) = users.get_group_addresses(uci, group)
-    return entries_to_criteria(ipv4, ipv6, users.get_group_macs(uci, group))
-
-def entries_to_criteria(ipv4, ipv6, macs):
-    criteria = []
-    for mac in macs:
-        criteria.append(f"(local_mac == {mac})")
-    for ip in ipv4:
-        criteria.append(f"(local_ip == {ip} and ip_version == 4)")
-    for ip in ipv6:
-        criteria.append(f"(local_ip == {ip} and ip_version == 6)")
-    return " or ".join(criteria)
-
 
 cfg_file = "/etc/netify.d/netify-flow-actions.json"
 config = {
@@ -78,7 +57,11 @@ for ex_name in exemptions:
     criteria = exemption.get('criteria', '')
     enabled = exemption.get('enabled', '1')
     if enabled == '1' and criteria:
-        config["exemptions"].append(criteria)
+        if objects.is_object_id(criteria):
+            for ip in objects.get_object_ips(u, criteria):
+                config["exemptions"].append(ip)
+        else:
+            config["exemptions"].append(criteria)
 
 rcount = 0
 valid_actions = ['block', 'bulk', 'best_effort', 'video', 'voice']
@@ -96,14 +79,9 @@ for section in u.get_all('dpi'):
         # generate criteria from source, protocol, category and application
         sources = []
         for source in rule.get('source', []):
-            if source.startswith("user:"):
-                usr = user_to_criteria(u, source[5:])
-                if usr:
-                    sources.append(usr)
-            elif source.startswith("group:"):
-                grp = group_to_criteria(u, source[5:])
-                if grp:
-                    sources.append(grp)
+            if objects.is_object_id(source):
+                for ip in objects.get_object_ips(u, source):
+                    sources.append(f'local_ip == {ip}')
             else: # custom local IPs
                 sources.append(f'local_ip == {source}')
 

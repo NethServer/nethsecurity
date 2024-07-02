@@ -12,7 +12,7 @@ import json
 import ipaddress
 import subprocess
 from euci import EUci
-from nethsec import utils
+from nethsec import utils, objects
 
 def ip2int(ip):
     parts = ip.split('.')
@@ -208,8 +208,9 @@ def list_static_leases():
     for l in utils.get_all_by_type(u, 'dhcp', 'host'):
         ldata = u.get_all('dhcp', l)
         if 'mac' in ldata and 'ip' in ldata:
+            used, matches = objects.is_used_object(u, f'dhcp/{l}')
             (interface, device) = get_interface_device(u, ldata['ip'])
-            ret['leases'].append({"lease": l, "macaddr": ldata['mac'], "ipaddr": ldata['ip'], "hostname": ldata.get('name',''), 'interface': interface, "device": device, "description": ldata.get('ns_description', '')})
+            ret['leases'].append({"lease": l, "macaddr": ldata['mac'], "ipaddr": ldata['ip'], "hostname": ldata.get('name',''), 'interface': interface, "device": device, "description": ldata.get('ns_description', ''), "used": used, "matches": matches})
     return ret
 
 def is_reserved(u, mac, exclude_lease_id=''):
@@ -272,6 +273,9 @@ def get_static_lease(args):
 
 def delete_static_lease(args):
     u = EUci()
+    used, matches = objects.is_used_object(u, f'dhcp/{args["lease"]}')
+    if used:
+        return utils.validation_error("lease", "static_lease_is_used", matches)
     try:
         u.get('dhcp', args['lease'])
         u.delete('dhcp', args['lease'])

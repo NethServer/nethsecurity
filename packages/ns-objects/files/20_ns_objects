@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# Update ipsets for domain set every 10 minutes
+crontab -l | grep -q '/usr/bin/ns-objects-reload-dns' || echo '*/10 * * * * /usr/bin/ns-objects-reload-dns' >> /etc/crontabs/root

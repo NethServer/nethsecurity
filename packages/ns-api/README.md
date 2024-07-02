@@ -350,6 +350,53 @@ Response:
 }
 ```
 
+### list-object-suggestions
+
+List suggestions for objects:
+```
+api-cli ns.firewall list-object-suggestions
+```
+
+Response:
+```json
+{
+  "objects": [
+    {
+      "name": "myset",
+      "family": "ipv4",
+      "id": "ns_3cf75e0e",
+      "singleton": false,
+      "type": "host_set"
+    },
+    {
+      "name": "MySet",
+      "description": "Mydomain set",
+      "family": "ipv4",
+      "id": "myset",
+      "type": "domain_set"
+    },
+    {
+      "id": "users/ns_af3425ab",
+      "name": "giacomo",
+      "type": "vpn_user",
+      "family": "ipv4"
+    },
+    {
+      "id": "dhcp/ns_271ca281",
+      "name": "reserve1",
+      "type": "dhcp_static_lease",
+      "family": "ipv4"
+    },
+    {
+      "id": "dhcp/ns_9e7f705e",
+      "name": "test1.domain",
+      "type": "dns_record",
+      "family": "ipv4"
+    }
+  ]
+}
+```
+
 ### add-rule
 
 Add a rule:
@@ -1270,6 +1317,8 @@ Response example:
       "connected": false,
       "expiration": "",
       "expired": false
+      "used": false,
+      "matches": []
     },
     {
       "local": true,
@@ -1288,7 +1337,9 @@ Response example:
       "bytes_sent": "3091",
       "since": 1701701676,
       "expiration": 2012741635,
-      "expired": false
+      "expired": false,
+      "used": true,
+      "matches": ["firewall/ns_allow_xx"]
     }
   ]
 }
@@ -1304,6 +1355,8 @@ If `connected` field is `true`, the user object should contain also:
 - `bytes_received`
 - `bytes_sent`
 - `since`, connected since the given timestamp
+
+The `used` field is `true` if the user has been used as firewall objects. The `matches` field contains the firewall objects where the user has been used.
 
 ### list-auth-modes
 
@@ -1543,7 +1596,13 @@ Response example:
 {"result": "success"}
 ```
 
-Throws a validation error if the user is not found.
+The API can raise the following validation errors:
+- `user_not_found` if the user is not found
+- `user_is_used` if the user is currently used as firewall object, error is like:
+  ```json
+  {"validation": {"errors": [{"parameter": "username", "message": "user_is_used", "value": ["firewall/ns_allow_OpenVPNRW1"]}]}}
+  ```
+
 
 ### regenerate-user-certificate
 
@@ -2506,7 +2565,9 @@ Response example:
       "hostname": "W80B-2",
       "interface": "blue",
       "device": "eth2.1",
-      "description": "description 1"
+      "description": "description 1",
+      "used": false,
+      "matches": []
     },
     {
       "lease": "ns_lease2",
@@ -2515,13 +2576,16 @@ Response example:
       "hostname": "W90B-1",
       "interface": "blue",
       "device": "eth2.1",
-      "description": "description 2"
+      "description": "description 2",
+      "used": true,
+      "matches": ["firewall/ns_allow_xxx"]
     }
   ]
 }
 ```
 
 The `lease` field contains the lease id which can be used to retrive the lease configuration.
+The `used` field is `true` if the lease has been used as firewall objects. The `matches` field contains the firewall objects where the lease has been used.
 
 ### get-static-lease
 
@@ -2560,6 +2624,11 @@ Successfull response example:
 Error response example:
 ```json
 {"error": "lease_not_found"}
+```
+
+It can raise the `static_lease_is_used` validation error if the lease is currently used as firewall object. The error is like:
+```json
+{"validation": {"errors": [{"parameter": "lease", "message": "static_lease_is_used", "value": ["firewall/ns_allow_xxx"]}]}}
 ```
 
 ### add-static-lease
@@ -2627,14 +2696,17 @@ Response example:
       "record": "cfg0af37d",
       "ip": "1.2.3.4",
       "name": "host1.nethesis.it",
-      "description": ""
-      "wildcard": true
+      "description": "",
+      "wildcard": true,
+      "used": true,
+      "matches": ["firewall/ns_allow_xxx"]
     }
   ]
 }
 ```
 
 The `record` field is the id of the DNS record.
+If `used` is `true`, the record is used as firewall object. The `matches` field contains the firewall objects where the record has been used.
 
 ### get-record
 
@@ -2697,6 +2769,11 @@ Successful response example:
 Error response example:
 ```json
 {"error": "record_not_found"}
+```
+
+It may raise `dns_record_is_used` validation error if the record is currently used as firewall object. The error is like:
+```json
+{"validation": {"errors": [{"parameter": "record", "message": "dns_record_is_used", "value": ["firewall/ns_allow_xxx"]}]}}
 ```
 
 ### get-config
@@ -2997,6 +3074,57 @@ Response example:
     "guest"
   ]
 }
+```
+
+### list-object-suggestions
+
+List firewall objects suggestions:
+```
+api-cli ns.redirects list-object-suggestions
+```
+
+Response example:
+```json
+  "objects": {
+    "ns_src": [
+      {
+        "name": "h1",
+        "family": "ipv4",
+        "id": "ns_04fadb5c",
+        "singleton": true,
+        "type": "host_set"
+      },
+      {
+        "name": "myset",
+        "family": "ipv4",
+        "id": "ns_3cf75e0e",
+        "singleton": false,
+        "type": "host_set"
+      },
+      {
+        "name": "MySet",
+        "description": "Mydomain set",
+        "family": "ipv4",
+        "id": "myset",
+        "type": "domain_set"
+      }
+    ],
+    "ns_dst": [
+      {
+        "name": "h1",
+        "family": "ipv4",
+        "id": "ns_04fadb5c",
+        "singleton": true,
+        "type": "host_set"
+      },
+      {
+        "id": "dhcp/ns_9e7f705e",
+        "name": "test1.domain",
+        "type": "dns_record",
+        "family": "ipv4"
+      }
+    ]
+  }
 ```
 
 ## ns.dpi
@@ -5997,6 +6125,41 @@ Example response:
 }
 ```
 
+### list_object_suggestions
+
+List all available objects that can be used in MWAN rules:
+
+```bash
+api-cli ns.mwan list_object_suggestions
+```
+
+Example response:
+
+```json
+{
+  "objects": {
+    "ns_src": [
+      {
+        "name": "h1",
+        "family": "ipv4",
+        "id": "ns_04fadb5c",
+        "singleton": true,
+        "type": "host_set"
+      }
+    ],
+    "ns_dst": [
+      {
+        "name": "MySet",
+        "description": "Mydomain set",
+        "family": "ipv4",
+        "id": "myset",
+        "type": "domain_set"
+      }
+    ]
+  }
+}
+```
+
 ## ns.nat
 
 Manage all NAT rules.
@@ -6419,5 +6582,227 @@ Example response:
 ```json
 {
    "message": "success"
+}
+```
+
+## Objects
+
+Manage domain sets and host sets.
+
+### list-domain-sets
+
+List all domain sets:
+```
+api-cli ns.objects list-domain-sets
+```
+
+Response example:
+```json
+{
+  "values": [
+    {
+      "domain": [
+        "www.nethsecurity.org",
+        "www.nethserver.org"
+      ],
+      "family": "ipv4",
+      "id": "ns_71b3a490",
+      "matches": [],
+      "name": "myset",
+      "timeout": "600",
+      "used": false
+    }
+  ]
+}
+```
+
+If `used` field is `true` the domain set is used and the `matches` field will contain the list of matched records where the domain set is used.
+
+### list-hosts
+
+List all hosts including host sets, VPN user, DHCP reservations and DNS records:
+```
+api-cli ns.objects list-hosts
+```
+
+Response example:
+```json
+{
+  "values": [
+    {
+      "name": "h1",
+      "family": "ipv4",
+      "ipaddr": [
+        "1.2.3.4"
+      ],
+      "id": "objects/ns_04fadb5c",
+      "singleton": true,
+      "subtype": "host",
+      "used": true,
+      "matches": [
+        "firewall/ns_9addc806",
+        "objects/ns_3cf75e0e"
+      ]
+    },
+    {
+      "name": "myset",
+      "family": "ipv4",
+      "ipaddr": [
+        "1.2.3.4",
+        "objects/ns_04fadb5c"
+      ],
+      "id": "objects/ns_3cf75e0e",
+      "singleton": false,
+      "subtype": "host_set",
+      "used": false,
+      "matches": []
+    },
+    {
+      "id": "dhcp/ns_60a053b9",
+      "name": "g1",
+      "type": "dns_record",
+      "subtype": "dns_record",
+      "family": "ipv4",
+      "ipaddr": [
+        "8.8.8.8"
+      ],
+      "used": false,
+      "matches": []
+    }
+  ]
+}
+```
+
+Available subtypes are `host`, `cidr`, `range`, `dhcp_static_lease`, `dns_record`, `host_set`, `vpn_user`.
+
+### add-domain-set
+
+Create a new domain set:
+```
+api-cli ns.objects add-domain-set --data '{"name": "myset", "domain": ["www.nethsecurity.org", "www.nethserver.org"], "family": "ipv4"}'
+```
+
+Response example:
+```json
+{"id": "ns_21d2fee8"}
+```
+
+It can raise the following validation errors:
+- `invalid_family` if the family is not `ipv4` or `ipv6`
+- `name_too_long`: if the length of `name` is greater than 16 characters
+
+### edit-domain-set
+
+Edit an existing domain set:
+```
+api-cli ns.objects edit-domain-set --data '{"id": "ns_71b3a490", "name": "myset_new", "domain": ["www.test.org", "www.nethserver.org"], "family": "ipv4"}'
+```
+
+Response example:
+```json
+{"id": "ns_21d2fee8"}
+```
+
+It can raise the following validation errors:
+- `invalid_family` if the family is not `ipv4` or `ipv6`
+- `name_too_long`: if the length of `name` is greater than 16 characters
+- `domain_set_does_not_exists` if the domain set does not exist
+
+### delete-domain-set
+
+Delete an existing domain set:
+```
+api-cli ns.objects delete-domain-set --data '{"id": "ns_71b3a490"}'
+```
+
+Response example:
+```json
+{"message": "success"}
+```
+
+It can raise the following validation errors:
+- `invalid_family` if the family is not `ipv4` or `ipv6`
+- `domain_set_is_used` if the domain set is used in a rule. Error example:
+   ```json
+  {"validation": {"errors": [{"parameter": "id", "message": "domain_set_is_used", "value": ["firewall/ns_xxx"]}]}}
+  ```
+
+### add-host-set
+
+Create a new host set:
+```
+api-cli ns.objects add-host-set --data '{"name": "myset", "family": "ipv4", "ipaddr": ["1.2.3.4", "objects/ns_04fadb5c"]}'
+```
+
+Response example:
+```json
+{"id": "ns_21d2fee8"}
+```
+
+It can raise the following validation errors:
+- `invalid_family` if the family is not `ipv4` or `ipv6`
+- `name_too_long` if the length of `name` is greater than 16 characters
+- `invalid_name` if the name contains special chars, it must contains onlu number and letters
+- `object_does_not_exists` if the referenced object does not exist
+- `loop_detected` if the object references itself
+- `invalid_ipaddr` if the IP address is not a valid IPv4/IPv6 address depending on the family
+
+### edit-host-set
+
+Edit an existing host set:
+```
+api-cli ns.objects edit-host-set --data '{"id": "ns_71b3a490", "name": "myset_new", "family": "ipv4", "ipaddr": ["6.7.8.9"]}'
+```
+
+Response example:
+```json
+{"id": "ns_21d2fee8"}
+```
+
+It may raise the following validation errors:
+- `host_set_does_not_exists` if the host set does not exist
+- `invalid_family` if the family is not `ipv4` or `ipv6`
+- `name_too_long` if the length of `name` is greater than 16 characters
+- `invalid_name` if the name contains special chars, it must contains only number and letters
+- `object_does_not_exists` if the referenced object does not exist
+- `loop_detected` if the object references itself
+- `invalid_ipaddr` if the IP address is not a valid IPv4/IPv6 address depending on the family
+
+### delete-host-set
+
+Delete an existing host set:
+```
+api-cli ns.objects delete-host-set --data '{"id": "ns_71b3a490"}'
+```
+
+Response example:
+```json
+{"message": "success"}
+```
+
+It may raise the following validation errors:
+- `host_set_does_not_exists` if the host set does not exist
+- `host_set_is_used` if the host set is used in a rule, error example:
+  ```json
+  {"validation": {"errors": [{"parameter": "id", "message": "host_set_is_used", "value": ["firewall/ns_allow_OpenVPNRW1"]}]}}
+  ```
+### get-info
+
+Return the information about the object matches:
+```
+api-cli ns.objects get-info --data '{"ids": ["firewall/ns_71b3a490"]}'
+```
+
+Response example:
+```json
+{
+  "info": {
+    "firewall/ns_9addc806": {
+      "database": "firewall",
+      "id": "ns_9addc806",
+      "name": "t1",
+      "type": "rule"
+    }
+  }
 }
 ```

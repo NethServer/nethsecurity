@@ -1,0 +1,95 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import json
+import sys
+
+from euci import EUci
+from nethsec import objects, utils
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({
+        'list-domain-sets': {},
+        'list-hosts': {},
+        'add-domain-set': {
+            'name': 'str',
+            'family': 'str',
+            'domain': []
+        },
+        'edit-domain-set': {
+            'id': 'str',
+            'name': 'str',
+            'family': 'str',
+            'domain': []
+        },
+        'delete-domain-set': {
+            'id': 'str'
+        },
+        'add-host-set': {
+            'name': 'str',
+            'family': 'str',
+            'ipaddr': []
+        },
+        'edit-host-set': {
+            'id': 'str',
+            'name': 'str',
+            'family': 'str',
+            'ipaddr': []
+        },
+        'delete-host-set': {
+            'id': 'str'
+        },
+        'get-info': {
+            'ids': ['firewall/xxx', 'mwan3/yyy']
+        }
+    }))
+elif cmd == 'call':
+    action = sys.argv[2]
+    e_uci = EUci()
+    try:
+        if action == 'list-domain-sets':
+            print(json.dumps({'values': objects.list_domain_sets(e_uci)}))
+        elif action == 'list-hosts':
+            print(json.dumps({'values': objects.list_objects(e_uci, include_domain_sets=False, expand=True)}))
+        else:
+            data = json.JSONDecoder().decode(sys.stdin.read())
+        if action == 'add-domain-set':
+            id = objects.add_domain_set(e_uci, data['name'], data['family'], data['domain'])
+            print(json.dumps({'id': id}))
+        elif action == 'edit-domain-set':
+            id = objects.edit_domain_set(e_uci, data['id'], data['name'], data['family'], data['domain'])
+            print(json.dumps({'id': id}))
+        elif action == 'delete-domain-set':
+            used, matches = objects.is_used_object(e_uci, data['id'])
+            if used:
+                raise utils.ValidationError('id', 'object_is_used', matches)
+            objects.delete_domain_set(e_uci, data['id'])
+            print(json.dumps({'message': 'success'}))
+        elif action == 'add-host-set':
+            id = objects.add_host_set(e_uci, data['name'], data['family'], data['ipaddr'])
+            print(json.dumps({'id': id}))
+        elif action == 'edit-host-set':
+            id = objects.edit_host_set(e_uci, data['id'], data['name'], data['family'], data['ipaddr'])
+            print(json.dumps({'id': id}))
+        elif action == 'delete-host-set':
+            used, matches = objects.is_used_object(e_uci, data['id'])
+            if used:
+                raise utils.ValidationError('id', 'object_is_used', matches)
+            objects.delete_host_set(e_uci, data['id'])
+            print(json.dumps({'message': 'success'}))
+        elif action == 'get-info':
+            info = {}
+            for id in data['ids']:
+                info[id] = objects.get_info(e_uci, id)
+            print(json.dumps({'info': info}))
+    except KeyError as e:
+        print(json.dumps(utils.validation_error(e.args[0], 'required')))
+    except utils.ValidationError as e:
+        print(json.dumps(utils.validation_error(e.parameter, e.message, e.value)))
+
