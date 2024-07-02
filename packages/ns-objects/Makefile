@@ -31,6 +31,7 @@ endef
 
 define Package/ns-objects/conffiles
 /etc/config/objects
+/etc/config/users
 endef
 
 # this is required, otherwise compile will fail
