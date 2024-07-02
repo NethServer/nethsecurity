@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
+import re
 import json
 import subprocess
 from euci import EUci
@@ -99,11 +100,13 @@ for section in utils.get_all_by_type(u, 'network', 'interface'):
     if not device or device == "lo" or device.startswith("ipsec") or device.startswith("tun"):
         continue
     network = {"type": "ethernet", "name": device, "props": { "role": _get_role(u, section), "ipaddr": _get_ip(section), "netmask": _get_mask(section), "gateway": _get_gateway(section)}}
-    if interface['device'].startswith('br'):
+    # get bridge ports, exclude vlans over bridges
+    is_vlan = bool(re.search(r'\.\d+$', interface['device'])) # check if the device name ends with .<number>
+    if interface['device'].startswith('br') and not is_vlan:
         network["type"] = "bridge"
         for d in devices:
             if u.get('network', d, 'name') == device:
-                network['props']["bridge"] = u.get('network', d, 'ports')
+                network['props']["bridge"] = u.get('network', d, 'ports', default=[])
     networks[device] = network
 
 features = {}
