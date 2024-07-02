@@ -86,9 +86,10 @@ if not product:
         product = binfo['model']['name']
     except:
         product = ""
-dns = _run("grep nameserver /tmp/resolv.conf.d/resolv.conf.auto | awk '{print $2}' | tr '\n' ','")
+dns = _run("uci get dhcp.@dnsmasq[0].server | tr ' ' ','")
 if not dns:
-  dns = _run("uci get dhcp.ns_dnsmasq.server | tr ' ' ','")
+  dns = _run("grep nameserver /tmp/resolv.conf.d/resolv.conf.auto | awk '{print $2}' | tr '\n' ','")
+dns = dns.removesuffix(',')
 networks = {}
 u = EUci()
 devices = utils.get_all_by_type(u, 'network', 'device')
