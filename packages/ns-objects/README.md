@@ -35,7 +35,7 @@ It also has the following fields:
 - `user_dn`: LDAP user DN; if not present, default is equal as `base_dn`
 - `user_attr`: user attribute to identify the user; usually is `cn` for Active Directory and `uid` for OpenLDAP; the `user_attr` is used to calculate
   the Distinct Name (DN) of the user by concatenating the `user_attr` with the `user_dn`
-- `user_cn`: user attribute that contains the user complete name
+- `user_display_attr`: user attribute that contains the user display name
 - `user_bind_dn`: if set, it takes precedence over `user_attr` and it's used to bind the user to the LDAP server.
   This field is mainly used for OpenVPN road warrior authentication.
   It accepts the `%u` placeholder that will be replaced with the user name. Note that the user name must exists inside the `users` database
@@ -60,7 +60,7 @@ config ldap 'ldap1'
 	option base_dn 'dc=directory,dc=nh'
 	option user_dn 'ou=People,dc=directory,dc=nh'
 	option user_attr 'uid'
-	option user_cn 'cn'
+	option user_display_attr 'cn'
 	option user_bind_dn ''
 	option starttls '0'
 	option schema 'rfc2307'
@@ -75,7 +75,7 @@ config ldap 'ad1'
 	option base_dn 'dc=ad,dc=nethserver,dc=org'
 	option user_dn 'cn=users,dc=ad,dc=nethserver,dc=org'
 	option user_attr 'cn'
-	option user_cn 'cn'
+	option user_display_attr 'cn'
 	option user_bind_dn '%u@nethserver.org'
 	option starttls '0'
 	option schema 'ad'
