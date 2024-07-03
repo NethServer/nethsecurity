@@ -29,7 +29,6 @@ if cmd == 'list':
         "edit-ldap-database": {"name": "ldap", "uri": "ldap://ldap.example.com", "schema": "rfc2307", "base_dn": "dc=example,dc=com", "user_dn": "ou=People,dc=example,dc=com", "user_attr": "uid", "user_display_attr": "cn", "start_tls": False, "tls_reqcert": "never", "description": "LDAP users", "bind_dn": "cn=admin,dc=example,dc=com", "bind_password": "password", "user_bind_dn": "%s@example.com"},
         "delete-ldap-database": {"name": "ldap"},
         "get-database": {"name": "ldap"},
-        "get-ldap-defaults": {"uri": "ldap://ldap.example.com", "schema": "rfc2307"},
         "test-ldap": {"uri": "ldap://ldap.example.com", "user_dn": "ou=People,dc=example,dc=com", "user_attr": "uid", "user_display_attr": "cn", "start_tls": False, "tls_reqcert": "never", "bind_dn": "cn=admin,dc=example,dc=com", "bind_password": "password"},
 
         "add-local-user": {"name": "user", "password": "password", "description": "User", "database": "main"},
@@ -71,8 +70,6 @@ else:
             ret = {"result": "success"}
         elif action == "get-database":
             ret = {"database": users.get_database(u, args['name'])}
-        elif action == "get-ldap-defaults":
-            ret = {"defaults": users.get_ldap_defaults(args['uri'], args['schema'])}
         elif action == "test-ldap":
             ret = {"users": users.list_remote_users(args['uri'], args['user_dn'], args['user_attr'], args['user_display_attr'], args['start_tls'], args['tls_reqcert'], args.get("bind_dn"), args.get("bind_password"), args.get("schema"))}
 

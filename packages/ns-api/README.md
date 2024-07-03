@@ -5196,25 +5196,6 @@ Response example:
 }
 ```
 
-### get-ldap-defaults
-
-Retrieve opinionated LDAP defaults for given database:
-```
-api-cli ns.users get-ldap-defaults --data '{"uri": "ldap://ldap.example.com", "schema": "rfc2307"}'
-```
-
-Response example:
-```json
-{
-  "defaults": {
-    "base_dn": "dc=example,dc=com",
-    "user_dn": "ou=People,dc=example,dc=com",
-    "user_attr": "uid",
-    "user_display_attr": "cn"
-  }
-}
-```
-
 ### add-local-database
 
 Create a local user database:
