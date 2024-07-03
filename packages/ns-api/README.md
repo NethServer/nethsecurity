@@ -5116,7 +5116,7 @@ Response example for a ldap database:
     "base_dn": "dc=directoy,dc=nh",
     "user_dn": "ou=People,dc=directory,dc=nh",
     "user_attr": "uid",
-    "user_cn": "cn",
+    "user_display_attr": "cn",
     "bind_dn": "cn=admin,dc=directory,dc=nh",
     "bind_password": "pass",
     "start_tls": "0",
@@ -5132,7 +5132,7 @@ Response example for a ldap database:
 
 Add new remote LDAP database:
 ```
-api cli ns.users add-ldap-database --data '{"name": "ns7", "uri": "ldap://192.168.100.234", "schema": "rfc2307", "base_dn": "dc=directoy,dc=nh", "user_dn": "ou=People,dc=directory,dc=nh", "user_attr": "uid", "user_cn": "cn", "start_tls": false, "tls_reqcert": "never", "description": "OpenLDAP NS7", "bind_dn": "cn=admin,dc=directory,dc=nh", "bind_password": "pass", "user_bind_dn": ""}'
+api cli ns.users add-ldap-database --data '{"name": "ns7", "uri": "ldap://192.168.100.234", "schema": "rfc2307", "base_dn": "dc=directoy,dc=nh", "user_dn": "ou=People,dc=directory,dc=nh", "user_attr": "uid", "user_display_attr": "cn", "start_tls": false, "tls_reqcert": "never", "description": "OpenLDAP NS7", "bind_dn": "cn=admin,dc=directory,dc=nh", "bind_password": "pass", "user_bind_dn": ""}'
 ```
 
 Response example:
@@ -5147,7 +5147,7 @@ May raise the following validation errors:
 
 Edit a remote LDAP database:
 ```
-api-cli ns.users add-ldap-database --data '{"name": "ns7", "uri": "ldap://192.168.100.234", "schema": "rfc2307", "base_dn": "dc=directoy,dc=nh", "user_dn": "ou=People,dc=directory,dc=nh", "user_attr": "uid", "user_cn": "cn", "start_tls": false, "tls_reqcert": "never", "description": "OpenLDAP NS7", "bind_dn": "cn=admin,dc=directory,dc=nh", "bind_password": "pass", "user_bind_dn": ""}'
+api-cli ns.users add-ldap-database --data '{"name": "ns7", "uri": "ldap://192.168.100.234", "schema": "rfc2307", "base_dn": "dc=directoy,dc=nh", "user_dn": "ou=People,dc=directory,dc=nh", "user_attr": "uid", "user_display_attr": "cn", "start_tls": false, "tls_reqcert": "never", "description": "OpenLDAP NS7", "bind_dn": "cn=admin,dc=directory,dc=nh", "bind_password": "pass", "user_bind_dn": ""}'
 ```
 
 Response example:
@@ -5177,7 +5177,7 @@ May raise the following validation errors:
 
 Test LDAP connection, it returns the list of users:
 ```
-api-cli ns.users test-ldap --data '{"uri": "ldap://192.168.100.234", "base_dn": "dc=directoy,dc=nh", "user_dn": "ou=People,dc=directory,dc=nh", "user_attr": "uid", "user_cn": "cn", "start_tls": false, "tls_reqcert": "never"}'
+api-cli ns.users test-ldap --data '{"uri": "ldap://192.168.100.234", "base_dn": "dc=directoy,dc=nh", "user_dn": "ou=People,dc=directory,dc=nh", "user_attr": "uid", "user_display_attr": "cn", "start_tls": false, "tls_reqcert": "never"}'
 ```
 
 Response example:
@@ -5210,7 +5210,7 @@ Response example:
     "base_dn": "dc=example,dc=com",
     "user_dn": "ou=People,dc=example,dc=com",
     "user_attr": "uid",
-    "user_cn": "cn"
+    "user_display_attr": "cn"
   }
 }
 ```
