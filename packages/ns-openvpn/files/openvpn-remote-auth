@@ -58,7 +58,7 @@ base_dn = ldap.get("base_dn", "")
 user_dn = ldap.get("user_dn", base_dn)
 user_attr = ldap.get("user_attr", "uid")
 tls_reqcert = ldap.get("tls_reqcert", "never")
-starttls = int(ldap.get("starttls", 0))
+starttls = int(ldap.get("start_tls", 0))
 user_bind_dn = ldap.get("user_bind_dn")
 
 if not uri or not base_dn:
@@ -80,10 +80,12 @@ ldapsearch_command = [
     "-b", base_dn,
     "-D", bind_dn,
     "-w", password,
-    base_dn # static filter to limit the number of returned attributes and entries
 ]
-if ldap.get("starttls", '1') == 1:
+if starttls:
     ldapsearch_command.append("-Z")
+
+# static filter to limit the number of returned attributes and entries
+ldapsearch_command.append(base_dn)
 
 env = os.environ.copy()
 env['LDAPTLS_REQCERT'] = tls_reqcert
