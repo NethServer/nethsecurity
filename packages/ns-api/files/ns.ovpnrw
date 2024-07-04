@@ -492,6 +492,20 @@ def list_users(ovpninstance):
     expirations = list_user_expirations(ovpninstance)
     db = u.get("openvpn", ovpninstance, "ns_user_db", default=None)
     db_users = users.list_users(u, db)
+    try:
+       tags = u.get_all("openvpn", ovpninstance, "ns_tag")
+       migrated = 'migrated' in tags
+    except:
+       tags = []
+    if 'migrated' in tags:
+        # migrated users can have the form <user>@>domain>
+        # make sure to duplicate connected info also removing the domain part
+        normalized = {}
+        for user in connected:
+            if '@' in user:
+                nuser = user.split('@')[0]
+                normalized[nuser] = connected[user]
+        connected.update(normalized)
     for user in db_users:
         # exclude users not enabled for OpenVPN
         if "openvpn_enabled" not in user:
