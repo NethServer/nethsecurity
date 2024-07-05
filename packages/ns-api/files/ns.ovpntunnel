@@ -111,6 +111,8 @@ def import_client(tunnel):
     if tunnel.get('TlsVersionMin', ''):
         u.set("openvpn", iname, "tls_version_min", tunnel['TlsVersionMin'])
 
+    u.set("openvpn", iname, "remote_cert_tls", "server")
+
     # Add management socket
     u.set("openvpn", iname, 'management', f'/var/run/openvpn_{iname}.socket unix')
 
