@@ -96,6 +96,12 @@ dedalo_option_cb() {
             interface=$2
 			echo "HS_INTERFACE=\"$2\"" >> "$DEDALO_CONFIG"
             ;;
+		dns1)
+			echo "HS_DNS1=\"$2\"" >> "$DEDALO_CONFIG"
+			;;
+		dns2)
+			echo "HS_DNS2=\"$2\"" >> "$DEDALO_CONFIG"
+			;;
 		use_scripts)
 			local use_scripts
 			config_get_bool use_scripts "$CONFIG_SECTION" "$1" 0
