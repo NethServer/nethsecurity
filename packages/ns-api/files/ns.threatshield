@@ -72,10 +72,10 @@ def list_feeds():
         with open('/etc/banip/banip.feeds') as f:
             return json.loads(f.read())
 
-def get_allow_list():
+def get_allow_list(file='/etc/banip/banip.allowlist'):
     ret = []
     try:
-        with open('/etc/banip/banip.allowlist') as f:
+        with open(file) as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -89,14 +89,23 @@ def get_allow_list():
         return []
     return ret
 
-def write_allow_list(allow_list):
-    with open('/etc/banip/banip.allowlist', 'w') as f:
+def write_allow_list(allow_list, file='/etc/banip/banip.allowlist'):
+    with open(file, 'w') as f:
         for x in allow_list:
             f.write(x['address'])
             if x['description']:
                 f.write(' #' + x['description'])
             f.write('\n')
     subprocess.run(["/etc/init.d/banip", "reload"], capture_output=True)
+
+def list_dns_feeds():
+    # Decompress and read the JSON file /etc/adblock/combined.sources.gz
+    sources = '/etc/adblock/combined.sources.gz'
+    if os.path.exists(sources) and os.path.getsize(sources) > 0:
+        data = subprocess.run(["gunzip", "-c", sources], capture_output=True).stdout
+        return json.loads(data)
+    else:
+        return {}
 
 ## APIs
 
@@ -116,11 +125,13 @@ def list_blocklist(e_uci):
             confidence = 8
         elif f.endswith('lvl3'):
             confidence = 6
+        elif f.endswith('lvl4'):
+            confidence = 5
         else:
             confidence = -1
         enabled = f in enabled_feeds
 
-        if 'bl.nethesis.it' in feed['url_4']:
+        if 'nethesis-blacklists' in feed.get('url_4'):
             type = 'enterprise'
         else:
             type = 'community'
@@ -204,18 +215,168 @@ def edit_allowed(payload):
     write_allow_list(cur)
     return {'message': 'success'}
 
+def dns_list_blocklist(e_uci):
+    ret = []
+    feeds = list_dns_feeds()
+    has_bl = has_bl_entitlement(e_uci)
+    try:
+        enabled_feeds = list(e_uci.get_all('adblock', 'global', 'adb_sources'))
+    except:
+        enabled_feeds = []
+    for f in feeds:
+        feed = feeds[f]
+        if f.endswith('lvl1'):
+            confidence = 10
+        elif f.endswith('lvl2'):
+            confidence = 8
+        elif f.endswith('lvl3'):
+            confidence = 6
+        else:
+            confidence = -1
+        enabled = f in enabled_feeds
+
+        if 'nethesis-blacklists' in feed.get('url'):
+            type = 'enterprise'
+        else:
+            type = 'community'
+
+        # list enabled enterprise lists, even if there is no Internet connection
+        if not enabled:
+            if type == 'enterprise' and not has_bl:
+                continue
+
+        ret.append({ 'name': f, 'type': type, 'enabled': enabled, 'confidence': confidence, 'description': feed.get('focus')})
+    return { "data": ret }
+
+def dns_edit_blocklist(e_uci, payload):
+    feeds = list_dns_feeds()
+    try:
+        enabled = list(e_uci.get_all('adblock', 'global', 'adb_sources'))
+    except:
+        enabled = []
+    if payload['enabled'] and payload['blocklist'] not in enabled:
+        enabled.append(payload['blocklist'])
+    if not payload['enabled'] and payload['blocklist'] in enabled:
+        enabled.remove(payload['blocklist'])
+    e_uci.set('adblock', 'global', 'adb_sources', enabled)
+    e_uci.save('adblock')
+    return {'message': 'success'}
+
+def dns_list_settings(e_uci):
+    try:
+        zones = list(e_uci.get('adblock', 'global', 'adb_zonelist'))
+    except:
+        zones = []
+    return { 'data': {'enabled': e_uci.get('adblock', 'global', 'ts_enabled') == '1', "zones": zones} }
+
+def dns_edit_settings(e_uci, payload):
+    if payload['enabled']:
+        e_uci.set('adblock', 'global', 'ts_enabled', '1')
+        e_uci.set('adblock', 'global', 'adb_enabled', '1')
+        e_uci.set('adblock', 'global', 'adb_backup', '1')
+        e_uci.set('adblock', 'global', 'adb_forcedns', '1')
+        e_uci.set('adblock', 'global', 'adb_zonelist', payload.get('zones', ['lan']))
+        try:
+            e_uci.get('adblock', 'global', 'adb_portlist')
+        except:
+            e_uci.set('adblock', 'global', 'adb_portlist', ['53', '853'])
+    else:
+        e_uci.set('adblock', 'global', 'ts_enabled', '0')
+        e_uci.set('adblock', 'global', 'adb_enabled', '0')
+        e_uci.set('adblock', 'global', 'adb_forcedns', '0')
+    e_uci.save('adblock')
+    return {'message': 'success'}
+
+def dns_list_allowed():
+    return { "data": get_allow_list('/etc/adblock/adblock.whitelist') }
+
+def dns_add_allowed(payload):
+    cur = get_allow_list('/etc/adblock/adblock.whitelist')
+    # extract address from cur list
+    if payload['address'] in [x['address'] for x in cur]:
+        raise ValidationError('address', 'address_already_present', payload['address'])
+    cur.append({ "address": payload['address'], "description": payload['description'] })
+    write_allow_list(cur, '/etc/adblock/adblock.whitelist')
+    return {'message': 'success'}
+
+def dns_edit_allowed(payload):
+    cur = get_allow_list('/etc/adblock/adblock.whitelist')
+    if payload['address'] not in [x['address'] for x in cur]:
+        raise ValidationError('address', 'address_not_found', payload['address'])
+    for i in range(len(cur)):
+        if cur[i]['address'] == payload['address']:
+            cur[i]['description'] = payload['description']
+            break
+    write_allow_list(cur, '/etc/adblock/adblock.whitelist')
+    return {'message': 'success'}
+
+def dns_delete_allowed(payload):
+    cur = get_allow_list('/etc/adblock/adblock.whitelist')
+    if payload['address'] not in [x['address'] for x in cur]:
+        raise ValidationError('address', 'address_not_found', payload['address'])
+    # remove address from cur list
+    for i in range(len(cur)):
+        if cur[i]['address'] == payload['address']:
+            del cur[i]
+            break
+    write_allow_list(cur, '/etc/adblock/adblock.whitelist')
+    return {'message': 'success'}
+
+def dns_list_bypass(e_uci):
+    # adblock.global.adb_bypass
+    try:
+        bypass = e_uci.get_all('adblock', 'global', 'adb_bypass')
+    except:
+        bypass = []
+    return { "data": bypass }
+
+def dns_add_bypass(e_uci, payload):
+    try:
+        bypass = list(e_uci.get_all('adblock', 'global', 'adb_bypass'))
+    except:
+        bypass = []
+    if payload['address'] in bypass:
+        raise ValidationError('address', 'address_already_present', payload['address'])
+    bypass.append(payload['address'])
+    e_uci.set('adblock', 'global', 'adb_bypass', bypass)
+    e_uci.save('adblock')
+    return {'message': 'success'}
+
+def dns_delete_bypass(e_uci, payload):
+    try:
+        bypass = list(e_uci.get_all('adblock', 'global', 'adb_bypass'))
+    except:
+        bypass = []
+    if payload['address'] not in bypass:
+        raise ValidationError('address', 'address_not_found', payload['address'])
+    bypass.remove(payload['address'])
+    e_uci.set('adblock', 'global', 'adb_bypass', bypass)
+    e_uci.save('adblock')
+    return {'message': 'success'}
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
     print(json.dumps({
         'list-blocklist': {},
         'edit-blocklist': { "blocklist": "blocklist_name", "enabled": True },
-        'list-settings': { 'data': { 'enabled': True } },
+        'list-settings': {},
         'edit-settings': { 'enabled': True },
         'list-allowed': {},
         'add-allowed': { 'address': '1.2.3.4', 'description': 'optional' },
         'edit-allowed': { 'address': '1.2.3.4', 'description': 'optional' },
-        'delete-allowed': { 'address': '1.2.3.4' }
+        'delete-allowed': { 'address': '1.2.3.4' },
+        'dns-list-blocklist': {},
+        'dns-edit-blocklist': { "blocklist": "blocklist_name", "enabled": True },
+        'dns-list-settings': {},
+        'dns-edit-settings': { 'enabled': True, 'zones': ["lan"] },
+        'dns-list-allowed': {},
+        'dns-add-allowed': { 'address': 'test.org' , 'description': 'optional'},
+        'dns-edit-allowed': { 'address': 'test.org', 'description': 'optional' },
+        'dns-delete-allowed' : { 'address': 'test.org' },
+        'dns-list-bypass': {},
+        'dns-add-bypass': { 'address': '1.2.3.4' },
+        'dns-delete-bypass': { 'address': '1.2.3.4' }
     }))
 elif cmd == 'call':
     action = sys.argv[2]
@@ -242,6 +403,36 @@ elif cmd == 'call':
         elif action == 'delete-allowed':
             payload = json.loads(sys.stdin.read())
             ret = delete_allowed(payload)
+
+        if action == 'dns-list-blocklist':
+            ret = dns_list_blocklist(e_uci)
+        elif action == 'dns-edit-blocklist':
+            payload = json.loads(sys.stdin.read())
+            ret = dns_edit_blocklist(e_uci, payload)
+        elif action == 'dns-list-settings':
+            ret = dns_list_settings(e_uci)
+        elif action == 'dns-edit-settings':
+            payload = json.loads(sys.stdin.read())
+            ret = dns_edit_settings(e_uci, payload)
+        elif action == 'dns-add-allowed':
+            payload = json.loads(sys.stdin.read())
+            ret = dns_add_allowed(payload)
+        elif action == 'dns-edit-allowed':
+            payload = json.loads(sys.stdin.read())
+            ret = dns_edit_allowed(payload)
+        elif action == 'dns-list-allowed':
+            ret = dns_list_allowed()
+        elif action == 'dns-delete-allowed':
+            payload = json.loads(sys.stdin.read())
+            ret = dns_delete_allowed(payload)
+        elif action == 'dns-list-bypass':
+            ret = dns_list_bypass(e_uci)
+        elif action == 'dns-add-bypass':
+            payload = json.loads(sys.stdin.read())
+            ret = dns_add_bypass(e_uci, payload)
+        elif action == 'dns-delete-bypass':
+            payload = json.loads(sys.stdin.read())
+            ret = dns_delete_bypass(e_uci, payload)
 
         print(json.dumps(ret))
     except ValidationError as ex:
