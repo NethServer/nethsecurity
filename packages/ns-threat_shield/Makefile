@@ -51,10 +51,12 @@ define Package/ns-threat_shield/install
 	$(LN) /usr/sbin/ts-ip $(1)/usr/share/ns-plug/hooks/unregister/80ts-ip
 	$(INSTALL_DIR) $(1)/usr/share/threat_shield
 	$(INSTALL_DATA) ./files/nethesis-dns.sources $(1)/usr/share/threat_shield
+	$(INSTALL_DATA) ./files/community-dns.sources $(1)/usr/share/threat_shield
 	$(INSTALL_DATA) ./files/banip.nethesis.feeds $(1)/etc/banip
 	$(INSTALL_BIN) ./files/adjust-banip.py $(1)/usr/libexec/ns-api/post-commit/
 	$(INSTALL_BIN) ./files/configure-banip-wans.py $(1)/usr/libexec/ns-api/pre-commit/
 	gzip -9n $(1)/usr/share/threat_shield/nethesis-dns.sources
+	gzip -9n $(1)/usr/share/threat_shield/community-dns.sources
 endef
 
 define Package/ns-threat_shield/postinst
