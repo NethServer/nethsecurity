@@ -13,6 +13,7 @@ TMP_FILE=/tmp/combined.sources
 
 SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
 SYSTEM_SECRET=$(uci -q get ns-plug.config.secret)
+TYPE=$(uci -q get ns-plug.config.type)
 TS_ENABLED=$(uci -q get adblock.global.ts_enabled)
 
 if [ "$TS_ENABLED" = 1 ]; then
@@ -38,7 +39,7 @@ if [ "$TS_ENABLED" = 1 ]; then
     # Setup Nethesis sources if the machine has a subscription
     if [ ! -z "$SYSTEM_SECRET" ] && [ ! -z "$SYSTEM_ID" ]; then
         # Replaces credentials and compress
-        gunzip -c $NETHESIS_SOURCES | sed -e "s/__USER__/$SYSTEM_ID/" -e "s/__PASSWORD__/$SYSTEM_SECRET/" >> $TMP_FILE
+        gunzip -c $NETHESIS_SOURCES | sed -e "s/__USER__/$SYSTEM_ID/" -e "s/__PASSWORD__/$SYSTEM_SECRET/" -e "s/__TYPE__/$TYPE/" >> $TMP_FILE
     fi
 
     # Merge the source list and compress it to the final file
