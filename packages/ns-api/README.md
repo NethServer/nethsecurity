@@ -5501,7 +5501,7 @@ Response example:
 
 ## ns.threatshield
 
-Manage banip configuration.
+Manage banip and adguard configuration.
 
 ### list-blocklist
 
@@ -5637,6 +5637,161 @@ Response example:
 
 It can raise the following validation errors:
 - `address_not_found` if the address is not inside the allow list
+
+### dns-list-blocklist
+
+List current dns blocklist:
+```
+api-cli ns.threatshield dns-list-blocklist
+```
+
+Response example:
+```json
+{
+  "data": [
+    {
+      "name": "malware_lvl2",
+      "type": "community",
+      "enabled": true,
+      "confidence": 8,
+      "description": "Threat Intelligence Feed"
+    },
+    {
+      "name": "yoroi_malware_level1",
+      "type": "enterprise",
+      "enabled": false,
+      "confidence": -1,
+      "description": "malware"
+    }
+  ]
+}
+```
+
+### dns-edit-blocklist
+
+Enable or disable a dns blocklist:
+```
+api-cli ns.threatshield dns-edit-blocklist --data '{ "blocklist": "blocklist_name", "enabled": True }'
+```
+
+Response example:
+```json
+{"message": "success"}
+``` 
+
+### dns-list-settings
+
+Show current dns adblock settings:
+```
+api-cli ns.threatshield dns-list-settings
+```
+
+Response example:
+```json
+{"data": {"enabled": true, "zones": ["lan"]}}
+```
+
+### dns-edit-settings
+
+Edit dns adblock settings:
+```
+api-cli ns.threatshield dns-edit-settings --data '{"enabled": true, "zones": ["lan"]}'
+```
+
+Response example:
+```json
+{"message": "success"}
+```
+
+## dns-list-allowed
+
+List domains always allowed:
+```
+api-cli ns.threatshield dns-list-allowed
+```
+
+Response example:
+```json
+{
+  "data": [
+    {
+      "address": "nethesis.it"
+    }
+  ]
+}
+```
+
+### dns-add-allowed
+
+Add a domain which is always allowed:
+```
+api-cli ns.threatshield dns-add-allowed --data '{"address": "nethesis.it", "description": "my allow1"}'
+```
+
+Response example:
+```json
+{"message": "success"}
+```
+
+### dns-edit-allowed
+
+Change the description of an address already insie the allow list:
+```
+api-cli ns.threatshield dns-edit-allowed --data '{"address": "nethesis.it", "description": "my new desc"}'
+```
+
+Response example:
+```json
+{"message": "success"}
+```
+
+### dns-delete-allowed
+
+Delete an address from the allow list:
+```
+api-cli ns.threatshield dns-delete-allowed --data '{"address": "nethesis.it"}'
+```
+
+Response example:
+```json
+{"message": "success"}
+```
+
+### dns-list-bypass
+
+List hosts that can bypass the adblock DNS redirect:
+```
+api-cli ns.threatshield dns-list-bypass
+```
+
+Response example:
+```json
+{"data": ["192.168.1.22"]}
+```
+
+### dns-add-bypass
+
+Add a host that can bypass the adblock DNS redirect:
+```
+api-cli ns.threatshield dns-add-bypass --data '{"address": "192.168.1.22"}'
+```
+
+Response example:
+```json
+{"message": "success"}
+```
+
+### dns-delete-bypass
+
+Delete a host that can bypass the adblock DNS redirect:
+```
+api-cli ns.threatshield dns-delete-bypass --data '{"address": "192.168.1.22"}'
+```
+
+Response example:
+```json
+{"message": "success"}
+```
 
 ## ns.qos
 

@@ -7,18 +7,16 @@
 
 DEST_DIR=/etc/adblock
 NETHESIS_SOURCES=/usr/share/threat_shield/nethesis-dns.sources.gz
-ADBLOCK_SOURCES=/etc/adblock/adblock.sources.gz
+COMMUNITY_SOURCES=/usr/share/threat_shield/community-dns.sources.gz
+CUSTOM_SOURCES=/etc/adblock/custom.sources.gz
+TMP_FILE=/tmp/combined.sources
 
 SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
 SYSTEM_SECRET=$(uci -q get ns-plug.config.secret)
+TYPE=$(uci -q get ns-plug.config.type)
 TS_ENABLED=$(uci -q get adblock.global.ts_enabled)
 
-if [ ! -z "$SYSTEM_SECRET" ] && [ ! -z "$SYSTEM_ID" ] && [ "$TS_ENABLED" = 1 ]; then
-    # Setup Nethesis sources if the machine has a subscription
-
-    # Explode sources, combine them in one object, replaces credentials and compress
-    gunzip -c $ADBLOCK_SOURCES $NETHESIS_SOURCES | jq -s '.[0]*.[1]' | sed -e "s/__USER__/$SYSTEM_ID/" -e "s/__PASSWORD__/$SYSTEM_SECRET/" | gzip > "$DEST_DIR"/combined.sources.gz
-
+if [ "$TS_ENABLED" = 1 ]; then
     # Setup new blacklist source
     uci set adblock.global.adb_srcarc="$DEST_DIR"/combined.sources.gz
 
@@ -30,8 +28,27 @@ if [ ! -z "$SYSTEM_SECRET" ] && [ ! -z "$SYSTEM_ID" ] && [ "$TS_ENABLED" = 1 ]; 
     uci set adblock.global.adb_fetchutil='wget'
     uci set adblock.global.adb_fetchparm="--compression=gzip --no-cache --no-cookies --max-redirect=0 --timeout=20 -O"
 
+    if [ -f $CUSTOM_SOURCES ]; then
+        # Add custom sources, if present
+        gunzip -c $CUSTOM_SOURCES > $TMP_FILE
+    else
+	# Use community sources
+        gunzip -c $COMMUNITY_SOURCES > $TMP_FILE
+    fi
+
+    # Setup Nethesis sources if the machine has a subscription
+    if [ ! -z "$SYSTEM_SECRET" ] && [ ! -z "$SYSTEM_ID" ]; then
+        # Replaces credentials and compress
+        gunzip -c $NETHESIS_SOURCES | sed -e "s/__USER__/$SYSTEM_ID/" -e "s/__PASSWORD__/$SYSTEM_SECRET/" -e "s/__TYPE__/$TYPE/" >> $TMP_FILE
+    fi
+
+    # Merge the source list and compress it to the final file
+    jq -s 'reduce .[] as $item ({}; . * $item)' $TMP_FILE |  gzip -c > "$DEST_DIR"/combined.sources.gz
+
+    # Cleanup
+    rm -f $TMP_FILE
 else
-    # Reset sources to origin file if the machine has no subscription
+    # Reset sources to origin file if threat shield is not enabled
     uci -q delete adblock.global.adb_srcarc
     uci -q delete adblock.global.adb_fetchparam
     uci set adblock.global.adb_fetchutil='curl'

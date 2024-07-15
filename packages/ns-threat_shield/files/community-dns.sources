@@ -1,0 +1,58 @@
+{
+	"malware_lvl2": {
+		"url": "https://bl.nethesis.it/plain/community/free/malware_lvl2.dns",
+		"rule": "/^[^#]/ { print }",
+		"size": "XXL",
+		"focus": "Threat Intelligence Feed",
+		"descurl": "www.nethesis.it"
+	},
+	"malware_privacy_lvl2": {
+		"url": "https://bl.nethesis.it/plain/community/free/malware_privacy_lvl2.dns",
+		"rule": "/^[^#]/ { print }",
+		"size": "XXL",
+		"focus": "Multi Light: malware & privacy",
+		"descurl": "www.nethesis.it"
+	},
+	"malware_privacy_lvl3": {
+		"url": "https://bl.nethesis.it/plain/community/free/malware_privacy_lvl3.dns",
+		"rule": "/^[^#]/ { print }",
+		"size": "XXL",
+		"focus": "Multi Normal: malware and privacy",
+		"descurl": "www.nethesis.it"
+	},
+	"malware_privacy_lvl4": {
+		"url": "https://bl.nethesis.it/plain/community/free/malware_privacy_lvl4.dns",
+		"rule": "/^[^#]/ { print }",
+		"size": "XXL",
+		"focus": "Multi Pro: malware and privacy",
+		"descurl": "www.nethesis.it"
+	},
+	"adult": {
+		"url": "https://bl.nethesis.it/plain/community/free/adult.dns",
+		"rule": "/^[^#]/ { print }",
+		"size": "XXL",
+		"focus": "Adult",
+		"descurl": "www.nethesis.it"
+	},
+	"doh_vpn_tor_proxy": {
+		"url": "https://bl.nethesis.it/plain/community/free/doh_vpn_tor_proxy.dns",
+		"rule": "/^[^#]/ { print }",
+		"size": "XXL",
+		"focus": "Prevent DNS bypass",
+		"descurl": "www.nethesis.it"
+	},
+	"gambling": {
+		"url": "https://bl.nethesis.it/plain/community/free/gambling.dns",
+		"rule": "/^[^#]/ { print }",
+		"size": "XXL",
+		"focus": "Gambling",
+		"descurl": "www.nethesis.it"
+	},
+	"piracy": {
+		"url": "https://bl.nethesis.it/plain/community/free/piracy.dns",
+		"rule": "/^[^#]/ { print }",
+		"size": "XXL",
+		"focus": "Piracy",
+		"descurl": "www.nethesis.it"
+	}
+}
