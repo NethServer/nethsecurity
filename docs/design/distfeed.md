@@ -54,11 +54,10 @@ The `distfeed-setup` script simplifies the automatic setup of the repository cha
 Execute the script without any additional arguments to automatically configure the repository channel based on the version of the running image.
 The script is automatically executed when a subscription is enabled or disabled.
 
-### Customization options
+#### Customization options
 
 The behavior of the distfeed-setup script can be customized using the following environment variables:
 
-- `BASE_URL`: set the base URL for repositories. If not specified, the default value is taken from {{site.download}}.
 - `CHANNEL`: define the desired channel for the repository. Possible values include stable, dev, and subscription.
    By default, the script attempts to extract this information from the `/etc/os-release` file.
 - `OWRT_VERSION`: specify the OpenWrt version used inside the rolling repository URL.
@@ -66,8 +65,28 @@ The behavior of the distfeed-setup script can be customized using the following 
 
 Custom configuration example:
 ```
-BASE_URL="https://custom-repo-url.com" CHANNEL="dev" OWRT_VERSION="21.02.3" distfeed-setup
+CHANNEL="dev" OWRT_VERSION="21.02.3" distfeed-setup
 ```
+
+If you want to change the base URL, set the UCI variable: `uci set ns-plug.config.repository_url=https://<your_server>`.
+
+### Force updates on a subscription machine
+
+A machine with a valid subscription receives updates from the subscription channel.
+The subscription channel contains stable releases that have undergone additional testing.
+Updates are pushed to the subscription channel after one week from the release date.
+
+If you have a machine with a valid subscription and want to force an update, you can use the following commands:
+
+```bash
+cp /etc/opkg/distfeeds.conf /etc/opkg/distfeeds.conf.ori
+cat /rom/etc/opkg/distfeeds.conf | sed 's/dev/stable/g' > /etc/opkg/distfeeds.conf
+opkg update
+/bin/opkg list-upgradable | /usr/bin/cut -f 1 -d ' ' | /usr/bin/xargs -r opkg upgrade && echo "Update successful!"
+mv /etc/opkg/distfeeds.conf.ori /etc/opkg/distfeeds.conf
+```
+
+At the end, the original `distfeeds.conf` file is restored.
 
 ## Upstream OpenWrt repositories
 
