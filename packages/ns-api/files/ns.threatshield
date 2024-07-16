@@ -96,6 +96,18 @@ def list_dns_feeds():
     else:
         return {}
 
+def get_confidence(f):
+    confidence = -1
+    if f.endswith('lvl1') or f.endswith('level1'):
+        confidence = 10
+    elif f.endswith('lvl2') or f.endswith('level2'):
+        confidence = 8
+    elif f.endswith('lvl3') or f.endswith('level3'):
+        confidence = 6
+    elif f.endswith('lvl4') or f.endswith('level4'):
+        confidence = 5
+    return confidence
+
 ## APIs
 
 def list_blocklist(e_uci):
@@ -108,16 +120,6 @@ def list_blocklist(e_uci):
         enabled_feeds = []
     for f in feeds:
         feed = feeds[f]
-        if f.endswith('lvl1'):
-            confidence = 10
-        elif f.endswith('lvl2'):
-            confidence = 8
-        elif f.endswith('lvl3'):
-            confidence = 6
-        elif f.endswith('lvl4'):
-            confidence = 5
-        else:
-            confidence = -1
         enabled = f in enabled_feeds
 
         if 'nethesis-blacklists' in feed.get('url_4'):
@@ -130,7 +132,7 @@ def list_blocklist(e_uci):
             if type == 'enterprise' and not has_bl:
                 continue
 
-        ret.append({ 'name': f, 'type': type, 'enabled': enabled, 'confidence': confidence, 'description': feed.get('descr')})
+        ret.append({ 'name': f, 'type': type, 'enabled': enabled, 'confidence': get_confidence(f), 'description': feed.get('descr')})
     return { "data": ret }
 
 def list_settings(e_uci):
@@ -214,14 +216,6 @@ def dns_list_blocklist(e_uci):
         enabled_feeds = []
     for f in feeds:
         feed = feeds[f]
-        if f.endswith('lvl1'):
-            confidence = 10
-        elif f.endswith('lvl2'):
-            confidence = 8
-        elif f.endswith('lvl3'):
-            confidence = 6
-        else:
-            confidence = -1
         enabled = f in enabled_feeds
 
         if 'nethesis-blacklists' in feed.get('url'):
@@ -234,7 +228,7 @@ def dns_list_blocklist(e_uci):
             if type == 'enterprise' and not has_bl:
                 continue
 
-        ret.append({ 'name': f, 'type': type, 'enabled': enabled, 'confidence': confidence, 'description': feed.get('focus')})
+        ret.append({ 'name': f, 'type': type, 'enabled': enabled, 'confidence': get_confidence(f), 'description': feed.get('focus')})
     return { "data": ret }
 
 def dns_edit_blocklist(e_uci, payload):
