@@ -22,9 +22,6 @@ import subprocess
 ## Utilities
 
 def has_bl_entitlement(e_uci):
-    if not has_enterprise_subscription(e_uci):
-        return False
-
     cache_file = "/tmp/bl_entitlement_cache"
     cache_timeout = 3600 * 6 # 6 hours
 
@@ -33,7 +30,7 @@ def has_bl_entitlement(e_uci):
         with open(cache_file, 'r') as f:
             return f.read() == "True"
 
-    url = "https://my.nethesis.it/auth/service/ng-blacklist"
+    url = 'https://bl.nethesis.it/plain/community/nethesis-blacklists/whitelist.global'
     system_id = e_uci.get('ns-plug', 'config', 'system_id', default='')
     secret = e_uci.get('ns-plug', 'config', 'secret', default='')
     auth_string = f"{system_id}:{secret}".encode("utf-8")
@@ -55,14 +52,6 @@ def has_bl_entitlement(e_uci):
         f.write(str(has_bl))
 
     return has_bl
-
-def has_enterprise_subscription(e_uci):
-    system_id = e_uci.get('ns-plug', 'config', 'system_id', default='')
-    if system_id == '':
-        return False
-    if e_uci.get('ns-plug', 'config', 'type', default='') == "enterprise":
-        return True
-    return False
 
 def list_feeds():
     if os.path.exists('/etc/banip/banip.custom.feeds') and os.path.getsize('/etc/banip/banip.custom.feeds') > 0:
@@ -107,6 +96,18 @@ def list_dns_feeds():
     else:
         return {}
 
+def get_confidence(f):
+    confidence = -1
+    if f.endswith('lvl1') or f.endswith('level1'):
+        confidence = 10
+    elif f.endswith('lvl2') or f.endswith('level2'):
+        confidence = 8
+    elif f.endswith('lvl3') or f.endswith('level3'):
+        confidence = 6
+    elif f.endswith('lvl4') or f.endswith('level4'):
+        confidence = 5
+    return confidence
+
 ## APIs
 
 def list_blocklist(e_uci):
@@ -119,16 +120,6 @@ def list_blocklist(e_uci):
         enabled_feeds = []
     for f in feeds:
         feed = feeds[f]
-        if f.endswith('lvl1'):
-            confidence = 10
-        elif f.endswith('lvl2'):
-            confidence = 8
-        elif f.endswith('lvl3'):
-            confidence = 6
-        elif f.endswith('lvl4'):
-            confidence = 5
-        else:
-            confidence = -1
         enabled = f in enabled_feeds
 
         if 'nethesis-blacklists' in feed.get('url_4'):
@@ -141,7 +132,7 @@ def list_blocklist(e_uci):
             if type == 'enterprise' and not has_bl:
                 continue
 
-        ret.append({ 'name': f, 'type': type, 'enabled': enabled, 'confidence': confidence, 'description': feed.get('descr')})
+        ret.append({ 'name': f, 'type': type, 'enabled': enabled, 'confidence': get_confidence(f), 'description': feed.get('descr')})
     return { "data": ret }
 
 def list_settings(e_uci):
@@ -225,14 +216,6 @@ def dns_list_blocklist(e_uci):
         enabled_feeds = []
     for f in feeds:
         feed = feeds[f]
-        if f.endswith('lvl1'):
-            confidence = 10
-        elif f.endswith('lvl2'):
-            confidence = 8
-        elif f.endswith('lvl3'):
-            confidence = 6
-        else:
-            confidence = -1
         enabled = f in enabled_feeds
 
         if 'nethesis-blacklists' in feed.get('url'):
@@ -245,7 +228,7 @@ def dns_list_blocklist(e_uci):
             if type == 'enterprise' and not has_bl:
                 continue
 
-        ret.append({ 'name': f, 'type': type, 'enabled': enabled, 'confidence': confidence, 'description': feed.get('focus')})
+        ret.append({ 'name': f, 'type': type, 'enabled': enabled, 'confidence': get_confidence(f), 'description': feed.get('focus')})
     return { "data": ret }
 
 def dns_edit_blocklist(e_uci, payload):
