@@ -40,12 +40,12 @@ def unregister():
         return utils.generic_error("unregister_failure")
 
 def info():
+    u = EUci()
     try:
         ret = {}
         p = subprocess.run(["/usr/sbin/subscription-info", "1"], check=True, capture_output=True)
         data = json.loads(p.stdout)
     except:
-        u = EUci()
         sid = u.get('ns-plug', 'config', 'system_id', default=None)
         data = {"subscription": {"valid_until": None, "status": None, "subscription_plan": {"name": '-'}}, 'id': None, "uuid": sid}
 
@@ -58,8 +58,9 @@ def info():
         expiration = int(datetime.timestamp(date))*1000
     except:
         expiration = 0
+    type = u.get('ns-plug', 'config', 'type', default='')
 
-    ret = {"server_id": data["id"], "systemd_id": data["uuid"], "plan": data["subscription"]["subscription_plan"]["name"], "expiration": expiration, "active": active}
+    ret = {"server_id": data["id"], "systemd_id": data["uuid"], "plan": data["subscription"]["subscription_plan"]["name"], "expiration": expiration, "active": active, "type": type}
     return ret
 
 cmd = sys.argv[1]
