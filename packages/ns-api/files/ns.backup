@@ -21,7 +21,12 @@ DOWNLOAD_PATH = '/var/run/ns-api-server/downloads/'
 PASSPHRASE_PATH = '/etc/backup.pass'
 
 def generate_random_file_name():
-    return 'backup-' + ''.join(random.choice(string.ascii_letters) for i in range(20))
+    suffix = ''
+    passphrase = fetch_passphrase()
+    if passphrase is not None:
+        # add encrypted suffix so the server can infer the type
+        suffix = ".gpg"
+    return 'backup-' + ''.join(random.choice(string.ascii_letters) for i in range(20)) + suffix
 
 def create_backup():
     os.makedirs(DOWNLOAD_PATH, exist_ok=True)
