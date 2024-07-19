@@ -197,7 +197,8 @@ elif cmd == 'call':
             # validate all the things!
             if 'name' not in data:
                 raise ValidationError('name', 'required')
-            if data['name'] in reverse_proxy.certificate_list(e_uci):
+            certificate_list = reverse_proxy.certificate_list(e_uci)
+            if data['name'] in certificate_list:
                 raise ValidationError('name', 'unique', data['name'])
             if utils.sanitize(data['name']) != data['name']:
                 raise ValidationError('name', 'invalid', data['name'])
@@ -207,6 +208,12 @@ elif cmd == 'call':
                 raise ValidationError('domains', 'invalid', data['domains'])
             if len(data['domains']) == 0:
                 raise ValidationError('domains', 'required')
+            # checking if the domain has been already requested, this only applies to acme certificates
+            for domain in data['domains']:
+                for certificate in certificate_list:
+                    if 'requested_domains' in certificate_list[certificate]:
+                        if domain in certificate_list[certificate]['requested_domains']:
+                            raise ValidationError('domains', 'certificate_already_requested', domain)
             if 'validation_method' not in data:
                 raise ValidationError('validation_method', 'required')
             if data['validation_method'] not in validation_methods:
