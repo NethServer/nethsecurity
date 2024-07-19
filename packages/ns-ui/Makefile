@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-ui
-PKG_VERSION:=1.0.18
+PKG_VERSION:=1.0.19
 PKG_RELEASE:=1
 
 PKG_SOURCE:=ui-$(PKG_VERSION).tar.gz
