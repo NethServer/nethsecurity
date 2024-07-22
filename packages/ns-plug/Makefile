@@ -79,6 +79,7 @@ define Package/ns-plug/install
 	$(INSTALL_BIN) ./files/register $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/unregister $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/subscription-info $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/update-packages $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/inventory $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-download $(1)/usr/bin
 	$(INSTALL_BIN) ./files/20_ns-plug $(1)/etc/uci-defaults
