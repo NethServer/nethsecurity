@@ -664,6 +664,12 @@ def edit_user(args):
         if not is_free_ip(ovpninstance, args["ipaddr"]):
             return utils.validation_error("ipaddr", "reserverd_ip_already_used", args["ipaddr"])
         u.set("users", user_id, "openvpn_ipaddr", args["ipaddr"])
+    # delete ipaddr if not set
+    if not args["ipaddr"]:
+        try:
+            u.delete("users", user_id, "openvpn_ipaddr")
+        except:
+            pass
     u.set("users", user_id, "openvpn_enabled", args["enabled"])
     u.commit("users")
     return {"result": "success"}
