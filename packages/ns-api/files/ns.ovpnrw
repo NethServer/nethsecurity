@@ -98,10 +98,21 @@ def is_valid_ip(ovpninstance, ip):
     if instance.get("dev_type") == "tap":
         (server_ip, mask, start, end) = instance.get("server_bridge").split(" ")
         ipnet = ipaddress.IPv4Network(f"{server_ip}/{mask}", strict=False).network_address
-        return ip != server_ip and ipaddress.ip_address(ip) in ipaddress.ip_network(f'{ipnet}/{mask}')
+        if ip == server_ip:
+            return False, "reserved_ip_must_not_be_server_ip"
+        if ipaddress.ip_address(ip) not in ipaddress.ip_network(f'{ipnet}/{mask}'):
+            return False, "reserved_ip_must_be_in_server_network"
+        return True, None
     else:
-        (server_net, server_mask) = instance.get("server").split(" ")
-        return ipaddress.ip_address(ip) in ipaddress.ip_network(f'{server_net}/{server_mask}')
+        (server_net, server_mask, _) = instance.get("server").split(" ")
+        # ip must be inside the server network
+        if not ipaddress.ip_address(ip) in ipaddress.ip_network(f'{server_net}/{server_mask}'):
+            return False, "reserved_ip_must_be_in_server_network"
+        # ip must be outside the DHCP pool
+        start_ip, end_ip, mask = instance.get("ifconfig_pool").split(" ")
+        if ipaddress.ip_address(ip) >= ipaddress.ip_address(start_ip) and ipaddress.ip_address(ip) <= ipaddress.ip_address(end_ip):
+            return False, "reserved_ip_must_be_outside_dhcp_pool"
+        return True, None
 
 def is_free_ip(ovpninstance, ip):
     u = EUci()
@@ -114,7 +125,7 @@ def is_free_ip(ovpninstance, ip):
             if ip == server_ip:
                 return False
             else:
-                (server_net, server_mask) = instance.get("server", "").split(" ")
+                (server_net, server_mask, _) = instance.get("server", "").split(" ")
                 net = ipaddress.ip_network(f'{server_net}/{server_mask}', strict=False)
                 if ip == f'{net.hosts()[1]}':
                     return False
@@ -228,7 +239,10 @@ def add_instance():
     firewall.add_device_to_zone(u, tun, 'rwopenvpn')
 
     # convert from '10.0.0.1/24' to '10.0.0.0 255.255.255.0'
-    network =  ipaddress.ip_network(ovpn.generate_random_network(u)).with_netmask.replace('/', ' ')
+    network =  ipaddress.ip_network(ovpn.generate_random_network(u))
+    network_str = network.with_netmask.replace('/', ' ')
+    start_ip = ipaddress.ip_address(network.network_address) + 50
+    end_ip = ipaddress.ip_address(network.broadcast_address) - 1
 
     u.set('openvpn', instance, 'openvpn')
     u.set('openvpn', instance, 'proto', 'udp')
@@ -242,7 +256,8 @@ def add_instance():
     u.set('openvpn', instance, 'verb', '3')
     u.set('openvpn', instance, 'enabled', '1')
     u.set('openvpn', instance, 'keepalive', '20 120')
-    u.set('openvpn', instance, 'server', network)
+    u.set('openvpn', instance, 'server', f'{network_str} nopool')
+    u.set('openvpn', instance, 'ifconfig_pool', f'{start_ip} {end_ip} {network.netmask}')
     u.set('openvpn', instance, 'client_connect', f'"/usr/libexec/ns-openvpn/openvpn-connect {instance}"')
     u.set('openvpn', instance, 'client_disconnect', f'"/usr/libexec/ns-openvpn/openvpn-disconnect {instance}"')
     u.set('openvpn', instance, 'dh', f'/etc/openvpn/{instance}/pki/dh.pem')
@@ -351,6 +366,13 @@ def get_configuration(ovpninstance):
     if ret['dev_type'] == "tap":
         (ip, mask, ret['ns_pool_start'], ret['ns_pool_end']) = ret.pop("server_bridge").split(" ")
         ret['ns_bridge'] = get_bridge_by_ip(ip)
+    else:
+        if ret.get("ifconfig_pool"):
+            ret['ifconfig_pool'] = ret.pop("ifconfig_pool").split(" ")
+            # remove netmask
+            ret['ifconfig_pool'].pop()
+        else:
+            ret['ifconfig_pool'] = []
 
     if 'ns_public_ip' not in ret:
         ret['ns_public_ip'] = ovpn.get_public_addresses(u)
@@ -400,11 +422,12 @@ def set_configuration(args):
         u.set("openvpn", ovpninstance, "client_disconnect", f"\"/usr/libexec/ns-openvpn/openvpn-disconnect {ovpninstance}\"")
         try:
             u.delete("openvpn", ovpninstance, "server")
+            u.delete("openvpn", ovpninstance, "ifconfig_pool")
         except:
             pass
     else:
         (server_net, server_mask) = args["server"].split("/")
-        u.set("openvpn", ovpninstance, "server", f"{server_net} {ovpn.to_netmask(server_mask)}")
+        u.set("openvpn", ovpninstance, "server", f"{server_net} {ovpn.to_netmask(server_mask)} nopool")
         u.set("openvpn", ovpninstance, "client_connect", f"\"/usr/libexec/ns-openvpn/openvpn-connect {ovpninstance}\"")
         u.set("openvpn", ovpninstance, "client_disconnect", f"\"/usr/libexec/ns-openvpn/openvpn-disconnect {ovpninstance}\"")
         old_dev = u.get("openvpn", ovpninstance, "dev", default=None)
@@ -417,6 +440,24 @@ def set_configuration(args):
                 u.delete("openvpn", ovpninstance, "ns_bridge")
         except:
             pass
+        if not args.get("ifconfig_pool"):
+            # set default ifconfig_pool
+            start_ip = ipaddress.ip_address(server_net) + 50
+            end_ip = ipaddress.ip_address(server_net) + 254
+            u.set("openvpn", ovpninstance, "ifconfig_pool", f"{start_ip} {end_ip} {ovpn.to_netmask(server_mask)}")
+        else:
+            start_ip = ipaddress.ip_address(args['ifconfig_pool'][0])
+            end_ip = ipaddress.ip_address(args['ifconfig_pool'][1])
+            if end_ip <= start_ip:
+                return utils.validation_error("ifconfig_pool_end", "end_must_be_greater_then_start", args['ifconfig_pool'])
+            if start_ip not in ipaddress.ip_network(f'{server_net}/{server_mask}'):
+                return utils.validation_error("ifconfig_pool_start", "start_not_in_network", args['ifconfig_pool'])
+            if end_ip not in ipaddress.ip_network(f'{server_net}/{server_mask}'):
+                return utils.validation_error("ifconfig_pool_end", "end_not_in_network", args['ifconfig_pool'])
+            # start_ip can't be the first IP of the network, it's reserved for the server
+            if start_ip == ipaddress.ip_address(server_net) + 1:
+                return utils.validation_error("ifconfig_pool_start", "start_reserved", args['ifconfig_pool'])
+            u.set("openvpn", ovpninstance, "ifconfig_pool", f"{args['ifconfig_pool'][0]} {args['ifconfig_pool'][1]} {server_mask}")
 
     if args.get("port") != u.get("openvpn", ovpninstance, "port", default=''):
         try:
@@ -601,8 +642,9 @@ def add_user(args):
         if os.path.exists(f"/etc/openvpn/{ovpninstance}/pki/issued/{args['username']}.crt"):
             return utils.validation_error("username", "user_certificate_already_exists", args["username"])
     if "ipaddr" in args and args["ipaddr"]:
-        if not is_valid_ip(ovpninstance, args["ipaddr"]):
-            return utils.validation_error("ipaddr", "reserved_ip_must_be_in_server_network", args["ipaddr"])
+        valid, error = is_valid_ip(ovpninstance, args["ipaddr"])
+        if not valid:
+            return utils.validation_error("ipaddr", error, args["ipaddr"])
         if not is_free_ip(ovpninstance, args["ipaddr"]):
             return utils.validation_error("ipaddr", "reserved_ip_already_used", args["ipaddr"])
     try:
@@ -657,10 +699,9 @@ def edit_user(args):
         return utils.validation_error("username", "user_not_found", args["username"])
 
     if args["ipaddr"] and u.get("users", user_id, 'openvpn_ipaddr', default="") != args["ipaddr"]:
-        if not is_valid_ip(ovpninstance, args["ipaddr"]):
-            return utils.validation_error("ipaddr", "reserved_ip_must_be_in_server_network", args["ipaddr"])
-        if not is_valid_ip(ovpninstance, args["ipaddr"]):
-            return utils.validation_error("ipaddr", "reserved_ip_must_be_in_server_network", args["ipaddr"])
+        valid, error = is_valid_ip(ovpninstance, args["ipaddr"])
+        if not valid:
+            return utils.validation_error("ipaddr", error, args["ipaddr"])
         if not is_free_ip(ovpninstance, args["ipaddr"]):
             return utils.validation_error("ipaddr", "reserverd_ip_already_used", args["ipaddr"])
         u.set("users", user_id, "openvpn_ipaddr", args["ipaddr"])
@@ -840,7 +881,8 @@ if cmd == 'list':
             "ns_local": [],
             "ns_dhcp_options": [],
             "ns_public_ip": ["1.2.3.4"],
-            "ns_user_db": "main"
+            "ns_user_db": "main",
+            "ifconfig_pool": ["10.166.54.4", "10.166.54.20"]
             },
         "remove-instance": {"instance": "roadwarrior1"},
         "import-users": {"instance": "roadwarrior1"},
