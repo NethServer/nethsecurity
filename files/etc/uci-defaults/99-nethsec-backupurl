@@ -1,0 +1,6 @@
+[ "$(uci get ns-plug.config.backup_url)" != "https://backupd.nethesis.it/backup" ] && exit 0
+
+uci -q batch << EOI
+set ns-plug.config.backup_url="https://backupd.nethesis.it"
+commit rpcd
+EOI

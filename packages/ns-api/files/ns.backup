@@ -21,7 +21,12 @@ DOWNLOAD_PATH = '/var/run/ns-api-server/downloads/'
 PASSPHRASE_PATH = '/etc/backup.pass'
 
 def generate_random_file_name():
-    return 'backup-' + ''.join(random.choice(string.ascii_letters) for i in range(20))
+    suffix = ''
+    passphrase = fetch_passphrase()
+    if passphrase is not None:
+        # add encrypted suffix so the server can infer the type
+        suffix = ".gpg"
+    return 'backup-' + ''.join(random.choice(string.ascii_letters) for i in range(20)) + suffix
 
 def create_backup():
     os.makedirs(DOWNLOAD_PATH, exist_ok=True)
@@ -105,6 +110,9 @@ if cmd == 'list':
         },
         'registered-download-backup': {
             'file': 'str'
+        },
+        'registered-delete-backup': {
+            'id': 'str'
         },
         'is-passphrase-set': { }
     }))
@@ -204,6 +212,18 @@ elif cmd == 'call':
             print(json.dumps(utils.generic_error('remote backup download failed')))
         except KeyError as error:
             print(json.dumps(utils.validation_error('file', 'required')))
+
+    elif action == 'registered-delete-backup':
+        try:
+            data = json.load(sys.stdin)
+            p = subprocess.run(['/usr/sbin/remote-backup', 'delete', data['id']],
+                           check=True, capture_output=True, text=True)
+            # return content
+            print(p.stdout)
+        except subprocess.CalledProcessError as error:
+            print(json.dumps(utils.generic_error('remote backup delete failed')))
+        except KeyError as error:
+            print(json.dumps(utils.validation_error('id', 'required')))
 
     elif action == 'is-passphrase-set':
         print(json.dumps({'values': {'set': os.path.exists(PASSPHRASE_PATH)}}))
