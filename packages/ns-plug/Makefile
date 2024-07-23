@@ -42,6 +42,8 @@ define Package/ns-plug/postinst
 if [ -z "$${IPKG_INSTROOT}" ]; then
   (. /etc/uci-defaults/20_ns-plug)
   rm -f /etc/uci-defaults/20_ns-plug
+  (. /etc/uci-defaults/40_ns-plug_automatic_updates)
+  rm -f /etc/uci-defaults/40_ns-plug_automatic_updates
   /etc/init.d/cron restart
 fi
 exit 0
@@ -84,6 +86,7 @@ define Package/ns-plug/install
 	$(INSTALL_BIN) ./files/ns-download $(1)/usr/bin
 	$(INSTALL_BIN) ./files/20_ns-plug $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/30_ns-plug_alerts $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/40_ns-plug_automatic_updates $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/netadata_enable_alerts $(1)/usr/share/ns-plug/hooks/register/70netadata_enable_alerts
 	$(INSTALL_BIN) ./files/netadata_disable_alerts $(1)/usr/share/ns-plug/hooks/unregister/70netadata_disable_alerts
 	$(INSTALL_BIN) ./files/enable_automatic_updates $(1)/usr/share/ns-plug/hooks/register/60enable_automatic_updates
