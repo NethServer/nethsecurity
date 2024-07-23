@@ -11,7 +11,7 @@
 
 action=${1:-"check"}
 timestamp=$2
-cmd="sleep \$(( RANDOM % 18000 )); /bin/opkg list-upgradable | /usr/bin/cut -f 1 -d ' ' | /usr/bin/xargs -r opkg upgrade"
+cmd="sleep \$(( RANDOM % 18000 )); /usr/sbin/update-packages"
 
 if [ "$action" == "add" ]; then
     crontab -l | grep -q "$cmd" || echo "5 2 * * * $cmd" >> /etc/crontabs/root
