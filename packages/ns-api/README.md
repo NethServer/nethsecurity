@@ -1243,6 +1243,7 @@ Response example for a server in routed mode:
   "ns_auth_mode": "certificate",
   "ns_bridge": "lan",
   "server": "192.168.101.0/24",
+  "ifconfig_pool": ["192.169.101.50","192.169.101.254"],
   "ns_public_ip": [
     "192.168.100.238"
   ],
