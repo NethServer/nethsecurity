@@ -30,9 +30,10 @@ def has_bl_entitlement(e_uci):
         with open(cache_file, 'r') as f:
             return f.read() == "True"
 
-    url = 'https://bl.nethesis.it/plain/community/nethesis-blacklists/whitelist.global'
     system_id = e_uci.get('ns-plug', 'config', 'system_id', default='')
     secret = e_uci.get('ns-plug', 'config', 'secret', default='')
+    type = e_uci.get('ns-plug', 'config', 'type', default='')
+    url = f'https://bl.nethesis.it/plain/{type}/nethesis-blacklists/whitelist.global'
     auth_string = f"{system_id}:{secret}".encode("utf-8")
     auth_header = f"Basic {base64.b64encode(auth_string).decode('utf-8')}"
     headers = {
