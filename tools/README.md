@@ -66,3 +66,20 @@ Use this template for each record:
 Do not use capital letter after column char.
 Do not include links to external resources.
 ```
+
+## openwrt-changes
+
+Generate changelogs about OpenWrt changes between two versions.
+
+Usage example:
+```
+./openwrt-changes 23.05.3 23.05.4
+```
+
+The script will:
+- clone all required OpenWrt repositories
+- execute [git-cliff](https://git-cliff.org) using podman
+
+Generated changelos are saved in the current directory:
+- core-changes.md
+- packages-changes.md
