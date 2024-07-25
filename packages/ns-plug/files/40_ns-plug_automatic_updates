@@ -1,0 +1,9 @@
+old_cmd="sleep \$(( RANDOM % 18000 )); /bin/opkg list-upgradable | /usr/bin/cut -f 1 -d ' ' | /usr/bin/xargs -r opkg upgrade"
+cmd="sleep \$(( RANDOM % 18000 )); /usr/sbin/update-packages"
+
+# Remove old command from crontab and add new one
+if crontab -l | grep -q "$old_cmd"; then
+    crontab -l | grep -v "$old_cmd" | sort | uniq | crontab -
+    # can't use /usr/libexec/ns-api/schedule-automatic-updates because new version could not be installed yet
+    crontab -l | grep -q "$cmd" || echo "5 2 * * * $cmd" >> /etc/crontabs/root
+fi

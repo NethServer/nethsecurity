@@ -80,7 +80,7 @@ def get_package_updates_lat_check():
 
 def install_package_updates():
     try:
-        out = subprocess.check_output("/usr/sbin/screen -dmS install_package_updates /bin/bash -c \"/bin/opkg list-upgradable | /usr/bin/cut -f 1 -d ' ' | /usr/bin/xargs -r opkg upgrade\"", shell=True)
+        out = subprocess.check_output("/usr/sbin/screen -dmS install_package_updates /usr/sbin/update-packages", shell=True)
     except Exception as e:
         print(e, file=sys.stderr)
         return utils.generic_error("opkg_ugrade_failed")

@@ -79,11 +79,7 @@ Updates are pushed to the subscription channel after one week from the release d
 If you have a machine with a valid subscription and want to force an update, you can use the following commands:
 
 ```bash
-cp /etc/opkg/distfeeds.conf /etc/opkg/distfeeds.conf.ori
-cat /rom/etc/opkg/distfeeds.conf | sed 's/dev/stable/g' > /etc/opkg/distfeeds.conf
-opkg update
-/bin/opkg list-upgradable | /usr/bin/cut -f 1 -d ' ' | /usr/bin/xargs -r opkg upgrade && echo "Update successful!"
-mv /etc/opkg/distfeeds.conf.ori /etc/opkg/distfeeds.conf
+update-packages --force-stable
 ```
 
 At the end, the original `distfeeds.conf` file is restored.
