@@ -15,6 +15,19 @@ import sys
 from euci import EUci
 from nethsec import users
 
+# The certificate of a migrated user is not present inside the index.txt
+def is_migrated(instance, user):
+    try:
+        with open(f"/etc/openvpn/{instance}/pki/index.txt", "r") as fp:
+            lines = fp.readlines()
+            for line in lines:
+                (status, expiration, revocation, serial, filename, name) = line.split("\t")
+                if name == user:
+                    return False
+    except:
+        return True
+    return True
+
 if len(sys.argv) < 3:
     print("Not enough script parameters", file=sys.stderr)
     sys.exit(3)
@@ -29,7 +42,11 @@ db = config.get("ns_user_db", None)
 if not db:
     # this is probably a tunnel, just ignore it
     sys.exit(0)
-user = users.get_user_by_name(uci, os.environ.get("common_name"), db)
+cn = os.environ.get("common_name")
+if '@' in cn and is_migrated(instance, os.environ.get("common_name")):
+    # remove domain suffix
+    cn = cn.split('@')[0]
+user = users.get_user_by_name(uci, cn, db)
 
 if user:
     ipaddr = user.get('openvpn_ipaddr', '')
