@@ -54,7 +54,7 @@ elif cmd == 'call':
     e_uci = EUci()
     try:
         if action == 'list-domain-sets':
-            print(json.dumps({'values': objects.list_domain_sets(e_uci)}))
+            print(json.dumps({'values': objects.list_objects(e_uci, include_host_sets=False, expand=True)}))
         elif action == 'list-hosts':
             print(json.dumps({'values': objects.list_objects(e_uci, include_domain_sets=False, expand=True)}))
         else:
