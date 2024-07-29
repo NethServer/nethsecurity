@@ -21,7 +21,7 @@ else:
         keys = '/etc/dropbear/authorized_keys'
         if os.path.exists(keys):
             with open(keys, 'r') as fp:
-                print({"keys": fp.read()})
+                print(json.dumps({"keys": fp.read()}))
         else:
-            print({"keys": ""})
+            print(json.dumps({"keys": ""}))
 
