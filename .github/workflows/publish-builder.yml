@@ -17,9 +17,10 @@ jobs:
       IMAGETAG: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
+      - name: Fetch tag annotations
+        run: |
+          # Fetch tag manually because fetch-tags option for checkout@v4 does not work
+          git fetch --force --tags --depth 1
       - id: build
         name: Build podman image
         run: |
