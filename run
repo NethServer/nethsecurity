@@ -11,7 +11,11 @@
 #
 
 workdir=$(pwd)
-image_tag=${IMAGE_TAG:-latest}
+image_tag=${IMAGE_TAG}
+if [ -z "$image_tag" ]; then
+    # use latest tag for the builder
+    image_tag=$(git describe --tags --abbrev=0)
+fi
 image="ghcr.io/nethserver/nethsecurity-builder:$image_tag"
 
 VALID_ARGS=$(getopt -o n --long no-cache -- "$@")
