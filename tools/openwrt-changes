@@ -1,0 +1,37 @@
+#!/bin/bash
+#
+# Use git-cliff to generate changelog between two OpenWrt versions
+
+IMAGE="ghcr.io/orhun/git-cliff/git-cliff:2.4.0"
+
+old_version=$1
+new_version=$2
+
+# exit if versions are not defined
+if [ -z "$old_version" ] || [ -z "$new_version" ]; then
+    echo "Usage: $0 <old_version> <new_version>"
+    exit 1
+fi
+
+feed_url="https://updates.nethsecurity.nethserver.org/stable/$old_version/targets/x86/64/feeds.buildinfo"
+profile_url="https://updates.nethsecurity.nethserver.org/stable/$old_version/targets/x86/64/profiles.json"
+
+rm -rf openwrt packages
+
+git clone https://github.com/openwrt/openwrt
+git clone https://github.com/openwrt/packages
+
+base_version=$(echo $new_version | cut -d. -f1-2)
+old_packages_hash=$(curl -s $feed_url | grep "src-git packages" | cut -d^ -f2)
+core_hash=$(curl -s $profile_url | jq -rc .version_code  | cut -d'-' -f2)
+
+pushd packages
+git checkout -b openwrt-$base_version origin/openwrt-$base_version
+podman run -t -v "$(pwd)":/app/:z -v "$(pwd)/../cliff.toml":/app/cliff.toml:z $IMAGE $old_packages_hash..HEAD > ../packages-changes.md
+popd
+
+pushd openwrt
+podman run -t -v "$(pwd)":/app/:z -v "$(pwd)/../cliff.toml":/app/cliff.toml:z $IMAGE v${old_version}..v${new_version} > ../core-changes.md
+popd
+
+rm -rf openwrt packages
