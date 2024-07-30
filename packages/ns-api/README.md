@@ -6134,22 +6134,26 @@ Example response:
 
 ```json
 {
-   "values": [
-      {
-         "label": "Default Rule",
-         "name": "ns_default_rule",
-         "policy": {
-            "label": "Default",
-            "name": "ns_default"
-         },
-         "protocol": "all",
-         "source_address": "1.1.1.1/30",
-         "destination_address": "10.0.0.1/20",
-         "sticky": false
-      }
-   ]
+  "values": [
+    {
+      "label": "Default Rule",
+      "name": "ns_default_rule",
+      "policy": {
+        "label": "Default",
+        "name": "ns_default"
+      },
+      "protocol": "all",
+      "source_address": "1.1.1.1/30",
+      "destination_address": "10.0.0.1/20",
+      "sticky": false
+    }
+  ]
 }
 ```
+
+Beware, additional field `ns_src` and `ns_dst` with a `id` representing the firewall object might be present in the
+response, they are the object replacement of `source_address` and `destination_address` respectively, consider them with
+higher priority over the other fields.
 
 Note: field `protocol`, `source_address` and `destination_address` can be missing from the response, in that case
 consider them to be set as `any`.
@@ -6171,6 +6175,8 @@ Parameters:
 - `destination_address`: destination address to be used, can be a single IP, a CIDR or empty for `any`
 - `destination_port`: destination port to be used, can be a single port, a range or empty for `any`
 - `sticky`: Allow traffic from the same source IP address within the timeout limit to use same wan interface as prior session (Boolean default false)
+- `ns_src`: source address object id, will override `source_address`
+- `ns_dst`: destination address object id, will override `destination_address`
 
 Example response:
 
@@ -6236,6 +6242,8 @@ Parameters:
 - `destination_address`: destination address to be used, can be a single IP, a CIDR or empty for `any`
 - `destination_port`: destination port to be used, can be a single port, a range or empty for `any`
 - `sticky`: Allow traffic from the same source IP address within the timeout limit to use same wan interface as prior session (Boolean default false)
+- `ns_src`: source address object id, will override `source_address`
+- `ns_dst`: destination address object id, will override `destination_address`
 
 Example response:
 
