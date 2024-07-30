@@ -44,8 +44,10 @@ jobs:
       GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: Fetch tag annotations
+        run: |
+          # Fetch tag manually because fetch-tags option for checkout@v4 does not work
+          git fetch --force --tags --depth 1
       - id: read_tag
         name: Set VERSION env variable
         if: ${{ startsWith(github.ref, 'refs/tags') }}
