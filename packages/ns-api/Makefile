@@ -46,6 +46,7 @@ define Package/ns-api/postrm
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
   /etc/init.d/rpcd restart
+  /etc/init.d/ns-api-server reload
 fi
 exit 0
 endef

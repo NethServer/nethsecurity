@@ -45,3 +45,7 @@ start_service() {
     procd_set_param command "$PROG"
     procd_close_instance
 }
+
+reload_service() {
+   procd_send_signal ns-api-server '*' USR1
+}
