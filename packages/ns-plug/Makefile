@@ -42,6 +42,7 @@ define Package/ns-plug/postinst
 if [ -z "$${IPKG_INSTROOT}" ]; then
   /usr/libexec/ns-plug/40_ns-plug_automatic_updates
   /etc/init.d/cron restart
+  /usr/libexec/ns-plug/40_ns-plug_mwan_hooks
 fi
 exit 0
 endef
@@ -52,6 +53,7 @@ if [ -z "$${IPKG_INSTROOT}" ]; then
   crontab -l | grep -v "/usr/sbin/send-backup" | sort | uniq | crontab -
   crontab -l | grep -v "/usr/sbin/send-inventory" | sort | uniq | crontab -
   crontab -l | grep -v "/usr/sbin/send-heartbeat" | sort | uniq | crontab -
+  sed -i '/\/usr\/libexec\/ns-plug\/mwan-hooks/d' /etc/mwan3.user
 fi
 exit 0
 endef
@@ -86,6 +88,8 @@ define Package/ns-plug/install
 	$(INSTALL_BIN) ./files/30_ns-plug_alerts $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/40_ns-plug_automatic_updates $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/40_ns-plug_automatic_updates $(1)/usr/libexec/ns-plug
+	$(INSTALL_BIN) ./files/40_ns-plug_mwan_hooks $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/40_ns-plug_mwan_hooks $(1)/usr/libexec/ns-plug
 	$(INSTALL_BIN) ./files/netadata_enable_alerts $(1)/usr/share/ns-plug/hooks/register/70netadata_enable_alerts
 	$(INSTALL_BIN) ./files/netadata_disable_alerts $(1)/usr/share/ns-plug/hooks/unregister/70netadata_disable_alerts
 	$(INSTALL_BIN) ./files/enable_automatic_updates $(1)/usr/share/ns-plug/hooks/register/60enable_automatic_updates
@@ -94,6 +98,8 @@ define Package/ns-plug/install
 	$(INSTALL_CONF) files/ns-plug.keep $(1)/lib/upgrade/keep.d/ns-plug
 	$(INSTALL_CONF) files/health_alarm_notify.conf $(1)/etc/netdata
 	$(INSTALL_DATA) files/mwan.chart.py $(1)/usr/lib/netdata/python.d/
+	$(INSTALL_BIN) ./files/send-mwan-alert $(1)/usr/libexec/mwan-hooks
+	$(INSTALL_BIN) ./files/mwan-hooks $(1)/usr/libexec/ns-plug
 endef
  
 $(eval $(call BuildPackage,ns-plug))
