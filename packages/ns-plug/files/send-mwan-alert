@@ -1,0 +1,35 @@
+#!/bin/bash
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Send WAN alert to monitoring portal
+
+lk=$(uci -q get ns-plug.config.system_id)
+secret=$(uci -q get ns-plug.config.secret)
+url=$(uci -q get ns-plug.config.alerts_url)"alerts/store"
+
+# Do not send alert if system_id or secret is not set
+if [ -z "$lk" ] || [ -z "$secret" ]; then
+    exit 0
+fi
+
+# Ignore ifup and ifdown events, they both triggers connected and disconnected events
+if [ "${ACTION}" == "connected" ]; then
+    status="OK"
+elif [ "${ACTION}" == "disconnected" ]; then
+    status="FAILURE"
+fi
+
+# Exit if status is not set
+if [ -z "$status" ]; then
+    exit 0
+fi
+
+alert_id="wan:${INTERFACE}:down"
+logger -t mwan3-alert "Sending alert ${alert_id} with status ${status}"
+payload='{"lk": "'$lk'", "alert_id": "'$alert_id'", "status": "'$status'"}'
+/usr/bin/curl -m 180 --retry 3 -L -s \
+    --header "Authorization: token ${secret}"  --header "Content-Type: application/json" --header "Accept: application/json"  \
+    --data-raw "${payload}" ${url}

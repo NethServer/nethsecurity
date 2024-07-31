@@ -1,0 +1,22 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+failed_count=0
+
+# Execute all mwan scrips
+for f in $(find /usr/libexec/mwan-hooks/ -type f -executable)
+do
+    # Execute the script
+    $f
+    exit_code=$?
+    if [ $exit_code -gt 0 ]; then
+        ((failed_count++))
+        logger -t mwan3-hook "Script $f failed with exit code $exit_code"
+    fi
+done
+
+exit $failed_count
