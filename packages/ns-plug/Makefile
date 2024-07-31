@@ -69,8 +69,8 @@ define Package/ns-plug/install
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_DIR) $(1)/etc/netdata
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
-	$(INSTALL_DIR) $(1)/usr/lib/netdata/python.d/
 	$(INSTALL_DIR) $(1)/usr/libexec/ns-plug
+	$(INSTALL_DIR) $(1)/usr/libexec/mwan-hooks
 	$(INSTALL_BIN) ./files/ns-plug.init $(1)/etc/init.d/ns-plug
 	$(INSTALL_BIN) ./files/ns-plug $(1)/usr/sbin/ns-plug
 	$(INSTALL_BIN) ./files/distfeed-setup $(1)/usr/sbin/distfeed-setup
@@ -97,7 +97,6 @@ define Package/ns-plug/install
 	$(INSTALL_CONF) ./files/config $(1)/etc/config/ns-plug
 	$(INSTALL_CONF) files/ns-plug.keep $(1)/lib/upgrade/keep.d/ns-plug
 	$(INSTALL_CONF) files/health_alarm_notify.conf $(1)/etc/netdata
-	$(INSTALL_DATA) files/mwan.chart.py $(1)/usr/lib/netdata/python.d/
 	$(INSTALL_BIN) ./files/send-mwan-alert $(1)/usr/libexec/mwan-hooks
 	$(INSTALL_BIN) ./files/mwan-hooks $(1)/usr/libexec/ns-plug
 endef
