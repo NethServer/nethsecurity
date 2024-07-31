@@ -215,7 +215,7 @@ def list_zones():
 
 def list_object_suggestions(u):
     return {
-        "ns_src": objects.list_objects(u),
+        "ns_src": objects.list_objects(u, include_host_sets=False),
         "ns_dst": objects.list_objects(u, singleton_only=True, include_domain_sets=False)
     }
 
