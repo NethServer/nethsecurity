@@ -58,15 +58,6 @@ define Package/ns-openvpn/install
 	$(INSTALL_BIN) ./files/openvpn-kill $(1)/usr/bin
 endef
 
-define Package/ns-openvpn/postinst
-#!/bin/sh
-if [ -z "$${IPKG_INSTROOT}" ]; then
-  (. /etc/uci-defaults/20_ns-openvpn)
-  rm -f /etc/uci-defaults/20_ns-openvpn
-fi
-exit 0
-endef
-
 define Package/ns-openvpn/prerm
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
