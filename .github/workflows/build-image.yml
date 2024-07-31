@@ -44,6 +44,8 @@ jobs:
       GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 500
       - name: Fetch tag annotations
         run: |
           # Fetch tag manually because fetch-tags option for checkout@v4 does not work
