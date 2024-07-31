@@ -2982,7 +2982,7 @@ Error response:
 
 Add a redirect rule:
 ```
-api-cli ns.redirects add-redirect --data '{"name": "my pf", "dest_ip": "10.0.0.1", "proto": ["tcp"], "src_dport": "22", "reflection": "1", "log": "1",  "dest_port": "222", "restrict": ["1.2.3.4"], "src_dip": "4.5.6.7", "dest": "lan", "reflection_zone": ["lan", "guest"], "enabled": "1"}'
+api-cli ns.redirects add-redirect --data '{"name": "my pf", "dest_ip": "10.0.0.1", "proto": ["tcp"], "src_dport": "22", "reflection": "1", "log": "1",  "dest_port": "222", "restrict": ["1.2.3.4"], "src_dip": "4.5.6.7", "dest": "lan", "reflection_zone": ["lan", "guest"], "enabled": "1", "ns_rc": "", "ns_dst": ""}'
 ```
 
 Fields description:
@@ -2998,6 +2998,8 @@ Fields description:
 - `restrict`: if it is not empty, the API will automatically create an associated ipset.
 - `dest`: destination zone
 - `reflection_zone`: list of hairpin NAT zones
+- `ns_src`: can contain an object if in the form `<database>/<id>`, it overwrites the `restrict` field
+- `ns_dst`: can contain an object if in the form `<database>/<id>`, it overwrites the `dest_ip` field
 
 Success response:
 ```json
@@ -3010,7 +3012,7 @@ Success response:
 
 Edit a redirect rule:
 ```
-api-cli ns.redirects edit-redirect --data '{"id": "ns_pf40", "name": "my pf", "dest_ip": "10.0.0.1", "proto": ["tcp"], "src_dport": "22", "reflection": "1", "log": "1",  "dest_port": "222", "restrict": [], "src_dip": "4.5.6.7", "enabled": "0"}'
+api-cli ns.redirects edit-redirect --data '{"id": "ns_pf40", "name": "my pf", "dest_ip": "10.0.0.1", "proto": ["tcp"], "src_dport": "22", "reflection": "1", "log": "1",  "dest_port": "222", "restrict": [], "src_dip": "4.5.6.7", "enabled": "0", "ns_rc": "", "ns_dst": ""}'
 ```
 
 Fields are the same as `add-redirect` API, plus the `id` field that identifies the rule.
