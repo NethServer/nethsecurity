@@ -114,7 +114,7 @@ remote-backup download $(remote-backup list | jq -r .[0].file) - | gpg --batch -
 
 ## Alerts
 
-All system alerts are handled by netdata, including those from the multiwan monitoring.
+All system alerts, except MultiWAN ones, are handled by netdata, including those from the multiwan monitoring.
 Alerts are disabled by default and enabled only if the machine has a valid subscription.
 In this case, alerts are automatically sent to the remote server (either my.nethesis.it or my.nethserver.com) using a
 custom sender (`/etc/netdata/health_alarm_notify.conf`).
@@ -127,11 +127,15 @@ Only the following alerts are sent to the remote system:
 
 When an alert is resolved, netdata will also send a clear command to remote server.
 
-## mwan3 netdata plugin
+### MultiWAN alerts
 
-The `/usr/lib/netdata/python.d/mwan.chart.py` file implements a netdata plugin for mwan3.
-The plugin tracks the score of each WAN using mwan3track status directory.
-When a WAN reaches a score equal to 1, an alert is triggered.
+MultiWAN alerts are managed using `/etc/mwan3.user` script.
 
-Please note that mwan3track minumum score is `0` which is mapped to `1` inside netdata,
-otherwise the `0` value is not plotted within the chart.
+When a WAN changes its status, all executable scripts inside the `/usr/libexec/mwan-hooks/` directory will be executed.
+If the machine has a valid subscription, the `send-mwan-alert` script will send an alert to my.nethesis.it and my.nethserver.com monitoring portals.
+Sent alerts are logged to `/var/log/messages`, example:
+```
+Jul 31 12:40:42 NethSec mwan3-alert: Sending alert wan:wanb:down with status FAILURE
+...
+Jul 31 12:41:04 NethSec mwan3-alert: Sending alert wan:wanb:down with status OK
+```
