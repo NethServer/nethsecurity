@@ -137,7 +137,7 @@ def add_redirect(args):
     if objects.is_object_id(args.get('ns_dst')):
         if not objects.object_exists(u, args.get('ns_dst')):
             return utils.generic_error("ns_dst_not_found")
-        if not objects.is_domain(args.get('ns_dst')) and not objects.is_host(args.get('ns_dst')) and not objects.is_vpn_user(args.get('ns_dst')):
+        if not objects.is_host(u, args.get('ns_dst')) and not objects.is_vpn_user(u, args.get('ns_dst')) and not objects.is_singleton_host_set(u, args.get('ns_dst')):
             return utils.generic_error("ns_dst_invalid_object_type")
     rname = utils.get_random_id()
     try:
@@ -162,7 +162,7 @@ def edit_redirect(args):
     if objects.is_object_id(args.get('ns_dst')):
         if not objects.object_exists(u, args.get('ns_dst')):
             return utils.generic_error("ns_dst_not_found")
-        if not objects.is_domain(args.get('ns_dst')) and not objects.is_host(args.get('ns_dst')) and not objects.is_vpn_user(args.get('ns_dst')):
+        if not objects.is_host(u, args.get('ns_dst')) and not objects.is_vpn_user(u, args.get('ns_dst')) and not objects.is_singleton_host_set(u, args.get('ns_dst')):
             return utils.generic_error("ns_dst_invalid_object_type")
     rname = args.pop('id')
     restrict = args.pop('restrict', '')
@@ -215,7 +215,7 @@ def list_zones():
 
 def list_object_suggestions(u):
     return {
-        "ns_src": objects.list_objects(u),
+        "ns_src": objects.list_objects(u, include_host_sets=False),
         "ns_dst": objects.list_objects(u, singleton_only=True, include_domain_sets=False)
     }
 
