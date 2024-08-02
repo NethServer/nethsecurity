@@ -30,6 +30,8 @@ fi
 # Manage extra ns-ui instance on custom port
 nsui_extra_enable=$(uci -q get ns-ui.config.nsui_extra_enable)
 nsui_extra_port=$(uci -q get ns-ui.config.nsui_extra_port)
+crt=$(uci -q get nginx._lan.ssl_certificate)
+key=$(uci -q get nginx._lan.ssl_certificate_key)
 if [[ "$nsui_extra_enable" == "1" && "$nsui_extra_port" != "" ]]; then
     cat <<EOF > "$NSUI_EXTRA_FILE"
 server {
@@ -38,8 +40,8 @@ server {
 	server_name _lan;
 	include conf.d/00ns.locations*;
 	include conf.d/luci.locations*;
-	ssl_certificate /etc/nginx/conf.d/_lan.crt;
-	ssl_certificate_key /etc/nginx/conf.d/_lan.key;
+	ssl_certificate $crt;
+	ssl_certificate_key $key;
 	ssl_session_cache shared:SSL:32k;
 	ssl_session_timeout 64m;
 	error_log syslog:server=unix:/dev/log;
