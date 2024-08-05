@@ -96,6 +96,22 @@ config template_forwarding 'ns_lan2guest'
 	option src 'lan'
 	option dest 'guest'
 
+# Guest zone DHCP and dns
+
+config template_rule 'ns_guest_dns'
+	option name 'Allow-DNS'
+	option src 'guest'
+	option dest_port '53'
+	option proto 'udp'
+	option target 'ACCEPT'
+
+config template_rule 'ns_guest_dhcp'
+	option name 'Allow-DHCP'
+	option src 'guest'
+	option dest_port '67'
+	option proto 'udp'
+	option target 'ACCEPT'
+
 # IPSec
 
 config template_rule 'ns_ipsec_esp'
