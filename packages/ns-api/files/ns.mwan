@@ -11,6 +11,12 @@ import sys
 from euci import EUci
 from nethsec import mwan, utils, objects
 
+def __filter_objects(e_uci: EUci, obj):
+    if obj['type'] == 'host_set':
+        return objects.is_singleton_host_set(e_uci, obj['id'], allow_cidr=True)
+    return True
+
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
@@ -150,11 +156,9 @@ elif cmd == 'call':
         elif action == 'get_default_config':
             print(json.dumps({'values': mwan.get_default_config(e_uci)}))
         elif action == "list_object_suggestions":
-            objects = {
-                "ns_src": objects.list_objects(e_uci, singleton_only=True, include_domain_sets=False),
-                "ns_dst": objects.list_objects(e_uci, singleton_only=True, include_domain_sets=True)
-            }
-            print(json.dumps({"objects": objects}))
+            ns_src = list(filter(lambda x: __filter_objects(e_uci, x), objects.list_objects(e_uci, include_domain_sets=False)))
+            ns_dst = list(filter(lambda x: __filter_objects(e_uci, x), objects.list_objects(e_uci, include_domain_sets=True)))
+            print(json.dumps({"objects": {'ns_src': ns_src, 'ns_dst': ns_dst}}))
 
     except KeyError as e:
         print(json.dumps(utils.validation_error(e.args[0], 'required')))
