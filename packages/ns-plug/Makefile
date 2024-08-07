@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-plug
-PKG_VERSION:=0.0.13
+PKG_VERSION:=0.0.14
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-plug-$(PKG_VERSION)
