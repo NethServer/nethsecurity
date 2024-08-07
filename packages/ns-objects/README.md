@@ -415,15 +415,14 @@ Supported object types depends on the field:
   - a static lease, a record of type `host` from `dhcp` db
   - a dns record, a record of type `domain` from `dhcp` db
   - a vpn user, a record of type `user` from `users` db with `openvpn_ipaddr`
-  - a singleton host set, a record of type `host` from `objects` db with only one IP address
+  - a singleton host set, a record of type `host` from `objects` db with only one IP address or CIDR
 
 - `ns_dst` can be:
 
-  - a domain set object, a record of type `domain` from `objects` db
   - a dns record, a record of type `domain` from `dhcp` db
   - a host set object, a record of type `host` from `objects` db
   - a vpn user, a record of type `user` from `users` db with `openvpn_ipaddr`
-  - a singleton host set, a record of type `host` from `objects` db with only one IP address
+  - a singleton host set, a record of type `host` from `objects` db with only one IP address or CIDR
 
 
 Example of multiwan rule with domain set object inside `/etc/config/mwan3`:
