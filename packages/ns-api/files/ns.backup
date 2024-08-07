@@ -34,7 +34,7 @@ def create_backup():
         # run sysupgrade to create backup file
         file_name = generate_random_file_name()
         backup_path = f'{DOWNLOAD_PATH}{file_name}'
-        subprocess.run(['/sbin/sysupgrade', '-b', backup_path], check=True, capture_output=True)
+        subprocess.run(['/sbin/sysupgrade', '-k', '-b', backup_path], check=True, capture_output=True)
         # if passphrase is present, encrypt backup file
         passphrase = fetch_passphrase()
         if passphrase is not None:
