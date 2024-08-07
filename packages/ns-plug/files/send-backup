@@ -39,7 +39,7 @@ fi
 
 # Create the backup
 mkdir -p $WORK_DIR
-sysupgrade -b $BACKUP 2>/dev/null
+sysupgrade -k -b $BACKUP 2>/dev/null
 md5sum $BACKUP | awk '{print $1}' > $MD5
 
 # Send backup if there is no md5 saved
