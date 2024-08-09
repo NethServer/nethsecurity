@@ -7022,3 +7022,172 @@ The output attribute `reboot_needed` tells if a reboot of the unit is required t
 - disabling a NAT helper
 
 If `enabled` is `false`, all parameter changes are ignored and not applied.
+## ns.report
+
+Generate data for reports. Some reports are cached.
+
+### tsip-malware-report
+
+Report the number of blocked IPs by Threat Shield IP using the blocklists.
+Data are searched from the last 24 hours, inside `/var/log/messages` and `/var/log/messages.1.gz` so data can be incomplete
+if the logs do not contain the full 24 hours.
+Result is cached for 15 minutes.
+Usage example:
+```
+api-cli ns.report tsip-malware-report
+```
+
+Output example:
+```json
+{"first_seen":1723154401,"malware_count":84816,"malware_by_hour":[[0,5695],[1,5351],[2,5470],[3,6187],[4,5892],[5,5268],[6,5168],[7,5457],[8,6447],[9,5573],[10,5479],[11,5112],[12,4969],[13,4917],[14,4879],[15,2952],[16,0],[17,0],[18,0],[19,0],[20,0],[21,0],[22,0],[23,0]],"malware_by_category":{"nethesislvl3v4":76899,"yoroimallvl2v4":6979,"yoroisusplvl2v4":122,"blocklistv4":335},"malware_by_chain":{"fwd-wan":32933,"inp-wan":51402}}
+```
+
+### tsip-attack-report
+
+Report the number of blocked IPs by Threat Shield IP using the regexp over the log (like fail2ban).
+Data are searched from the last 24 hours, inside `/var/log/messages` and `/var/log/messages.1.gz` so data can be incomplete
+if the logs do not contain the full 24 hours.
+Result is cached for 15 minutes.
+Usage example:
+```
+api-cli ns.report tsip-attack-report
+```
+
+Output example:
+```json
+{"first_seen": 1724021271, "attack_count": 149, "attack_by_ip": [["xx.xx.177.217", 30], ["xx.xx.60.242", 30], ], "attack_by_hour": [[0, 7], [1, 49], [2, 39], [3, 11], [4, 0], [5, 1], [6, 5], [7, 0], [8, 0], [9, 0], [10, 4], [11, 31], [12, 2], [13, 0], [14, 0], [15, 0], [16, 0], [17, 0], [18, 0], [19, 0], [20, 0], [21, 0], [22, 0], [23, 0]]}
+```
+
+### mwan-report
+
+Report the online/offline events for each wan.
+Data are searched from the last 24 hours, inside `/var/log/messages` and `/var/log/messages.1.gz` so data can be incomplete
+if the logs do not contain the full 24 hours.
+Result is cached for 5 minutes.
+Usage example:
+```
+api-cli ns.report mwan-report
+```
+
+Output example:
+```json
+{
+  "total_online": 5,
+  "total_offline": 3,
+  "events_by_wan": {
+    "wan": [
+      [
+        1723185855,
+        1
+      ],
+      [
+        1723198098,
+        0
+      ],
+    ],
+    "wan2": [
+      [
+        1723185858,
+        1
+      ],
+      [
+        1723197224,
+        0
+      ],
+      [
+        1723197354,
+        1
+      ],
+      [
+        1723198098,
+        0
+    ]
+  }
+}
+```
+
+The `events_by_wan` object can be used to generate a scattered chart. Each element of the array is a pair of `timestamp,event`.
+Where `event` is `1` when there is an `online` event, `0` otherwise.
+
+### ovpnrw-list-days
+
+OpenVPN stores data inside a sqlite datbase which is lost upon reboot. This command will list all the days where data is available.
+Usage example:
+```
+api-cli ns.report ovpnrw-list-days --data '{"instance": "ns_roadwarrior1"}'
+```
+
+Output example:
+```json
+{
+  "days": [
+    "2024-08-07",
+    "2024-08-08",
+    "2024-08-09"
+  ]
+}
+```
+
+### ovpnrw-clients-by-day
+
+Report the number of clients connected to the OpenVPN server for a specific day.
+Usage example:
+```
+api-cli ns.report ovpnrw-clients-by-day --data '{"instance": "ns_roadwarrior1", "day": "2024-08-07"}'
+```
+
+Output example:
+```json
+{
+  "clients": [
+    {
+      "common_name": "goofy",
+      "virtual_ip_addr": "10.9.9.2",
+      "remote_ip_addr": "93.41.xx.xx",
+      "start_time": 1723119680,
+      "duration": 2766,
+      "bytes_received": 5532614,
+      "bytes_sent": 15296388
+    }
+  ]
+  ```
+
+### ovpnrw-count-clients-by-hour
+
+Report the number of clients connected to the OpenVPN server for a specific day, aggregated by hour.
+Usage example:
+```
+api-cli ns.report ovpnrw-count-clients-by-hour --data '{"instance": "ns_roadwarrior1", "day": "2024-08-07"}'
+```
+
+Output example:
+```json
+{"hours":[["00",0],["01",0],["02",0],["03",0],["04",0],["05",0],["06",0],["07",0],["08",0],["09",0],["10",0],["11",0],["12",2],["13",0],["14",0],["15",0],["16",0],["17",0],["18",0],["19",0],["20",1],["21",0],["22",1],["23",0]]}
+```
+
+### ovpnrw-bytes-by-hour
+
+Report the total traffic of clients connected to the OpenVPN server for a specific day, aggregated by hour.
+Usage example:
+```
+api-cli ns.report ovpnrw-bytes-by-hour --data '{"instance": "ns_roadwarrior1", "day": "2024-08-07"}'
+```
+
+Output example:
+```json
+{"hours":[["00",0],["01",0],["02",0],["03",0],["04",0],["05",0],["06",0],["07",0],["08",0],["09",0],["10",0],["11",0],["12",7898738814],["13",0],["14",0],["15",0],["16",0],["17",0],["18",0],["19",0],["20",11086216],["21",0],["22",43658241],["23",0]]}
+```
+
+### ovpnrw-bytes-by-hour-and-user
+
+Report the total traffic of a specific client connected to the OpenVPN server for a specific day, aggregated by hour.
+Usage example:
+```
+api-cli ns.report ovpnrw-bytes-by-hour-and-user --data '{"instance": "ns_roadwarrior1", "day": "2024-08-07", "user": "goofy"}'
+```
+
+Output example:
+```json
+{"hours":[["00",0],["01",0],["02",0],["03",0],["04",0],["05",0],["06",0],["07",0],["08",0],["09",0],["10",0],["11",0],["12",7877909812],["13",0],["14",0],["15",0],["16",0],["17",0],["18",0],["19",0],["20",0],["21",0],["22",0],["23",0]]}
+```
+
