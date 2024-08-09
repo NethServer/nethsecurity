@@ -1,0 +1,13 @@
+{
+  "report-manager": {
+    "description": "Manage reports",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.report": [
+          "*"
+        ]
+      }
+    }
+  }
+}
