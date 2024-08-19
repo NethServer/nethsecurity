@@ -21,6 +21,7 @@ try_restart() {
 
 maps=''
 quiet=""
+log='/root/migration.log'
 
 while getopts "qm:" opt
 do
@@ -60,7 +61,8 @@ cd $work_dir
 for f in $(find /usr/share/ns-migration/ -type f)
 do
     if [ -x "$f" ]; then
-        "$f" $quiet $maps "$tmp_dir/export"
+        echo "$f" $quiet $maps "$tmp_dir/export" | tee -a "$log"
+        "$f" $quiet $maps "$tmp_dir/export" 2>&1 | tee -a "$log"
     fi
 done
 

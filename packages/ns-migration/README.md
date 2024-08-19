@@ -39,7 +39,7 @@ tar xvzf export.tar.gz
 The `ns-import` script is verbose by default, use the `-q` option to suppress output to standard output.
 
 On first boot, if a file named `/usr/share/migration/export.tar.gz` is present, the system
-will automatically import the configuration. Migration output will be logged to `/var/log/migration.log`.
+will automatically import the configuration. Migration output will be logged to `/root/migration.log`.
 
 ### Remapping interfaces
 
