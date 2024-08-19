@@ -227,7 +227,7 @@ for a in data['aliases']:
         u.set("network", aname, "device", device)
         u.set("network", aname, "ipaddr", [ipaddr.with_prefixlen])
         u.set("network", aname, "proto", a["proto"])
-        if a["gateway"]:
+        if a.get("gateway"):
             u.set("network", aname, "gateway", a["gateway"])
         acount = acount - 1
         if not a['zone'] in alias_zones:
