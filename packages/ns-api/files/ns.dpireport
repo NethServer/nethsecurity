@@ -30,7 +30,7 @@ def summary(year, month, day):
     hours = dict()
     for i in range(24):
         hours[f'{i:02}'] = 0
-    ret = {"total": 0, "clients": {}, "hours": {"h": hours}, "names": {}, "protocol": {}, "host": {}, "application": {}}
+    ret = {"total": 0, "clients": {}, "hours": hours, "names": {}, "protocol": {}, "host": {}, "application": {}}
     # prepenad leading zero, if needed
     month = f'{int(month):02}'
     day = f'{int(day):02}'
