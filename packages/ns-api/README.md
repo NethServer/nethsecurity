@@ -685,8 +685,12 @@ Example:
 
 Retrive a traffic summary for the given day:
 ```
-api-cli ns.dpireport summary --data '{"year": "2023", "month": "06", "day": "16"}'
+api-cli ns.dpireport summary --data '{"year": "2023", "month": "06", "day": "16", "limit": 10}'
 ```
+
+The `limit` field is optional and defaults to 10, it will limit the number of items in the `client`, `protocol`, `application` and `host` lists.
+Elements exceeding the limit will be grouped in a single item called `others`.
+If set to -1, all items will be returned.
 
 The summary contains network traffic from multiple hosts.
 Lists are sorted in descending order by the amount of traffic in bytes.
@@ -768,6 +772,15 @@ Example:
   ]
 }
 ```
+
+### summary-by-client
+
+Retrive a traffic summary for the given day limited to a single client (host on the local network):
+```
+api-cli ns.dpireport summary-by-client --data '{"year": "2023", "month": "06", "day": "16", "client": "192.168.2.2", "limit": 10}'
+```
+
+It has the same structure of the `summary` API.
 
 ## ns.ovpntunnel
 
