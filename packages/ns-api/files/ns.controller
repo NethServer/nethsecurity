@@ -13,10 +13,29 @@ import json
 import subprocess
 from nethsec import utils
 from euci import EUci
+import re
+from datetime import datetime
+import subprocess
+import time
+import sqlite3
+import glob
+import socket
 
 AUTHORIZED_KEYS = "/etc/dropbear/authorized_keys"
 
+dns_cache = {}
+
 # Utility functions
+
+def reverse_dns(ip):
+    if ip in dns_cache:
+        return dns_cache[ip]
+    try:
+        name = socket.gethostbyaddr(ip)[0]
+        dns_cache[ip] = name
+        return name
+    except:
+        return ip
 
 def get_hostname():
     with open('/proc/sys/kernel/hostname', 'r') as fp:
@@ -49,6 +68,45 @@ def parse_authorized_keys():
             key, comment = parse_key(line)
             keys[key] = comment
     return keys
+
+def read_log(filter=None):
+    read_all = False
+    try:
+        # search for the last 20 minutes, if no result the firewall has been rebooted so read all the logs
+        subprocess.run("grep -q \"$(date -d '-20 minute' +'%b %e %H:%M')\" /var/log/messages", shell=True, check=True)
+    except subprocess.CalledProcessError:
+        read_all = True
+
+    if read_all:
+        cmd = "cat /var/log/messages"
+    else:
+        cmd = "sed -n \"/$(date -d '-20 minute' +'%b %e %H:%M')/,$ p\" /var/log/messages"
+
+    # try to narrow the search with a filter to avoid memory issues
+    if filter:
+        cmd += f" | grep -E '{filter}'"
+
+    # this will all the command output in memory, not efficient but the log file should not be too big
+    try:
+        proc = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True)
+        return proc.stdout.rstrip().lstrip().split('\n')
+    except subprocess.CalledProcessError:
+        return []
+
+def find_recent_files(directory, minutes=15):
+    current_time = time.time()
+    cutoff_time = current_time - (minutes * 60)
+    recent_files = []
+    for root, _, files in os.walk(directory):
+        for file_name in files:
+            file_path = os.path.join(root, file_name)
+            # Get the file's last modification time
+            file_mtime = os.path.getmtime(file_path)
+            # If the file was modified in the last `minutes` minutes, add it to the list
+            if file_mtime > cutoff_time:
+                # mtime is already in utc
+                recent_files.append((file_path, file_mtime))
+    return recent_files
 
 # API functions
 
@@ -111,10 +169,129 @@ def remove_ssh_key(ssh_key):
 
     return {"result": "success"}
 
+def dump_ts_malware():
+    # Parse /var/log/messages for banIP blocks, only last hour
+    # Line example:
+    # Aug 20 12:31:58 fw kernel: [1117985.535261] banIP/inp-wan/drop/nethesislvl3v4: IN=eth5 OUT= MAC=e4:3a:6e:15:8d:dd:14:49:bc:17:33:78:08:00 SRC=193.41.206.156 DST=150.252.232.82 LEN=44 TOS=0x00 PREC=0x00 TTL=247 ID=54321 PROTO=TCP SPT=51000 DPT=8728 WINDOW=65535 RES=0x00 SYN URGP=0 MARK=0x3f00"
+    ret = []
+    # regexp pattern to extract src and dst
+    ip_pattern = re.compile(r'SRC=(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+DST=(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})')
+    # regexp pattern to extract banIP/<chain>/drop/<category>
+    tag_pattern = re.compile(r'banIP/([a-zA-Z0-9\-]+)/drop/([a-zA-Z0-9]+):')
+
+    for line in read_log("banIP/.*/drop/"):
+        if line:
+            try:
+                time = datetime.strptime(f"{datetime.now().year} {line[:15]}", '%Y %b %d %H:%M:%S').timestamp()
+                time = datetime.utcfromtimestamp(time).timestamp()
+            except:
+                continue
+            src = dst = category = chain = ""
+            ips = ip_pattern.search(line)
+            if ips:
+                src = ips.group(1)
+                dst = ips.group(2)
+            tag = tag_pattern.search(line)
+            if tag:
+                chain = tag.group(1)
+                category = tag.group(2)
+
+            ret.append({"timestamp": int(time), "src": src, "dst": dst, "category": category, "chain": chain})
+
+    return {"data": ret}
+ 
+def dump_ts_attacks():
+    # Parse /var/log/messages for banIP suspicious blocks (fail2ban-like), only last hour
+    # Line example:
+    # Aug 20 04:06:30 fw banIP-1.0.0-5[18692]: suspicious IP '47.98.249.3'
+    ret = []
+    log = read_log("banIP.*suspicious")
+
+    # regexp pattern to extract suspicious IP
+    ip_pattern = re.compile(r"suspicious IP '(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'")
+    for line in log:
+        if line:
+            ip = ip_pattern.search(line)
+            time = datetime.strptime(f"{datetime.now().year} {line[:15]}", '%Y %b %d %H:%M:%S').replace(tzinfo=datetime.timezone.utc).timestamp()
+            time = datetime.utcfromtimestamp(time).timestamp()
+            if ip:
+                ret.append({"timestamp": int(time), "ip": ip.group(1)})
+    return {"data": ret}
+
+def dump_mwan_events():
+    # Parse /var/log/messages for mwan3 events, only last hour
+    # Line example:
+    # Aug 20 12:14:46 NethSec mwan3track[11191]: Interface wan2 (eth2) is offline
+    ret = []
+
+    event_pattern = re.compile(r"mwan3track.*Interface (\w+) \((.*)\) is (online|offline)")
+    for line in read_log("mwan3track.*is online|is offline"):
+        if line:
+            event = event_pattern.search(line)
+            time = datetime.strptime(f"{datetime.now().year} {line[:15]}", '%Y %b %d %H:%M:%S').timestamp()
+            time = datetime.utcfromtimestamp(time).timestamp()
+            if event:
+                ret.append({"timestamp": int(time), "wan": event.group(1), "interface": event.group(2), "event": event.group(3)})
+
+    return {"data": ret}
+
+def dump_dpi_stats():
+    # Parse /var/run/dpireport for the last 20 minutes
+    # filename example /var/run/dpireport/2024/08/20/172.25.5.17/15.json
+    ret = []
+    for file, timestamp in find_recent_files("/var/run/dpireport", 20):
+        # parse the filename to get the date client
+        tmp = file.removeprefix('/var/run/dpireport/').split('/')
+        with open(file, "r") as f:
+            data = json.load(f)
+        for key in ("protocol", "host", "application"):
+            for el in data.get(key, {}):
+                ret.append({"timestamp": int(timestamp), "client_address": tmp[3], "client_name": reverse_dns(tmp[3]), key: el, "bytes": data[key][el]})
+    return {"data": ret}
+
+def dump_openvpn_connections():
+    # Parse /var/run/openvpn/connections.db for the last 20 minutes
+    ret = []
+    for db_file in glob.glob('/var/openvpn/*/connections.db'):
+        instance = db_file.split('/')[-2]
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT * FROM connections WHERE start_time >= strftime('%s', 'now') - 1200;")
+            rows = cursor.fetchall()
+            for row in rows:
+                common_name, virtual_ip_addr, remote_ip_addr, start_time, duration, bytes_received, bytes_sent = row
+                time = datetime.utcfromtimestamp(start_time).timestamp()
+                ret.append({
+                    "timestamp": int(time),
+                    "instance": instance,
+                    "common_name": common_name,
+                    "virtual_ip_addr": virtual_ip_addr,
+                    "remote_ip_addr": remote_ip_addr,
+                    "start_time": start_time,
+                    "duration": duration,
+                    "bytes_received": bytes_received,
+                    "bytes_sent": bytes_sent
+                })
+        except:
+            continue
+
+    return {"data": ret}
+
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
-    print(json.dumps({"info": {}, "add-ssh-key": {"ssh_key": "ssh-rsa AAAAB3xxxxxb6O6m5"}, "remove-ssh-key": {"ssh_key": "ssh-rsa AAAAB3xxxxxb6O6m5"}}))
+    print(json.dumps({
+        "info": {},
+        "add-ssh-key": {"ssh_key": "ssh-rsa AAAAB3xxxxxb6O6m5"},
+        "remove-ssh-key": {"ssh_key": "ssh-rsa AAAAB3xxxxxb6O6m5"},
+        "dump-ts-malware": {},
+        "dump-ts-attacks": {},
+        'dump-mwan-events': {},
+        'dump-dpi-stats': {},
+        'dump-openvpn-connections': {}
+         }))
 elif cmd == 'call':
     action = sys.argv[2]
     if action == "info":
@@ -125,5 +302,15 @@ elif cmd == 'call':
     elif action == "remove-ssh-key":
         args = json.loads(sys.stdin.read())
         ret = remove_ssh_key(args["ssh_key"])
+    elif action == "dump-ts-malware":
+        ret = dump_ts_malware()
+    elif action == "dump-ts-attacks":
+        ret = dump_ts_attacks()
+    elif action == "dump-mwan-events":
+        ret = dump_mwan_events()
+    elif action == "dump-dpi-stats":
+        ret = dump_dpi_stats()
+    elif action == "dump-openvpn-connections":
+        ret = dump_openvpn_connections()
 
     print(json.dumps(ret))

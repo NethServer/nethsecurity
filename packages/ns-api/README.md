@@ -6529,6 +6529,146 @@ Response example:
 The API does not fail if the key is not present but it will not delete it.
 It can raise the error `invalid_ssh_key` if the key is not a valid SSH key.
 
+
+### dump-mwan-events
+
+Dump MWAN events to the controller as a time series.
+The function reads all data from last 20 minutes. If the firewall has been rebooted, try to read the whole log.
+Returned JSON output can be sent to the controller.
+Example:
+```
+api-cli ns.controller dump-mwan-events
+```
+
+```json
+{
+  "data": [
+    {
+      "timestamp": 1724221238,
+      "wan": "wan",
+      "interface": "eth1",
+      "event": "offline"
+    },
+    {
+      "timestamp": 1724221243,
+      "wan": "wan",
+      "interface": "eth1",
+      "event": "online"
+    }
+  ]
+}
+```
+
+### dumpt-ts-attacks
+
+Dump ThreatShield attacks to the controller as a time series.
+An attack is an IP blocked due to a temporary ban (fail2ban behavior).
+The function reads all data from last 20 minutes. If the firewall has been rebooted, try to read the whole log.
+Returned JSON output can be sent to the controller.
+
+Output example:
+```json
+{
+  "data": [
+    {
+      "timestamp": 1724230611,
+      "ip": "79.10.245.41"
+    },
+    {
+      "timestamp": 1724230781,
+      "ip": "79.10.245.41"
+    }
+  ]
+}
+```
+
+### dump-ts-malware
+
+Dump ThreatShield malware to the controller as a time series.
+A malware is an IP blocked due to a blocklist.
+The function reads all data from last 20 minutes. If the firewall has been rebooted, try to read the whole log.
+
+Output example:
+```json
+{
+  "data": [
+    {
+      "timestamp": 1724230020,
+      "src": "123.13.237.76",
+      "dst": "192.168.5.3",
+      "category": "nethesislvl3v4",
+      "chain": "fwd-wan"
+    },
+    {
+      "timestamp": 1724230021,
+      "src": "218.21.220.12",
+      "dst": "192.168.5.3",
+      "category": "nethesislvl3v4",
+      "chain": "fwd-wan"
+    }
+  ]
+}
+```
+
+### dump-openvpn-connections
+
+Dump OpenVPN connections to the controller as a time series.
+The function reads all data from last 20 minutes. If the firewall has been rebooted, data are not available.
+Returned JSON output can be sent to the controller.
+
+Output example:
+```json
+{
+  "data": [
+    {
+      "timestamp": 1724231288,
+      "instance": "ns_roadwarrior1",
+      "common_name": "giacomo",
+      "virtual_ip_addr": "10.9.9.4",
+      "remote_ip_addr": "1.2.3.33",
+      "start_time": 1724231288,
+      "duration": null,
+      "bytes_received": null,
+      "bytes_sent": null
+    }
+  ]
+}
+```
+
+### dump-dpi-stats
+
+Dump DPI stats to the controller as a time series.
+The function reads all data from last 20 minutes. If the firewall has been rebooted, data are not available.
+Returned JSON output can be sent to the controller.
+
+Output example:
+```json
+{
+  "data": [
+    {
+      "timestamp": 1724198400,
+      "client_address": "fe80::fc54:ff:fe6a:4aa1",
+      "client_name": "host1.local"
+      "protocol": "icmpv6",
+      "bytes": 70
+    },
+    {
+      "timestamp": 1724198400,
+      "client_address": "fe80::fc54:ff:fe6a:4aa1",
+      "client_name": "host1.local"
+      "bytes": 101
+    },
+    {
+      "timestamp": 1724198400,
+      "client_address": "fe80::fc54:ff:fe6a:4aa1",
+      "client_name": "host1.local"
+      "application": "unknown",
+      "bytes": 171
+    }
+  ]
+}
+```
+
 ## ns.scan
 
 Scan network to find existing hsots.
@@ -7133,4 +7273,7 @@ Output example:
 ```json
 {"hours":[["00",0],["01",0],["02",0],["03",0],["04",0],["05",0],["06",0],["07",0],["08",0],["09",0],["10",0],["11",0],["12",7877909812],["13",0],["14",0],["15",0],["16",0],["17",0],["18",0],["19",0],["20",0],["21",0],["22",0],["23",0]]}
 ```
+<<<<<<< HEAD
 
+=======
+>>>>>>> 71eb06c2 (ns-api: controller, add export dump functions)
