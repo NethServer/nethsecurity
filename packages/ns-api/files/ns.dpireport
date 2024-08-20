@@ -36,7 +36,7 @@ def summary(year, month, day, client="*", limit=10):
     day = f'{int(day):02}'
     for client_f in glob.glob(f'/var/run/dpireport/{year}/{month}/{day}/{client}'):
         client = client_f.removeprefix(f'/var/run/dpireport/{year}/{month}/{day}/')
-        cdetails = details(year, month, day, client)
+        cdetails = _details(year, month, day, client)
         ret["clients"][client] = cdetails["total"]
         ret["names"][client] = cdetails["name"]
         for hour in cdetails["hours"]:
@@ -75,7 +75,7 @@ def summary(year, month, day, client="*", limit=10):
 
     return ret
 
-def details(year, month, day, client):
+def _details(year, month, day, client):
     hours = dict()
     if not client:
         return ret
@@ -120,6 +120,3 @@ else:
             client = args.get('client', '*')
             limit = args.get('limit', 10)
             print(json.dumps(summary(year, month, day, client, limit=limit)))
-        elif action == "details":
-            client = args.get('client', '')
-            print(json.dumps(details(year, month, day, client)))
