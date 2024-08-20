@@ -84,7 +84,9 @@ mwan.store_policy(u, policy_name, interfaces)
 
 # generate one policy for each interface to ease divert rules creation
 for i in interfaces:
-    mwan.store_policy(u, f'{i.get("name")}_only', [i])
+    pname = i.get("name")
+    # make sure to not exceed 12 chars
+    mwan.store_policy(u, f'{pname[0:6]}_only', [i])
 
 # divert rule are not migrated
 
