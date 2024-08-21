@@ -1,0 +1,75 @@
+#!/bin/bash
+
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+#
+# Push report data a remote NethSecurity controller
+#
+
+UCI_CONF="ns-plug"
+source /etc/os-release
+
+server=$(uci -q get ${UCI_CONF}.config.server)
+unit_id=$(uci -q get ${UCI_CONF}.config.unit_id)
+token=$(uci -q get ${UCI_CONF}.config.token)
+
+# Exit early if no server has been set
+if [ -z "${server}" ]; then
+    exit 1
+fi
+
+# Exit early if no unit_id has been set
+if [ -z "${unit_id}" ]; then
+    exit 2
+fi
+
+# Exit early if no token been set
+if [ -z "${token}" ]; then
+    exit 3
+fi
+
+# Disable certificate verification if tls_verify is set to 0
+curl_opts="-sL"
+tls_verify=$(uci -q get ${UCI_CONF}.config.tls_verify)
+if [ "${tls_verify}" == "0" ]; then
+    curl_opts="${curl_opts}k"
+fi
+
+# Push data
+/usr/libexec/rpcd/ns.controller call dump-ts-malware | curl ${curl_opts} \
+    -H "Content-Type: application/json" \
+    -H "RegistrationToken: ${token}" \
+    -H "UnitId: ${unit_id}" \
+    -o /dev/null \
+     ${server}/api/reports/ts-malware --data @-
+
+/usr/libexec/rpcd/ns.controller call dump-ts-attacks | curl ${curl_opts} \
+    -H "Content-Type: application/json" \
+    -H "RegistrationToken: ${token}" \
+    -H "UnitId: ${unit_id}" \
+    -o /dev/null \
+    ${server}/api/reports/ts-attacks --data @-
+
+/usr/libexec/rpcd/ns.controller call dump-mwan-events | curl ${curl_opts} \
+    -H "Content-Type: application/json" \
+    -H "RegistrationToken: ${token}" \
+    -H "UnitId: ${unit_id}" \
+    -o /dev/null \
+    ${server}/api/reports/mwan-events --data @-
+
+/usr/libexec/rpcd/ns.controller call dump-dpi-stats | curl ${curl_opts} \
+    -H "Content-Type: application/json" \
+    -H "RegistrationToken: ${token}" \
+    -H "UnitId: ${unit_id}" \
+    ${server}/api/reports/dpi-stats --data @-
+
+/usr/libexec/rpcd/ns.controller call dump-openvpn-connections | curl ${curl_opts} \
+    -H "Content-Type: application/json" \
+    -H "RegistrationToken: ${token}" \
+    -H "UnitId: ${unit_id}" \
+    -o /dev/null \
+    ${server}/api/reports/ovpnrw-connections --data @-
+
