@@ -26,7 +26,7 @@ define Package/python-semver
 	CATEGORY:=NethSecurity
 	TITLE:=Python SemVer
 	URL:=https://github.com/python-semver/python-semver/
-	DEPENDS:=+python3-setuptools
+	DEPENDS:=+python-setutools-scm +python3-setuptools
 	PKGARCH:=all
 endef
  
