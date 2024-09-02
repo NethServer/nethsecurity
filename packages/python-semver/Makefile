@@ -17,8 +17,17 @@ PKG_SOURCE_URL:=https://codeload.github.com/python-semver/python-semver/tar.gz/$
 PKG_HASH:=skip
 
 PYTHON3_PKG_WHEEL_NAME=semver
+PKG_HOST_ONLY:=1
+HOST_BUILD_DEPENDS:= \
+	python3/host \
+	python-build/host \
+	python-installer/host \
+	python-setuptools-scm/host
 
+include ../pypi.mk
 include $(INCLUDE_DIR)/package.mk
+include $(INCLUDE_DIR)/host-build.mk
+include $(TOPDIR)/feeds/packages/lang/python/python3-host-build.mk
 include $(TOPDIR)/feeds/packages/lang/python/python3-package.mk
  
 define Package/python-semver
