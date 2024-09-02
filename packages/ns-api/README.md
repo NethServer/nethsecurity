@@ -5706,7 +5706,7 @@ Response example:
 {"message": "success"}
 ```
 
-## dns-list-allowed
+### dns-list-allowed
 
 List domains always allowed:
 ```
@@ -6716,7 +6716,7 @@ Example response:
 Note: if the entry does not exist, the API will still return a `success`, this is to avoid the drop of connection that
 already expired.
 
-## drop_all
+### drop_all
 
 Drop all conntrack entries:
 
@@ -6732,7 +6732,7 @@ Example response:
 }
 ```
 
-## Objects
+## ns.objects
 
 Manage domain sets and host sets.
 
