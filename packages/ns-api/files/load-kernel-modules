@@ -14,6 +14,10 @@ exit_code=0
 # Load all module
 grep -v '^#' /etc/modules.d/ns-nathelpers | while IFS= read -r line ; do
     module=$(echo "$line" | awk '{print $1}')
+    if lsmod | grep -q "$module" ; then
+        # skipping already loaded module
+        continue
+    fi
     modprobe $module
     for param in $(echo $line | awk '{for(i=2;i<=NF;++i)print $i}'); do
         # Set parameter using /sys since modprobe doesn't support parameters

@@ -6,6 +6,8 @@ parent: Design
 
 # NAT helpers
 
+NAT helpers management is implemented by `ns.nathelpers` API of `ns-api` package. The rest of this page provides some low-level details regarding NAT helpers.
+
 The image contains already all commonly used NAT helpers,
 but helpers are not loaded by default on a new installation.
 
