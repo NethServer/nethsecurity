@@ -517,7 +517,6 @@ elif cmd == 'call':
                                   if 'cert_path' in certificate}
             if data['certificate'] not in valid_certificates:
                 raise ValidationError('certificate', 'invalid', data['certificate'])
-            e_uci.set('nginx', data['id'], 'allow', data.get('allow', []))
             # update server
             e_uci.set('nginx', data['id'], 'server_name', data['domain'])
             e_uci.set('nginx', data['id'], 'ssl_certificate', valid_certificates[data['certificate']]['cert_path'])
@@ -526,10 +525,15 @@ elif cmd == 'call':
             # update location
             for location_id, location in utils.get_all_by_type(e_uci, 'nginx', 'location').items():
                 if location['uci_server'] == data['id']:
+                    # Fix issue 723: set allow to location
+                    e_uci.set('nginx', location_id, 'allow', data.get('allow', []))
                     reverse_proxy.set_proxy_pass(e_uci, location_id, data['destination'])
                     break
-            if 'allow' in data:
-                e_uci.set('nginx', data['id'], 'allow', data['allow'])
+            # Fix issue 723: delete allow from server
+            try:
+                e_uci.delete('nginx', data['id'], 'allow')
+            except:
+                pass
             # submit changes
             e_uci.save('nginx')
             print(json.dumps({'message': 'success'}))
