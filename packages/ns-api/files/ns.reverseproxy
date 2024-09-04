@@ -456,8 +456,8 @@ elif cmd == 'call':
                         if ('cert_path' in certificates[certificate]
                                 and certificates[certificate]['cert_path'] == server['ssl_certificate']):
                             item['certificate'] = certificate
-                    if 'allow' in server:
-                        item['allow'] = server['allow']
+                    if 'allow' in entry:
+                        item['allow'] = entry['allow']
                     response.append(item)
 
             print(json.dumps({'data': response}))
