@@ -1,0 +1,270 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import json
+import sys
+
+from nethsec import utils
+import subprocess
+
+DEFAULT_PARAMS = {
+    'nf_conntrack_ftp': {
+        'loose': 'N',
+        'ports': '21'
+    },
+    'nf_nat_ftp': {},
+    'nf_nat_amanda': {},
+    'nf_nat_tftp': {},
+    'nf_conntrack_irc': {
+        'dcc_timeout': '300',
+        'max_dcc_channels': '8',
+        'ports': '6667'
+    },
+    'nf_nat_sip': {},
+    'nf_nat_snmp_basic': {},
+    'nf_conntrack_h323': {
+        'callforward_filter': 'Y',
+        'default_rrq_ttl': '300',
+        'gkrouted_only': '1'
+    },
+    'nf_nat_irc': {},
+    'nf_conntrack_pptp': {},
+    'nf_conntrack_broadcast': {},
+    'nf_conntrack_amanda': {
+        'master_timeout': '300',
+        'ts_algo': 'kmp'
+    },
+    'nf_nat_h323': {},
+    'nf_conntrack_tftp': {
+        'ports': '69'
+    },
+    'nf_conntrack_sip': {
+        'ports': '5060',
+        'sip_direct_media': '1',
+        'sip_direct_signalling': '1',
+        'sip_external_media': '1',
+        'sip_timeout': '3600'
+    },
+    'nf_nat_pptp': {},
+    'nf_conntrack_snmp': {
+        'timeout': '30'
+    }
+}
+
+
+def get_nat_helper_names():
+    nat_helpers = []
+    proc = subprocess.run("/bin/opkg files kmod-nf-nathelper | grep -e '\.ko$' | cut -d'/' -f 5 | cut -d'.' -f1", shell=True, check=True,
+                          capture_output=True, text=True)
+    nat_helpers = proc.stdout.splitlines()
+
+    nat_helpers_extra = []
+    proc = subprocess.run("/bin/opkg files kmod-nf-nathelper-extra | grep -e '\.ko$' | cut -d'/' -f 5 | cut -d'.' -f1", shell=True, check=True,
+                          capture_output=True, text=True)
+    nat_helpers_extra = proc.stdout.splitlines()
+    return nat_helpers + nat_helpers_extra
+
+
+def get_loaded_nat_helper_names(all_nat_helper_names):
+    loaded_nat_helpers = []
+    proc = subprocess.run("grep nf_ /proc/modules", shell=True,
+                          check=True, capture_output=True, text=True)
+    for line in proc.stdout.splitlines():
+        line_tokens = line.strip().split()
+
+        if len(line_tokens) == 0:
+            continue
+
+        nat_helper_name = line_tokens[0]
+
+        if len(line_tokens) > 0 and nat_helper_name in all_nat_helper_names:
+            loaded_nat_helpers.append(nat_helper_name)
+
+    return loaded_nat_helpers
+
+
+def add_nat_helper_to_config_file(nat_helper_name, params):
+    with open("/etc/modules.d/ns-nathelpers", "a") as f:
+        f.write(f"{nat_helper_name}")
+
+        for param_name, param_value in params.items():
+            f.write(f" {param_name}={param_value}")
+
+        f.write("\n")
+
+
+def enable_nat_helper(nat_helper_name, params):
+    add_nat_helper_to_config_file(nat_helper_name, params)
+    subprocess.run(["/usr/sbin/load-kernel-modules"], check=True)
+    subprocess.run(["/sbin/service", "firewall", "restart"], check=True)
+
+
+def delete_nat_helper_from_config_file(nat_helper_name):
+    try:
+        with open("/etc/modules.d/ns-nathelpers", "r") as f:
+            lines = f.readlines()
+    except FileNotFoundError:
+        lines = []
+
+    with open("/etc/modules.d/ns-nathelpers", "w") as f:
+        for line in lines:
+            line_tokens = line.strip().split()
+
+            if len(line_tokens) == 0:
+                continue
+
+            if line_tokens[0] != nat_helper_name:
+                f.write(line)
+
+
+def get_enabled_nat_helpers():
+    enabled_nat_helpers = {}
+
+    try:
+        with open("/etc/modules.d/ns-nathelpers", "r") as f:
+            for line in f:
+                line_tokens = line.strip().split()
+
+                if len(line_tokens) == 0:
+                    continue
+
+                nat_helper_name = line_tokens[0]
+                nat_helper = {'name': nat_helper_name,
+                              'enabled': True, 'params': {}}
+
+                if len(line_tokens) > 1:
+                    # read params
+                    params = {}
+
+                    for i in range(1, len(line_tokens)):
+                        param_tokens = line_tokens[i].split("=")
+                        params[param_tokens[0]] = param_tokens[1]
+
+                    nat_helper['params'] = params
+
+                enabled_nat_helpers[nat_helper_name] = nat_helper
+
+            return enabled_nat_helpers
+    except FileNotFoundError:
+        # no nat helpers enabled
+        return []
+
+
+def list_nat_helpers():
+    # get names of all nat helpers
+    all_nat_helper_names = get_nat_helper_names()
+
+    # get names of nat helpers loaded in the kernel
+    loaded_nat_helper_names = get_loaded_nat_helper_names(all_nat_helper_names)
+
+    # get data of nat helpers enabled in the configuration
+    enabled_nat_helpers = get_enabled_nat_helpers()
+
+    # build list of nat helpers
+    nat_helpers = []
+
+    for nat_helper_name in all_nat_helper_names:
+        is_enabled = nat_helper_name in enabled_nat_helpers
+        is_loaded = nat_helper_name in loaded_nat_helper_names
+        params = {}
+
+        if is_enabled:
+            # merge default params with configured parameters
+            params = DEFAULT_PARAMS.get(
+                nat_helper_name, {}) | enabled_nat_helpers[nat_helper_name]['params']
+        else:
+            params = DEFAULT_PARAMS.get(nat_helper_name, {})
+
+        nat_helper = {
+            'name': nat_helper_name, 'enabled': is_enabled, 'loaded': is_loaded, 'params': params}
+        nat_helpers.append(nat_helper)
+
+    # sort nat helpers by name
+    nat_helpers.sort(key=lambda x: x['name'])
+    return nat_helpers
+
+
+def edit_nat_helper(nat_helper_name, enabled, params):
+    if not nat_helper_name:
+        raise utils.ValidationError('name', 'required')
+
+    if enabled is None:
+        raise utils.ValidationError('enabled', 'required')
+
+    all_nat_helper_names = get_nat_helper_names()
+
+    if nat_helper_name not in all_nat_helper_names:
+        raise utils.ValidationError('name', 'nat_helper_not_found')
+
+    reboot_needed = False
+
+    if enabled:
+        # check if nat helper is already enabled
+        enabled_nat_helpers = get_enabled_nat_helpers()
+        nat_helper_currently_enabled = enabled_nat_helpers.get(
+            nat_helper_name, None)
+
+        if nat_helper_currently_enabled:
+            # check if params have changed
+            params_changed = False
+
+            for param_name, new_param_value in params.items():
+                default_param_value = DEFAULT_PARAMS.get(
+                    nat_helper_name, {}).get(param_name, None)
+                current_param_value = nat_helper_currently_enabled['params'].get(
+                    param_name, default_param_value)
+                if new_param_value != current_param_value:
+                    params_changed = True
+                    break
+
+            if params_changed:
+                # editing params of a nat helper already enabled
+                delete_nat_helper_from_config_file(nat_helper_name)
+                add_nat_helper_to_config_file(nat_helper_name, params)
+                reboot_needed = True
+            else:
+                # nat helper is already enabled with the same params, nothing to do
+                pass
+        else:
+            # enable nat helper
+
+            # merge default params with the given params
+            new_params = DEFAULT_PARAMS.get(nat_helper_name, {}) | params
+            enable_nat_helper(nat_helper_name, new_params)
+            reboot_needed = False
+    else:
+        # disabling nat helper
+        delete_nat_helper_from_config_file(nat_helper_name)
+        reboot_needed = True
+
+    return reboot_needed
+
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({
+        'list-nat-helpers': {},
+        'edit-nat-helper': {
+            'name': 'str',
+            'enabled': False,
+            'params': {}
+        }
+    }))
+elif cmd == 'call':
+    action = sys.argv[2]
+    try:
+        if action == 'list-nat-helpers':
+            print(json.dumps({'values': list_nat_helpers()}))
+        elif action == 'edit-nat-helper':
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            print(json.dumps({'reboot_needed':  edit_nat_helper(
+                data.get('name'), data.get('enabled'), data.get('params', {}))}))
+    except json.JSONDecodeError:
+        print(json.dumps(utils.generic_error("json given is invalid")))
+    except utils.ValidationError as e:
+        print(json.dumps(utils.validation_error(e.parameter, e.message, e.value)))

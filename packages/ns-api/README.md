@@ -6953,3 +6953,72 @@ Response example:
   }
 }
 ```
+
+## ns.nathelpers
+
+List and manage NAT helpers.
+
+### list-nat-helpers
+
+List all NAT helpers and their configuration:
+```bash
+api-cli ns.nathelpers list-nat-helpers
+```
+
+Response example:
+```json
+{
+  "values": [
+    {
+      "enabled": false,
+      "loaded": false,
+      "name": "nf_conntrack_amanda",
+      "params": {
+        "master_timeout": "300",
+        "ts_algo": "kmp"
+      }
+    },
+    {
+      "enabled": false,
+      "loaded": false,
+      "name": "nf_conntrack_broadcast",
+      "params": {}
+    },
+    {
+      "enabled": false,
+      "loaded": false,
+      "name": "nf_nat_sip",
+      "params": {}
+    }
+  ]
+}
+```
+
+The `enabled` attribute tells if the user has activated the NAT helper; the `loaded` attribute tells if the module of the NAT helper is currently loaded in the kernel.
+
+Every NAT helper has its own set of parameters; this API returns either the configured value for each parameter (if the helper is enabled) or the default value.
+
+### edit-nat-helper
+
+Enable or disable a NAT helper and set its parameters.
+```bash
+api-cli ns.nathelpers edit-nat-helper --data '{"name": "nf_conntrack_h323", "enabled": true, "params": {"callforward_filter": "N", "default_rrq_ttl": "600", "gkrouted_only": "1"}}'
+```
+
+Response example:
+```json
+{"reboot_needed": false}
+```
+
+Required parameters:
+- `name`: name of the NAT helper
+- `enabled`: `true` to activate the NAT helper, `false` to disable it
+
+It may raise the following validation errors:
+- `nat_helper_not_found`: if a NAT helper named `name` does not exist
+
+The output attribute `reboot_needed` tells if a reboot of the unit is required to apply the changes to the NAT helper. A reboot is needed when:
+- changing the parameters of a NAT helper already loaded in the kernel
+- disabling a NAT helper
+
+If `enabled` is `false`, all parameter changes are ignored and not applied.
