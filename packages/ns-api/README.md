@@ -7021,4 +7021,4 @@ The output attribute `reboot_needed` tells if a reboot of the unit is required t
 - changing the parameters of a NAT helper already loaded in the kernel
 - disabling a NAT helper
 
-If `enabled` is `false`, any parameter changes are ignored and not applied.
+If `enabled` is `false`, all parameter changes are ignored and not applied.
