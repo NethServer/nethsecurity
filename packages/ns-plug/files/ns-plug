@@ -132,6 +132,8 @@ if [ "$(uci -q get rsyslog.promtail)" == "" ]; then
     uci set rsyslog.promtail.rfc=5424
     uci set rsyslog.promtail.target=$(echo "$response" | jq -r .data.promtail_address)
     uci commit rsyslog
+    # Use FQDN when sending logs #733
+    grep -qF '$PreserveFQDN on' /etc/rsyslog.conf || echo '$PreserveFQDN on' >> /etc/rsyslog.conf
     /etc/init.d/rsyslog restart
     sleep 5 # wait for rsyslog
 fi
