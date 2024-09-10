@@ -93,6 +93,10 @@ def unregister():
         return utils.generic_error("failed_to_restart_ns-plug")
     # Disable sending of FQDN, no matter if it fails
     subprocess.run("sed -i '/^\\$PreserveFQDN on$/d' /etc/rsyslog.conf", shell=True, capture_output=True)
+    # Disable sending data to the controller
+    subprocess.run("sed -i '/ns-push-reports/d' /etc/crontabs/root", shell=True, capture_output=True)
+    subprocess.run(["/etc/init.d/cron", "restart"], shell=True, capture_output=True)
+
     try:
         subprocess.run(['/etc/init.d/rsyslog', 'restart'], check=True, capture_output=True)
     except:
