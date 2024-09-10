@@ -740,6 +740,7 @@ def delete_user(ovpninstance, username):
         env = os.environ.copy()
         env["EASYRSA_BATCH"] = "1"
         env["EASYRSA_PKI"] = f'/etc/openvpn/{ovpninstance}/pki'
+        env["EASYRSA_CRL_DAYS"] = "3650"
         subprocess.run(["/usr/bin/easyrsa", "revoke", username], env=env, check=True, capture_output=True)
         subprocess.run(["/usr/bin/easyrsa", "gen-crl"], env=env, check=True, capture_output=True)
     except:
