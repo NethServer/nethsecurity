@@ -806,7 +806,7 @@ def download_user_configuration(ovpninstance, username):
     config = config + f'<ca>\n{slurp(os.path.join(cert_dir, "ca.crt"))}\n</ca>\n'
     config = config + f'<cert>\n{slurp(crt_file)}\n</cert>\n'
     config = config + f'<key>\n{slurp(os.path.join(cert_dir, f"private/{username}.key"))}\n</key>\n'
-    for option in ["auth", "digest"]:
+    for option in ["auth", "digest", "compress"]:
         try:
             config = config + f'{option} {u.get("openvpn", ovpninstance, option)}\n'
         except:
