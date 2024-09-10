@@ -91,6 +91,8 @@ def unregister():
         subprocess.run(['/etc/init.d/ns-plug', 'restart'], check=True, capture_output=True)
     except:
         return utils.generic_error("failed_to_restart_ns-plug")
+    # Disable sending of FQDN, no matter if it fails
+    subprocess.run("sed -i '/^\\$PreserveFQDN on$/d' /etc/rsyslog.conf", shell=True, capture_output=True)
     try:
         subprocess.run(['/etc/init.d/rsyslog', 'restart'], check=True, capture_output=True)
     except:
