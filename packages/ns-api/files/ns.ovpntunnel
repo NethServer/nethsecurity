@@ -88,6 +88,10 @@ def import_client(tunnel):
         u.set("openvpn", iname, "cert", cert)
         u.set("openvpn", iname, "key", cert)
         u.set("openvpn", iname, "ca", cert)
+        # Enable cert verification only for NethSecurity 8 tunnels
+        ext = subprocess.run(["openssl", "x509", "-noout", "-ext", "keyUsage", "-in", cert], capture_output=True, text=True, check=True)
+        if ext and "Key Agreement" in ext.stdout:
+            u.set("openvpn", iname, "remote_cert_tls", "server")
     
     u.set("openvpn", iname, "proto", tunnel['Protocol'])
     u.set("openvpn", iname, "port", tunnel['RemotePort'])
@@ -110,8 +114,6 @@ def import_client(tunnel):
 
     if tunnel.get('TlsVersionMin', ''):
         u.set("openvpn", iname, "tls_version_min", tunnel['TlsVersionMin'])
-
-    u.set("openvpn", iname, "remote_cert_tls", "server")
 
     # Add management socket
     u.set("openvpn", iname, 'management', f'/var/run/openvpn_{iname}.socket unix')
