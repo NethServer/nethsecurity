@@ -24,6 +24,6 @@ if [ ! -f /etc/openvpn/$instance/pki/ca.crt ]; then
         EASYRSA_BATCH=1 EASYRSA_REQ_CN=$cn /usr/bin/easyrsa build-ca nopass
         openssl dhparam -dsaparam -out pki/dh.pem 2048
         EASYRSA_BATCH=1 EASYRSA_REQ_CN=$cn /usr/bin/easyrsa build-server-full server nopass
-        EASYRSA_BATCH=1 EASYRSA_REQ_CN=$cn /usr/bin/easyrsa gen-crl
+        EASYRSA_BATCH=1 EASYRSA_CRL_DAYS=3650 EASYRSA_REQ_CN=$cn /usr/bin/easyrsa gen-crl
     ) &> /dev/null
 fi

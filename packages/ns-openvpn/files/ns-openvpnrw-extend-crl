@@ -1,0 +1,20 @@
+#!/usr/bin/python
+
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Regenerate the CRL for each roadwarrior instance present
+
+import os
+import subprocess
+
+from euci import EUci
+
+u = EUci()
+for key in [key for key in u.get('openvpn') if key.startswith('ns_roadwarrior')]:
+    env = os.environ.copy()
+    env["EASYRSA_BATCH"] = "1"
+    env["EASYRSA_PKI"] = f'/etc/openvpn/{key}/pki'
+    env["EASYRSA_CRL_DAYS"] = "3650"
+    subprocess.run(["/usr/bin/easyrsa", "gen-crl"], env=env, check=True, capture_output=True)
