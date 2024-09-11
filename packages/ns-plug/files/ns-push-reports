@@ -15,6 +15,7 @@ source /etc/os-release
 server=$(uci -q get ${UCI_CONF}.config.server)
 unit_id=$(uci -q get ${UCI_CONF}.config.unit_id)
 token=$(uci -q get ${UCI_CONF}.config.token)
+unit_name=$(uci -q get ${UCI_CONF}.config.unit_name)
 
 # Exit early if no server has been set
 if [ -z "${server}" ]; then
@@ -37,6 +38,14 @@ tls_verify=$(uci -q get ${UCI_CONF}.config.tls_verify)
 if [ "${tls_verify}" == "0" ]; then
     curl_opts="${curl_opts}k"
 fi
+
+# Update unit name
+echo '{"name": "'$unit_name'"}' | curl ${curl_opts} \
+    -H "Content-Type: application/json" \
+    -H "RegistrationToken: ${token}" \
+    -H "UnitId: ${unit_id}" \
+    -o /dev/null \
+     ${server}/api/reports/unit-name --data @-
 
 # Push data
 /usr/libexec/rpcd/ns.controller call dump-ts-malware | curl ${curl_opts} \
@@ -64,6 +73,7 @@ fi
     -H "Content-Type: application/json" \
     -H "RegistrationToken: ${token}" \
     -H "UnitId: ${unit_id}" \
+    -o /dev/null \
     ${server}/api/reports/dpi-stats --data @-
 
 /usr/libexec/rpcd/ns.controller call dump-openvpn-connections | curl ${curl_opts} \
