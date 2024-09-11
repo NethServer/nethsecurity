@@ -212,7 +212,7 @@ def dump_ts_attacks():
     for line in log:
         if line:
             ip = ip_pattern.search(line)
-            time = datetime.strptime(f"{datetime.now().year} {line[:15]}", '%Y %b %d %H:%M:%S').replace(tzinfo=datetime.timezone.utc).timestamp()
+            time = datetime.strptime(f"{datetime.now().year} {line[:15]}", '%Y %b %d %H:%M:%S').timestamp()
             time = datetime.utcfromtimestamp(time).timestamp()
             if ip:
                 ret.append({"timestamp": int(time), "ip": ip.group(1)})
