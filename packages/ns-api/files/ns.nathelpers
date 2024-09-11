@@ -99,8 +99,11 @@ def add_nat_helper_to_config_file(nat_helper_name, params):
 
 def enable_nat_helper(nat_helper_name, params):
     add_nat_helper_to_config_file(nat_helper_name, params)
-    subprocess.run(["/usr/sbin/load-kernel-modules"], check=True)
-    subprocess.run(["/sbin/service", "firewall", "restart"], check=True)
+    subprocess.run(["/usr/sbin/load-kernel-modules"],
+                   check=True, capture_output=True)
+
+    subprocess.run(["/sbin/service", "firewall", "restart"],
+                   check=True, capture_output=True)
 
 
 def delete_nat_helper_from_config_file(nat_helper_name):
@@ -203,34 +206,48 @@ def edit_nat_helper(nat_helper_name, enabled, params):
     reboot_needed = False
 
     if enabled:
-        # check if nat helper is already enabled
-        enabled_nat_helpers = get_enabled_nat_helpers()
-        nat_helper_currently_enabled = enabled_nat_helpers.get(
-            nat_helper_name, None)
+        # enabling or editing nat helper
 
-        if nat_helper_currently_enabled:
-            # check if params have changed
-            params_changed = False
+        # check if nat helper is already loaded
+        loaded_nat_helper_names = get_loaded_nat_helper_names(
+            all_nat_helper_names)
+        is_loaded = nat_helper_name in loaded_nat_helper_names
 
-            for param_name, new_param_value in params.items():
-                default_param_value = DEFAULT_PARAMS.get(
-                    nat_helper_name, {}).get(param_name, None)
-                current_param_value = nat_helper_currently_enabled['params'].get(
-                    param_name, default_param_value)
-                if new_param_value != current_param_value:
-                    params_changed = True
-                    break
+        if is_loaded:
+            # nat helper is loaded on the kernel
 
-            if params_changed:
-                # editing params of a nat helper already enabled
-                delete_nat_helper_from_config_file(nat_helper_name)
+            enabled_nat_helpers = get_enabled_nat_helpers()
+            nat_helper_currently_enabled = enabled_nat_helpers.get(
+                nat_helper_name, None)
+
+            if nat_helper_currently_enabled:
+                # check if params have changed
+                params_changed = False
+
+                for param_name, new_param_value in params.items():
+                    default_param_value = DEFAULT_PARAMS.get(
+                        nat_helper_name, {}).get(param_name, None)
+                    current_param_value = nat_helper_currently_enabled['params'].get(
+                        param_name, default_param_value)
+                    if new_param_value != current_param_value:
+                        params_changed = True
+                        break
+
+                if params_changed:
+                    # editing params of a nat helper already enabled
+                    delete_nat_helper_from_config_file(nat_helper_name)
+                    add_nat_helper_to_config_file(nat_helper_name, params)
+                    reboot_needed = True
+                else:
+                    # nat helper is already enabled with the same params, nothing to do
+                    reboot_needed = False
+            else:
+                # nat helper is loaded but not enabled, need to add it to the configuration
+
                 add_nat_helper_to_config_file(nat_helper_name, params)
                 reboot_needed = True
-            else:
-                # nat helper is already enabled with the same params, nothing to do
-                pass
         else:
-            # enable nat helper
+            # enabling a nat helper currently not loaded
 
             # merge default params with the given params
             new_params = DEFAULT_PARAMS.get(nat_helper_name, {}) | params
