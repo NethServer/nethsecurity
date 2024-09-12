@@ -74,6 +74,7 @@ def import_client(tunnel):
     u.set("openvpn", iname, "enabled", 1)
     u.set("openvpn", iname, "nobind", "1")
     u.set("openvpn", iname, "dev", tun)
+    u.set("openvpn", iname, "dev_type", "tun")
     u.set("openvpn", iname, "ns_client", "1")
     
     if tunnel['Topology'] == 'p2p':
