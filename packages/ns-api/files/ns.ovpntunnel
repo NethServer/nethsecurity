@@ -299,7 +299,7 @@ def list_tunnels():
 
         if vpn.get("client", "0") == "1" or vpn.get("ns_client", "0") == "1":
             connected = ovpn.list_connected_clients(section, 'p2p')
-            if 'stats' in connected:
+            if 'stats' in connected and connected['stats'].get('bytes_received') > 0 and connected['stats'].get('bytes_sent') > 0 :
                 record["connected"] = True
                 record = record | connected['stats']
             remote = []
