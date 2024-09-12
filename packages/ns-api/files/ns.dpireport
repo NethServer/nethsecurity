@@ -68,10 +68,7 @@ def summary(year, month, day, client="*", limit=10):
             tmp = sorted(ret[key].items(), key=lambda x:x[1], reverse=True)
         except:
             tmp = list()
-        if len(tmp) > limit and limit > 0:
-            ret[key] = tmp[0:limit]
-            # compute the total of the other elements
-            ret[key].append(("others", sum([x[1] for x in tmp[limit:]])))
+        ret[key] = tmp[0:10]
 
     return ret
 
