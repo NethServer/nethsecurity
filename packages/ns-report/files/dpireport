@@ -16,6 +16,7 @@ import socket
 import logging
 import threading
 import ipaddress
+import traceback
 from datetime import datetime, date
 
 flow_stale_timeout = int(os.environ.get("FLOW_STALE_TIMEOUT", 3600))
@@ -188,21 +189,58 @@ def reader():
                          flows[data['flow']['digest']]['timestamp'] = data['flow'].get('last_seen_at', -1)
                          flows_q.put(flows.pop(data['flow']['digest']))
 
+def stop_threads():
+    global run
+    global consolidate_t
+    global dumper_t
+    global reader_t
+    run = False
+    logging.info("Closing threads ...")
+    reader_t.join(timeout=1)
+    consolidate_t.join(timeout=1)
+    dumper_t.join(timeout=1)
+
+def start_threads():
+    global run
+    global consolidate_t
+    global dumper_t
+    global reader_t
+    logging.info("Starting threads ...")
+    run = True
+    consolidate_t = threading.Thread(target=consolidate, daemon=True)
+    consolidate_t.start()
+    dumper_t = threading.Thread(target=dumper, daemon=True)
+    dumper_t.start()
+    reader_t = threading.Thread(target=reader, daemon=True)
+    reader_t.start()
+    reader_t.join()
 
 # Signal handler: stop threads and dump all data to disk
 def dump_and_exit(signum, frame):
-    global run
-    run = False
-    logging.info("Closing threads ...")
     try:
-        reader_t.join(timeout=1)
-        consolidate_t.join(timeout=1)
-        dumper_t.join(timeout=1)
+        stop_threads()
     except:
         pass
     dump()
     logging.info("Bye")
     sys.exit(0)
+
+# Global exception handler
+# Log the exception stacktrace and restart the threads
+def handle_global_exception(exctype, value, tb):
+    logging.error(f"Unhandled exception: {exctype} {value}")
+    summary = traceback.extract_tb(tb)
+    for line in summary.format():
+        logging.error(line.rstrip())
+    try:
+       stop_threads()
+    except:
+        # sleep for a while to avoid a busy loop
+        time.sleep(1)
+    start_threads()
+
+def handle_thread_exception(args):
+    handle_global_exception(args.exc_type, args.exc_value, args.exc_traceback)
 
 # Setup logging to syslog
 logger = logging.getLogger()
@@ -214,14 +252,12 @@ logger.addHandler(handler)
 # Setup signal handlers
 signal.signal(signal.SIGINT, dump_and_exit)
 
+# Global exception handler
+sys.excepthook = handle_global_exception
+threading.excepthook = handle_thread_exception
+
 logging.info("Started dpireport")
 # Load existing data
 restore()
 # Start all threads
-consolidate_t = threading.Thread(target=consolidate, daemon=True)
-consolidate_t.start()
-dumper_t = threading.Thread(target=dumper, daemon=True)
-dumper_t.start()
-reader_t = threading.Thread(target=reader, daemon=True)
-reader_t.start()
-reader_t.join()
+start_threads()
