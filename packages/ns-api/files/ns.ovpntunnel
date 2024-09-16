@@ -561,7 +561,7 @@ def setup_client(u, iname, args):
     if args.get('ifconfig_local', None) and  args.get('ifconfig_remote', None):
         u.set('openvpn', iname, 'ifconfig', f"{args.get('ifconfig_local')} {args.get('ifconfig_remote')}")
         # disable default BF-CBC cipher not supported by OpenSSL
-        if args.get('cipher', None):
+        if args.get('cipher', None) is None:
             u.set('openvpn', iname, 'cipher', 'AES-128-CBC')
     else:
         # subnet topology
