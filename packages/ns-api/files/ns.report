@@ -50,7 +50,7 @@ def tsip_attack_report():
 
     ip_count = defaultdict(int)   
     hourly_count = [0] * 24
-    first_seen = None
+    first_seen = 0
 
     for file_path in file_paths:
         if file_path.endswith('.gz'):
@@ -101,7 +101,7 @@ def tsip_malware_report():
     # Dictionary to store the count of matching lines
     match_count = 0
     hourly_match_count = [0] * 24
-    first_seen = None
+    first_seen = 0
     category_count = defaultdict(int)
     chain_count = defaultdict(int)
 
