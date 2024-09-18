@@ -302,6 +302,18 @@ def dump_openvpnrw_config():
         ret.append(record)
     return {"data": ret}
 
+def dump_wan_config():
+    ret = []
+    u = EUci()
+    try:
+        proc = subprocess.run(["/usr/libexec/rpcd/ns.firewall", "call", "list_zones_no_aliases"], capture_output=True, text=True)
+        data = json.loads(proc.stdout)
+        for interface in data.get("ns_wan", {}).get("network", []):
+            ret.append({"interface": interface, "device": u.get("network", interface, "device", default="")})
+    except:
+        pass
+    return {"data": ret}
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
@@ -315,6 +327,7 @@ if cmd == 'list':
         'dump-dpi-stats': {},
         'dump-openvpn-connections': {},
         'dump-openvpn-config': {},
+        'dump-wan-config': {},
          }))
 elif cmd == 'call':
     action = sys.argv[2]
@@ -338,5 +351,7 @@ elif cmd == 'call':
         ret = dump_openvpn_connections()
     elif action == "dump-openvpn-config":
         ret = dump_openvpnrw_config()
+    elif action == "dump-wan-config":
+        ret = dump_wan_config()
 
     print(json.dumps(ret))

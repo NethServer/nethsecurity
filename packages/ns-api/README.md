@@ -6669,9 +6669,9 @@ Output example:
 }
 ```
 
-### dump-openvpnrw-config
+### dump-openvpn-config
 
-Dump OpenVPN RoadWarrior configuration to the controller.
+Dump OpenVPN configuration to the controller.
 Returned JSON output can be sent to the controller.
 
 Output example:
@@ -6681,7 +6681,37 @@ Output example:
     {
       "instance": "ns_roadwarrior1",
       "name": "myserver1",
-      "device": "tunrw1"
+      "device": "tunrw1",
+      "type": "rw",
+    },
+    {
+      "instance": "ns_tunsrv1",
+      "name": "mytunsrv",
+      "device": "tunsrv1",
+      "type": "server",
+    }
+  ]
+}
+```
+
+The `type` field can be `rw` for roadwarrior, `server` for tunnel server, or `client` for tunnel client.
+
+### dump-wan-config
+
+Dump WAN configuration to the controller.
+Returned JSON output can be sent to the controller.
+
+Output example:
+```json
+{
+  "data": [
+    {
+      "interface": "wan",
+      "device": "eth1"
+    },
+    {
+      "interface": "wan2",
+      "device": "eth2"
     }
   ]
 }
