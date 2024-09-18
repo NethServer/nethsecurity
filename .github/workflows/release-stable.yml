@@ -15,7 +15,7 @@ on:
         type: boolean
 
 env:
-  MAJOR_VERSION: 23.05.3
+  MAJOR_VERSION: 23.05.4
 
 jobs:
   sync:
