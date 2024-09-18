@@ -39,7 +39,8 @@ if [ "${tls_verify}" == "0" ]; then
     curl_opts="${curl_opts}k"
 fi
 
-# Update unit name
+# Update unit name and configuration
+
 echo '{"name": "'$unit_name'"}' | curl ${curl_opts} \
     -H "Content-Type: application/json" \
     -H "RegistrationToken: ${token}" \
@@ -47,7 +48,22 @@ echo '{"name": "'$unit_name'"}' | curl ${curl_opts} \
     -o /dev/null \
      ${server}/api/reports/unit-name --data @-
 
+/usr/libexec/rpcd/ns.controller call dump-openvpn-config | curl ${curl_opts} \
+    -H "Content-Type: application/json" \
+    -H "RegistrationToken: ${token}" \
+    -H "UnitId: ${unit_id}" \
+    -o /dev/null \
+    ${server}/api/reports/unit-openvpn --data @-
+
+/usr/libexec/rpcd/ns.controller call dump-wan-config | curl ${curl_opts} \
+    -H "Content-Type: application/json" \
+    -H "RegistrationToken: ${token}" \
+    -H "UnitId: ${unit_id}" \
+    -o /dev/null \
+    ${server}/api/reports/unit-wan --data @-
+
 # Push data
+
 /usr/libexec/rpcd/ns.controller call dump-ts-malware | curl ${curl_opts} \
     -H "Content-Type: application/json" \
     -H "RegistrationToken: ${token}" \
