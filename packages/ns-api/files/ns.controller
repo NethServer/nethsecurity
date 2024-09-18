@@ -279,6 +279,18 @@ def dump_openvpn_connections():
     return {"data": ret}
 
 
+def dump_openvpnrw_config():
+    ret = []
+    u = EUci()
+    for record in u.get_all('openvpn'):
+        if record.startswith('ns_roadwarrior'):
+            ret.append({
+                "instance": record,
+                "name": u.get('openvpn', record, 'ns_description', default=''),
+                "device": u.get('openvpn', record, 'dev', default='tun1')}
+                )
+    return {"data": ret}
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
@@ -290,7 +302,8 @@ if cmd == 'list':
         "dump-ts-attacks": {},
         'dump-mwan-events': {},
         'dump-dpi-stats': {},
-        'dump-openvpn-connections': {}
+        'dump-openvpn-connections': {},
+        'dump-openvpnrw-config': {}
          }))
 elif cmd == 'call':
     action = sys.argv[2]
@@ -312,5 +325,7 @@ elif cmd == 'call':
         ret = dump_dpi_stats()
     elif action == "dump-openvpn-connections":
         ret = dump_openvpn_connections()
+    elif action == "dump-openvpnrw-config":
+        ret = dump_openvpnrw_config()
 
     print(json.dumps(ret))

@@ -6669,6 +6669,24 @@ Output example:
 }
 ```
 
+### dump-openvpnrw-config
+
+Dump OpenVPN RoadWarrior configuration to the controller.
+Returned JSON output can be sent to the controller.
+
+Output example:
+```json
+{
+  "data": [
+    {
+      "instance": "ns_roadwarrior1",
+      "name": "myserver1",
+      "device": "tunrw1"
+    }
+  ]
+}
+```
+
 ## ns.scan
 
 Scan network to find existing hsots.
