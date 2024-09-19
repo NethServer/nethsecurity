@@ -48,6 +48,9 @@ if [ "$force" -eq 1 ]; then
     echo "Creating temporary distfeed configuration" | logger -s -t update-packages
     # make sure to replace dev with stable in case we are using a dev image
     sed 's/dev/stable/g' /rom/etc/opkg/distfeeds.conf > /etc/opkg/distfeeds.conf || error_exit "Failed to create temporary opkg configuration"
+
+    # force cache cleanup: it seems a duble opkg update is required
+    opkg update 2>&1
 fi
 
 echo "Updating packages from $channel channel" | logger -s -t update-packages
