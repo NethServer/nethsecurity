@@ -11,7 +11,7 @@ import os
 import sys
 import json
 import subprocess
-from nethsec import utils
+from nethsec import utils, mwan
 from euci import EUci
 import re
 from datetime import datetime
@@ -309,7 +309,7 @@ def dump_wan_config():
         proc = subprocess.run(["/usr/libexec/rpcd/ns.firewall", "call", "list_zones_no_aliases"], capture_output=True, text=True)
         data = json.loads(proc.stdout)
         for interface in data.get("ns_wan", {}).get("network", []):
-            ret.append({"interface": interface, "device": u.get("network", interface, "device", default="")})
+            ret.append({"interface": interface, "device": u.get("network", interface, "device", default=""), "status": mwan.__fetch_interface_status(interface)})
     except:
         pass
     return {"data": ret}

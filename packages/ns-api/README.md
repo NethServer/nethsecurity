@@ -6707,11 +6707,13 @@ Output example:
   "data": [
     {
       "interface": "wan",
-      "device": "eth1"
+      "device": "eth1",
+      "status": "online"
     },
     {
       "interface": "wan2",
-      "device": "eth2"
+      "device": "eth2",
+      "status": "offline"
     }
   ]
 }
