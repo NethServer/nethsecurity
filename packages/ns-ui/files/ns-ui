@@ -38,8 +38,7 @@ server {
 	listen $nsui_extra_port ssl default_server;
 	listen [::]:$nsui_extra_port ssl default_server;
 	server_name _lan;
-	include conf.d/00ns.locations*;
-	include conf.d/luci.locations*;
+	include conf.d/*.locations;
 	ssl_certificate $crt;
 	ssl_certificate_key $key;
 	ssl_session_cache shared:SSL:32k;
