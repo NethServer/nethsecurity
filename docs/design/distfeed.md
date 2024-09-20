@@ -79,10 +79,20 @@ Updates are pushed to the subscription channel after one week from the release d
 If you have a machine with a valid subscription and want to force an update, you can use the following commands:
 
 ```bash
-update-packages --force-stable
+cp /etc/opkg/customfeeds.conf /etc/opkg/customfeeds.conf.ori
+cat /rom/etc/opkg/distfeeds.conf | sed 's/dev/stable/g' > /etc/opkg/customfeeds.conf
+opkg update
+/bin/opkg list-upgradable | /usr/bin/cut -f 1 -d ' ' | /usr/bin/xargs -r opkg upgrade && echo "Update successful!"
 ```
 
-At the end, the original `distfeeds.conf` file is restored.
+The customfeed.confg file takes precedence over distfeed.conf, so you can safely
+ignore errors like `opkg_conf_parse_file: Duplicate src declaration`.
+
+At the end, retstore the original `customfeeds.conf`:
+```
+mv /etc/opkg/customfeeds.conf /etc/opkg/customfeeds.conf
+opkg update
+```
 
 ## Upstream OpenWrt repositories
 

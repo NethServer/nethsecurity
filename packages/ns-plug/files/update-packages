@@ -7,50 +7,12 @@
 
 #
 # Update packages and log everything to syslog
-# Usage: update-packages [--force-stable]
-# --force-stable: force update from stable channel even if the system has a subscription
 #
 
 error_exit() {
     echo "$1" | logger -s -t update-packages
     exit 1
 }
-
-cleanup() {
-    if [ -f /etc/opkg/distfeeds.conf.orig ]; then
-        echo "Restoring original distfeeds.conf" | logger -s -t update-packages
-        mv /etc/opkg/distfeeds.conf.orig /etc/opkg/distfeeds.conf || error_exit "Failed to restore distfeeds.conf"
-    fi
-}
-
-# Check if the force flag is set, default to false
-force=0
-if [ "$1" = "--force-stable" ]; then
-    force=1
-    echo "Flag force-stable is set" | logger -s -t update-packages
-fi
-
-channel='dev'
-# channel is subscription if "$(uci -q get ns-plug.config.system_id)" is not empty
-if [ -n "$(uci -q get ns-plug.config.system_id)" ]; then
-    channel='subscription'
-fi
-
-# Set up trap to call cleanup function on script exit
-trap cleanup EXIT
-
-# Create temporary opkg configuration
-if [ "$force" -eq 1 ]; then
-    channel='stable'
-    # Preserve original distfeed.conf
-    cp /etc/opkg/distfeeds.conf /etc/opkg/distfeeds.conf.orig || error_exit "Failed to backup distfeeds.conf"
-
-    echo "Creating temporary distfeed configuration" | logger -s -t update-packages
-    # make sure to replace dev with stable in case we are using a dev image
-    sed 's/dev/stable/g' /rom/etc/opkg/distfeeds.conf > /etc/opkg/distfeeds.conf || error_exit "Failed to create temporary opkg configuration"
-fi
-
-echo "Updating packages from $channel channel" | logger -s -t update-packages
 
 # Update metadata, make sure to output even if in case of error
 output=$(opkg update 2>&1)
