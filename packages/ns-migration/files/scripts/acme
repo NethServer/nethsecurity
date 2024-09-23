@@ -26,6 +26,7 @@ u.set('acme', 'ns_default', 'enabled', '1')
 u.set('acme', 'ns_default', 'use_staging', '0')
 u.set('acme', 'ns_default', 'keylength', '2048')
 u.set('acme', 'ns_default', 'update_nginx', '1')
+u.set('acme', 'ns_default', 'account_email', 'no-reply@nethsecurity.org')
 nsmigration.vprint("Setting acme domains")
 u.set('acme', 'ns_default', 'domains', data['config']['domains'])
 
