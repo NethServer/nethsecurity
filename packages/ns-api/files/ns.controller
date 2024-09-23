@@ -314,6 +314,12 @@ def dump_wan_config():
         pass
     return {"data": ret}
 
+def dump_nsplug_config():
+    ret = {"name": ""}
+    u = EUci()
+    ret["name"] = u.get("ns-plug", "config", "unit_name", default=get_hostname())
+    return ret
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
@@ -325,9 +331,10 @@ if cmd == 'list':
         "dump-ts-attacks": {},
         'dump-mwan-events': {},
         'dump-dpi-stats': {},
-        'dump-openvpn-connections': {},
-        'dump-openvpn-config': {},
+        'dump-ovpn-connections': {},
+        'dump-ovpn-config': {},
         'dump-wan-config': {},
+        'dump-nsplug-config': {}
          }))
 elif cmd == 'call':
     action = sys.argv[2]
@@ -347,11 +354,13 @@ elif cmd == 'call':
         ret = dump_mwan_events()
     elif action == "dump-dpi-stats":
         ret = dump_dpi_stats()
-    elif action == "dump-openvpn-connections":
+    elif action == "dump-ovpn-connections":
         ret = dump_openvpn_connections()
-    elif action == "dump-openvpn-config":
+    elif action == "dump-ovpn-config":
         ret = dump_openvpnrw_config()
     elif action == "dump-wan-config":
         ret = dump_wan_config()
+    elif action == "dump-nsplug-config":
+        ret = dump_nsplug_config()
 
     print(json.dumps(ret))
