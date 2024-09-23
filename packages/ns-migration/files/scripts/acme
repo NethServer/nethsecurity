@@ -16,17 +16,19 @@ if 'config' not in data:
 u.delete('acme', 'example')
 u.delete('acme', 'example_wildcard')
 
+mail = data.get('config').get('account_email', 'no-reply@nethsecurity.org')
+if not mail:
+    mail = 'no-reply@nethsecurity.org'
 for section in u.get_all('acme'):
     if u.get('acme', section) == 'acme':
         nsmigration.vprint("Setting acme mail")
-        u.set('acme', section, 'account_email', data['config']['account_email'])
+        u.set('acme', section, 'account_email', mail)
 
 u.set('acme', 'ns_default', 'cert')
 u.set('acme', 'ns_default', 'enabled', '1')
 u.set('acme', 'ns_default', 'use_staging', '0')
 u.set('acme', 'ns_default', 'keylength', '2048')
 u.set('acme', 'ns_default', 'update_nginx', '1')
-u.set('acme', 'ns_default', 'account_email', 'no-reply@nethsecurity.org')
 nsmigration.vprint("Setting acme domains")
 u.set('acme', 'ns_default', 'domains', data['config']['domains'])
 
