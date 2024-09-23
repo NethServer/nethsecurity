@@ -23,14 +23,21 @@ for route in data['routes']:
     else:
         route['interface'] = utils.get_interface_from_device(u, route.pop("device"))
 
+    # Routes created from Server Manager could have no device,
+    # map them to a routes that matches all interfaces
     if not route['interface']:
-        nsmigration.vprint(f'Skipping route {rname}')
-        continue
+        del route['interface']
 
     nsmigration.vprint(f'Creating route {rname}')
     u.set("network", rname, "route")
     for option in route:
         u.set("network", rname, option, route[option])
+
+    # Set default options
+    u.set("network", rname, "mtu", "1500")
+    u.set("network", rname, "type", "unicast")
+    u.set("network", rname, "disabled", "0")
+    u.set("network", rname, "onlink", "0")
 
     counter = counter - 1
 
