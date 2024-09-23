@@ -43,24 +43,110 @@ api-cli ns.talkers list --data '{"limit": 1}'
 Response:
 ```json
 {
-  "talkers": [
-    {
-      "mac": "40:62:31:19:05:22",
-      "totals": {
-        "download": 21666,
-        "upload": 483727,
-        "packets": 643,
-        "bandwidth": 16846.433333333334,
-        "bandwiddh_h": "16.5 KB/s"
+  "talkers": {
+    "top_hosts": [
+      {
+        "mac": "40:62:31:19:05:22",
+        "totals": {
+          "download": 21666,
+          "upload": 483727,
+          "packets": 643,
+          "bandwidth": 16846.433333333334,
+          "bandwiddh_h": "16.5 KB/s"
+        },
+        "apps": {
+          "0.netify.unclassified": 0,
+          "10334.netify.nethserver": 505393
+        },
+        "ip": "192.168.5.211",
+        "host": "nethvoice.nethesis.it"
+      }
+    ],
+    "top_apps": [
+      {
+        "name": "10974.netify.meta-cdn",
+        "value": 149845562
       },
-      "apps": {
-        "0.netify.unclassified": 0,
-        "10334.netify.nethserver": 505393
+      {
+        "name": "201.netify.instagram",
+        "value": 63817984
       },
-      "ip": "192.168.5.211",
-      "host": "nethvoice.nethesis.it"
-    }
-  ]
+      {
+        "name": "10334.netify.nethserver",
+        "value": 31100837
+      },
+      {
+        "name": "0.netify.unclassified",
+        "value": 10138483
+      },
+      {
+        "name": "126.netify.google",
+        "value": 6314644
+      },
+      {
+        "name": "119.netify.facebook",
+        "value": 4381644
+      },
+      {
+        "name": "10034.netify.hubspot",
+        "value": 2430153
+      },
+      {
+        "name": "156.netify.spotify",
+        "value": 1139379
+      },
+      {
+        "name": "10002.netify.github",
+        "value": 1114048
+      },
+      {
+        "name": "10041.netify.google-ads",
+        "value": 791534
+      }
+    ],
+    "top_protocols": [
+      {
+        "name": "QUIC",
+        "value": 218488582
+      },
+      {
+        "name": "HTTP/S",
+        "value": 24080025
+      },
+      {
+        "name": "STUN",
+        "value": 21171007
+      },
+      {
+        "name": "SYSLOG/S",
+        "value": 5880696
+      },
+      {
+        "name": "HTTP",
+        "value": 2545062
+      },
+      {
+        "name": "Unknown",
+        "value": 851164
+      },
+      {
+        "name": "SSH",
+        "value": 684836
+      },
+      {
+        "name": "WireGuard",
+        "value": 600214
+      },
+      {
+        "name": "TLS",
+        "value": 507668
+      },
+      {
+        "name": "OpenVPN",
+        "value": 467074
+      }
+    ]
+  }
 }
 ```
 
