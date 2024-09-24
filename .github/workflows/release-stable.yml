@@ -18,22 +18,15 @@ jobs:
       RCLONE_CONFIG_SPACES_ACL: public-read
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch tag annotations
+      - name: Publish stable packages
         run: |
-          # Fetch tag manually because fetch-tags option for checkout@v4 does not work
           git fetch --force --tags --depth 500
-          echo "MAJOR_VERSION=$(git describe | cut -d'-' -f1)" >> "$GITHUB_ENV"
-      - name: Check for MAJOR_VERSION
-        run: |
-          # This check is here because setting the $GITHUB_ENV variable is not immediate propagated to the next line
+          MAJOR_VERSION="$(git describe | cut -d'-' -f1)"
           if [ -z "$MAJOR_VERSION" ]; then
             echo "No MAJOR_VERSION found"
             exit 1
           fi
-      - name: Install rclone
-        run: |
           TMP_FILE=$(mktemp)
           wget https://downloads.rclone.org/v1.66.0/rclone-v1.66.0-linux-amd64.deb -O "$TMP_FILE"
           sudo dpkg -i "$TMP_FILE"
-      - name: Copy packages
-        run: rclone sync -M --no-update-modtime -v --exclude "/targets/**" "spaces:nethsecurity/dev/$MAJOR_VERSION/" "spaces:nethsecurity/stable/$MAJOR_VERSION/"
+          rclone sync -M --no-update-modtime -v --exclude "/targets/**" "spaces:nethsecurity/dev/$MAJOR_VERSION/" "spaces:nethsecurity/stable/$MAJOR_VERSION/"
