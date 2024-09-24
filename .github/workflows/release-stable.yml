@@ -2,17 +2,7 @@ name: Release stable packages
 
 on:
   workflow_call:
-    inputs:
-      new_release:
-        description: 'If `latest_release` file should be updated.'
-        default: false
-        type: boolean
   workflow_dispatch:
-    inputs:
-      new_release:
-        description: 'If `latest_release` file should be updated.'
-        default: false
-        type: boolean
 
 jobs:
   sync:
@@ -34,11 +24,12 @@ jobs:
           git fetch --force --tags --depth 500
           echo "MAJOR_VERSION=$(git describe | cut -d'-' -f1)" >> $GITHUB_ENV
       - name: Check for MAJOR_VERSION
+        shell: sh
         run: |
           # This check is here because setting the $GITHUB_ENV variable is not immediate propagated to the next line
           if [ -z "$MAJOR_VERSION" ]; then
-              echo "No MAJOR_VERSION found"
-              exit 1
+            echo "No MAJOR_VERSION found"
+            exit 1
           fi
       - name: Install rclone
         run: |
@@ -47,6 +38,3 @@ jobs:
           sudo dpkg -i "$TMP_FILE"
       - name: Copy packages
         run: rclone sync -M --no-update-modtime -v --exclude "/targets/**" "spaces:nethsecurity/dev/$MAJOR_VERSION/" "spaces:nethsecurity/stable/$MAJOR_VERSION/"
-      - name: Update latest release
-        if: inputs.new_release
-        run: rclone sync -v spaces:nethsecurity/dev/latest_release spaces:nethsecurity/stable/latest_release
