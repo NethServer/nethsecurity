@@ -28,6 +28,7 @@ jobs:
             echo "No MAJOR_VERSION found"
             exit 1
           fi
+          echo "::notice title=MAJOR_VERSION::$MAJOR_VERSION"
           popd
           TMP_FILE=$(mktemp)
           wget https://downloads.rclone.org/v1.66.0/rclone-v1.66.0-linux-amd64.deb -O "$TMP_FILE"
