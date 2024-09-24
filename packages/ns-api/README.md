@@ -1293,7 +1293,7 @@ Response example for a server in bridged mode:
 
 After `add-instance`, the `ns_description` field is empty. If the field is empty, the instance has never been edited from UI.
 
-### download all user configuration
+### download_all_user_configuration
 
 Prepare a tar.gz archive with all user configuration
 ```
