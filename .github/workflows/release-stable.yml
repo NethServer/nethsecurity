@@ -22,9 +22,8 @@ jobs:
         run: |
           # Fetch tag manually because fetch-tags option for checkout@v4 does not work
           git fetch --force --tags --depth 500
-          echo "MAJOR_VERSION=$(git describe | cut -d'-' -f1)" >> $GITHUB_ENV
+          echo "MAJOR_VERSION=$(git describe | cut -d'-' -f1)" >> "$GITHUB_ENV"
       - name: Check for MAJOR_VERSION
-        shell: sh
         run: |
           # This check is here because setting the $GITHUB_ENV variable is not immediate propagated to the next line
           if [ -z "$MAJOR_VERSION" ]; then
