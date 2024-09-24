@@ -45,7 +45,7 @@ server {
 	error_log syslog:server=unix:/dev/log;
 	access_log syslog:server=unix:/dev/log;
 
-	# configure ns UI must be enabled on $nsui_extra_port
+	# enable NS UI
 	location / {
 		root /www-ns;
 		try_files \$uri \$uri/ /index.html;
