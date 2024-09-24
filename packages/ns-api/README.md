@@ -1293,6 +1293,22 @@ Response example for a server in bridged mode:
 
 After `add-instance`, the `ns_description` field is empty. If the field is empty, the instance has never been edited from UI.
 
+### download all user configuration
+
+Prepare a tar.gz archive with all user configuration
+```
+api-cli ns.ovpnrw download_all_user_configurations --data '{"instance": "ns_roadwarrior1"}'
+```
+
+Response example:
+```json
+{
+  "archive_path": "/var/run/ns-api-server/download/ns_roadwarrior1_user_configurations.tar.gz"
+}
+```
+
+The archive can be download using `scp` or the files APIs of nethsecurtity-api-server
+
 ### list-users
 
 List existing users with their status:
