@@ -33,6 +33,8 @@ jobs:
           # Fetch tag manually because fetch-tags option for checkout@v4 does not work
           git fetch --force --tags --depth 500
           echo "MAJOR_VERSION=$(git describe | cut -d'-' -f1)" >> $GITHUB_ENV
+          # Print MAJOR_VERSION
+          echo "MAJOR_VERSION=$MAJOR_VERSION"
           # If `MAJOR_VERSION` is not set, fail the job
           if [ -z "$MAJOR_VERSION" ]; then
             echo "MAJOR_VERSION is not set"
