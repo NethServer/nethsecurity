@@ -38,13 +38,24 @@ server {
 	listen $nsui_extra_port ssl default_server;
 	listen [::]:$nsui_extra_port ssl default_server;
 	server_name _lan;
-	include conf.d/*.locations;
 	ssl_certificate $crt;
 	ssl_certificate_key $key;
 	ssl_session_cache shared:SSL:32k;
 	ssl_session_timeout 64m;
 	error_log syslog:server=unix:/dev/log;
 	access_log syslog:server=unix:/dev/log;
+
+	# configure ns UI must be enabled on $nsui_extra_port
+	location / {
+		root /www-ns;
+		try_files \$uri \$uri/ /index.html;
+	}
+
+	location /api/ {
+		proxy_set_header Host \$host;
+		proxy_set_header X-Real-IP \$remote_addr;
+		proxy_pass http://127.0.0.1:8090/api/;
+	}
 }
 EOF
 else
