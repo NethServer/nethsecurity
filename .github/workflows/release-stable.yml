@@ -14,9 +14,6 @@ on:
         default: false
         type: boolean
 
-env:
-  MAJOR_VERSION: 23.05.4
-
 jobs:
   sync:
     name: Moving dev packages to stable
@@ -30,13 +27,24 @@ jobs:
       RCLONE_CONFIG_SPACES_ENDPOINT: ams3.digitaloceanspaces.com
       RCLONE_CONFIG_SPACES_ACL: public-read
     steps:
+      - uses: actions/checkout@v4
+      - name: Fetch tag annotations
+        run: |
+          # Fetch tag manually because fetch-tags option for checkout@v4 does not work
+          git fetch --force --tags --depth 500
+          echo "MAJOR_VERSION=$(git describe | cut -d'-' -f1)" >> $GITHUB_ENV
+          # If `MAJOR_VERSION` is not set, fail the job
+          if [ -z "$MAJOR_VERSION" ]; then
+            echo "MAJOR_VERSION is not set"
+            exit 1
+          fi
       - name: Install rclone
         run: |
           TMP_FILE=$(mktemp)
           wget https://downloads.rclone.org/v1.66.0/rclone-v1.66.0-linux-amd64.deb -O "$TMP_FILE"
           sudo dpkg -i "$TMP_FILE"
       - name: Copy packages
-        run: rclone sync -M --no-update-modtime -v --exclude "/targets/**" spaces:nethsecurity/dev/${{ env.MAJOR_VERSION }}/ spaces:nethsecurity/stable/${{ env.MAJOR_VERSION }}/
+        run: rclone sync -M --no-update-modtime -v --exclude "/targets/**" "spaces:nethsecurity/dev/$MAJOR_VERSION/" "spaces:nethsecurity/stable/$MAJOR_VERSION/"
       - name: Update latest release
         if: inputs.new_release
         run: rclone sync -v spaces:nethsecurity/dev/latest_release spaces:nethsecurity/stable/latest_release
