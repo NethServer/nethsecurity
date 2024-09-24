@@ -33,12 +33,12 @@ jobs:
           # Fetch tag manually because fetch-tags option for checkout@v4 does not work
           git fetch --force --tags --depth 500
           echo "MAJOR_VERSION=$(git describe | cut -d'-' -f1)" >> $GITHUB_ENV
-          # Print MAJOR_VERSION
-          echo "MAJOR_VERSION=$MAJOR_VERSION"
-          # If `MAJOR_VERSION` is not set, fail the job
+      - name: Check for MAJOR_VERSION
+        run: |
+          # This check is here because setting the $GITHUB_ENV variable is not immediate propagated to the next line
           if [ -z "$MAJOR_VERSION" ]; then
-            echo "MAJOR_VERSION is not set"
-            exit 1
+              echo "No MAJOR_VERSION found"
+              exit 1
           fi
       - name: Install rclone
         run: |
