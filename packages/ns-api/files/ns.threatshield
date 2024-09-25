@@ -62,6 +62,11 @@ def list_feeds():
         with open('/etc/banip/banip.feeds') as f:
             return json.loads(f.read())
 
+
+def get_block_list():
+    return get_allow_list('/etc/banip/banip.blocklist')
+
+
 def get_allow_list(file='/etc/banip/banip.allowlist'):
     ret = []
     try:
@@ -87,6 +92,11 @@ def write_allow_list(allow_list, file='/etc/banip/banip.allowlist'):
                 f.write(' #' + x['description'])
             f.write('\n')
     subprocess.run(["/etc/init.d/banip", "reload"], capture_output=True)
+
+
+def write_block_list(block_list):
+    write_allow_list(block_list, '/etc/banip/banip.blocklist')
+
 
 def list_dns_feeds():
     # Decompress and read the JSON file /etc/adblock/combined.sources.gz
@@ -137,7 +147,22 @@ def list_blocklist(e_uci):
     return { "data": ret }
 
 def list_settings(e_uci):
-    return { 'data': {'enabled': e_uci.get('banip', 'global', 'ban_enabled') == '1' } }
+    return {
+        'data': {
+            'enabled': e_uci.get('banip', 'global', 'ban_enabled') == '1',
+            'ban_logprerouting': e_uci.get('banip', 'global', 'ban_logprerouting', default=False) == '1',
+            'ban_loginput': e_uci.get('banip', 'global', 'ban_loginput', default=False) == '1',
+            'ban_logforwardwan': e_uci.get('banip', 'global', 'ban_logforwardwan', default=False) == '1',
+            'ban_logforwardlan': e_uci.get('banip', 'global', 'ban_logforwardlan', default=False) == '1',
+            'ban_loglimit': True if int(e_uci.get('banip', 'global', 'ban_loglimit', default=100)) > 0 else False,
+            'ban_logcount': e_uci.get('banip', 'global', 'ban_logcount', default=1),
+            'ban_logterm': e_uci.get('banip', 'global', 'ban_logterm', list=True, default=[]),
+            'ban_icmplimit': True if int(e_uci.get('banip', 'global', 'ban_icmplimit', default=10)) > 0 else False,
+            'ban_synlimit': True if int(e_uci.get('banip', 'global', 'ban_synlimit', default=10)) > 0 else False,
+            'ban_udplimit': True if int(e_uci.get('banip', 'global', 'ban_udplimit', default=100)) > 0 else False,
+            'ban_nftexpiry': e_uci.get('banip', 'global', 'ban_nftexpiry', default='30m')
+        }
+    }
 
 def edit_blocklist(e_uci, payload):
     feeds = list_feeds()
@@ -160,20 +185,92 @@ def set_default(e_uci, option, value):
         e_uci.set('banip', 'global', option, value)
 
 def edit_settings(e_uci, payload):
+    if 'enabled' not in payload:
+        raise ValidationError('enabled', 'required')
+    if not isinstance(payload['enabled'], bool):
+        raise ValidationError('enabled', 'invalid', payload['enabled'])
+
     if payload['enabled']:
+        # validate all other payload options
+        if 'ban_logprerouting' not in payload:
+            raise ValidationError('ban_logprerouting', 'required')
+        if not isinstance(payload['ban_logprerouting'], bool):
+            raise ValidationError('ban_logprerouting', 'invalid', payload['ban_logprerouting'])
+        if 'ban_loginput' not in payload:
+            raise ValidationError('ban_loginput', 'required')
+        if not isinstance(payload['ban_loginput'], bool):
+            raise ValidationError('ban_loginput', 'invalid', payload['ban_loginput'])
+        if 'ban_logforwardwan' not in payload:
+            raise ValidationError('ban_logforwardwan', 'required')
+        if not isinstance(payload['ban_logforwardwan'], bool):
+            raise ValidationError('ban_logforwardwan', 'invalid', payload['ban_logforwardwan'])
+        if 'ban_logforwardlan' not in payload:
+            raise ValidationError('ban_logforwardlan', 'required')
+        if not isinstance(payload['ban_logforwardlan'], bool):
+            raise ValidationError('ban_logforwardlan', 'invalid', payload['ban_logforwardlan'])
+        if 'ban_icmplimit' not in payload:
+            raise ValidationError('ban_icmplimit', 'required')
+        if not isinstance(payload['ban_icmplimit'], bool):
+            raise ValidationError('ban_icmplimit', 'invalid', payload['ban_icmplimit'])
+        if 'ban_synlimit' not in payload:
+            raise ValidationError('ban_synlimit', 'required')
+        if not isinstance(payload['ban_synlimit'], bool):
+            raise ValidationError('ban_synlimit', 'invalid', payload['ban_synlimit'])
+        if 'ban_udplimit' not in payload:
+            raise ValidationError('ban_udplimit', 'required')
+        if not isinstance(payload['ban_udplimit'], bool):
+            raise ValidationError('ban_udplimit', 'invalid', payload['ban_udplimit'])
+        if 'ban_loglimit' not in payload:
+            raise ValidationError('ban_loglimit', 'required')
+        if not isinstance(payload['ban_loglimit'], bool):
+            raise ValidationError('ban_loglimit', 'invalid', payload['ban_loglimit'])
+
+        if payload['ban_loglimit']:
+            if 'ban_logcount' not in payload:
+                raise ValidationError('ban_logcount', 'required')
+            if not isinstance(payload['ban_logcount'], int):
+                raise ValidationError('ban_logcount', 'invalid', payload['ban_logcount'])
+            if 'ban_logterm' not in payload:
+                raise ValidationError('ban_logterm', 'required')
+            if not isinstance(payload['ban_logterm'], list):
+                raise ValidationError('ban_logterm', 'invalid', payload['ban_logterm'])
+            if 'ban_nftexpiry' not in payload:
+                raise ValidationError('ban_nftexpiry', 'required')
+            if not isinstance(payload['ban_nftexpiry'], str):
+                raise ValidationError('ban_nftexpiry', 'invalid', payload['ban_nftexpiry'])
+
+        # Validation completed, set the values
         e_uci.set('banip', 'global', 'ban_enabled', '1')
         set_default(e_uci, 'ban_fetchcmd', 'curl')
         set_default(e_uci, 'ban_protov4', '1')
         set_default(e_uci, 'ban_protov6', '1')
-        set_default(e_uci, 'ban_nftexpiry', '30m')
-        set_default(e_uci, 'ban_logcount', '3')
+
+        e_uci.set('banip', 'global', 'ban_logprerouting', payload['ban_logprerouting'])
+        e_uci.set('banip', 'global', 'ban_loginput', payload['ban_loginput'])
+        e_uci.set('banip', 'global', 'ban_logforwardwan', payload['ban_logforwardwan'])
+        e_uci.set('banip', 'global', 'ban_logforwardlan', payload['ban_logforwardlan'])
+        e_uci.set('banip', 'global', 'ban_loglimit', 100 if payload['ban_loglimit'] else 0)
+
+        e_uci.set('banip', 'global', 'ban_icmplimit', 10 if payload['ban_icmplimit'] else 0)
+        e_uci.set('banip', 'global', 'ban_synlimit', 10 if payload['ban_synlimit'] else 0)
+        e_uci.set('banip', 'global', 'ban_udplimit', 100 if payload['ban_udplimit'] else 0)
+
+        if payload['ban_loglimit']:
+            e_uci.set('banip', 'global', 'ban_logcount', payload['ban_logcount'])
+            e_uci.set('banip', 'global', 'ban_logterm', payload['ban_logterm'])
+            e_uci.set('banip', 'global', 'ban_nftexpiry', payload['ban_nftexpiry'])
     else:
         e_uci.set('banip', 'global', 'ban_enabled', '0')
+
     e_uci.save('banip')
     return {'message': 'success'}
 
 def list_allowed():
     return { "data": get_allow_list() }
+
+
+def list_blocked():
+    return {"data": get_block_list()}
 
 def add_allowed(payload):
     cur = get_allow_list()
@@ -183,6 +280,16 @@ def add_allowed(payload):
     cur.append({ "address": payload['address'], "description": payload['description'] })
     write_allow_list(cur)
     return {'message': 'success'}
+
+
+def add_blocked(payload):
+    cur = get_block_list()
+    if payload['address'] in [x['address'] for x in cur]:
+        raise ValidationError('address', 'address_already_present', payload['address'])
+    cur.append({"address": payload['address'], "description": payload['description']})
+    write_block_list(cur)
+    return {'message': 'success'}
+
 
 def delete_allowed(payload):
     cur = get_allow_list()
@@ -196,6 +303,20 @@ def delete_allowed(payload):
     write_allow_list(cur)
     return {'message': 'success'}
 
+
+def delete_blocked(payload):
+    cur = get_block_list()
+    if payload['address'] not in [x['address'] for x in cur]:
+        raise ValidationError('address', 'address_not_found', payload['address'])
+    # remove address from cur list
+    for i in range(len(cur)):
+        if cur[i]['address'] == payload['address']:
+            del cur[i]
+            break
+    write_block_list(cur)
+    return {'message': 'success'}
+
+
 def edit_allowed(payload):
     cur = get_allow_list()
     if payload['address'] not in [x['address'] for x in cur]:
@@ -206,6 +327,19 @@ def edit_allowed(payload):
             break
     write_allow_list(cur)
     return {'message': 'success'}
+
+
+def edit_blocked(payload):
+    cur = get_block_list()
+    if payload['address'] not in [x['address'] for x in cur]:
+        raise ValidationError('address', 'address_not_found', payload['address'])
+    for i in range(len(cur)):
+        if cur[i]['address'] == payload['address']:
+            cur[i]['description'] = payload['description']
+            break
+    write_block_list(cur)
+    return {'message': 'success'}
+
 
 def dns_list_blocklist(e_uci):
     ret = []
@@ -345,11 +479,27 @@ if cmd == 'list':
         'list-blocklist': {},
         'edit-blocklist': { "blocklist": "blocklist_name", "enabled": True },
         'list-settings': {},
-        'edit-settings': { 'enabled': True },
+        'edit-settings': {
+            'enabled': True,
+            'ban_logprerouting': True,
+            'ban_loginput': True,
+            'ban_logforwardwan': True,
+            'ban_logforwardlan': True,
+            'ban_loglimit': True,
+            'ban_logcount': 3,
+            'ban_logterm': ['string'],
+            'ban_icmplimit': True,
+            'ban_synlimit': True,
+            'ban_udplimit': True
+        },
         'list-allowed': {},
         'add-allowed': { 'address': '1.2.3.4', 'description': 'optional' },
         'edit-allowed': { 'address': '1.2.3.4', 'description': 'optional' },
         'delete-allowed': { 'address': '1.2.3.4' },
+        'list-blocked': {},
+        'add-blocked': {'address': '1.2.3.4', 'description': 'optional'},
+        'edit-blocked': {'address': '1.2.3.4', 'description': 'optional'},
+        'delete-blocked': {'address': '1.2.3.4'},
         'dns-list-blocklist': {},
         'dns-edit-blocklist': { "blocklist": "blocklist_name", "enabled": True },
         'dns-list-settings': {},
@@ -387,6 +537,17 @@ elif cmd == 'call':
         elif action == 'delete-allowed':
             payload = json.loads(sys.stdin.read())
             ret = delete_allowed(payload)
+        elif action == 'list-blocked':
+            ret = list_blocked()
+        elif action == 'add-blocked':
+            payload = json.loads(sys.stdin.read())
+            ret = add_blocked(payload)
+        elif action == 'edit-blocked':
+            payload = json.loads(sys.stdin.read())
+            ret = edit_blocked(payload)
+        elif action == 'delete-blocked':
+            payload = json.loads(sys.stdin.read())
+            ret = delete_blocked(payload)
 
         if action == 'dns-list-blocklist':
             ret = dns_list_blocklist(e_uci)
