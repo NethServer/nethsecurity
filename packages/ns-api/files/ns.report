@@ -39,7 +39,7 @@ def get_cached_report(report_name, cache_timeout=900):
 
 def tsip_attack_report():
     file_paths = ['/var/log/messages.1.gz', '/var/log/messages']
-    search_terms = 'banIP.*suspicious'
+    search_terms = 'banIP.*add IP'
 
     # Get the current date in the format '%b %e ' (e.g., 'Aug  8 ')
     date_str = datetime.now().strftime('%b %e ').rstrip()
