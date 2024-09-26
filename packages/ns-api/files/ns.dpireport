@@ -26,17 +26,17 @@ def list_days():
         ret.append((tmp[0], tmp[1], tmp[2]))
     return {"days": ret}
 
-def summary(year, month, day):
+def summary(year, month, day, client="*", limit=10):
     hours = dict()
     for i in range(24):
         hours[f'{i:02}'] = 0
-    ret = {"total": 0, "clients": {}, "hours": {"h": hours}, "names": {}, "protocol": {}, "host": {}, "application": {}}
+    ret = {"total": 0, "clients": {}, "hours": hours, "names": {}, "protocol": {}, "host": {}, "application": {}}
     # prepenad leading zero, if needed
     month = f'{int(month):02}'
     day = f'{int(day):02}'
-    for client_f in glob.glob(f'/var/run/dpireport/{year}/{month}/{day}/*'):
+    for client_f in glob.glob(f'/var/run/dpireport/{year}/{month}/{day}/{client}'):
         client = client_f.removeprefix(f'/var/run/dpireport/{year}/{month}/{day}/')
-        cdetails = details(year, month, day, client)
+        cdetails = _details(year, month, day, client)
         ret["clients"][client] = cdetails["total"]
         ret["names"][client] = cdetails["name"]
         for hour in cdetails["hours"]:
@@ -72,7 +72,7 @@ def summary(year, month, day):
 
     return ret
 
-def details(year, month, day, client):
+def _details(year, month, day, client):
     hours = dict()
     if not client:
         return ret
@@ -95,7 +95,12 @@ def details(year, month, day, client):
 cmd = sys.argv[1]
 
 if cmd == 'list':
-    print(json.dumps({"summary": {"year": "2023", "month": "06", "day": "02"}, "details": {"year": "2023", "month": "06", "day": "16", "client": "192.168.100.22"},"days":{}}))
+    print(json.dumps({
+        "summary": {"year": "2023", "month": "06", "day": "02", "limit": 10},
+        "summary-by-client": {"year": "2023", "month": "06", "day": "02", "client": "192.168.1.1", "limit": 10},
+        "details": {"year": "2023", "month": "06", "day": "16", "client": "192.168.100.22"},
+        "days":{}
+        }))
 else:
     action = sys.argv[2]
     if action == "days":
@@ -106,7 +111,9 @@ else:
         month = args.get('month', f'{date.today().month:02}')
         day = args.get('day', f'{date.today().day:02}')
         if action == "summary":
-             print(json.dumps(summary(year, month, day)))
-        elif action == "details":
-             client = args.get('client', '')
-             print(json.dumps(details(year, month, day, client)))
+            limit = args.get('limit', 10)
+            print(json.dumps(summary(year, month, day, limit=limit)))
+        elif action == "summary-by-client":
+            client = args.get('client', '*')
+            limit = args.get('limit', 10)
+            print(json.dumps(summary(year, month, day, client, limit=limit)))

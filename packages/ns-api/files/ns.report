@@ -1,0 +1,375 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import re
+import os
+import sys
+import json
+import time
+import sqlite3
+import subprocess
+from datetime import datetime
+from collections import defaultdict
+from nethsec import utils
+
+## Utility functions
+
+def format_hourly_data(hourly_data):
+    return [[hour, count] for hour, count in enumerate(hourly_data)]
+
+def save_cached_report(report_name, report_data):
+    os.makedirs('/tmp/ns.report', exist_ok=True)
+    cache_file = f'/tmp/ns.report/{report_name}.json'
+    with open(cache_file, 'w') as f:
+        json.dump(report_data, f)
+
+def get_cached_report(report_name, cache_timeout=900):
+    cache_file = f'/tmp/ns.report/{report_name}.json'
+    # Check if cache file exists and if it's older than the cache timeout
+    if os.path.exists(cache_file) and time.time() - os.path.getmtime(cache_file) < cache_timeout:
+        with open(cache_file, 'r') as f:
+            return json.load(f)
+    return None
+
+## API
+
+def tsip_attack_report():
+    file_paths = ['/var/log/messages.1.gz', '/var/log/messages']
+    search_terms = 'banIP.*add IP'
+
+    # Get the current date in the format '%b %e ' (e.g., 'Aug  8 ')
+    date_str = datetime.now().strftime('%b %e ').rstrip()
+    # Regex pattern to extract IP addresses
+    ip_pattern = re.compile(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b')
+    # Regex pattern to extract hour from timestamp
+    hour_pattern = re.compile(r'(\d{2}):(\d{2}):(\d{2})')
+
+    ip_count = defaultdict(int)   
+    hourly_count = [0] * 24
+    first_seen = 0
+
+    for file_path in file_paths:
+        if file_path.endswith('.gz'):
+            command = f'zcat {file_path} | grep "{date_str}" | grep "{search_terms}"'
+        else:
+            command = f'grep "{date_str}" {file_path} | grep "{search_terms}"'
+
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        for line in process.stdout:
+            line = line.decode('utf-8')
+            # Find all IP addresses in the line
+            ips = ip_pattern.findall(line)
+            
+            # Extract the hour from the timestamp
+            hour_match = hour_pattern.search(line)
+            if hour_match:
+                hour = int(hour_match.group(1))
+                hourly_count[hour] += 1
+
+            # Extract full date and time of the first matching line and convert it to timestamp
+            if not first_seen:
+                # Example line: 'Aug  8 00:00:01', but add current year
+                first_seen = datetime.strptime(f"{datetime.now().year} {line[:15]}", '%Y %b %d %H:%M:%S').timestamp()
+            
+            for ip in ips:
+                ip_count[ip] += 1
+
+        process.stdout.close()
+        process.wait()
+
+    return {
+        "first_seen": int(first_seen),
+        "attack_count": sum(ip_count.values()),
+        "attack_by_ip": sorted(ip_count.items(), key=lambda item: item[1], reverse=True),
+        "attack_by_hour": format_hourly_data(hourly_count),
+    }
+
+def tsip_malware_report():
+    file_paths = ['/var/log/messages.1.gz', '/var/log/messages']
+    keywords = ['kernel', 'banIP/.*/drop/']
+
+    # Get the current date in the format '%b %e ' (e.g., 'Aug  8 ')
+    date_str = datetime.now().strftime('%b %e ').rstrip()
+    # Combine keywords into a single grep pattern
+    grep_pattern = '|'.join(keywords)
+    # Regex pattern to extract hour from timestamp
+    hour_pattern = re.compile(r'(\d{2}):(\d{2}):(\d{2})')
+    # Dictionary to store the count of matching lines
+    match_count = 0
+    hourly_match_count = [0] * 24
+    first_seen = 0
+    category_count = defaultdict(int)
+    chain_count = defaultdict(int)
+
+    for file_path in file_paths:
+        if file_path.endswith('.gz'):
+            command = f'zcat {file_path} | grep "{date_str}" | grep -E "{grep_pattern}"'
+        else:
+            command = f'grep "{date_str}" {file_path} | grep -E "{grep_pattern}"'
+
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        for line in process.stdout:
+            line = line.decode('utf-8')
+            match_count += 1
+
+            # Extract the hour from the timestamp
+            hour_match = hour_pattern.search(line)
+            if hour_match:
+                hour = int(hour_match.group(1))
+                hourly_match_count[hour] += 1
+
+            # Extract full date and time of the first matching line and convert it to timestamp
+            if not first_seen:
+                # Example line: 'Aug  8 00:00:01', but add current year
+                first_seen = datetime.strptime(f"{datetime.now().year} {line[:15]}", '%Y %b %d %H:%M:%S').timestamp()
+
+            # Extract category and chain from the line
+            # description of match banIP/<chain>/drop/<category>
+            category_match = re.search(r'banIP/([a-zA-Z0-9_-]*)/drop/([a-zA-Z0-9_-]*):', line)
+            if category_match:
+                category = category_match.group(2)
+                chain = category_match.group(1)
+                category_count[category] += 1
+                chain_count[chain] += 1
+
+        process.stdout.close()
+        process.wait()
+
+    return {
+        "first_seen": int(first_seen),
+        "malware_count": match_count,
+        "malware_by_hour": format_hourly_data(hourly_match_count),
+        "malware_by_category": dict(category_count),
+        "malware_by_chain": dict(chain_count)
+    }
+
+def mwan_report():
+    file_paths = ['/var/log/messages.1.gz', '/var/log/messages']
+    # Get the current date in the format '%b %e ' (e.g., 'Aug  8 ')
+    date_str = datetime.now().strftime('%b %e ').rstrip()
+    # Define patterns for extracting information
+    wan_pattern = re.compile(r'Interface (\w+) \(\w+\) is (online|offline)')
+
+    online_count = 0
+    offline_count = 0
+    events_by_wan = {}
+
+    for file_path in file_paths:
+        if file_path.endswith('.gz'):
+            command = f'zcat {file_path} | grep -E \'mwan3track.*is online|is offline\' | grep "{date_str}"'
+        else:
+            command = f'grep -E \'mwan3track.*is online|is offline\' {file_path} | grep "{date_str}"'
+
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        for line in process.stdout:
+            line = line.decode('utf-8')
+            timestamp = datetime.strptime(f"{datetime.now().year} {line[:15]}", '%Y %b %d %H:%M:%S').timestamp()
+            # Extract WAN and event type
+            wan_match = wan_pattern.search(line)
+            if wan_match:
+                wan_name = wan_match.group(1)
+                event_type = wan_match.group(2)
+                if wan_name not in events_by_wan:
+                    events_by_wan[wan_name] = []
+
+                # Update event counts
+                if event_type == 'online':
+                    online_count += 1
+                    events_by_wan[wan_name].append([timestamp, 1])
+                elif event_type == 'offline':
+                    offline_count += 1
+                    events_by_wan[wan_name].append([timestamp, 0])
+
+        process.stdout.close()
+        process.wait()
+
+    return {
+        'total_online': online_count,
+        'total_offline': offline_count,
+        'events_by_wan': events_by_wan
+    }
+
+def ovpnrw_list_days(instance):
+    conn = sqlite3.connect(f'/var/openvpn/{instance}/connections.db')
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT DISTINCT date(start_time, 'unixepoch') AS day
+            FROM connections
+            ORDER BY day;
+        """)
+    except sqlite3.OperationalError:
+        return utils.generic_error("query_error")
+    days = cursor.fetchall()
+    conn.close()
+
+    return {"days": [day[0] for day in days]}
+
+def ovpnrw_clients_by_day(instance, day):
+    conn = sqlite3.connect(f'/var/openvpn/{instance}/connections.db')
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT common_name, virtual_ip_addr, remote_ip_addr, start_time, duration, bytes_received, bytes_sent
+            FROM connections
+            WHERE date(start_time, 'unixepoch') = ?
+            ORDER BY common_name, start_time;
+        """, (day,))
+    except sqlite3.Error as e:
+        return utils.generic_error("query_error")
+    clients = cursor.fetchall()
+    conn.close()
+
+    client_info_list = []
+    for client in clients:
+        client_info = {
+            "common_name": client[0],
+            "virtual_ip_addr": client[1],
+            "remote_ip_addr": client[2],
+            "start_time": client[3],
+            "duration": client[4],
+            "bytes_received": client[5],
+            "bytes_sent": client[6]
+        }
+        client_info_list.append(client_info)
+
+    return {"clients": client_info_list}
+
+def ovpnrw_count_clients_by_hour(instance, day):
+    conn = sqlite3.connect(f'/var/openvpn/{instance}/connections.db')
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT strftime('%H', start_time, 'unixepoch') AS hour, COUNT(*) as count
+            FROM connections
+            WHERE date(start_time, 'unixepoch') = ?
+            GROUP BY hour
+            ORDER BY hour;
+        """, (day,))
+    except sqlite3.Error as e:
+        return utils.generic_error("query_error")
+    hourly_data = cursor.fetchall()
+    conn.close()
+
+    # Prepare an array to hold counts for all 24 hours
+    hours_count = [[str(i).zfill(2), 0] for i in range(24)]
+    for hour, count in hourly_data:
+        hours_count[int(hour)][1] = count
+
+    return {"hours": hours_count}
+
+def ovpnrw_bytes_by_hour(instance, day):
+    conn = sqlite3.connect(f'/var/openvpn/{instance}/connections.db')
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT strftime('%H', start_time, 'unixepoch') AS hour,
+                   SUM(bytes_received + bytes_sent) as total_bytes
+            FROM connections
+            WHERE date(start_time, 'unixepoch') = ?
+            GROUP BY hour
+            ORDER BY hour;
+        """, (day,))
+    except sqlite3.Error as e:
+        return utils.generic_error("query_error")
+    hourly_data = cursor.fetchall()
+    conn.close()
+
+    # Prepare an array to hold total bytes for all 24 hours
+    hours_bytes = [[str(i).zfill(2), 0] for i in range(24)]
+    for hour, total_bytes in hourly_data:
+        hours_bytes[int(hour)][1] = total_bytes
+
+    return {"hours": hours_bytes}
+
+
+def ovpnrw_bytes_by_hour_and_user(instance, day, user):
+    conn = sqlite3.connect(f'/var/openvpn/{instance}/connections.db')
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT strftime('%H', start_time, 'unixepoch') AS hour,
+                   SUM(bytes_received + bytes_sent) as total_bytes
+            FROM connections
+            WHERE date(start_time, 'unixepoch') = ? AND common_name = ?
+            GROUP BY hour
+            ORDER BY hour;
+        """, (day, user))
+    except sqlite3.Error as e:
+        return utils.generic_error("query_error")
+    hourly_data = cursor.fetchall()
+    conn.close()
+
+    # Prepare an array to hold total bytes for all 24 hours
+    hours_bytes = [[str(i).zfill(2), 0] for i in range(24)]
+    for hour, total_bytes in hourly_data:
+        hours_bytes[int(hour)][1] = total_bytes
+
+    return {"hours": hours_bytes}
+
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({
+        'tsip-malware-report': {},
+        'tsip-attack-report': {},
+        'mwan-report': {},
+        'ovpnrw-list-days': {
+            'instance': 'String'
+        },
+        'ovpnrw-clients-by-day': {
+            'instance': 'String',
+            'day': 'String'
+        },
+        'ovpnrw-count-clients-by-hour': {
+            'instance': 'String',
+            'day': 'String'
+        },
+        'ovpnrw-bytes-by-hour': {
+            'instance': 'String',
+            'day': 'String'
+        },
+        'ovpnrw-bytes-by-hour-and-user': {
+            'instance': 'String',
+            'day': 'String',
+            'common_name': 'String'
+        },
+        }))   
+elif cmd == 'call':
+    action = sys.argv[2]
+    if action == 'tsip-malware-report':
+        ret = get_cached_report('tsip-malware-report', 900)
+        if ret is None:
+            ret = tsip_malware_report()
+            save_cached_report('tsip-malware-report', ret)
+    elif action == 'tsip-attack-report':
+        ret = get_cached_report('tsip-attack-report', 900)
+        if ret is None:
+            ret = tsip_attack_report()
+            save_cached_report('tsip-attack-report', ret)
+    elif action == "ovpnrw-list-days":
+        data = json.loads(sys.stdin.read())
+        ret = ovpnrw_list_days(data.get('instance'))
+    elif action == "ovpnrw-clients-by-day":
+        data = json.loads(sys.stdin.read())
+        ret = ovpnrw_clients_by_day(data.get('instance'), data.get('day'))
+    elif action == "ovpnrw-count-clients-by-hour":
+        data = json.loads(sys.stdin.read())
+        ret = ovpnrw_count_clients_by_hour(data.get('instance'), data.get('day'))
+    elif action == "ovpnrw-bytes-by-hour":
+        data = json.loads(sys.stdin.read())
+        ret = ovpnrw_bytes_by_hour(data.get('instance'), data.get('day'))
+    elif action == "ovpnrw-bytes-by-hour-and-user":
+        data = json.loads(sys.stdin.read())
+        ret = ovpnrw_bytes_by_hour_and_user(data.get('instance'), data.get('day'), data.get('user'))
+    elif action == 'mwan-report':
+        ret = get_cached_report('mwan-report', 300)
+        if ret is None:
+            ret = mwan_report()
+            save_cached_report('mwan-report', ret)
+    print(json.dumps(ret))
