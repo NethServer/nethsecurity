@@ -66,8 +66,10 @@ define Package/ns-report/install
 	$(INSTALL_DIR) $(1)/usr/bin/
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/dpireport $(1)/usr/bin/
+	$(INSTALL_BIN) ./files/flowreport $(1)/usr/bin/
 	$(INSTALL_BIN) ./files/dpireport-cleanup $(1)/usr/bin/
 	$(INSTALL_BIN) ./files/dpireport.init $(1)/etc/init.d/dpireport
+	$(INSTALL_BIN) ./files/flowreport.init $(1)/etc/init.d/dpireport
 	$(INSTALL_BIN) ./files/20_ns-report $(1)/etc/uci-defaults
 endef
  

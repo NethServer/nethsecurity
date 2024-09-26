@@ -1,0 +1,195 @@
+#!/usr/bin/python
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# This script reads network flow data from a Unix socket, processes it, 
+# and periodically saves the data to a JSON file. 
+# It removes old flows, manages multiple threads for reading and saving data, 
+# and handles signals and exceptions for a graceful shutdown.
+# Environment variables can be used to configure the script:
+# - FLOW_STALE_TIMEOUT: the time in seconds after which a flow is considered stale
+# - FLOW_LIMIT: the maximum number of flows to keep in memory
+# - DUMP_TIMEOUT: the time in seconds between each dump to disk
+# - DUMP_PATH: the path where the JSON file is saved
+
+
+import os
+import sys
+import json
+import time
+import signal
+import socket
+import logging
+import threading
+import traceback
+from datetime import datetime, date
+
+flow_stale_timeout = int(os.environ.get("FLOW_STALE_TIMEOUT", 3600))
+flow_limit = int(os.environ.get("FLOW_LIMIT", 100))
+dump_timeout = int(os.environ.get("DUMP_TIMEOUT", 30))
+dump_path = os.environ.get("DUMP_PATH", "/var/run/flowreport")
+run = True
+flows = dict()
+flows_lock = threading.Lock()
+dumper_t = None
+reader_t = None
+
+def remove_stale_flows():
+    global flows_lock
+    global flows
+    # remove stale flows
+    with flows_lock:
+        now = datetime.now()
+        flows_to_delete = list()
+        for key in flows:
+            flow = flows[key]
+            if 'last_seen_at' not in flow or (datetime.timestamp(now) - flow['last_seen_at']) > flow_stale_timeout:
+                logging.debug(f'Cleanup flow {key}')
+                flows_to_delete.append(key)
+        for digest in flows_to_delete:
+            del flows[digest]
+
+        # order flows by last_seen_at
+        flows = dict(sorted(flows.items(), key=lambda item: item[1].get('last_seen_at', 0), reverse=True))
+        # cleanup also if we have too many flows
+        if len(flows) > flow_limit:
+            for digest in list(flows.keys())[flow_limit:]:
+                del flows[digest]
+
+def dump():
+    global dump_path
+    # create dump directory
+    os.makedirs(dump_path, exist_ok=True)
+    # dump all flow as json
+    with flows_lock:
+        with open(os.path.join(dump_path, "flows.json"), 'w') as fp:
+            json.dump(flows, fp)
+
+def dumper():
+    global run
+    while run:
+        time.sleep(dump_timeout)
+        dump()
+        remove_stale_flows()
+
+
+# Read from netify socket and filter data stream
+def reader():
+    global flows_lock
+    global flows
+
+    # wait 60 seconds for netifyd to start
+    timeout = 60
+    socket_file = os.environ.get('NETIFYD_SOCKET', '/var/run/netifyd/netifyd.sock')
+    while not os.path.exists(socket_file) and timeout > 0:
+        time.sleep(1)
+        timeout -= 1
+    if timeout == 0:
+        logging.error(f'Netifyd socket {socket_file} not found')
+        sys.exit(1)
+
+    client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    client.connect(socket_file)
+    logging.debug(f'Connected to socket')
+    for line in client.makefile('r'):
+        if not run:
+            break
+        data = json.loads(line)
+        # ignore events that are not data streams
+        if 'type' in data and 'flow' in data:
+            digest = data['flow'].get('digest')
+            if data['type'] == "flow":
+                with flows_lock:
+                    for key in ("digest", "soft_dissector", "detection_guessed", "detection_updated", "risks", "dhc_hit", "category", "detected_application", "detected_protocol"):
+                        try:
+                            del data["flow"][key]
+                        except:
+                            pass
+                    if not 'total_bytes' in data["flow"]:
+                        data["flow"]["total_bytes"] = -1
+                    flows[digest] = data['flow']
+
+            if data['type'] in ("flow_status", "flow_stats"):
+                with flows_lock:
+                    if digest in flows:
+                        logging.debug(f'Update flow {digest} with bytes {data["flow"].get("total_bytes", -1)}')
+                        flows[digest]['total_bytes'] = data['flow'].get('total_bytes', -1)
+                        if data['flow'].get('last_seen_at'):
+                            flows[digest]['last_seen_at'] = data['flow'].get('last_seen_at')
+
+            # Purge old flows
+            if data['type'] == "flow_purge":
+                with flows_lock:
+                    logging.debug(f'Purge flow {digest}')
+                    try:
+                        del flows[digest]
+                    except:
+                        pass
+
+def stop_threads():
+    global run
+    global dumper_t
+    global reader_t
+    run = False
+    logging.info("Closing threads ...")
+    reader_t.join(timeout=1)
+    dumper_t.join(timeout=1)
+
+def start_threads():
+    global run
+    global dumper_t
+    global reader_t
+    logging.info("Starting threads ...")
+    run = True
+    dumper_t = threading.Thread(target=dumper, daemon=True)
+    dumper_t.start()
+    reader_t = threading.Thread(target=reader, daemon=True)
+    reader_t.start()
+    reader_t.join()
+
+# Signal handler: stop threads and dump all data to disk
+def dump_and_exit(signum, frame):
+    try:
+        stop_threads()
+    except:
+        pass
+    dump()
+    logging.info("Bye")
+    sys.exit(0)
+
+# Global exception handler
+# Log the exception stacktrace and restart the threads
+def handle_global_exception(exctype, value, tb):
+    logging.error(f"Unhandled exception: {exctype} {value}")
+    summary = traceback.extract_tb(tb)
+    for line in summary.format():
+        logging.error(line.rstrip())
+    try:
+       stop_threads()
+    except:
+        # sleep for a while to avoid a busy loop
+        time.sleep(1)
+    start_threads()
+
+def handle_thread_exception(args):
+    handle_global_exception(args.exc_type, args.exc_value, args.exc_traceback)
+
+# Setup logging to syslog
+logger = logging.getLogger()
+logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+logger.addHandler(handler)
+
+# Setup signal handlers
+signal.signal(signal.SIGINT, dump_and_exit)
+
+# Global exception handler
+sys.excepthook = handle_global_exception
+threading.excepthook = handle_thread_exception
+
+logging.info("Started flowreport")
+# Start all threads
+start_threads()
