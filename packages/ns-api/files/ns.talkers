@@ -11,10 +11,14 @@ import sys
 import json
 import socket
 
+from nethsec import dpi
+
+
 def list_talkers(limit = 20, stat_file="/tmp/netify-plugin-stats.json"):
     data = None
     stats = dict()
-    time_diff = 1
+    applications = dict()
+    protocols = dict()
 
     with open(stat_file, 'r') as fp:
         data = json.load(fp)
@@ -39,19 +43,35 @@ def list_talkers(limit = 20, stat_file="/tmp/netify-plugin-stats.json"):
                 for app in data['stats'][mac][ip]:
                     if app not in stats[ip]['apps']:
                         stats[ip]['apps'][app] = 0
+                    if app not in applications:
+                        applications[app] = 0
                     for proto in data['stats'][mac][ip][app]:
+                        if proto not in protocols:
+                            protocols[proto] = 0
                         stats[ip]['totals']['download'] += data['stats'][mac][ip][app][proto]['download']
                         stats[ip]['totals']['upload'] += data['stats'][mac][ip][app][proto]['upload']
                         stats[ip]['totals']['bandwidth'] +=  data['stats'][mac][ip][app][proto]['download'] +  data['stats'][mac][ip][app][proto]['upload']
                         stats[ip]['totals']['packets'] += data['stats'][mac][ip][app][proto]['packets']
                         stats[ip]['apps'][app] += data['stats'][mac][ip][app][proto]['download'] + data['stats'][mac][ip][app][proto]['upload']
 
+                        applications[app] += data['stats'][mac][ip][app][proto]['download'] + data['stats'][mac][ip][app][proto]['upload']
+
+                        protocols[proto] += data['stats'][mac][ip][app][proto]['download'] + data['stats'][mac][ip][app][proto]['upload']
+
             # name resolution can highly slow down the API
             stats[ip]['host'] = socket.getnameinfo((ip, 0), 0)[0]
             stats[ip]['totals']['bandwidth'] = stats[ip]['totals']['bandwidth'] / time_diff
 
     ordered = sorted(stats.values(), key=lambda x: x['totals']['bandwidth'], reverse=True)
-    return ordered[:limit]
+    applications = [{"name": k, "value": v} for k, v in sorted(applications.items(), key=lambda x: x[1], reverse=True)]
+    protocols_naming = dpi.load_protocols()
+    protocols = {protocols_naming.get(int(k), k): v for k, v in protocols.items()}
+    protocols = [{"name": k, "value": v} for k, v in sorted(protocols.items(), key=lambda x: x[1], reverse=True)][:limit]
+    return {
+        'top_hosts': ordered[:limit],
+        'top_apps': applications[:limit],
+        'top_protocols': protocols
+    }
 
 
 cmd = sys.argv[1]
