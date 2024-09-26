@@ -170,7 +170,7 @@ def remove_ssh_key(ssh_key):
     return {"result": "success"}
 
 def dump_ts_malware():
-    # Parse /var/log/messages for banIP blocks, only last hour
+    # Parse /var/log/messages for banIP blocks
     # Line example:
     # Aug 20 12:31:58 fw kernel: [1117985.535261] banIP/inp-wan/drop/nethesislvl3v4: IN=eth5 OUT= MAC=e4:3a:6e:15:8d:dd:14:49:bc:17:33:78:08:00 SRC=193.41.206.156 DST=150.252.232.82 LEN=44 TOS=0x00 PREC=0x00 TTL=247 ID=54321 PROTO=TCP SPT=51000 DPT=8728 WINDOW=65535 RES=0x00 SYN URGP=0 MARK=0x3f00"
     ret = []
@@ -201,14 +201,14 @@ def dump_ts_malware():
     return {"data": ret}
  
 def dump_ts_attacks():
-    # Parse /var/log/messages for banIP suspicious blocks (fail2ban-like), only last hour
+    # Parse /var/log/messages for banIP blocked IPs(fail2ban-like)
     # Line example:
-    # Aug 20 04:06:30 fw banIP-1.0.0-5[18692]: suspicious IP '47.98.249.3'
+    # Aug 20 04:06:30 fw banIP-1.0.0-5[18692]: add IP '47.98.249.3'
     ret = []
-    log = read_log("banIP.*suspicious")
+    log = read_log("banIP.*add")
 
     # regexp pattern to extract suspicious IP
-    ip_pattern = re.compile(r"suspicious IP '(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'")
+    ip_pattern = re.compile(r"add IP '(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'")
     for line in log:
         if line:
             ip = ip_pattern.search(line)
