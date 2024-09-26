@@ -7155,6 +7155,7 @@ The output attribute `reboot_needed` tells if a reboot of the unit is required t
 - disabling a NAT helper
 
 If `enabled` is `false`, all parameter changes are ignored and not applied.
+
 ## ns.report
 
 Generate data for reports. Some reports are cached.
