@@ -20,6 +20,14 @@ def _run(cmd):
     except:
         return ''
 
+# run a bash command and return the error code
+def _run_status(cmd):
+    try:
+        proc = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True)
+        return proc.returncode
+    except:
+        return 1
+
 def _run_json(cmd):
     try:
         return json.loads(_run(cmd))
@@ -110,7 +118,28 @@ for section in utils.get_all_by_type(u, 'network', 'interface'):
                 network['props']["bridge"] = u.get('network', d, 'ports', default=[])
     networks[device] = network
 
-features = {}
+# nathelpers and nathelper_extras are the number of nathelpers and nathelper-extras loaded
+nathelpers = _run("opkg files kmod-nf-nathelper | grep -e '\.ko$' | cut -d'/' -f 5 | cut -d'.' -f1")
+nathelper_extras = _run("opkg files kmod-nf-nathelper-extra | grep -e '\.ko$' | cut -d'/' -f 5 | cut -d'.' -f1")
+# count the number of line in the output of the command
+nathelpers = len(nathelpers.splitlines())
+nathelper_extras = len(nathelper_extras.splitlines())
+
+# check the smnpd service status by its error code
+snmp = _run_status("/etc/init.d/snmpd running")
+
+# ddns status
+# count the number of line in the output of the command
+# if the command returns an empty string, ddns is not running
+# otherwise, count the number of lines in the output, it is the running ddns configurations
+ddns = _run("/usr/bin/pgrep -f -a dynamic")
+ddns = len(ddns.splitlines()) if ddns else 0
+
+features = {
+    "nathelpers": { "counts": int(nathelpers)+int(nathelper_extras),"nathelpers": nathelpers, "nathelper_extras": nathelper_extras },
+    "snmp":{ "enabled": snmp == 0 },
+    "ddns": { "enabled": True if ddns else False, "configurations": ddns },
+}
 for func in dir(inventory):
     if func.startswith("fact_"):
         method = getattr(inventory, func)
