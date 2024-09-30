@@ -6448,7 +6448,9 @@ Response example with connected machine:
   "server": "https://controller.nethsecurity.org",
   "unit_name": "NethSec",
   "unit_id": "94615a9e-2fae-4ac4-91b0-6c03e624ab48",
-  "tls_verify": false
+  "tls_verify": false,
+  "push_status": "enabled",
+  "push_last_sent": 1727703300
 }
 ```
 
@@ -6460,13 +6462,17 @@ Response example for an unconfigured machine:
   "server": null,
   "unit_name": "NethSec",
   "unit_id": "",
-  "tls_verify": false
+  "tls_verify": true,
+  "push_status": "disabled",
+  "push_last_sent": -1
 }
 ```
 
 Possible values for `status` are `connected`, `unregistered` and `pending`.
 `address` is null if the status is `unregistered` or `pending`.
 `server` is null if the status is `unregistered`.
+`push_status` can be `enabled` or `disabled`, it's `enabled` if the server has a valid subscription; if enabled, `push_last_sent` contains the timestamp of last
+time the unit has pushed data to the controller.
 If `unit_name` has not been previously set, default value is the hostname of the machine.
 The `unit_id` is generated from the controller and contained inside the join_code.
 
