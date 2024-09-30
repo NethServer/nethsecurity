@@ -33,7 +33,7 @@ if [ -z "${token}" ]; then
 fi
 
 # Disable certificate verification if tls_verify is set to 0
-curl_opts="-sL"
+curl_opts="--fail -sL"
 tls_verify=$(uci -q get ${UCI_CONF}.config.tls_verify)
 if [ "${tls_verify}" == "0" ]; then
     curl_opts="${curl_opts}k"
@@ -57,4 +57,7 @@ for api in "${dump_apis[@]}"; do
         -u ${unit_id}:${token} \
         -o /dev/null \
         ${server}/api/ingest/${api} --data @-
+    if [ $? -gt 0 ]; then
+	logger -t ns-push-reports "Failed to push $api"
+    fi
 done
