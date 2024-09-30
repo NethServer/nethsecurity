@@ -177,9 +177,9 @@ def dump_ts_malware():
     # regexp pattern to extract src and dst
     ip_pattern = re.compile(r'SRC=(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+DST=(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})')
     # regexp pattern to extract banIP/<chain>/drop/<category>
-    tag_pattern = re.compile(r'banIP/([a-zA-Z0-9\-]+)/drop[/]*([a-zA-Z0-9]+)*:')
+    tag_pattern = re.compile(r'banIP/([a-zA-Z0-9\-]+)/(drop|reject)[/]*([a-zA-Z0-9]+)*:')
 
-    for line in read_log("banIP/.*/drop"):
+    for line in read_log("banIP/.*/(drop|reject)"):
         if line:
             try:
                 time = datetime.strptime(f"{datetime.now().year} {line[:15]}", '%Y %b %d %H:%M:%S').timestamp()
@@ -194,7 +194,7 @@ def dump_ts_malware():
             tag = tag_pattern.search(line)
             if tag:
                 chain = tag.group(1)
-                category = tag.group(2)
+                category = tag.group(3)
 
             ret.append({"timestamp": int(time), "src": src, "dst": dst, "category": category, "chain": chain})
 

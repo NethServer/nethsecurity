@@ -90,7 +90,7 @@ def tsip_attack_report():
 
 def tsip_malware_report():
     file_paths = ['/var/log/messages.1.gz', '/var/log/messages']
-    keywords = ['kernel', 'banIP/.*/drop']
+    keywords = ['kernel', 'banIP/.*/drop', 'banIP/.*/reject']
 
     # Get the current date in the format '%b %e ' (e.g., 'Aug  8 ')
     date_str = datetime.now().strftime('%b %e ').rstrip()
@@ -129,14 +129,15 @@ def tsip_malware_report():
 
             # Extract category and chain from the line
             # description of match banIP/<chain>/drop/<category>
-            category_match = re.search(r'banIP/[a-zA-Z0-9_-]+/drop/([a-zA-Z0-9_-]*):', line)
+            category_match = re.search(r'banIP/[a-zA-Z0-9_-]+/(drop|reject)/([a-zA-Z0-9_-]*):', line)
             if category_match:
-                category = category_match.group(1)
+                category = category_match.group(2)
                 category_count[category] += 1
-            chain_match = re.search(r'banIP/([a-zA-Z0-9_-]+)/drop', line)
+            chain_match = re.search(r'banIP/([a-zA-Z0-9_-]+)/', line)
             if chain_match:
                 chain = chain_match.group(1)
                 chain_count[chain] += 1
+
 
         process.stdout.close()
         process.wait()
