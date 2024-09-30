@@ -1,0 +1,33 @@
+#!/bin/sh /etc/rc.common
+#
+# Original author: Takumi Sueda <puhitaku@gmail.com>
+#
+# Start/stop/restart supervisor in OpenWrt.
+
+START=91
+
+USE_PROCD=1
+PROG=/usr/bin/supervisord
+
+DAEMON=${PROG}
+
+# Location of the pid file
+PIDFILE=/var/supervisor/supervisord.pid
+
+# Config of supervisor
+CONFIG=/etc/supervisord.conf
+
+start_service()
+{
+    mkdir -p /var/supervisor
+    procd_open_instance
+    procd_set_param command $PROG -c $CONFIG -j $PIDFILE
+    procd_set_param respawn
+    procd_close_instance
+    touch $CONFIG
+}
+
+stop_service()
+{
+    kill $(cat $PIDFILE)
+}
