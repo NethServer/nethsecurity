@@ -1,0 +1,7 @@
+[program:dpireport]
+command = /usr/bin/dpireport 
+process_name = dpireport
+startretries = 10
+autostart = true
+stdout_syslg = true
+stderr_syslog = true
