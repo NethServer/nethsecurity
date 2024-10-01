@@ -7,7 +7,7 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-api-server
 PKG_VERSION:=1.0.0
-PKG_RELEASE:=1
+PKG_RELEASE:=2
  
 PKG_SOURCE:=ns-api-server-$(PKG_VERSION).tar.gz
 PKG_BUILD_DIR=$(BUILD_DIR)/nethsecurity-api-$(PKG_VERSION)
@@ -46,6 +46,15 @@ define Package/ns-api-server/install
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_CONF) files/ns-api-server.keep $(1)/lib/upgrade/keep.d/ns-api-server
 endef
+
+define Package/ns-api-server/postinst
+#!/bin/sh
+if [ -z "$${IPKG_INSTROOT}" ]; then
+  /etc/init.d/ns-api-server restart
+fi
+exit 0
+endef
+
 
 $(eval $(call GoBinPackage,ns-api-server))
 $(eval $(call BuildPackage,ns-api-server))
