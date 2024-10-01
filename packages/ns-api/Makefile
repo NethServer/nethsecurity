@@ -7,7 +7,7 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-api
 PKG_VERSION:=1.0.3
-PKG_RELEASE:=1
+PKG_RELEASE:=2
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-api-$(PKG_VERSION)
 
@@ -46,7 +46,6 @@ define Package/ns-api/postrm
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
   /etc/init.d/rpcd restart
-  /etc/init.d/ns-api-server reload
 fi
 exit 0
 endef
