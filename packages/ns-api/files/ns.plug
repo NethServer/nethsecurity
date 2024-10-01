@@ -7,6 +7,7 @@
 
 # Manage registration to the controller
 
+import re
 import os
 import sys
 import json
@@ -15,10 +16,29 @@ import base64
 from nethsec import utils, firewall
 from euci import EUci
 import subprocess
+from datetime import datetime
 
 def get_hostname():
     with open('/proc/sys/kernel/hostname', 'r') as fp:
         return fp.read().strip()
+
+
+def find_last_sent():
+    search_pattern = r"USER root pid \d+ cmd /usr/bin/ns-push-reports"
+    log_file = "/var/log/messages"
+
+    try:
+        with open(log_file, 'r') as file:
+            for line in reversed(file.readlines()):
+                if re.search(search_pattern, line):
+                    date_str = line.split()[0:3]
+                    current_year = datetime.now().year
+                    timestamp_str = f"{current_year} {' '.join(date_str)}"
+                    return int(datetime.strptime(timestamp_str, "%Y %b %d %H:%M:%S").timestamp())
+    except Exception:
+        pass
+
+    return -1
 
 def status():
     u = EUci()
@@ -26,9 +46,20 @@ def status():
     unit_name = u.get("ns-plug", "config", "unit_name", default=get_hostname())
     unit_id = u.get("ns-plug", "config", "unit_id", default='')
     tls_verify = u.get("ns-plug", "config", "tls_verify", default="1") == "1"
+    subscription = u.get("ns-plug", "config", "subscription_type", default="")
     address = None
+    last_sent = -1
     if not server:
-        return {"status": "unregistered", "address": address, "server": server, "unit_name": unit_name, "unit_id": unit_id, "tls_verify": tls_verify}
+        return {
+                "status": "unregistered",
+                "address": address,
+                "server": server,
+                "unit_name": unit_name,
+                "unit_id": unit_id,
+                "tls_verify": tls_verify,
+                "push_status": "disabled",
+                "push_last_sent": last_sent
+            }
 
     # if tun-plug is present
     if os.path.exists("/usr/share/ns-plug/client.conf"):
@@ -42,7 +73,18 @@ def status():
         status = "pending"
     if address is not None:
         status = "connected"
-    return {"status": status, "address": address, "server": server, "unit_name": unit_name, "unit_id": unit_id, "tls_verify": tls_verify}
+    if subscription:
+        last_sent = find_last_sent()
+    return {
+            "status": status,
+            "address": address,
+            "server": server,
+            "unit_name": unit_name,
+            "unit_id": unit_id,
+            "tls_verify": tls_verify,
+            "push_status": "enabled" if subscription else "disabled",
+            "push_last_sent": last_sent
+        }
 
 def register(join_code, tls_verify, unit_name):
     u = EUci()

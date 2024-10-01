@@ -138,9 +138,10 @@ if [ "$(uci -q get rsyslog.promtail)" == "" ]; then
     sleep 5 # wait for rsyslog
 fi
 
-# Send data to controller every 15 minutes
-grep -qF '/usr/bin/ns-push-reports' /etc/crontabs/root || echo '*/15 * * * * sleep $(( RANDOM % 60 )); /usr/bin/ns-push-reports' >> /etc/crontabs/root && /etc/init.d/cron restart
-
+# Send data to controller every 15 minutes, only if subscription is enabled
+if [ ! -z "$subscription_type" ]; then
+    grep -qF '/usr/bin/ns-push-reports' /etc/crontabs/root || echo '*/15 * * * * sleep $(( RANDOM % 60 )); /usr/bin/ns-push-reports' >> /etc/crontabs/root && /etc/init.d/cron restart
+fi
 
 # Start the VPN
 if [ -f ${CONFIG_FILE} ]; then
