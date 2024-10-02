@@ -77,6 +77,19 @@ During the start-up, the container will:
 - generate the diffconfig
 - generate a random public key to sign packages
 
+### Build locally for a release
+
+If you need to build some packages locally for a release, make sure the following environment variables are set:
+- `USIGN_PUB_KEY` and `USIGN_PRIV_KEY`: make sure to read the whole key file using `cat` and set the content as the environment variable
+- `NETIFYD_ACCESS`: required to download and compile netifyd closed source plugins
+
+Then execute the `run` script:
+```
+NETIFYD_ACCESS_TOKEN=xxxUSIGN_PUB_KEY=$(cat nethsecurity-pub.key) USIGN_PRIV_KEY=$(cat nethsecurity-priv.key) ./run 
+```
+
+See the [manual release process](../development_process/#manually-releasing-packages) for more info.
+
 ### Environment variables
 
 The `run` script behavior can be changed using the following environment variables:
