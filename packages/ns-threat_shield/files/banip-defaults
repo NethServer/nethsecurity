@@ -1,0 +1,22 @@
+[ "$(uci -q get banip.global.ban_logforwardwan)" != "" ] && exit 0
+
+uci -q batch << EOI
+set banip.global.ban_logforwardwan="1"
+set banip.global.ban_logforwardlan="1"
+set banip.global.ban_logprerouting="0"
+set banip.global.ban_loginput="0"
+
+set banip.global.ban_loglimit="100"
+set banip.global.ban_logcount="3"
+set banip.global.ban_nftexpiry="30m"
+
+delete banip.global.ban_logterm
+add_list banip.global.ban_logterm="Exit before auth from"
+add_list banip.global.ban_logterm="authentication failed for user"
+
+set banip.global.ban_icmplimit="10"
+set banip.global.ban_synlimit="10"
+set banip.global.ban_udplimit="100"
+
+commit banip
+EOI

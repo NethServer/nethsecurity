@@ -5584,8 +5584,23 @@ Response example:
 ### edit-settings
 
 Configure banip settings:
-```
-api-cli ns.threatshield edit-settings --data '{"enabled": true}'
+
+- `enabled`: disable or enable banip (true or false).
+- `ban_logprerouting`: Log suspicious packets in the prerouting chain (true or false).
+- `ban_loginput`: Log suspicious packets in the WAN-input chain (true or false).
+- `ban_logforwardwan`: Log suspicious packets in the WAN-forward chain (true or false).
+- `ban_logforwardlan`: Log suspicious packets in the LAN-forward chain (true or false).
+- `ban_loglimit`: Enable or disable scanning of logfiles (true or false).
+- `ban_logcount`: Specify how many times an IP must appear in the log to be considered suspicious (integer).
+- `ban_logterm`: List of regex entries for logfile parsing (list of strings).
+- `ban_icmplimit`: Enable or disable icmp DoS detection (true or false).
+- `ban_synlimit`: Enable or disable syn DoS detection (true or false).
+- `ban_udplimit`: Enable or disable udp DoS detection (true or false).
+- `ban_nftexpiry`: Set the ban expiry, format is `1d` for 1 day, `2h` for 2 hours, `1m` for 1 minute. (string)
+
+
+```bash
+api-cli ns.threatshield edit-settings --data '{"enabled": true, "ban_logprerouting": true, "ban_loginput": true, "ban_logforwardwan": true, "ban_logforwardlan": true, "ban_loglimit": false, "ban_logcount": 5, "ban_logterm": ["regex1", "regex2"], "ban_icmplimit": true, "ban_synlimit": true, "ban_udplimit": true, "ban_nftexpiry": "1d"}'
 ```
 
 Response example:
@@ -5669,6 +5684,71 @@ Response example:
 
 It can raise the following validation errors:
 - `address_not_found` if the address is not inside the allow list
+
+### list-blocked
+
+List blocked addresses from the local blocklist:
+```
+api-cli ns.threatshield list-blocked
+```
+
+Response example:
+```json
+{
+  "data": [
+    {
+      "address": "10.10.0.221/24",
+      "description": "WAN"
+    },
+    {
+      "address": "52:54:00:6A:50:BF",
+      "description": "my MAC address"
+    }
+  ]
+}
+```
+
+### add-blocked
+
+Add an address to the block list:
+```
+api-cli ns.threatshield add-blocked --data '{"address": "1.2.3.4", "description": "my block1"}'
+```
+
+The `address` field can be an IPv4/IPv6, a CIDR, a MAC or host name
+
+Response example:
+```json
+{"message": "success"}
+```
+
+It can raise the following validation errors:
+- `address_already_present` if the address is already inside the block list
+
+### edit-blocked
+
+Change the description of an address already inside the block list:
+```
+api-cli ns.threatshield edit-blocked --data '{"address": "1.2.3.4", "description": "my new desc"}'
+```
+
+It can raise the following validation errors:
+- `address_not_found` if the address is not inside the allow list
+
+### delete-blocked
+
+Delete an address from the block list:
+```
+api-cli ns.threatshield delete-blocked --data '{"address": "1.2.3.4"}'
+```
+
+Response example:
+```json
+{"message": "success"}
+```
+
+It can raise the following validation errors:
+- `address_not_found` if the address is not inside the block list
 
 ### dns-list-blocklist
 
