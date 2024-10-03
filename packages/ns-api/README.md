@@ -355,6 +355,7 @@ Response:
     "forward": "REJECT",
     "masq": "1",
     "mtu_fix": "1",
+    "log": "1",
     "network": [
       "wan6",
       "RED_2",
@@ -627,7 +628,7 @@ Response:
 Create zone:
 
 ```
-api-cli ns.firewall create_zone --data '{"name": "cool_zone", "input": "DROP", "forward": "DROP", "traffic_to_wan": true, "forwards_to": [], "forwards_from": ["lan"]}'
+api-cli ns.firewall create_zone --data '{"name": "cool_zone", "input": "DROP", "forward": "DROP", "traffic_to_wan": true, "forwards_to": [], "forwards_from": ["lan"], "log": true}'
 ```
 
 Response:
@@ -643,7 +644,7 @@ Response:
 Edit zone:
 
 ```
-api-cli ns.firewall edit_zone --data '{"name": "cool_zone", "input": "ACCEPT", "forward": "REJECT", "traffic_to_wan": false, "forwards_to": ["lan"], "forwards_from": ["guest"]}'
+api-cli ns.firewall edit_zone --data '{"name": "cool_zone", "input": "ACCEPT", "forward": "REJECT", "traffic_to_wan": false, "forwards_to": ["lan"], "forwards_from": ["guest"], "log": false}'
 ```
 
 Response:
