@@ -14,7 +14,7 @@ delete banip.global.ban_logterm
 add_list banip.global.ban_logterm="Exit before auth from"
 add_list banip.global.ban_logterm="authentication failed for user"
 
-set banip.global.ban_icmplimit="10"
+set banip.global.ban_icmplimit="100"
 set banip.global.ban_synlimit="10"
 set banip.global.ban_udplimit="100"
 
