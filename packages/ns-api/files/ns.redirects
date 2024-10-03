@@ -213,9 +213,17 @@ def list_zones():
             ret['zones'].append(name)
     return ret
 
+def filter_ranges(obj):
+    # remove host sets with IP ranges
+    if 'subtype' in obj and obj['subtype'] == 'host_set':
+        for ip in obj.get('ipaddr', []):
+            if '-' in ip:
+                return False
+    return True
+
 def list_object_suggestions(u):
     return {
-        "ns_src": objects.list_domain_sets(u),
+        "ns_src": list(filter(filter_ranges, objects.list_objects(u, include_domain_sets=True, include_host_sets=True, expand=True))),
         "ns_dst": objects.list_objects(u, singleton_only=True, include_domain_sets=False)
     }
 
