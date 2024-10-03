@@ -48,7 +48,7 @@ def set_config(config):
         with open(fping_conf_file, 'w') as fp:
             hosts = " ".join(config['hosts'])
             fp.write(f'hosts="{hosts}"\n')
-            subprocess.run(["/etc/init.d/netdata", "restart"], check=True)
+        subprocess.run(["/etc/init.d/netdata", "restart"], check=True)
         return {"success": True}
     except:
         return {"success": False}
