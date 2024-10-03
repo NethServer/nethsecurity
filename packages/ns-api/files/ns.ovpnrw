@@ -18,6 +18,8 @@ import subprocess
 from euci import EUci
 from nethsec import utils, ovpn, firewall, users, objects
 from datetime import datetime, timezone
+import tarfile
+import io
 
 ## Utils
 
@@ -776,6 +778,34 @@ def download_user_certificate(ovpninstance, username):
     pem = slurp(os.path.join(cert_dir, "ca.crt")) + slurp(os.path.join(cert_dir, f"issued/{username}.crt")) + slurp(os.path.join(cert_dir, f"private/{username}.key"))
     return {"data": pem}
 
+def download_all_user_configurations(ovpninstance):
+    cert_dir = f"/etc/openvpn/{ovpninstance}/pki"
+    issued_dir = os.path.join(cert_dir, "issued")
+    download = "/var/run/ns-api-server/downloads"
+    # Create the download directory if it doesn't exist
+    if not os.path.exists(download):
+        os.makedirs(download)
+    tar_file_path = f"{download}/{ovpninstance}_user_configurations.tar.gz"
+    if not os.path.exists(issued_dir):
+        return utils.validation_error("directory", "issued_directory_not_found", issued_dir)
+    with tarfile.open(tar_file_path, "w:gz") as tar:
+        for cert_file in os.listdir(issued_dir):
+            if cert_file.endswith(".crt"):
+                username = cert_file[:-4]  # Remove the .crt extension to get the username
+                if username == "server":
+                    continue
+                # Generate the user configuration
+                user_config = download_user_configuration(ovpninstance, username)["data"]
+                # Create an in-memory file-like object for the config content
+                config_bytes = user_config.encode()
+                config_info = tarfile.TarInfo(name=f"{username}.ovpn")
+                config_info.size = len(config_bytes)
+                # Add the config content directly to the tar archive
+                tar.addfile(config_info, io.BytesIO(config_bytes))
+    # Set the file permissions to 400 (read-only for the owner)
+    os.chmod(tar_file_path, 0o0400)
+    return {"archive_path": tar_file_path}
+
 def download_user_configuration(ovpninstance, username):
     cert_dir=f"/etc/openvpn/{ovpninstance}/pki"
     crt_file = os.path.join(cert_dir, f"issued/{username}.crt")
@@ -897,6 +927,7 @@ if cmd == 'list':
         "download-user-certificate": {"instance": "roadwarrior1", "username": "myuser"},
         "download-user-configuration": {"instance": "roadwarrior1", "username": "myuser"},
         "download-user-2fa": {"instance": "roadwarrior1", "username": "myuser"},
+        "download_all_user_configurations": {"instance": "roadwarrior1"},
         }))
 else:
     action = sys.argv[2]
@@ -937,6 +968,8 @@ else:
         ret = regenerate_user_certificate(args["instance"], args["username"], args["expiration"])
     elif action == "download-user-certificate":
         ret = download_user_certificate(args["instance"], args["username"])
+    elif action == "download_all_user_configurations":
+        ret = download_all_user_configurations(args["instance"])
     elif action == "download-user-configuration":
         ret = download_user_configuration(args["instance"], args["username"])
     elif action == "download-user-2fa":
