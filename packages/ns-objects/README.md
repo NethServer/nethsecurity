@@ -369,7 +369,7 @@ Objects can be used inside the following fields:
 
 Supported object types depends on the field:
 
-- `ns_src` can be any type of object
+- `ns_src` can be any type of object, except for host sets containing an IP range
 - `ns_dst` can be an object with only one IP address, like:
   - a static lease, a record of type `host` from `dhcp` db
   - a dns record, a record of type `domain` from `dhcp` db
