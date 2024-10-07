@@ -213,13 +213,26 @@ def list_zones():
             ret['zones'].append(name)
     return ret
 
+def has_range(uci, obj_id):
+    if not objects.is_host_set(uci, obj_id):
+        return False
+    obj = objects.get_object(uci, obj_id)
+    for ip in obj.get('ipaddr', []):
+        if '-' in ip:
+            return True
+
 def filter_ranges(obj):
+    ret = True
     # remove host sets with IP ranges
-    if 'subtype' in obj and obj['subtype'] == 'host_set':
+    uci = EUci()
+    if objects.is_host_set(uci, obj) or ('subtype' in obj and obj['subtype'] == 'host_set'):
         for ip in obj.get('ipaddr', []):
             if '-' in ip:
-                return False
-    return True
+                ret = ret and False
+            # search inside nested objects
+            if ip.startswith("objects/"):
+                ret = ret and not has_range(uci, ip)
+    return ret
 
 def list_object_suggestions(u):
     return {
