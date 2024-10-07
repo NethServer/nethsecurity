@@ -71,7 +71,8 @@ if cmd == 'list':
             'forward': 'String',
             'traffic_to_wan': 'Boolean',
             'forwards_to': 'Array',
-            'forwards_from': 'Array'
+            'forwards_from': 'Array',
+            'log': 'Boolean',
         },
         'edit_zone': {
             'name': 'String',
@@ -79,7 +80,8 @@ if cmd == 'list':
             'forward': 'String',
             'traffic_to_wan': 'Boolean',
             'forwards_to': 'Array',
-            'forwards_from': 'Array'
+            'forwards_from': 'Array',
+            'log': 'Boolean',
         },
         'delete_zone': {
             'config_name': 'String'
@@ -173,7 +175,9 @@ elif cmd == 'call':
                               data['forward'],
                               data['traffic_to_wan'],
                               data['forwards_to'],
-                              data['forwards_from'], )
+                              data['forwards_from'],
+                              data.get('log', False)
+                              )
 
             if type(ret) is tuple:
                 # success
@@ -189,7 +193,9 @@ elif cmd == 'call':
                               data['forward'],
                               data['traffic_to_wan'],
                               data['forwards_to'],
-                              data['forwards_from'])
+                              data['forwards_from'],
+                              data.get('log', False)
+                              )
 
             if type(ret) is tuple:
                 # success
