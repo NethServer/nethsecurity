@@ -30,9 +30,16 @@ start_service() {
     mkdir -m 0700 -p ${TOKENS_DIR}
     mkdir -m 0700 -p ${SECRETS_DIR}
 
+    if [ -f "${WORK_DIR}/secret_jwt" ]; then
+        SECRET_JWT=$(cat ${WORK_DIR}/secret_jwt)
+    else
+        SECRET_JWT=$(uuidgen | sha256sum | awk '{print $1}')
+        echo "$SECRET_JWT" > ${WORK_DIR}/secret_jwt
+    fi
+
     procd_set_param env GIN_MODE=release \
         LISTEN_ADDRESS=127.0.0.1:8090 \
-        SECRET_JWT="$(uuidgen | sha256sum | awk '{print $1}')" \
+        SECRET_JWT="${SECRET_JWT}" \
         ISSUER_2FA=${issuer_2fa} \
         SECRETS_DIR=${SECRETS_DIR} \
         TOKENS_DIR=${TOKENS_DIR} \
