@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-objects
-PKG_VERSION:=0.0.7
+PKG_VERSION:=0.0.8
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-objects-$(PKG_VERSION)
