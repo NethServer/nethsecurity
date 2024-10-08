@@ -11,6 +11,10 @@
 
 set -e
 
+sleep 3
+if [ -n "$(uci -q get ns-plug.config.server)" ]; then
+  /etc/init.d/ns-plug stop
+fi
 image=$(/usr/bin/ns-download -f -l)
 /sbin/sysupgrade -T "$image"
 /sbin/sysupgrade -k "$image"
