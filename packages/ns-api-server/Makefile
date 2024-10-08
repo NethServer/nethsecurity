@@ -7,7 +7,7 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-api-server
 PKG_VERSION:=1.3.0
-PKG_RELEASE:=1
+PKG_RELEASE:=2
  
 PKG_SOURCE:=ns-api-server-$(PKG_VERSION).tar.gz
 PKG_BUILD_DIR=$(BUILD_DIR)/nethsecurity-api-$(PKG_VERSION)
