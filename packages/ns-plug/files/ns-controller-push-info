@@ -1,0 +1,54 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import json
+import subprocess
+
+from euci import EUci
+
+e_uci = EUci()
+unit_id = e_uci.get('ns-plug', 'config', 'unit_id', default=None)
+token = e_uci.get('ns-plug', 'config', 'token', default=None)
+server = e_uci.get('ns-plug', 'config', 'server', default=None)
+tls_verify = e_uci.get('ns-plug', 'config', 'tls_verify', default=None)
+
+if not unit_id or not token or not server:
+    exit(0)
+
+try:
+    info_result = subprocess.run(['/usr/libexec/rpcd/ns.controller', 'call', 'info'], check=True, capture_output=True,
+                                 text=True)
+    update_result = subprocess.run(['/usr/libexec/rpcd/ns.update', 'call', 'check-system-update'], check=True,
+                                   capture_output=True, text=True)
+except subprocess.CalledProcessError as e:
+    print('Cannot execute command: %s' % e)
+    exit(0)
+
+data = json.loads(info_result.stdout)
+data['scheduled_update'] = json.loads(update_result.stdout)['scheduledAt']
+data['version_update'] = json.loads(update_result.stdout)['lastVersion']
+
+# making a curl request due to `requests` missing from python modules
+curl_opts = ['-L']
+if tls_verify == '0':
+    curl_opts.append('-k')
+
+# send the update and info data to the server, joining them in a single json
+curl_opts.extend([
+    '-X', 'POST',
+    '-H', 'Content-Type: application/json',
+    '-u', f'{unit_id}:{token}',
+    '-o', '/dev/null',
+    f'{server}/api/ingest/info',
+    '--data', json.dumps(data)
+])
+
+try:
+    subprocess.run(['curl', *curl_opts], check=True, capture_output=True)
+except subprocess.CalledProcessError as e:
+    print('Cannot execute command: %s' % e)
+    exit(0)
