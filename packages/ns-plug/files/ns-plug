@@ -110,6 +110,8 @@ explicit-exit-notify 1
 remote ${host} ${port} udp
 dev tun-nsplug
 tls-client
+script-security 2
+route-up /usr/sbin/ns-controller-push-info
 <ca>
 ${ca}
 </ca>
