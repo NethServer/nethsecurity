@@ -201,7 +201,10 @@ elif cmd == "call":
         args = json.loads(sys.stdin.read())
         ret = schedule_system_update(args["scheduleAt"])
         # ping the controller to refresh the system update schedule
-        subprocess.run(["/usr/sbin/ns-controller-push-info"], capture_output=True)
+        try:
+            subprocess.run(["/usr/sbin/ns-controller-push-info"], capture_output=True)
+        except:
+            pass
     elif action == "update-system":
         ret = update_system()
     elif action == "install-uploaded-image":
