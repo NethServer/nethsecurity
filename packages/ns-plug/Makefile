@@ -85,7 +85,7 @@ define Package/ns-plug/install
 	$(INSTALL_BIN) ./files/inventory $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-download $(1)/usr/bin
 	$(INSTALL_BIN) ./files/ns-push-reports $(1)/usr/bin
-	$(INSTALL_BIN) ./files/ns-controller-push-info $(1)/usr/bin
+	$(INSTALL_BIN) ./files/ns-controller-push-info $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/20_ns-plug $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/30_ns-plug_alerts $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/40_ns-plug_automatic_updates $(1)/etc/uci-defaults
