@@ -7,12 +7,16 @@
 
 set -e
 
-OWRT_VERSION=$(git describe | cut -d'-' -f1)
+# check env variable OWRT_VERSION is set
+if [ -z "$OWRT_VERSION" ]; then
+    OWRT_VERSION=$(git describe | cut -d'-' -f1)
+fi
 
 if [ -z "$OWRT_VERSION" ]; then
     echo "Missing OWRT_VERSION"
     exit 1
 fi
+
 repobase="ghcr.io/nethserver"
 reponame="nethsecurity-builder"
 
@@ -35,7 +39,13 @@ echo "Creating 'build' user"
 buildah run ${container} -- useradd -s /bin/bash -m build
 
 echo "Downloading OpenWrt $OWRT_VERSION"
-buildah run --user build ${container} -- bash -c "ls /home; cd /home/build && wget https://github.com/openwrt/openwrt/archive/refs/tags/v${OWRT_VERSION}.tar.gz -O openwrt.tgz"
+if [ "$OWRT_VERSION" == "snapshot" ]; then
+    # special value for OWR_VERSION is 'snapshot'
+    echo "Building SNAPSHOT from main branch"
+    buildah run --user build ${container} -- bash -c "ls /home; cd /home/build && wget https://github.com/openwrt/openwrt/archive/refs/heads/main.tar.gz -O openwrt.tgz"
+else
+    buildah run --user build ${container} -- bash -c "ls /home; cd /home/build && wget https://github.com/openwrt/openwrt/archive/refs/tags/v${OWRT_VERSION}.tar.gz -O openwrt.tgz"
+fi
 
 echo "Extracting OpenWrt image"
 buildah run --user build ${container} -- bash -c "cd /home/build && mkdir openwrt && tar xvf openwrt.tgz --strip-components=1 -C openwrt && rm -f openwrt.tgz"
@@ -69,3 +79,4 @@ buildah add "${container}" ../packages /nspackages
 buildah add "${container}" ../patches /patches
 buildah config --user build --workingdir /home/build/openwrt --entrypoint='["/entrypoint.sh"]' --cmd='["/make.sh"]' ${container}
 buildah commit "${container}" "${repobase}/${reponame}"
+build tag "${repobase}/${reponame}" "${repobase}/${reponame}:${OWRT_VERSION}"

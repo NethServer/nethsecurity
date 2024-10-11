@@ -49,7 +49,11 @@ fi
 
 # Setup cache volumes
 if [ $cache -ge 1 ]; then
-    opts=" -v nethsecurity-build_dir:/home/build/openwrt/build_dir:z -v nethsecurity-staging_dir:/home/build/openwrt/staging_dir:z -v nethsecurity-ccache:/home/build/openwrt/.ccache -v nethsecurity-download:/home/build/openwrt/download"
+    vsuffix=""
+    if [ "$image_tag" == "snapshot" ]; then
+        vsuffix="_snapshot"
+    fi
+    opts=" -v nethsecurity-build_dir$vsuffix:/home/build/openwrt/build_dir:z -v nethsecurity-staging_dir$vsuffix:/home/build/openwrt/staging_dir:z -v nethsecurity-ccache$vsuffix:/home/build/openwrt/.ccache -v nethsecurity-download$vsuffix:/home/build/openwrt/download"
 fi
 
 # Download latest image
@@ -68,6 +72,11 @@ if [ -z "${VERSION}" ]; then
     git fetch --prune --unshallow &> /dev/null
     VERSION=$(git describe)
 fi
+# Force snapshot version for snapshot builds
+if [ "$image_tag" == "snapshot" ]; then
+    VERSION="snapshot"
+fi
+
 # OWRT_VERSION is like 23.05.2
 OWRT_VERSION=$(echo $VERSION | cut -d'-' -f1)
 # NS_VERSION is a semver release like '1.0.0' for stable and '1.0.0-alpha1' or '1.0.0-234-g1bc543c' for dev
@@ -84,6 +93,10 @@ if [ -z "$PRE_RELEASE" ]; then
      REPO_CHANNEL="stable"
  else
      REPO_CHANNEL="dev"
+fi
+# Force snapshot channel for snapshot builds
+if [ "$image_tag" == "snapshot" ]; then
+    REPO_CHANNEL="snapshot"
 fi
 
 export REPO_CHANNEL
