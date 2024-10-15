@@ -1,0 +1,7 @@
+# loop over imported dhcp entries and rename them to the new format
+server_entries="$(uci show dhcp | grep =dhcp | sed -n 's/.*\(dhcp\.ns_dhcp[^=]*\).*/\1/p' | xargs)"
+for entry in $server_entries; do
+    uci rename "$entry=$(uci get $entry.interface)"
+done
+# commit changes only if found some server entries
+[ -n "$server_entries" ] && uci commit dhcp

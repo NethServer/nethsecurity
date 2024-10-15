@@ -37,6 +37,7 @@ define Package/ns-migration/install
 	$(INSTALL_DIR) $(1)/usr/share/ns-migration
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_DIR) $(1)/usr/bin
+	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/ns-import $(1)/usr/sbin/ns-import
 	$(INSTALL_BIN) ./files/zonename2timezone $(1)/usr/bin/zonename2timezone
 	$(INSTALL_BIN) ./files/scripts/passwd $(1)/usr/share/ns-migration/10passwd
@@ -60,6 +61,7 @@ define Package/ns-migration/install
 	$(INSTALL_BIN) ./files/scripts/flashstart $(1)/usr/share/ns-migration/70flashstart
 	$(INSTALL_BIN) ./files/scripts/acme $(1)/usr/share/ns-migration/80acme
 	$(INSTALL_DATA) ./files/scripts/nsmigration.py $(1)/usr/share/ns-migration/
+	$(INSTALL_BIN) ./files/rename-migration-dhcp-entries $(1)/etc/uci-defaults/99_migrate_dhcp_configuration
 endef
  
 $(eval $(call BuildPackage,ns-migration))
