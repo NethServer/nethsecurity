@@ -46,7 +46,7 @@ def status():
     unit_name = u.get("ns-plug", "config", "unit_name", default=get_hostname())
     unit_id = u.get("ns-plug", "config", "unit_id", default='')
     tls_verify = u.get("ns-plug", "config", "tls_verify", default="1") == "1"
-    subscription = u.get("ns-plug", "config", "subscription_type", default="")
+    subscription = u.get("ns-plug", "config", "type", default="")
     address = None
     last_sent = -1
     if not server:
