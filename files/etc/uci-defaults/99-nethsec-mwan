@@ -1,0 +1,5 @@
+# If `mwan3.ns_default` has no last_resort option, add it
+if [ -z "$(uci -q get mwan3.ns_default.last_resort)" ]; then
+    uci set mwan3.ns_default.last_resort=default
+    uci commit mwan3
+fi
