@@ -135,24 +135,24 @@ def consolidate():
                         except:
                             stats[client][key].setdefault(name, flow["total_bytes"])
 
+def wait_socket(socket_file):
+    socket_file = os.environ.get('NETIFYD_SOCKET', '/var/run/netifyd/netifyd.sock')
+    sleep_time = 1
+    while not os.path.exists(socket_file):
+        logging.info(f'Netifyd socket {socket_file} not found. Waiting {sleep_time} seconds')
+        time.sleep(sleep_time)
+        sleep_time = min(sleep_time * 2, 60)  # Exponential backoff, max 1 minute
+
 # Read from netify socket and filter data stream
 def reader():
     global flows_locks
     global flows
-
-    # wait 60 seconds for netifyd to start
-    timeout = 60
     socket_file = os.environ.get('NETIFYD_SOCKET', '/var/run/netifyd/netifyd.sock')
-    while not os.path.exists(socket_file) and timeout > 0:
-        time.sleep(1)
-        timeout -= 1
-    if timeout == 0:
-        logging.error(f'Netifyd socket {socket_file} not found')
-        sys.exit(1)
+    wait_socket(socket_file)
 
     client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     client.connect(socket_file)
-    logging.debug(f'Connected to socket')
+    logging.info(f'Connected to socket')
     for line in client.makefile('r'):
         if not run:
             break
@@ -188,6 +188,15 @@ def reader():
                          flows[data['flow']['digest']]['total_bytes'] = data['flow'].get('total_bytes', -1)
                          flows[data['flow']['digest']]['timestamp'] = data['flow'].get('last_seen_at', -1)
                          flows_q.put(flows.pop(data['flow']['digest']))
+    else:
+        logging.error(f'Connection to netifyd socket {socket_file} closed')
+        try:
+            client.close()
+            stop_threads()
+        except:
+            pass
+        time.sleep(1)
+        start_threads()
 
 def stop_threads():
     global run
