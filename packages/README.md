@@ -3,10 +3,7 @@
 The NethSecurity build system is based on OpenWrt, which uses the concept of packages to manage software components.
 NethSecurity includes two different sets of packages: NethSecurity packages and OpenWrt packages.
 
-* TOC
-{:toc}
-
-# NethSecurity packages
+## NethSecurity packages
 
 NethSecurity packages are added to a special `nspackages` feed, which is included in the image
 at every build. This feed is used to include custom packages that are not part of the OpenWrt.
