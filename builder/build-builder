@@ -79,4 +79,4 @@ buildah add "${container}" ../packages /nspackages
 buildah add "${container}" ../patches /patches
 buildah config --user build --workingdir /home/build/openwrt --entrypoint='["/entrypoint.sh"]' --cmd='["/make.sh"]' ${container}
 buildah commit "${container}" "${repobase}/${reponame}"
-build tag "${repobase}/${reponame}" "${repobase}/${reponame}:${OWRT_VERSION}"
+buildah tag "${repobase}/${reponame}" "${repobase}/${reponame}:${OWRT_VERSION}"
