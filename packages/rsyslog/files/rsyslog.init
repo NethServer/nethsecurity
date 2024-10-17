@@ -18,6 +18,7 @@ BASE_CONFIG_FILE="/etc/rsyslog.conf"
 modules=""
 selectors=""
 forwarders=""
+log_rotator=""
 
 handle_selector() {
 	local config="$1"
@@ -28,6 +29,21 @@ handle_selector() {
 	config_get dst "${config}" destination
 	if [ "${src}" != "" ] && [ "$dst" != "" ]; then
 		selectors="${selectors}\n${src}\t${dst}\n"
+	fi
+}
+
+handle_log_rotator() {
+	local config="$1"
+	local log_file
+	local log_size
+	local rotate_command
+
+	config_get log_file "${config}" log_file
+	config_get log_size "${config}" log_size
+	config_get rotate_command "${config}" rotate_command
+
+	if [ -n "${log_file}" ] && [ -n "${log_size}" ] && [ -n "${rotate_command}" ]; then
+		log_rotator="\$outchannel log_rotation,${log_file}, ${log_size}, ${rotate_command}\n"
 	fi
 }
 
@@ -80,6 +96,8 @@ expand_config() {
 	config_get template syslog default_template
 	config_foreach handle_selector selector
 	config_foreach handle_forwarder forwarder
+	# Handle log_rotator configuration
+	config_foreach handle_log_rotator log_rotator
 
 	mkdir -p "$(dirname ${CONFIG_FILE})"
 	# shellcheck disable=SC2188
@@ -91,6 +109,7 @@ expand_config() {
 	echo "${input_t}" >> ${CONFIG_FILE}
 	echo "${input_u}" >> ${CONFIG_FILE}
 	echo "\$ActionFileDefaultTemplate ${template}" >> ${CONFIG_FILE}
+	echo -e "${log_rotator}" >> ${CONFIG_FILE}
 	echo -e "${selectors}" >> ${CONFIG_FILE}
 	echo -e "${forwarders}" >> ${CONFIG_FILE}
 }
