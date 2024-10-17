@@ -136,7 +136,7 @@ To build a snapshot locally, follow these steps:
     ```
     IMAGE_TAG=snapshot ./run
     ```
-    Since multiple versions of OpenWrt can't be build using the same directory, the snaphost build will use
+    Since multiple versions of OpenWrt can't be built using the same directory, the snaphost build will use
     different podman volume named with `_snapshot` suffix, like `nethsecurity-build_dir_snapshot`
 
 ## Versioning
