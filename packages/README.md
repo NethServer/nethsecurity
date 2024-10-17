@@ -1,9 +1,3 @@
----
-layout: default
-has_children: true
-title: Packages
-nav_order: 10
----
 # Packages
 
 The NethSecurity build system is based on OpenWrt, which uses the concept of packages to manage software components.
