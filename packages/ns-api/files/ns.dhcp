@@ -106,7 +106,14 @@ def edit_interface(args):
         u.get_all("network", args["interface"])
     except:
         return utils.generic_error("interface_not_found")
-    u.set("dhcp", args['interface'], 'dhcp')
+    # handle migrated dhcp config: issue #855
+    dhcp_id = args['interface']
+    dhcp_servers = utils.get_all_by_type(u, 'dhcp', 'dhcp')
+    for server in dhcp_servers:
+        if dhcp_servers[server]['interface'] == args['interface']:
+            dhcp_id = server
+
+    u.set("dhcp", dhcp_id, 'dhcp')
     ipaddr = u.get('network', args['interface'], 'ipaddr')
     netmask = u.get('network', args['interface'], 'netmask')
     args['first'] = args['first'].strip()
@@ -115,22 +122,22 @@ def edit_interface(args):
         return utils.validation_error("last", "last_must_be_greater_than_first", args["last"])
     (start, limit) = range_to_conf(ipaddr, netmask, args["first"].strip(), args["last"].strip())
     if args['active']:
-        u.set("dhcp", args['interface'], 'dhcpv4', 'server')
+        u.set("dhcp", dhcp_id, 'dhcpv4', 'server')
     else:
-        u.set("dhcp", args['interface'], 'dhcpv4', 'disabled')
-    u.set("dhcp", args['interface'], "limit", limit)
-    u.set("dhcp", args['interface'], "start", start)
-    u.set("dhcp", args['interface'], "leasetime", args["leasetime"])
-    u.set("dhcp", args['interface'], "interface", args['interface'])
-    u.set("dhcp", args['interface'], "force", '1' if args.get('force', False) else '0')
+        u.set("dhcp", dhcp_id, 'dhcpv4', 'disabled')
+    u.set("dhcp", dhcp_id, "limit", limit)
+    u.set("dhcp", dhcp_id, "start", start)
+    u.set("dhcp", dhcp_id, "leasetime", args["leasetime"])
+    u.set("dhcp", dhcp_id, "interface", args['interface'])
+    u.set("dhcp", dhcp_id, "force", '1' if args.get('force', False) else '0')
     opts = []
     for opt in args['options']:
         k = list(opt.keys())[0]
         v = opt[k].strip().rstrip(',')
         if v:
             opts.append(f"option:{k},{v}")
-    u.set("dhcp", args['interface'], "dhcp_option", opts)
-    u.set("dhcp", args['interface'], "ignore", '0')
+    u.set("dhcp", dhcp_id, "dhcp_option", opts)
+    u.set("dhcp", dhcp_id, "ignore", '0')
     u.save("dhcp")
     return {"interface": args["interface"]}
 
