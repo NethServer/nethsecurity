@@ -77,24 +77,11 @@ During the start-up, the container will:
 - generate the diffconfig
 - generate a random public key to sign packages
 
-### Build locally for a release
-
-If you need to build some packages locally for a release, make sure the following environment variables are set:
-- `USIGN_PUB_KEY` and `USIGN_PRIV_KEY`: make sure to read the whole key file using `cat` and set the content as the environment variable
-- `NETIFYD_ACCESS`: required to download and compile netifyd closed source plugins
-
-Then execute the `run` script:
-```
-NETIFYD_ACCESS_TOKEN=xxxUSIGN_PUB_KEY=$(cat nethsecurity-pub.key) USIGN_PRIV_KEY=$(cat nethsecurity-priv.key) ./run 
-```
-
-See the [manual release process](../development_process/#manually-releasing-packages) for more info.
-
 ### Environment variables
 
 The `run` script behavior can be changed using the following environment variables:
 
-- `IMAGE_TAG`: specify the image tag of the builder; if not set default is `latest`
+- `IMAGE_TAG`: specify the image tag of the builder; if not set default is `latest`, the special value `snapshot` will build a snapshot from the OpenWrt main branch
 - `USIGN_PUB_KEY` and `USIGN_PRIV_KEY`: see [package signing section](#package-signing)
    with the given keys
 - `NETIFYD_ACCESS_TOKEN`: GitLab private access token; if set, download and compile netifyd closed
@@ -117,6 +104,40 @@ TAG=$(podman images --quiet ghcr.io/nethserver/nethsecurity-builder:latest)
 podman tag $TAG ghcr.io/nethserver/nethsecurity-builder:$IMAGE_TAG
 ./run
 ```
+
+### Build locally for a release
+
+If you need to build some packages locally for a release, make sure the following environment variables are set:
+- `USIGN_PUB_KEY` and `USIGN_PRIV_KEY`: make sure to read the whole key file using `cat` and set the content as the environment variable
+- `NETIFYD_ACCESS`: required to download and compile netifyd closed source plugins
+
+Then execute the `run` script:
+```
+NETIFYD_ACCESS_TOKEN=xxx USIGN_PUB_KEY=$(cat nethsecurity-pub.key) USIGN_PRIV_KEY=$(cat nethsecurity-priv.key) ./run 
+```
+
+See the [manual release process](../development_process/#manually-releasing-packages) for more info.
+
+### Build locally a snapshot
+
+A snapshot is a build that is based on OpenWrt main branch.
+
+To build a snapshot locally, follow these steps:
+
+1. Build the image builder based on main branch:
+   ```
+   pushd builder
+   OWRT_VERSION=snapshot ./build-builder
+   popd
+   ```
+   This will create an image named `ghcr.io/nethserver/nethsecurity-builder:snapshot` that will be used to build the output image
+
+2. Build the image using the builder:
+    ```
+    IMAGE_TAG=snapshot ./run
+    ```
+    Since multiple versions of OpenWrt can't be built using the same directory, the snaphost build will use
+    different podman volume named with `_snapshot` suffix, like `nethsecurity-build_dir_snapshot`
 
 ## Versioning
 
