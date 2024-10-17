@@ -113,7 +113,7 @@ If you need to build some packages locally for a release, make sure the followin
 
 Then execute the `run` script:
 ```
-NETIFYD_ACCESS_TOKEN=xxxUSIGN_PUB_KEY=$(cat nethsecurity-pub.key) USIGN_PRIV_KEY=$(cat nethsecurity-priv.key) ./run 
+NETIFYD_ACCESS_TOKEN=xxx USIGN_PUB_KEY=$(cat nethsecurity-pub.key) USIGN_PRIV_KEY=$(cat nethsecurity-priv.key) ./run 
 ```
 
 See the [manual release process](../development_process/#manually-releasing-packages) for more info.
