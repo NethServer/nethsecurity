@@ -130,7 +130,7 @@ To build a snapshot locally, follow these steps:
    OWRT_VERSION=snapshot ./build-builder
    popd
    ```
-   This will create an image named `ghcr.io/nethserver/nethsecurity-builder:snapshot` than will be used to build the output image
+   This will create an image named `ghcr.io/nethserver/nethsecurity-builder:snapshot` that will be used to build the output image
 
 2. Build the image using the builder:
     ```
