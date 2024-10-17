@@ -366,7 +366,7 @@ A new image should be released when:
 - a new security fix is available
 - a group of relevant features are ready to be released
 
-See the [build process](../build) for more information.
+See [release new image checklist](../build#release-new-image-checklist) for more information.
 
 ### Packages
 

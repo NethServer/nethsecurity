@@ -191,7 +191,40 @@ When the builder of the image has been completed, make sure to:
   podman volume rm nethsecurity-build_dir nethsecurity-staging_dir
   ```
 - rebuild the image using the latest builder container image
-- rebuild the documentation to update the download link: https://readthedocs.org/projects/nethsecurity-docs/
+
+## Release new image checklist
+
+When releasing a new image, follow these steps:
+
+1. **Tag the stable release:**
+  - Example: `23.05.5-ns.1.3.0`
+
+2. **Update the changelog:**
+  - Include the date of release and relevant changes inside the [administrator manual](https://github.com/NethServer/nethsecurity-docs).
+
+3. **Merge all documentation PRs:**
+  - Ensure all pending documentation pull requests are merged.
+
+4. **Execute documentation build:**
+  - Execute the build of the documentation on [Read the Docs](https://readthedocs.org/projects/nethsecurity-docs/) to include latest changes
+    and update the downaload links.
+
+5. **Close all open issues:**
+  - Ensure all issues related to the release are closed.
+
+6. **Close the milestone:**
+  - Close the relevant milestone on [GitHub](https://github.com/NethServer/nethsecurity/milestones).
+
+7. **Archive completed items:**
+  - Archive all items in the "Done" column of the [project board](https://github.com/orgs/NethServer/projects/10/views/2).
+
+8. **Release NethSecurity Controller:**
+  - Release the version of NethSecurity Controller on NethServer 8, if applicable.
+
+9. **Announce the release:**
+  - Post English announcement on [NethServer Community](https://community.nethserver.org).
+  - Post Italian announcement on [Nethesis Partner Portal](https://partner.nethesis.it).
+
 
 ## Image configuration
 
@@ -268,21 +301,6 @@ released by OpenWrt.
 
 To replace an upstream package just create a new package with the same
 name inside the `packages` directory.
-
-### LuCI web interface fork
-
-Some configurations should not be changed from LuCI to avoid problems on the underlying system.
-This is the reason why, during the build, a fork of LuCI will be used.
-The fork is hosted at the following [repository](https://github.com/NethServer/luci).
-
-{% assign vparts = site.version | split:'.' %}
-Please make changes only to the `nethsec-{{ vparts | slice: 0,2 | join:'.' }}` branch.
-
-LuCI fork is updated on every build run.
-The original GIT commit used during the build can be found with this command:
-```
-opkg info luci | grep Version | cut -d'-' -f3
-```
 
 ### Package signing
 
@@ -399,7 +417,7 @@ make -j $(nproc) package/feeds/nethsecurity/netify-flow-actions/{download,compil
 
 ## Builder image
 
-The `nethserver/nethsecurity-builder` is a container image to build nethsecurity.
+The `nethserver/nethsecurity-builder` is a container image to build NethSecurity.
 It's based on `debian-slim` and contains an OpenWrt build environment ready to be used.
 
 ### How to build it
