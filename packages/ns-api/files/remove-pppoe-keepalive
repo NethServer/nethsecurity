@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# Remove PPPoE keepalive option: issue #843
+sed -i "/option keepalive '0 1'/d" /etc/config/network

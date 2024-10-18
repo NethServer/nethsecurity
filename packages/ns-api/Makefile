@@ -39,6 +39,7 @@ define Package/ns-api/postinst
 if [ -z "$${IPKG_INSTROOT}" ]; then
   /etc/init.d/rpcd restart
 fi
+/usr/share/ns-api/remove-pppoe-keepalive
 exit 0
 endef
 
@@ -58,6 +59,7 @@ endef
 define Package/ns-api/install
 	$(INSTALL_DIR) $(1)/usr/libexec/rpcd/
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_DIR) $(1)/usr/share/ns-api/
 	$(INSTALL_DIR) $(1)/usr/bin/
 	$(INSTALL_DIR) $(1)/usr/sbin/
 	$(INSTALL_DIR) $(1)/usr/libexec/ns-api/
@@ -167,6 +169,7 @@ define Package/ns-api/install
 	$(INSTALL_BIN) ./files/pre-commit/update-objects.py $(1)/usr/libexec/ns-api/pre-commit
 	$(INSTALL_BIN) ./files/post-commit/configure-netifyd.py $(1)/usr/libexec/ns-api/post-commit
 	$(INSTALL_BIN) ./files/post-commit/reload-ipsets.py $(1)/usr/libexec/ns-api/post-commit
+	$(INSTALL_BIN) ./files/remove-pppoe-keepalive $(1)/usr/share/ns-api
 endef
  
 $(eval $(call BuildPackage,ns-api))
