@@ -1,0 +1,71 @@
+#!/bin/bash
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Get the current log rotation size and update it in the rsyslog configuration file
+# Usage: ns-log-size {get|set <size>}
+# Example: ns-log-size get
+# Example: ns-log-size set 104857600
+# the service must be restarted after the size is changed
+
+
+CONFIG_FILE="/etc/rsyslog.conf"
+LOG_ROTATION_LINE=$(grep -E '^\$outchannel log_rotation' "$CONFIG_FILE")
+MIN_SIZE=52428800
+
+get_log_rotation_size() {
+    local size=$(echo "$LOG_ROTATION_LINE" | awk -F', ' '{print $2}')
+    echo "$size (in bytes)"
+}
+
+set_log_rotation_size() {
+    local new_size=$1
+    if [[ ! $new_size =~ ^[0-9]+$ ]]; then
+        echo "Error: Size must be a positive integer."
+        exit 1
+    fi
+    
+    # Check if the new size is less than the minimum required size
+    if (( new_size < MIN_SIZE )); then
+        echo "Error: The input size is too low. The minimum value is $MIN_SIZE."
+        exit 1
+    fi
+
+    # Full match from start to end
+    sed -i "s/\(\$outchannel log_rotation,\/var\/log\/messages,[ ]*\)[0-9]\+\([ ]*, \/usr\/sbin\/rotate-messages\)/\1$new_size\2/" "$CONFIG_FILE"
+    
+    # Verify if the value was correctly replaced
+    local updated_line
+    updated_line=$(grep -E '^\$outchannel log_rotation' "$CONFIG_FILE")
+    if echo "$updated_line" | grep -q "$new_size"; then
+        echo "Log rotation size updated successfully to $new_size (in bytes)."
+        /etc/init.d/rsyslog restart
+        if [[ $? -ne 0 ]]; then
+            echo "Failed to restart rsyslog service."
+            exit 1
+        fi
+        echo "The rsyslog service has been restarted."
+    else
+        echo "Failed to update log rotation size."
+        exit 1
+    fi
+}
+
+case $1 in
+    get)
+        get_log_rotation_size
+        ;;
+    set)
+        if [[ -z "$2" ]]; then
+            echo "Error: No size provided for set action."
+            exit 1
+        fi
+        set_log_rotation_size "$2"
+        ;;
+    *)
+        echo "Usage: $0 {get|set <size>}"
+        exit 1
+        ;;
+esac
