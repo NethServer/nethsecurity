@@ -91,6 +91,20 @@ elif cmd == 'call':
             e_uci.set('qosify', data['interface'], 'disabled', data['disabled'])
             e_uci.set('qosify', data['interface'], 'bandwidth_up', f'{data["upload"]}mbit')
             e_uci.set('qosify', data['interface'], 'bandwidth_down', f'{data["download"]}mbit')
+            try:
+                if int(data["upload"]) > 1000:
+                    e_uci.set('qosify', data['interface'], 'egress_options', 'no-split-gso')
+                else:
+                    e_uci.delete('qosify', data['interface'], 'egress_options')
+            except:
+                pass
+            try:
+                if int(data["download"]) > 1000:
+                    e_uci.set('qosify', data['interface'], 'ingress_options', 'no-split-gso')
+                else:
+                    e_uci.delete('qosify', data['interface'], 'ingress_options')
+            except:
+                pass
 
             e_uci.save('qosify')
 
@@ -118,6 +132,20 @@ elif cmd == 'call':
             e_uci.set('qosify', data['interface'], 'disabled', data['disabled'])
             e_uci.set('qosify', data['interface'], 'bandwidth_up', f'{data["upload"]}mbit')
             e_uci.set('qosify', data['interface'], 'bandwidth_down', f'{data["download"]}mbit')
+            try:
+                if int(data["upload"]) > 1000:
+                    e_uci.set('qosify', data['interface'], 'egress_options', 'no-split-gso')
+                else:
+                    e_uci.delete('qosify', data['interface'], 'egress_options')
+            except:
+                pass
+            try:
+                if int(data["download"]) > 1000:
+                    e_uci.set('qosify', data['interface'], 'ingress_options', 'no-split-gso')
+                else:
+                    e_uci.delete('qosify', data['interface'], 'ingress_options')
+            except:
+                pass
 
             e_uci.save('qosify')
 
