@@ -76,8 +76,6 @@ for s in data['servers']:
             dhcp_options.append(f'option:{name},{",".join(tmp[1:])}')
     if dhcp_options:
         u.set("dhcp", sname, "dhcp_option", dhcp_options)
-    if s["domain"]:
-        u.set("dhcp", sname, "domain", s["domain"])
     rcounter = rcounter - 1
 
 
