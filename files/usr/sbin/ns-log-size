@@ -22,11 +22,14 @@ get_log_rotation_size() {
 
 set_log_rotation_size() {
     local new_size=$1
+    #The value 9223372036854775807 bytes is the maximum value that can be set (8589.93 GB)
+
+    # Check if the new size is a positive integer
     if [[ ! $new_size =~ ^[0-9]+$ ]]; then
         echo "Error: Size must be a positive integer."
         exit 1
     fi
-    
+
     # Check if the new size is less than the minimum required size
     if (( new_size < MIN_SIZE )); then
         echo "Error: The input size is too low. The minimum value is $MIN_SIZE."

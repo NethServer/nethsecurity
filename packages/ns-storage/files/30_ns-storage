@@ -2,9 +2,6 @@
 
 [ "$(uci -q get rsyslog.ns_memory)" == "selector" ] && exit 0
 
-echo '# Rotate in-memory log if size is bigger than 50MB' >> /etc/rsyslog.conf
-echo '$outchannel log_rotation,/var/log/messages, 52428800, /usr/sbin/rotate-messages' >> /etc/rsyslog.conf
-
 uci -q import rsyslog << EOI
 config syslog 'syslog'
 	option tcp_input_port '514'
@@ -21,3 +18,21 @@ config selector ns_memory
 EOI
 
 crontab -l | grep -q '/usr/sbin/logrotate /etc/logrotate.conf' || echo '5 1 * * * /usr/sbin/logrotate /etc/logrotate.conf' >> /etc/crontabs/root
+
+# Default log_size in case of error
+log_size=52428800
+
+# Try to extract tmpfs size, fall back to default log_size if an error occurs
+tmpfs_size=$(df -k /tmp | awk 'NR==2 {print $2}')
+if [ -z "$tmpfs_size" ] || ! echo "$tmpfs_size" | grep -qE '^[0-9]+$'; then
+	echo "Error: Could not retrieve tmpfs size, defaulting log_size to 52428800" >&2
+else
+	# Calculate 10% of tmpfs size in bytes
+	ten_percent_bytes=$(( tmpfs_size * 1024 / 10 ))
+
+	# Use default log_size if the calculated value is less than 52428800
+	if [ "$ten_percent_bytes" -gt "$log_size" ]; then
+		log_size=$ten_percent_bytes
+	fi
+fi
+echo '$outchannel log_rotation,/var/log/messages, '$log_size', /usr/sbin/rotate-messages' >> /etc/rsyslog.conf
