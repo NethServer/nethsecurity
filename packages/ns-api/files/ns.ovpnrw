@@ -20,6 +20,10 @@ from nethsec import utils, ovpn, firewall, users, objects
 from datetime import datetime, timezone
 import tarfile
 import io
+import sqlite3
+import time
+import datetime
+import csv
 
 ## Utils
 
@@ -882,6 +886,156 @@ def download_user_2fa(ovpninstance, username):
     else:
         return utils.validation_error("username", "2fa_download_failed", username)
 
+def _get_database(ovpninstance):
+    # first we try the mnt path, then the ram path, if both fail we return an empty string
+    db_path = [ f'/mnt/data/openvpn/ns_{ovpninstance}/connections.db', f'/var/openvpn/ns_{ovpninstance}/connections.db']
+    database_path = ""
+    for db in db_path:
+        if os.path.isfile(db):
+            conn = sqlite3.connect(db)
+            c = conn.cursor()
+            c.execute("SELECT count(*) FROM connections")
+            count = c.fetchone()[0]
+            conn.close()
+            if count > 0:
+                database_path = db
+                break
+    return database_path
+
+def last_user_connections(ovpninstance):
+    database_path = _get_database(ovpninstance)
+    if database_path == "":
+        return []
+
+    # Now proceed with the rest of the script using database_path
+    conn = sqlite3.connect(database_path)
+    c = conn.cursor()
+
+    accounts = []
+
+    rows = c.execute('''SELECT common_name, MAX(start_time)
+                        FROM connections
+                        GROUP BY common_name''')
+    for row in rows:
+        accounts.append({'account': row[0], 'lastConnected': row[1]})
+
+    conn.close()
+    return accounts
+
+def connection_history_csv(ovpninstance):
+    database_path = _get_database(ovpninstance)
+    if database_path == "":
+        return {}
+
+    conn = sqlite3.connect(database_path)
+    c = conn.cursor()
+
+    # Define the CSV file path
+    csv_directory = '/var/run/ns-api-server/downloads'
+    csv_file_path = os.path.join(csv_directory, 'connection_history.csv')
+
+    # Ensure the directory exists
+    os.makedirs(csv_directory, exist_ok=True)
+
+    with open(csv_file_path, 'w', newline='') as csv_file:
+        csv_writer = csv.writer(csv_file)
+        # Write the CSV header
+        csv_writer.writerow(["Started", "Ended", "Duration (seconds)", "User", "Virtual IP", "Remote IP", "Received (KB)", "Sent (KB)"])
+
+        try:
+            rows = c.execute('''SELECT virtual_ip_addr, remote_ip_addr, start_time, duration, bytes_received, bytes_sent, common_name
+                                FROM connections
+                                ORDER BY start_time DESC''')
+        except:
+            conn.close()
+            sys.exit(0)
+
+        for row in rows:
+            virtual_ip_addr = row[0]
+            remote_ip_addr = row[1]
+            start_time = row[2]
+            duration = row[3]
+
+            if row[4]:
+                bytes_received = format((float(row[4]) / 1024), '.2f')
+            else:
+                bytes_received = 0
+
+            if row[5]:
+                bytes_sent = format((float(row[5]) / 1024), '.2f')
+            else:
+                bytes_sent = 0
+
+            username = row[6]
+            end_time = start_time + duration if duration else None
+
+            if not duration:
+                duration = ""
+
+            # Convert start_time to local time (Europe/Rome), it is a hack but it works, we need to install python3-pytz
+            start_time_local = datetime.datetime.fromtimestamp(start_time).astimezone(datetime.timezone(datetime.timedelta(hours=2))).strftime("%Y-%m-%d %H:%M:%S")
+
+            if end_time:
+                end_time_local = datetime.datetime.fromtimestamp(end_time).astimezone(datetime.timezone(datetime.timedelta(hours=2))).strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                end_time_local = ""
+
+            # Write the row to the CSV
+            csv_writer.writerow([start_time_local, end_time_local, duration, username, virtual_ip_addr, remote_ip_addr, bytes_received, bytes_sent])
+
+    conn.close()
+
+    # Set the file permissions to 400 (read-only for the owner)
+    os.chmod(csv_file_path, 0o0400)
+
+    # Return the path of the CSV file
+    return {"csv_path": csv_file_path}
+
+def connection_history(ovpninstance, account, time_interval):
+    if time_interval not in ["today", "last_week", "last_month"]:
+        return {'error': 'Time interval must be one of "today", "last_week" or "last_month"'}
+
+    database_path = _get_database(ovpninstance)
+    if database_path == "":
+        return []
+
+    # today at 00:00 (epoch time)
+    start_str = time.strftime("%m/%d/%Y") + " 00:00:00"
+    today_epoch = int(time.mktime(time.strptime(start_str, "%m/%d/%Y %H:%M:%S")))
+
+    if time_interval == "today":
+        start_time_since = today_epoch
+    elif time_interval == "last_week":
+        start_time_since = today_epoch - (7 * 24 * 60 * 60)  # 604800 seconds in a week
+    elif time_interval == "last_month":
+        start_time_since = today_epoch - (31 * 24 * 60 * 60)  # 2678400 seconds in a month
+
+    conn = sqlite3.connect(database_path)
+    c = conn.cursor()
+    connections = []
+
+    try:
+        rows = c.execute('''SELECT virtual_ip_addr, remote_ip_addr, start_time, duration, bytes_received, bytes_sent 
+                            FROM connections
+                            WHERE common_name = ?
+                            AND start_time > ?''', (account, start_time_since))
+    except:
+        conn.close()
+        return connections
+
+    for row in rows:
+        virtual_ip_addr = row[0]
+        remote_ip_addr = row[1]
+        start_time = row[2]
+        duration = row[3]
+        bytes_received = row[4]
+        bytes_sent = row[5]
+        end_time = start_time + duration if duration else None
+        connections.append({'virtualIpAddress': virtual_ip_addr, 'remoteIpAddress': remote_ip_addr, 'startTime': start_time, 'endTime': end_time, 'duration': duration, 'bytesReceived': bytes_received, 'bytesSent': bytes_sent})
+
+    conn.close()
+    return connections
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
@@ -928,6 +1082,9 @@ if cmd == 'list':
         "download-user-configuration": {"instance": "roadwarrior1", "username": "myuser"},
         "download-user-2fa": {"instance": "roadwarrior1", "username": "myuser"},
         "download_all_user_configurations": {"instance": "roadwarrior1"},
+        "last-user-connections": {"instance": "roadwarrior1"},
+        "connection-history-csv": {"instance": "roadwarrior1"},
+        "connection-history": {"instance": "roadwarrior1", "account": "myuser", "time_interval": "today"}
         }))
 else:
     action = sys.argv[2]
@@ -980,6 +1137,11 @@ else:
         ret = get_configuration(args["instance"])
     elif action == "list-users":
         ret = list_users(args["instance"])
-
+    elif action == "last-user-connections":
+        ret = last_user_connections(args["instance"])
+    elif action == "connection-history-csv":
+        ret = connection_history_csv(args['instance'])
+    elif action == "connection-history":
+        ret = connection_history(args['instance'], args['account'], args['time_interval'])
 
     print(json.dumps(ret))
