@@ -34,12 +34,19 @@ def get_version():
     return ret
 
 def get_hardware():
-    try:
-        with open('/sys/devices/virtual/dmi/id/board_name') as f:
+    # read info for x86_64
+    if os.path.isdir('/sys/devices/virtual/dmi/id'):
+        if os.path.exists('/sys/devices/virtual/dmi/id/board_name'):
+            with open('/sys/devices/virtual/dmi/id/board_name') as f:
+                return f.read().lstrip().rstrip()
+        if os.path.exists('/sys/devices/virtual/dmi/id/product_name'):
+            with open('/sys/devices/virtual/dmi/id/product_name') as f:
+                return f.read().lstrip().rstrip()
+    # read info for arm
+    if os.path.exists('/sys/firmware/devicetree/base/model'):
+        with open('/sys/firmware/devicetree/base/model') as f:
             return f.read().lstrip().rstrip()
-    except:
-        with open('/sys/devices/virtual/dmi/id/product_name') as f:
-            return f.read().lstrip().rstrip()
+    return "Unknown"
 
 def _run(cmd):
     try:
