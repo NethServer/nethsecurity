@@ -6,7 +6,7 @@ set -e
 # - ROLE: main or secondary
 # - LANINTERFACE: is the interface that is in the LAN, example: eth0
 # - HAINTERFACE: is the the interface that will be used for the HA sync, example: eth2
-# - VIRTUALIP: is the virtual IP address that will be moved between nodes, example: 192.168.1.2 (must be part of the LAN network)
+# - VIRTUALIP: is the virtual IP address that will be moved between nodes, example: 192.168.1.1 (must be part of the LAN network)
 # - HAMAINIPADDRESS: is the IP address of the master node, example: 100.100.100.1
 # - HASECONDARYIPADDRESS: is the IP address of the secondary node, example: 100.100.100.2
 # - PUBKEY: main node public key, example: "ssh-rsa AAAAB3Nza...uZzj root@primary"
