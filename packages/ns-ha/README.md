@@ -45,3 +45,8 @@ In this example:
     /etc/init.d/keepalived restart
     ```
 
+To make the OpenVPN sync work on the secondary node, execute:
+```sh
+sed -i 's/root:x:0:/root:x:0:keepalived/' /etc/group
+chmod g+rwx /usr/share/keepalived/rsync/etc/
+```
