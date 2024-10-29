@@ -86,9 +86,12 @@ def setup(role, lan_interface, ha_interface, virtual_ip, ha_main_ipaddress, ha_s
         u.set('keepalived', 'vrrp_instance', 'unicast_src_ip', ha_main_ipaddress)
         u.set('keepalived', 'vrrp_instance', 'unicast_peer', ['backup'])
         u.set('keepalived', 'vrrp_instance', 'auth_type', 'PASS')
-        # generate random password: SHA1 hash based on the current time
-        current_time = str(time.time()).encode('utf-8')
-        password = hashlib.sha1(current_time).hexdigest()[:8]
+
+        password = u.get('keepalived', 'vrrp_instance', 'auth_pass', default=None)
+        if not password:
+            # generate random password: SHA1 hash based on the current time
+            current_time = str(time.time()).encode('utf-8')
+            password = hashlib.sha1(current_time).hexdigest()[:8]
         ret['password'] = password
         u.set('keepalived', 'vrrp_instance', 'auth_pass', password)
         u.set('keepalived', 'vrrp_instance', 'track_interface', [f'{lan_interface}_ha'])
