@@ -57,6 +57,7 @@ EOF
 if [ "$ROLE" == "main" ]; then
 
 	cat <<EOF >> $OUTPUT_FILE
+
 	config track_script
 		option name 'sender'
 		option value 'ha_sync'
@@ -99,6 +100,7 @@ EOF
 elif [ "$ROLE" == "secondary" ]; then
 
 	cat <<EOF >> $OUTPUT_FILE
+
 	config track_script
 		option name 'receiver'
 		option value 'ha_sync'
@@ -129,4 +131,8 @@ elif [ "$ROLE" == "secondary" ]; then
 		list track_script 'receiver'
 EOF
 
+	# Fix OpenVPN permissions
+	sed -i 's/root:x:0:/root:x:0:keepalived/' /etc/group
+	mkdir -p /usr/share/keepalived/rsync/etc/
+	chmod g+rwx /usr/share/keepalived/rsync/etc/
 fi
