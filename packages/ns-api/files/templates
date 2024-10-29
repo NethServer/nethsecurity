@@ -116,7 +116,7 @@ config template_rule 'ns_guest_dhcp'
 
 config template_zone 'ns_ha'
 	option name 'ha'
-	option input 'ACCCEPT'
+	option input 'ACCEPT'
 	option output 'REJECT'
 	option forward 'REJECT'
 	option ns_description 'HA zone for cluster traffic'
