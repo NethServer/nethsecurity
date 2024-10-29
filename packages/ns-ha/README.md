@@ -17,8 +17,8 @@ In this example:
   - Name the primary firewall `main`
   - Set `br-lan` (LAN) to static IP: `192.168.100.238/24`
   - Set `eth1` (WAN) to DHCP (no PPPoE)
-  - The `eth2` interface will be used for the HA configuration
-  - Setup the configuration that will create the `ha` zone and setupt keepalived:
+  - The `eth2` interface will be used for the HA configuration, it must not configured in the network settings
+  - Setup the configuration that will: create the `ha` zone, configure the IP for the HA interface, setup keepalived:
     ```sh
     echo '{"role": "main", "lan_interface": "br-lan", "ha_interface": "eth2", "virtual_ip": "192.168.100.240", "ha_main_ipaddress": "10.12.12.1", "ha_secondary_ipaddress": "10.12.12.2"}' | /usr/libexec/rpcd/ns.ha call setup
     ```
@@ -30,6 +30,8 @@ In this example:
   - Apply the configuration:
     ```
     uci commit
+    /etc/init.d/network restart
+    /etc/init.d/firewall restart
     /etc/init.d/keepalived restart
     ```
 
@@ -38,17 +40,11 @@ In this example:
   - Set `eth0` (LAN) to static IP: `192.168.100.237/24`
   - Set `eth1` (WAN) to DHCP (no PPPoE)
   - The `eth2` interface will be used for the HA configuration
-
-  - Create a zone `HA`:
-    - No forwarding from/to other zones
-    - Traffic to WAN: disabled
-    - Traffic to firewall: enabled
-    - Traffic within the same zone: reject
-  - Create an interface `eth2` named `ha`, with static IP `10.12.12.2/24`
-  - Execute:
+  - Setup the configuration that will: create the `ha` zone, configure the IP for the HA interface, setup keepalived. Use the `password` and `pubkey` from the primary node:
     ```sh
-    echo '{"role": "main", "lan_interface": "br-lan", "ha_interface": "eth2", "virtual_ip": "192.168.100.240", "ha_main_ipaddress": "10.12.12.1", "ha_secondary_ipaddress": "10.12.12.2", "password": "5aeab1d8", "pubkey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDF7MYY8vfgE/JgJT8mOejwIhB4UYKS4g/QSA7fwntCbN0LQ3nTA6LO3AzqhUCHd6LBS5P9aefTqDcG+cJQiGbXReqX1z4trQGs7QkBLbjlXb2Vock17UIGbm5ao8jyPsD4ADNdMF8p0S2xDvnfsOh7MXLy5N7QZGp1G3ISB6JVw0mdCn3GXYg1X9XB7Pqu0OJm7+n2SJvA1KXn9fKUDX92U1fGQcid05C3yRBS5QXB7VAAP55KKYp4RmQMCOcJDhDoHGB6Ia/fTxfhnLdXJcAHU2MTtyaEY7NWoPjKZ3769GIu4KLLDPB8aH9emg23Mej+eiMRIg0vFXsaJWVPuZzj root@primary"}' | /usr/libexec/rpcd/ns.ha call setup
+    echo '{"role": "secondary", "lan_interface": "br-lan", "ha_interface": "eth2", "virtual_ip": "192.168.100.240", "ha_main_ipaddress": "10.12.12.1", "ha_secondary_ipaddress": "10.12.12.2", "password": "5aeab1d8", "pubkey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDF7MYY8vfgE/JgJT8mOejwIhB4UYKS4g/QSA7fwntCbN0LQ3nTA6LO3AzqhUCHd6LBS5P9aefTqDcG+cJQiGbXReqX1z4trQGs7QkBLbjlXb2Vock17UIGbm5ao8jyPsD4ADNdMF8p0S2xDvnfsOh7MXLy5N7QZGp1G3ISB6JVw0mdCn3GXYg1X9XB7Pqu0OJm7+n2SJvA1KXn9fKUDX92U1fGQcid05C3yRBS5QXB7VAAP55KKYp4RmQMCOcJDhDoHGB6Ia/fTxfhnLdXJcAHU2MTtyaEY7NWoPjKZ3769GIu4KLLDPB8aH9emg23Mej+eiMRIg0vFXsaJWVPuZzj root@primary"}' | /usr/libexec/rpcd/ns.ha call setup
     uci commit
-    ./keepalived-config secondary br-lan eth2 192.168.100.240 10.12.12.1 10.12.12.2
+    /etc/init.d/network restart
+    /etc/init.d/firewall restart
     /etc/init.d/keepalived restart
     ```
