@@ -1,0 +1,44 @@
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+include $(TOPDIR)/rules.mk
+ 
+PKG_NAME:=ns-ha
+PKG_VERSION:=0.0.1
+PKG_RELEASE:=1
+ 
+PKG_BUILD_DIR:=$(BUILD_DIR)/ns-ha-$(PKG_VERSION)
+
+PKG_MAINTAINER:=Giacomo Sanchietti <giacomo.sanchietti@nethesis.it>
+PKG_LICENSE:=GPL-3.0-only
+
+include $(INCLUDE_DIR)/package.mk
+ 
+define Package/ns-ha
+	SECTION:=base
+	CATEGORY:=NethSecurity
+	TITLE:=NethSecurity HA configuration
+	URL:=https://github.com/NethServer/nethsecurity/
+	DEPENDS:=+keepalived +conntrackd
+	PKGARCH:=all
+endef
+ 
+define Package/ns-ha/description
+	Support High Availability configuration for NethSecurity
+endef
+
+# this is required, otherwise compile will fail
+define Build/Compile
+endef
+
+
+define Package/ns-ha/install
+	$(INSTALL_DIR) $(1)/usr/sbin
+	$(INSTALL_DIR) $(1)/etc/hotplug.d/keepalived
+	$(INSTALL_BIN) ./files/keepalived-config $(1)/usr/sbin
+	$(INSTALL_DATA) ./files/600-openvpn $(1)/etc/hotplug.d/keepalived
+endef
+ 
+$(eval $(call BuildPackage,ns-ha))
