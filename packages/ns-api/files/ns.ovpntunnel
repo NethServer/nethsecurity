@@ -138,6 +138,8 @@ def edit_server(args):
 
 def add_server(args):
     u = EUci()
+    if u.get("network", args["ns_name"], default=None) is not None:
+        return utils.validation_error("ns_name", "network_conflict")
     iname = utils.get_id(args['ns_name'])
     setup_server(u, iname, args)
     return {"id": iname}
@@ -602,6 +604,8 @@ def edit_client(args):
 
 def add_client(args):
     u = EUci()
+    if u.get("network", args["ns_name"], default=None) is not None:
+        return utils.validation_error("ns_name", "network_conflict")
     iname = utils.get_id(args["ns_name"])
     setup_client(u, iname, args)
     return {"id": iname}
