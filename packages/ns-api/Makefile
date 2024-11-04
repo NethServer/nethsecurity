@@ -154,6 +154,8 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.scan.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.objects $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.objects.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.snort $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.snort.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.nathelpers $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.nathelpers.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
