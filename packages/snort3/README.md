@@ -14,19 +14,9 @@ Changes:
 
 Enable snort3 and configure it to run in IPS mode, use only a limited number of rules from the official Snort ruleset and download them:
 ```bash
-uci set snort.snort.enabled=1
-uci set snort.snort.external_net='!$HOME_NET'
-uci set snort.snort.mode=ips
-uci set snort.snort.manual=0
-uci set snort.snort.method=nfq
-uci set snort.snort.config_dir=/var/ns-snort
-uci set snort.snort.log_dir=/var/log/snort
-uci set snort.nfq.queue_count=$(grep -c ^processor /proc/cpuinfo)
-uci set snort.nfq.thread_count=$(grep -c ^processor /proc/cpuinfo)
-uci set snort.nfq.chain_type=forward
-uci commit snort
-
+echo '{"enabled": true, "set_home_net": true, "include_vpn": false}' | /usr/libexec/rpcd/ns.snort call setup
 ns-snort-rules --official-download --official-policy connectivity
+uci commit snort
 /etc/init.d/snort restart
 ```
 
