@@ -74,7 +74,9 @@ The special value `default` will enable a safe set of rules for the specified po
 
 To list all available rulesets in the Emerging Threats rules use `--et-list` argument.
 
-More info on these rules are avaialble [here](https://community.emergingthreats.net/t/signature-metadata/96).
+Accordingly to ET [metadata guidelines](https://community.emergingthreats.net/t/signature-metadata/96), only rules with
+metadata `deployment Perimeter` and `signature_severity Critical` are enabled as block rules.
+Other block rules are disabled.
 
 ### Disable rules
 

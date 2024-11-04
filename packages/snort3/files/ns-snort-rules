@@ -177,6 +177,8 @@ def filter_et_rules(alert, block, disabled_sids):
         log(f"Processing block ET category {file}")
         tmp = snort.parse_file(os.path.join(ET_RULES_DIR, "rules", f"{file}.rules"))
         for rule in tmp:
+            if not 'deployment Perimeter' in rule.metadata and not 'signature_severity Critical' in rule.metadata:
+                continue
             if rule.enabled and rule.sid not in disabled_sids:
                 # replace alert with drop
                 if rule.action != 'drop':
