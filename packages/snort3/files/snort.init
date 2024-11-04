@@ -31,7 +31,6 @@ start_service() {
 	if [ "$(uci -q get snort.snort.config_dir)" == "/var/ns-snort" ]; then
 		cdir="$(uci -q get snort.snort.config_dir)"
 		mkdir -p "${cdir}/rules"
-		echo 'pass ip any any -> any any (sid:9999999; rev:1;)' > "${cdir}/rules/default.rules"
 		find /etc/snort -type f ! -name snort.rules -exec cp '{}' "${cdir}" \;
 	fi
 

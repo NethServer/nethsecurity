@@ -18,6 +18,7 @@ from nethsec import snort
 DATA_DIR = "/var/ns-snort"
 RULES_DIR = os.path.join(DATA_DIR, "rules")
 BACKUP_DIR = os.path.join(DATA_DIR, "old.rules")
+TESTING_RULES_FILE = os.path.join(RULES_DIR, "testing.rules")
 OFFICIAL_RULES_DIR = os.path.join(DATA_DIR, "snort-rules")
 ET_RULES_DIR = os.path.join(DATA_DIR, "et-rules")
 
@@ -39,10 +40,9 @@ def backup_rules():
 
 def generate_testing_rules():
     log("Generating testing rules...")
-    testing_rules_dir = os.path.join(DATA_DIR, "testing-rules")
-    shutil.rmtree(testing_rules_dir, ignore_errors=True)
-    os.makedirs(testing_rules_dir, exist_ok=True)
-    rules_file = os.path.join(testing_rules_dir, "testing.rules")
+    shutil.rmtree(RULES_DIR, ignore_errors=True)
+    os.makedirs(RULES_DIR, exist_ok=True)
+    rules_file = TESTING_RULES_FILE
     testing_rules = [
         'alert icmp any any <> any any (msg:"TEST ALERT ICMP v4"; icode:0; itype:8; sid:99010;)',
         'alert icmp any any <> any any (msg:"TEST ALERT ICMP v6"; icode:0; itype:33; sid:99011;)',
@@ -250,6 +250,10 @@ def main():
     if args.testing:
         generate_testing_rules()
         sys.exit(0)
+    else:
+        # cleanup testing rules
+        if os.path.exists(TESTING_RULES_FILE):
+            os.remove(TESTING_RULES_FILE)
 
     prepare_rule_file() # /etc/snort/rules/snort.rules
 

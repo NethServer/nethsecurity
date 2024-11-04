@@ -20,6 +20,7 @@ uci set snort.snort.mode=ips
 uci set snort.snort.manual=0
 uci set snort.snort.method=nfq
 uci set snort.snort.config_dir=/var/ns-snort
+uci set snort.snort.log_dir=/var/log/snort
 uci set snort.nfq.queue_count=$(grep -c ^processor /proc/cpuinfo)
 uci set snort.nfq.thread_count=$(grep -c ^processor /proc/cpuinfo)
 uci set snort.nfq.chain_type=forward
@@ -116,7 +117,7 @@ At the end of the download, always restart the snort service:
 /etc/init.d/snort restart
 ```
 
-Use only the test rules:
+Use only the testing rules, just alert for all ICMP traffic:
 ```bash
-ns-snort-rules --test
+ns-snort-rules --testing
 ```
