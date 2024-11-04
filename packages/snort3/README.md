@@ -20,6 +20,13 @@ uci commit snort
 /etc/init.d/snort restart
 ```
 
+To disable snort3:
+```bash
+echo '{"enabled": false}' | /usr/libexec/rpcd/ns.snort call setup
+uci commit snort
+/etc/init.d/snort stop
+```
+
 To see what has been blocked or alerted, use:
 ```bash
 snort-mgr report -v
