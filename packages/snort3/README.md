@@ -30,6 +30,11 @@ ns-snort-rules --official-download --official-policy connectivity
 /etc/init.d/snort restart
 ```
 
+To see what has been blocked or alerted, use:
+```bash
+snort-mgr report -v
+```
+
 ## Download rules
 
 Before configuring snort3 you need to download the rules.
