@@ -27,6 +27,14 @@ start_service() {
 	local config_dir
 	local interface
 
+	# nethesis patch: config_dir sometimes seems empty, read it using external command
+	if [ "$(uci -q get snort.snort.config_dir)" == "/var/ns-snort" ]; then
+		cdir="$(uci -q get snort.snort.config_dir)"
+		mkdir -p "${cdir}/rules"
+		echo 'pass ip any any -> any any (sid:9999999; rev:1;)' > "${cdir}/rules/default.rules"
+		find /etc/snort -type f ! -name snort.rules -exec cp '{}' "${cdir}" \;
+	fi
+
         validate_snort_section snort || {
                 echo "Validation failed, try 'snort-mgr check'."
                 return 1
