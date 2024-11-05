@@ -152,6 +152,8 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.conntrack.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.scan $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.scan.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.wireguard $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.wireguard.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.objects $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.objects.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.snort $(1)/usr/libexec/rpcd/
