@@ -1,0 +1,13 @@
+{
+  "wireguard-manager": {
+    "description": "Read and write Wireguard configuration",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.wireguard": [
+          "*"
+        ]
+      }
+    }
+  }
+}
