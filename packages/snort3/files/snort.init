@@ -17,6 +17,21 @@ validate_snort_section() {
 		'interface:string'
 }
 
+update_bypass_set() {
+	set_name=$1
+	set_file="/var/ns-snort/${set_name}.conf"
+	ips=$(uci -q get snort.nfq.${set_name})
+	if [ -z "$ips" ]; then
+		: > $set_file
+	else
+		echo -n "elements = {" > $set_file
+		for ip in $ips; do
+			echo -n " $ip," >> $set_file
+		done
+		echo " }" >> $set_file
+    fi
+}
+
 start_service() {
 	# If you wish to use application-managed PID file:
 	# output.logdir, in the snort lua config, determines the PID file location.
@@ -32,6 +47,10 @@ start_service() {
 		cdir="$(uci -q get snort.snort.config_dir)"
 		mkdir -p "${cdir}/rules"
 		find /etc/snort -type f ! -name snort.rules -exec cp '{}' "${cdir}" \;
+		update_bypass_set "bypass_src_v4"
+		update_bypass_set "bypass_dst_v4"
+		update_bypass_set "bypass_src_v6"
+		update_bypass_set "bypass_dst_v6"
 	fi
 
         validate_snort_section snort || {

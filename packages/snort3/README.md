@@ -123,3 +123,21 @@ Use only the testing rules, just alert for all ICMP traffic:
 ```bash
 ns-snort-rules --testing
 ```
+
+## Bypass IDS
+
+The IPS support bypass for destination or source IP addresses. Both IPv4 and IPv6 are supported.
+
+The following options are supported inside `snort.nfq` section:
+- `bypass_dst_v4` - bypass IDS for destination IPv4 addresses
+- `bypass_src_v4` - bypass IDS for source IPv4 addresses
+- `bypass_dst_v6` - bypass IDS for destination IPv6 addresses
+- `bypass_src_v6` - bypass IDS for source IPv6 addresses
+
+Usage example:
+```bash
+uci add_list snort.nfq.bypass_src_v4=192.168.100.23
+uci add_list snort.nfq.bypass_src_v4=192.168.100.28
+uci commit snort
+/etc/init.d/snort restart
+```
