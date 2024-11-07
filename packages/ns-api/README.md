@@ -1712,6 +1712,48 @@ Response example:
 
 Throws a validation error if the user is not found.
 
+### connection-history
+
+Output the users connection history in a json format:
+```
+api-cli ns.ovpnrw connection-history --data '{"instance": "ns_roadwarrior1"}'
+```
+
+Response example:
+```json
+{
+  [
+    {"account": "foo", "bytesReceived": null, "bytesSent": null, "duration": null, "endTime": null, "remoteIpAddress": "12.34.56.78", "startTime": 1729592489, "virtualIpAddress": "10.9.9.41"}, 
+    {"account": "john", "bytesReceived": 9605402, "bytesSent": 33898343, "duration": 968, "endTime": 1729516942, "remoteIpAddress": "12.34.56.78", "startTime": 1729515974, "virtualIpAddress": "10.9.9.41"}
+  ]
+}
+```
+
+Throws a generic error:
+- the sqlite database is not found
+- the sqlite database cannot be read.
+
+### connection-history-csv
+
+Download the users connection history in a csv file:
+```
+api-cli ns.ovpnrw connection-history-csv --data '{"instance": "ns_roadwarrior1", "timezone":0}'
+```
+
+- `timezone`: it is the offset between your timezone and the universal time (UTC) that is 0
+
+Response example:
+```json
+{
+  "csv_path": "/var/run/ns-api-server/downloads/connection_history.csv"
+}
+```
+
+Throws a generic error:
+- the sqlite database is not found
+- the sqlite database cannot be read.
+
+
 ## ns.dedalo
 
 Manage Dedalo hotspot
