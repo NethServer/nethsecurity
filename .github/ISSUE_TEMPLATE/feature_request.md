@@ -1,6 +1,10 @@
 ---
 name: Feature request
-about: We encourage the discussion of new features on https://community.nethserver.org. After coming to a consensus, please fill in this form
+about: We encourage the discussion of new features on https://community.nethserver.org.
+  After coming to a consensus, please fill in this form
+title: ''
+labels: ''
+assignees: ''
 
 ---
 

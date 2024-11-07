@@ -1,7 +1,9 @@
 ---
 name: Bug report
 about: Create a report to help us improve
-labels: bug
+title: ''
+labels: ''
+assignees: ''
 
 ---
 
@@ -23,7 +25,8 @@ labels: bug
 
 **Components**
 
-// Fill with NethSecurity version number and relevant package versions. 
+// Fill with NethSecurity version number, like: Image version: 8-23.05.5-ns.1.3.0
+// If possible, add relevant package versions. 
 // You can find the package versions typing in a shell prompt
 // opkg list ns-\* | sort
 //
