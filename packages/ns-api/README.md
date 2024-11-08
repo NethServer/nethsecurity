@@ -1737,10 +1737,10 @@ Throws a generic error:
 
 Download the users connection history in a csv file:
 ```
-api-cli ns.ovpnrw connection-history-csv --data '{"instance": "ns_roadwarrior1", "timezone":0}'
+api-cli ns.ovpnrw connection-history-csv --data '{"instance": "ns_roadwarrior1", "timezone":"Europe/Rome"}'
 ```
 
-- `timezone`: it is the offset between your timezone and the universal time (UTC) that is 0
+- `timezone`: user timezone, e.g. "Europe/Rome"
 
 Response example:
 ```json
