@@ -24,6 +24,8 @@ import sqlite3
 import time
 import datetime
 import csv
+from zoneinfo import ZoneInfo
+from datetime import datetime
 
 ## Utils
 
@@ -895,6 +897,12 @@ def connection_history_csv(ovpninstance, timezone):
         return utils.generic_error("database_not_found")
 
     try:
+        # Attempt to create a ZoneInfo object
+        ZoneInfo(timezone)
+    except:
+        timezone = "UTC" # Default to UTC if the timezone is not found
+
+    try:
         c = conn.cursor()
 
         # Define the CSV file path
@@ -907,7 +915,7 @@ def connection_history_csv(ovpninstance, timezone):
         with open(csv_file_path, 'w', newline='') as csv_file:
             csv_writer = csv.writer(csv_file)
             # Write the CSV header
-            csv_writer.writerow(["Started", "Ended", "Duration (seconds)", "User", "Virtual IP", "Remote IP", "Received (bytes)", "Sent (bytes)"]) 
+            csv_writer.writerow(["Started ("+timezone+")", "Ended ("+timezone+")", "Duration (seconds)", "User", "Virtual IP", "Remote IP", "Received (bytes)", "Sent (bytes)"]) 
 
 
             rows = c.execute('''SELECT virtual_ip_addr, remote_ip_addr, start_time, duration, bytes_received, bytes_sent, common_name
@@ -924,14 +932,22 @@ def connection_history_csv(ovpninstance, timezone):
                 username = row[6]
                 end_time = start_time + duration if duration else None
 
-                # Convert start_time to local time (based on the provided timezone)
-                start_time_local = datetime.datetime.fromtimestamp(start_time).astimezone(datetime.timezone(datetime.timedelta(hours=int(timezone)))).strftime("%Y-%m-%d %H:%M:%S")
+                try:
+                    # Convert and format start_time to local time (e.g., Europe/Rome)
+                    start_formatted = datetime.fromtimestamp(start_time, tz=ZoneInfo("UTC"))
+                    localized_start_datetime = start_formatted.astimezone(ZoneInfo(timezone))
+                    start_time_local = localized_start_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
-                if end_time:
-                    # Convert end_time to local time (based on the provided timezone)
-                    end_time_local = datetime.datetime.fromtimestamp(end_time).astimezone(datetime.timezone(datetime.timedelta(hours=int(timezone)))).strftime("%Y-%m-%d %H:%M:%S")
-                else:
-                    end_time_local = ""
+                    if end_time:
+                        # Convert and format end_time to local time (e.g., Europe/Rome)
+                        end_formatted = datetime.fromtimestamp(end_time, tz=ZoneInfo("UTC"))
+                        localized_end_datetime = end_formatted.astimezone(ZoneInfo(timezone))
+                        end_time_local = localized_end_datetime.strftime('%Y-%m-%d %H:%M:%S')
+                    else:
+                        end_time_local = ""
+                except:
+                    conn.close()
+                    return utils.generic_error("date_conversion_error")
 
                 # Write the row to the CSV
                 csv_writer.writerow([start_time_local, end_time_local, duration, username, virtual_ip_addr, remote_ip_addr, bytes_received, bytes_sent])
@@ -1032,7 +1048,7 @@ if cmd == 'list':
         "download-user-configuration": {"instance": "roadwarrior1", "username": "myuser"},
         "download-user-2fa": {"instance": "roadwarrior1", "username": "myuser"},
         "download_all_user_configurations": {"instance": "roadwarrior1"},
-        "connection-history-csv": {"instance": "roadwarrior1", "timezone": 2},
+        "connection-history-csv": {"instance": "roadwarrior1", "timezone": "Europe/Rome"},
         "connection-history": {"instance": "roadwarrior1"}
         }))
 else:
