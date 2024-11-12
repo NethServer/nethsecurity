@@ -18,4 +18,4 @@ if 'firewall' in changes:
             break
 
 if force_reload:
-    subprocess.run(["/sbin/fw4", "reload-sets"])
+    subprocess.run(["/sbin/fw4", "restart"])
