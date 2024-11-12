@@ -44,7 +44,8 @@ def get_snort_homenet(uci, include_vpn=False):
                 device_ip_map[ifname] = f"{network}/{prefixlen}"
                 break
     for device in device_ip_map:
-        if device in wan_devices or device == 'lo':
+        # exclude WAN interfaces, loopback, PPPoE and VPN interfaces
+        if device in wan_devices or device == 'lo' or device.startswith('tun') or device.startswith('ipsec') or device.startswith('wg') or device.startswith('tap') or device.startswith("ppp"):
             continue
         snort_homenet.add(device_ip_map[device])
 
@@ -83,7 +84,7 @@ def get_snort_homenet(uci, include_vpn=False):
 
     return ' '.join(list(snort_homenet))
 
-def setup(enabled, set_home_net = False, include_vpn = False):
+def setup(enabled, set_home_net = False, include_vpn = False, ns_policy = 'balanced', ns_disabled_rules = []):
     uci = EUci()
 
     # first setup
@@ -96,12 +97,17 @@ def setup(enabled, set_home_net = False, include_vpn = False):
         uci.set('snort', 'snort', 'method', 'nfq')
         uci.set('snort', 'snort', 'external_net', '!$HOME_NET')
         uci.set('snort', 'nfq', 'chain_type', 'forward')
-        uci.set('snort', 'nfq', 'queue_count', str(os.cpu_count()))
-        uci.set('snort', 'nfq', 'thread_count', str(os.cpu_count()))
+
+    # always set the number of threads to the number of CPUs
+    # if the hardware changes, a new setup is required
+    uci.set('snort', 'nfq', 'queue_count', str(os.cpu_count()))
+    uci.set('snort', 'nfq', 'thread_count', str(os.cpu_count()))
 
     if set_home_net:
         uci.set('snort', 'snort', 'home_net', get_snort_homenet(uci, include_vpn))
 
+    uci.set('snort', 'snort', 'ns_policy', ns_policy)
+    uci.set('snort', 'snort', 'ns_disabled_rules', ns_disabled_rules)
     uci.set('snort', 'snort', 'enabled', '1' if enabled else '0')
     uci.save('snort')
 
@@ -109,12 +115,12 @@ cmd = sys.argv[1]
 
 if cmd == 'list':
     print(json.dumps({
-        "setup": {"enabled": True, "set_home_net": True, "include_vpn": False},
+        "setup": {"enabled": True, "set_home_net": True, "include_vpn": False, "ns_policy": "balanced", "ns_disabled_rules": []},
         }))
 else:
     action = sys.argv[2]
     if action == "setup":
         data = json.JSONDecoder().decode(sys.stdin.read())
-        setup(data.get('enabled', True), data.get('set_home_net', True), data.get('include_vpn', False))
+        setup(data.get('enabled', True), data.get('set_home_net', True), data.get('include_vpn', False), data.get('ns_policy', 'connectivity'), data.get('ns_disabled_rules', []))
         print(json.dumps({"status": "success"}))
         
