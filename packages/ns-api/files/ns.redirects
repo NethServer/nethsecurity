@@ -105,9 +105,7 @@ def delete_redirect(rid):
     u = EUci()
     try:
         u.get("firewall", rid)
-        ipset = u.get("firewall", rid, "ipset", default="")
-        if ipset:
-            u.delete("firewall", ipset)
+        firewall.delete_linked_sections(u, f'firewall/{rid}')
         u.delete("firewall", rid)
         u.save("firewall")
         return {"id": rid}
