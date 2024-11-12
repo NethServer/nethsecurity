@@ -13,6 +13,7 @@ import logging
 import urllib.request
 import tarfile
 from nethsec import snort
+from euci import EUci
 
 # Constants
 DATA_DIR = "/var/ns-snort"
@@ -20,10 +21,7 @@ RULES_DIR = os.path.join(DATA_DIR, "rules")
 BACKUP_DIR = os.path.join(DATA_DIR, "old.rules")
 TESTING_RULES_FILE = os.path.join(RULES_DIR, "testing.rules")
 OFFICIAL_RULES_DIR = os.path.join(DATA_DIR, "snort-rules")
-ET_RULES_DIR = os.path.join(DATA_DIR, "et-rules")
-
 COMMUNITY_RULES_URL = "https://www.snort.org/downloads/community/snort3-community-rules.tar.gz"
-ET_RULES_URL = "https://rules.emergingthreats.net/open/snort-2.9.7.0/emerging.rules.tar.gz"
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(message)s')
@@ -51,10 +49,11 @@ def generate_testing_rules():
     with open(rules_file, 'w') as f:
         for rule in testing_rules:
             f.write(rule + "\n")
-    log(f"Testing rules generated at {rules_file}")
+    log(f"Testing rules generated at {rules_file}. Restart snort to apply: /etc/init.d/snort restart")
 
 def download_official_rules(oinkcode):
     if oinkcode:
+        log("Downloading subscriber rules...")
         url = f"https://www.snort.org/downloads/snortrules-snapshot-{oinkcode}.tar.gz"
         archive_loc = f"snortrules-snapshot-{oinkcode}"
     else:
@@ -81,28 +80,6 @@ def download_official_rules(oinkcode):
         log(f"Failed to download rules from {url}: {e}")
         sys.exit(1)
 
-def download_et_rules():
-    url = ET_RULES_URL
-    archive_loc = "emerging-threats-rules"
-    archive_path = os.path.join(DATA_DIR, f"{archive_loc}.tar.gz")
-    os.makedirs(ET_RULES_DIR, exist_ok=True)
-    log("Downloading Emerging Threats rules...")
-    try:
-        with urllib.request.urlopen(url) as response:
-            if response.status != 200:
-                log(f"Failed to download rules from {url}")
-                sys.exit(1)
-            with open(archive_path, 'wb') as f:
-                shutil.copyfileobj(response, f)
-        log(f"Emerging Threats rules downloaded to {archive_path}")
-        
-        with tarfile.open(archive_path, 'r:gz') as tar:
-            tar.extractall(path=ET_RULES_DIR)
-        log(f"Extracted Emerging Threats rules to {ET_RULES_DIR}")
-    except Exception as e:
-        log(f"Failed to download Emerging Threats rules from {url}: {e}")
-        sys.exit(1)
-
 def filter_official_rules(policy, disabled_sids):
     rules = []
     ret = []
@@ -115,82 +92,20 @@ def filter_official_rules(policy, disabled_sids):
         # - policy max-detect-ips drop
         if rule.metadata is None or not rule.enabled or rule.sid in disabled_sids:
             log(f"Skipping disabled rule {rule.sid}")
+            continue
         if policy == "connectivity" and 'policy connectivity-ips drop' in rule.metadata:
             rules.append(rule)
         elif policy == "balanced" and 'policy balanced-ips drop' in rule.metadata:
             rules.append(rule)
         elif policy == "security" and 'policy security-ips drop' in rule.metadata:
             rules.append(rule)
+        elif policy == "max-detect" and 'policy max-detect-ips drop' in rule.metadata:
+            rules.append(rule)
     for rule in rules:
         if rule.action != 'drop':
             rule.raw = rule.raw.replace(rule.action, "drop", 1)
         ret.append(rule.raw)
     return ret
-
-def filter_et_rules(alert, block, disabled_sids):
-    rules = []
-    if not alert and not block:
-        log("No ET categories specified.")
-        return rules
-    alert_files = []
-    if alert == 'default':
-        alert_files = [
-            'emerging-current_events',
-            'emerging-dos',
-            'emerging-ftp',
-            'emerging-games',
-            'emerging-inappropriate',
-            'emerging-info',
-            'emerging-misc',
-            'emerging-mobile_malware',
-            'emerging-p2p',
-            'emerging-scan',
-            'emerging-shellcode',
-            'emerging-sql',
-            'emerging-malware',
-            'emerging-voip',
-            'emerging-web_client',
-            'emerging-worm'
-        ]
-    elif alert:
-        alert_files = alert.split(',')
-    block_files = []
-    if block == 'default':
-        block_files = [
-            'emerging-botcc',
-            'emerging-ciarmy',
-            'emerging-compromised',
-            'emerging-drop',
-            'emerging-dshield',
-            'emerging-activex',
-            'emerging-attack_response',
-            'emerging-exploit',
-            'emerging-netbios'
-        ]
-    elif block:
-        block_files = block.split(',')
-    # ET rules are downloaded to /var/snort.d/emerging-threats-rules/rules/
-    for file in alert_files:
-        log(f"Processing alert ET category {file}")
-        tmp = snort.parse_file(os.path.join(ET_RULES_DIR, "rules", f"{file}.rules"))
-        for rule in tmp:
-            if rule.enabled and rule.sid not in disabled_sids:
-                if rule.action != 'alert':
-                    rule.raw = rule.raw.replace(rule.action, "alert", 1)
-            rules.append(rule.raw)
-    for file in block_files:
-        log(f"Processing block ET category {file}")
-        tmp = snort.parse_file(os.path.join(ET_RULES_DIR, "rules", f"{file}.rules"))
-        for rule in tmp:
-            if not 'deployment Perimeter' in rule.metadata and not 'signature_severity Critical' in rule.metadata:
-                continue
-            if rule.enabled and rule.sid not in disabled_sids:
-                # replace alert with drop
-                if rule.action != 'drop':
-                    rule.raw = rule.raw.replace(rule.action, "drop", 1)
-                rules.append(rule.raw)
-
-    return rules
 
 def prepare_rule_file():
     rule_file = os.path.join(RULES_DIR, "snort.rules")
@@ -212,38 +127,13 @@ def append_rules_to_file(rules):
     log(f"Appended {len(rules)} rules to {rule_file}")
 
 def main():
+    uci = EUci()
     parser = argparse.ArgumentParser(description='Process snort rules.')
-    parser.add_argument('--testing', action='store_true', help="Create synthetic testing rules instead of downloading.")
 
-    # Options for official rules
-    parser.add_argument('--official-download', action='store_true', help="Download official Snort rules.")
-    parser.add_argument('--official-oinkcode', type=str, help="Oinkcode for downloading official rules.")
-    parser.add_argument('--official-policy', choices=['connectivity', 'balanced', 'security'], help="Policy for official rules: connectivity, balanced, or security.")
-    # Options for ET rules
-    parser.add_argument('--et-download', action='store_true', help="Download Emerging Threats rules.")
-    parser.add_argument('--et-alert', type=str, help="Comma separated list of ET categories to alert on, or 'default'.", default='')
-    parser.add_argument('--et-block', type=str, help="Comma separated list of ET categories to block, or 'default'.", default='')
-    parser.add_argument('--et-list', action='store_true', help="List available Emerging Threats categories.")
     # General options
-    parser.add_argument('--disable-rules', type=str, help="Comma separated list of SIDs to disable.", default='')
-    
+    parser.add_argument('--testing', action='store_true', help="Create synthetic testing rules instead of downloading.")
+    parser.add_argument('--download', action='store_true', help="Download Snort rules.")
     args = parser.parse_args()
-
-    # if no args, print help
-    if len(sys.argv) == 1:
-        parser.print_help(sys.stderr)
-        sys.exit(1)
-
-    if args.et_list:
-        log("Available Emerging Threats categories:")
-        rules_dir = os.path.join(ET_RULES_DIR, "rules")
-        # Check for /var/ns-snort/et-rules/rules/LICENSE
-        if not os.path.exists(os.path.join(rules_dir, "LICENSE")):
-            download_et_rules()
-        for file in os.listdir(rules_dir):
-            if file.endswith(".rules"):
-                log(file[:-6])
-        sys.exit(0)
 
     backup_rules()
     
@@ -257,19 +147,17 @@ def main():
 
     prepare_rule_file() # /etc/snort/rules/snort.rules
 
-    if args.disable_rules:
-        # make a list of disabled sids as integers
-        disabled_sids = list(map(int, args.disable_rules.split(',')))
-    else:
-        disabled_sids = []
-
-    rules = []
-    if args.official_download:
-        download_official_rules(args.official_oinkcode)
-        rules += filter_official_rules(args.official_policy, disabled_sids)
-    if args.et_download:
-        download_et_rules()
-        rules += filter_et_rules(args.et_alert, args.et_block, disabled_sids)
+    try:
+        disabled_rules = list(map(int, uci.get_all("snort", "snort", "ns_disabled_rules")))
+    except:
+        disabled_rules = []
+ 
+    if args.download:
+        oinkcode = uci.get("snort", "snort", "oinkcode", default=None)
+        download_official_rules(oinkcode)
+    
+    official_policy = uci.get("snort", "snort", "ns_policy", default="security")
+    rules = filter_official_rules(official_policy, disabled_rules)
 
     append_rules_to_file(rules)
 
