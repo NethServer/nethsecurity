@@ -84,6 +84,27 @@ def get_snort_homenet(uci, include_vpn=False):
 
     return ' '.join(list(snort_homenet))
 
+def add_download_cron_job():
+    # add download rules cron job: every night at 2:30 plus random 30 minutes
+    cron_job = f"30 2 * * * sleep $((RANDOM % 1800)) && /usr/bin/ns-snort-rules --download"
+    with open('/etc/crontabs/root', 'r') as f:
+        lines = f.readlines()
+    for line in lines:
+        if 'ns-snort-rules' in line:
+            return
+    with open('/etc/crontabs/root', 'w') as f:
+        for line in lines:
+            f.write(line)
+        f.write(f'{cron_job}\n')
+
+def remove_download_cron_job():
+    with open('/etc/crontabs/root', 'r') as f:
+        lines = f.readlines()
+    with open('/etc/crontabs/root', 'w') as f:
+        for line in lines:
+            if 'ns-snort-rules' not in line:
+                f.write(line)
+
 def setup(enabled, set_home_net = False, include_vpn = False, ns_policy = 'balanced', ns_disabled_rules = []):
     uci = EUci()
 
@@ -108,7 +129,14 @@ def setup(enabled, set_home_net = False, include_vpn = False, ns_policy = 'balan
 
     uci.set('snort', 'snort', 'ns_policy', ns_policy)
     uci.set('snort', 'snort', 'ns_disabled_rules', ns_disabled_rules)
-    uci.set('snort', 'snort', 'enabled', '1' if enabled else '0')
+
+    if enabled:
+        uci.set('snort', 'snort', 'enabled', '1')
+        add_download_cron_job()
+    else:
+        uci.set('snort', 'snort', 'enabled', '0')
+        remove_download_cron_job()
+
     uci.save('snort')
 
 cmd = sys.argv[1]

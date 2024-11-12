@@ -7678,9 +7678,11 @@ Configure Snort IDS.
 
 Setup Snort IDS:
 ```bash
-api-cli ns.snort setup --data '{"enabled": true, "set_home_net": true, "include_vpn": false}'
+api-cli ns.snort setup --data '{"enabled": true, "set_home_net": true, "include_vpn": false, "ns_policy": "balanced", "ns_disabled_rules": []}'
 ```
 
 If the API has been called for the first time, it will set all required configuration including IDS behavior.
 If `set_home_net` is `true`, the API will set the `HOME_NET` variable for the Snort configuration.
 If `include_vpn` is `true`, the API will include the VPN networks in the `HOME_NET` variable.
+The `ns_policy` can be `balanced`, `security` or `connectivity` or `max-detect`.
+The `ns_disabled_rules` is a list of SIDs (integer) of rules to be disabled.
