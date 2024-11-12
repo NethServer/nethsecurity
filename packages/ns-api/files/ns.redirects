@@ -124,6 +124,7 @@ def add_ipset(u, rname, restrict):
     u.set('firewall', sname, 'name', sname)
     u.set('firewall', sname, 'match', 'src_net')
     u.set('firewall', sname, 'enabled', '1')
+    u.set('firewall', sname, 'ns_link', f'firewall/{rname}')
     u.set('firewall', sname, 'entry', restrict)
     return sname
 
