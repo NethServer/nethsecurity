@@ -12,6 +12,7 @@ import shutil
 import logging
 import urllib.request
 import tarfile
+import subprocess
 from nethsec import snort
 from euci import EUci
 
@@ -133,12 +134,16 @@ def main():
     # General options
     parser.add_argument('--testing', action='store_true', help="Create synthetic testing rules instead of downloading.")
     parser.add_argument('--download', action='store_true', help="Download Snort rules.")
+    parser.add_argument('--restart', action='store_true', help="Force Snort to restart after updating rules.")
     args = parser.parse_args()
 
     backup_rules()
     
     if args.testing:
         generate_testing_rules()
+        if args.restart:
+            log("Restarting snort...")
+            subprocess.run(["/etc/init.d/snort", "restart"], check=True)
         sys.exit(0)
     else:
         # cleanup testing rules
@@ -160,6 +165,10 @@ def main():
     rules = filter_official_rules(official_policy, disabled_rules)
 
     append_rules_to_file(rules)
+
+    if args.restart:
+        log("Restarting snort...")
+        subprocess.run(["/etc/init.d/snort", "restart"], check=True)
 
 if __name__ == "__main__":
     main()

@@ -86,7 +86,7 @@ def get_snort_homenet(uci, include_vpn=False):
 
 def add_download_cron_job():
     # add download rules cron job: every night at 2:30 plus random 30 minutes
-    cron_job = f"30 2 * * * sleep $((RANDOM % 1800)) && /usr/bin/ns-snort-rules --download"
+    cron_job = f"30 2 * * * sleep $((RANDOM % 1800)) && /usr/bin/ns-snort-rules --download --restart"
     with open('/etc/crontabs/root', 'r') as f:
         lines = f.readlines()
     for line in lines:
