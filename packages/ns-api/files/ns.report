@@ -15,6 +15,7 @@ import subprocess
 from datetime import datetime
 from collections import defaultdict
 from nethsec import utils
+import urllib.request
 
 ## Utility functions
 
@@ -315,6 +316,74 @@ def ovpnrw_bytes_by_hour_and_user(instance, day, user):
     return {"hours": hours_bytes}
 
 
+def fetch_and_find_fping_keys():
+    url =  "http://127.0.0.1:19999/api/v1/charts"
+    with urllib.request.urlopen(url) as response:
+        data = response.read()
+        json_data = json.loads(data)
+
+    # find charts that start with 'fping'
+    if 'charts' in json_data:
+        matching_keys = [key for key in json_data['charts'].keys() if key.startswith('fping')]
+
+    return matching_keys
+
+
+def get_fping_hosts():
+    # read fping hosts from /etc/netdata/fping.conf
+    try:
+        with open("/etc/netdata/fping.conf", 'r') as fp:
+            line = fp.readline()
+            line = line[7:-2]
+            hosts = line.split(" ")
+            return hosts
+    except:
+       return []
+    
+
+def get_netdata_chart_data(chart_name):
+    ret = {"labels": [], "data": []}
+
+    # retrieve chart data from netdata
+    url = f'http://127.0.0.1:19999/api/v1/data?chart={chart_name}&after=-3600&points=180&options=abs'
+    try:
+        with urllib.request.urlopen(url) as fu:
+            data = json.loads(fu.read())
+    except:
+        return ret
+
+    for record in data["data"]:
+        # first element is the label
+        ret["labels"].append(record[0])
+        # the rest are the data points, spread them in the data array
+        ret["data"].append([*record[1:]])
+
+    return ret
+
+
+def latency_and_quality_report():
+    hosts = get_fping_hosts()
+    ret = {}
+
+    for host in hosts:
+        host_replaced = host.replace('.', '_')
+
+        # latency chart
+        latency_chart_name = f'fping.{host_replaced}_latency'
+        latency_chart_data = get_netdata_chart_data(latency_chart_name)
+        
+        # quality chart
+        quality_chart_name = f'fping.{host_replaced}_quality'
+        quality_chart_data = get_netdata_chart_data(quality_chart_name)
+
+        ret[host] = {
+            "latency": latency_chart_data,
+            "quality": quality_chart_data
+        }
+
+    return ret
+
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
@@ -322,6 +391,7 @@ if cmd == 'list':
         'tsip-malware-report': {},
         'tsip-attack-report': {},
         'mwan-report': {},
+        'latency-and-quality-report': {},
         'ovpnrw-list-days': {
             'instance': 'String'
         },
@@ -375,4 +445,6 @@ elif cmd == 'call':
         if ret is None:
             ret = mwan_report()
             save_cached_report('mwan-report', ret)
+    elif action == "latency-and-quality-report":
+        ret = latency_and_quality_report()
     print(json.dumps(ret))

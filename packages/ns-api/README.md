@@ -7555,3 +7555,45 @@ Output example:
 ```json
 {"hours":[["00",0],["01",0],["02",0],["03",0],["04",0],["05",0],["06",0],["07",0],["08",0],["09",0],["10",0],["11",0],["12",7877909812],["13",0],["14",0],["15",0],["16",0],["17",0],["18",0],["19",0],["20",0],["21",0],["22",0],["23",0]]}
 ```
+
+### latency-and-quality-report
+
+Report latency metrics (minimum, maximum and average) and connectivy quality data (packet delivery rate) for every host configured in Netdata fping configuration file, located at `/etc/netdata/fping.conf`.
+Usage example:
+```
+api-cli ns.report latency-and-quality-report
+```
+
+Output example:
+```json
+{
+  "8.8.8.8": {
+    "latency": {
+      "labels": [1731425322, 1731424700, 1731424078],
+      "data": [
+        [20.6750157, 21.3645492, 21.0020354],
+        [20.5749775, 21.3293981, 20.8931905],
+        [20.537223, 21.2435749, 20.8500041]
+      ]
+    },
+    "quality": {
+      "labels": [1731425322, 1731424700, 1731424078],
+      "data": [[100], [99.9453376], [100]]
+    }
+  },
+  "1.1.1.1": {
+    "latency": {
+      "labels": [1731425322, 1731424700, 1731424078],
+      "data": [
+        [13.5611916, 14.5405711, 13.9779295],
+        [13.4819459, 14.3738637, 13.8660336],
+        [13.382682, 14.2388745, 13.7796363]
+      ]
+    },
+    "quality": {
+      "labels": [1731425322, 1731424700, 1731424078],
+      "data": [[100], [100], [100]]
+    }
+  }
+}
+```
