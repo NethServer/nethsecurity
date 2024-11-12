@@ -32,6 +32,21 @@ update_bypass_set() {
     fi
 }
 
+download_rules_if_needed () {
+	if ! find /var/ns-snort/rules/ -type f -name "*.rules" | grep -q . ; then
+		# no rules file found, start downloaded loop
+		attempt=0
+		until /usr/bin/ns-snort-rules --download; do
+			attempt=$((attempt + 1))
+			if [ "$attempt" -ge 6 ]; then
+				echo "Error: failed to download snort rules after 6 attempts (1 minute)."
+				break
+			fi
+			sleep 10
+		done
+	fi
+}
+
 start_service() {
 	# If you wish to use application-managed PID file:
 	# output.logdir, in the snort lua config, determines the PID file location.
@@ -51,6 +66,7 @@ start_service() {
 		update_bypass_set "bypass_dst_v4"
 		update_bypass_set "bypass_src_v6"
 		update_bypass_set "bypass_dst_v6"
+		download_rules_if_needed
 	fi
 
         validate_snort_section snort || {
