@@ -17,5 +17,10 @@ if 'firewall' in changes:
             force_reload = True
             break
 
+if 'objects' in changes:
+    force_reload = True
+
 if force_reload:
     subprocess.run(["/sbin/fw4", "restart"])
+    # reload dns objects, due to restart they're emptied out
+    subprocess.run(["/usr/bin/ns-objects-reload-dns"])
