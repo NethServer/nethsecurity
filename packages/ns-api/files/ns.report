@@ -316,19 +316,6 @@ def ovpnrw_bytes_by_hour_and_user(instance, day, user):
     return {"hours": hours_bytes}
 
 
-def fetch_and_find_fping_keys():
-    url =  "http://127.0.0.1:19999/api/v1/charts"
-    with urllib.request.urlopen(url) as response:
-        data = response.read()
-        json_data = json.loads(data)
-
-    # find charts that start with 'fping'
-    if 'charts' in json_data:
-        matching_keys = [key for key in json_data['charts'].keys() if key.startswith('fping')]
-
-    return matching_keys
-
-
 def get_fping_hosts():
     # read fping hosts from /etc/netdata/fping.conf
     try:
@@ -343,7 +330,6 @@ def get_fping_hosts():
 
 def get_netdata_chart_data(chart_name):
     ret = {"labels": [], "data": []}
-
     # retrieve chart data from netdata
     url = f'http://127.0.0.1:19999/api/v1/data?chart={chart_name}&after=-3600&points=180&options=abs'
     try:
@@ -351,36 +337,20 @@ def get_netdata_chart_data(chart_name):
             data = json.loads(fu.read())
     except:
         return ret
-
-    for record in data["data"]:
-        # first element is the label
-        ret["labels"].append(record[0])
-        # the rest are the data points, spread them in the data array
-        ret["data"].append([*record[1:]])
-
-    return ret
+    return data
 
 
 def latency_and_quality_report():
     hosts = get_fping_hosts()
     ret = {}
-
     for host in hosts:
         host_replaced = host.replace('.', '_')
-
-        # latency chart
-        latency_chart_name = f'fping.{host_replaced}_latency'
-        latency_chart_data = get_netdata_chart_data(latency_chart_name)
-        
-        # quality chart
-        quality_chart_name = f'fping.{host_replaced}_quality'
-        quality_chart_data = get_netdata_chart_data(quality_chart_name)
-
+        latency_chart_data = get_netdata_chart_data(f'fping.{host_replaced}_latency')
+        quality_chart_data = get_netdata_chart_data(f'fping.{host_replaced}_quality')
         ret[host] = {
             "latency": latency_chart_data,
             "quality": quality_chart_data
         }
-
     return ret
 
 
