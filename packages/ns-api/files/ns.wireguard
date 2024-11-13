@@ -29,7 +29,7 @@ def get_wireguard_interface():
             return i
     return None
 
-def set_wireguard_interface(u, name, enabled, interface, private_key, listen_port, network, public_endpoint, routes):
+def set_wireguard_interface(u, name, enabled, interface, private_key, listen_port, network, public_endpoint, routes, dns, user_db = None):
     u.set("network", interface, "interface")
     u.set("network", interface, "proto", "wireguard")
     u.set("network", interface, "private_key", private_key)
@@ -38,6 +38,7 @@ def set_wireguard_interface(u, name, enabled, interface, private_key, listen_por
     net = ipaddress.ip_network(network, strict=False)
     first_ip = str(list(net.hosts())[0])
     u.set("network", interface, "addresses", [first_ip])
+    u.set("network", interface, "ns_dns", dns) # do no use official dns field, we do not want to modify resolv.conf
     u.set("network", interface, "ns_network", network)
     u.set("network", interface, "ns_public_endpoint", public_endpoint)
     u.set("network", interface, "ns_routes", routes)
@@ -46,6 +47,13 @@ def set_wireguard_interface(u, name, enabled, interface, private_key, listen_por
         u.set("network", interface, "disabled", '0')
     else:
         u.set("network", interface, "disabled", '1')
+    if user_db:
+        u.set("network", interface, "ns_user_db", user_db)
+    else:
+        try:
+            u.delete("network", interface, "ns_user_db")
+        except:
+            pass
     u.save("network")
 
 def remove_wireguard_interface(u, interface):
@@ -172,7 +180,9 @@ def set_instance(args):
                             args['listen_port'],
                             args['network'],
                             args['public_endpoint'],
-                            args['routes']
+                            args['routes'],
+                            args['dns'],
+                            args.get('user_db', None)
     )
 
     return {"public_key": public_key}
@@ -233,7 +243,11 @@ def download_peer_config(args):
     if data.get("ns_route_all_traffic", '0') == '1':
         allowed_ips.append("0.0.0.0/0")
         allowed_ips.append("::/0")
+        # set also DNS, if any
+        ns_dns = list(u.get_all("network", interface, "ns_dns"))
+        dns_config = f"DNS={','.join(ns_dns)}"
     else:
+        dns_config = ""
         # push route for client to client communication
         if data.get("ns_client_to_client", '0') == '1':
             allowed_ips.append(u.get("network", interface, "ns_network"))
@@ -245,6 +259,7 @@ def download_peer_config(args):
 [Interface]
 PrivateKey = {private_key}
 Address = {peer_ip}
+{dns_config}
 
 [Peer]
 PublicKey = {server_public_key}
@@ -271,7 +286,9 @@ if cmd == 'list':
             "listen_port": 51820,
             "network": "192.168.231.0/24",
             "public_endpoint": "wg.server.org",
-            "routes": ["192.168.100.0/24"]
+            "routes": ["192.168.100.0/24"],
+            "dns": ["1.1.1.1"],
+            "user_db": "local"
         },
         "remove-instance": {"instance": "wg1"},
         "set-peer": {
