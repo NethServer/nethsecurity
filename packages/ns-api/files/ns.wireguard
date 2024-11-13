@@ -9,7 +9,7 @@ import sys
 import json
 import subprocess
 from euci import EUci
-from nethsec import utils, firewall, ovpn
+from nethsec import utils, firewall, ovpn, users
 import ipaddress
 import base64
 
@@ -28,6 +28,17 @@ def get_wireguard_interface():
         if interface.get("proto") == "wireguard":
             return i
     return None
+
+def get_user_extra_config(u, user_id):
+    try:
+        details = u.get_all("users", user_id)
+        extra_config = {}
+        for opt in details:
+            if opt.startswith("openvpn_") or opt.startswith("wireguard_"):
+                extra_config[opt] = details[opt]
+        return extra_config
+    except:
+        return {}
 
 def set_wireguard_interface(u, name, enabled, interface, private_key, listen_port, network, public_endpoint, routes, dns, user_db = None):
     u.set("network", interface, "interface")
@@ -61,7 +72,41 @@ def remove_wireguard_interface(u, interface):
     u.save("network")
 
 def set_wireguard_peer(u, enabled, interface, account, route_all_traffic, client_to_client, ns_routes, preshared_key=False):
+    # check if the parent instance exists
+    if u.get("network", interface, default=None) is None:
+        return utils.validation_error("instance", "instance_not_found", interface)
+
     peer_section = f"{interface}_{account}_peer"
+
+    # check if the parent instance is has ns_user_db set
+    user_db = u.get("network", interface, "ns_user_db", default=None)
+    if user_db:
+        # the account must be in the user_db
+        user_list = users.list_users(u, user_db)
+        # user list example: [{'local': True, 'database': 'main', 'name': 'giacomo', 'description': 'Giacomo Rossi', 'admin': False, 'id': 'ns_2edf63a8'}]
+        user = next((user for user in user_list if user['name'] == account), None)
+        if not user:
+            return utils.validation_error("account", "account_not_found", account)
+        user_id = user.get('id', None)
+
+        wg_config = {"wireguard_peer": peer_section}
+        if u.get("users", user_db) == "ldap":
+            print(user)
+            # remote user
+            if user_id is not None: # id is None if the user is not found
+                extra_config = get_user_extra_config(u, user_id)
+                extra_config.update(wg_config)
+                users.edit_remote_user(u, account, user_db, extra_fields=extra_config)
+            else:
+                users.add_remote_user(u, account, user_db, extra_fields=wg_config)
+        else:
+            # local user
+            extra_config = get_user_extra_config(u, user_id)
+            extra_config.update(wg_config)
+            users.edit_local_user(u, account, extra_fields=extra_config)
+
+    else:
+        user_id = None
     if u.get("network", peer_section, default=None) is None:
         # First time configuration
         u.set("network", peer_section, "wireguard_%s" % interface)
@@ -91,6 +136,9 @@ def set_wireguard_peer(u, enabled, interface, account, route_all_traffic, client
         u.set("network", peer_section, "ns_link", f"wireguard/{interface}")
         # automatically create route for the peer
         u.set("network", peer_section, "route_allowed_ips", '1')
+
+        if user_id:
+            u.set("users", user_id, "wireguard_peer", peer_section)
 
     # Update configuration
     if enabled:
@@ -125,6 +173,14 @@ def remove_wireguard_peer(u, interface, account):
     peer_section = f"{interface}_{account}_peer"
     u.delete("network", peer_section)
     u.save("network")
+    # check if parent instance has ns_user_db set: cleanup user db if needed
+    user_db = u.get("network", interface, "ns_user_db", default=None)
+    if user_db:
+        users = utils.get_all_by_type(u, "users", "user")
+        for user in users:
+            if u.get("users", user, "wireguard_peer", default=None) == peer_section:
+                u.delete("users", user, "wireguard_peer")
+                u.save("users")
 
 ## APIs
 
@@ -148,7 +204,7 @@ def get_instance_defaults():
         listen_port = 51820 + next_instance - 1
     interface = f'wg{next_instance}'
     ret["listen_port"] = listen_port
-    ret["interface"] = interface
+    ret["instance"] = interface
     # search for a free network
     used_networks = []
     interfaces = utils.get_all_by_type(u, "network", "interface")
@@ -200,9 +256,19 @@ def set_instance(args):
 
 def remove_instance(instance):
     u = EUci()
+    user_db = u.get("network", instance, "ns_user_db", default=None)
     remove_wireguard_interface(u, instance)
     firewall.remove_device_from_zone(u, instance, f"{instance}vpn")
     firewall.delete_linked_sections(u, f"wireguard/{instance}")
+    if user_db:
+        # remove wireguard_peer from all users
+        users = utils.get_all_by_type(u, "users", "user")
+        for user in users:
+            peer = u.get("users", user, "wireguard_peer", default="")
+            if peer.startswith(f"{instance}_"):
+                u.delete("users", user, "wireguard_peer")
+                u.save("users")
+
     return {"result": "success"}
 
 def get_configuration(instance):
@@ -308,7 +374,7 @@ if cmd == 'list':
             "public_endpoint": "wg.server.org",
             "routes": ["192.168.100.0/24"],
             "dns": ["1.1.1.1"],
-            "user_db": "local"
+            "user_db": "main"
         },
         "remove-instance": {"instance": "wg1"},
         "set-peer": {
