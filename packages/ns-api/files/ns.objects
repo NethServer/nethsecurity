@@ -60,10 +60,10 @@ elif cmd == 'call':
         else:
             data = json.JSONDecoder().decode(sys.stdin.read())
         if action == 'add-domain-set':
-            id = objects.add_domain_set(e_uci, data['name'], data['family'], data['domain'])
+            id = objects.add_domain_set(e_uci, data['name'], data['family'], data['domain'], 1800)
             print(json.dumps({'id': id}))
         elif action == 'edit-domain-set':
-            id = objects.edit_domain_set(e_uci, data['id'], data['name'], data['family'], data['domain'])
+            id = objects.edit_domain_set(e_uci, data['id'], data['name'], data['family'], data['domain'], 1800)
             print(json.dumps({'id': id}))
         elif action == 'delete-domain-set':
             used, matches = objects.is_used_object(e_uci, data['id'])
