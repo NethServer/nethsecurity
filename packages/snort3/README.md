@@ -43,6 +43,13 @@ This package add the following extra UCI options under the `snort` section:
 - `ns_disabled_rules` - a list of SIDs to disable.
 - `ns_suppress` - a list of suppress rules. See [Rule suppression](#rule-suppression) for more details.
 
+This package also adds the following extra UCI options under the `nfq` section:
+
+- `bypass_dst_v4` - bypass IDS for destination IPv4 addresses
+- `bypass_src_v4` - bypass IDS for source IPv4 addresses
+- `bypass_dst_v6` - bypass IDS for destination IPv6 addresses
+- `bypass_src_v6` - bypass IDS for source IPv6 addresses
+
 ## Download rules
 
 Before configuring snort3 you need to select a policy then download the rules.
