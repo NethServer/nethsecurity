@@ -15,7 +15,7 @@ Changes:
 
 Enable snort3 and configure it to run in IPS mode, use only a limited number of rules from the official Snort ruleset and download them:
 ```bash
-echo '{"enabled": true, "set_home_net": true, "include_vpn": false, "ns_policy": "security", "ns_disabled_rules": []}' | /usr/libexec/rpcd/ns.snort call setup
+echo '{"enabled": true, "set_home_net": true, "include_vpn": false, "ns_policy": "connectivity", "ns_disabled_rules": []}' | /usr/libexec/rpcd/ns.snort call setup
 ns-snort-rules --download
 uci commit snort
 /etc/init.d/snort restart
@@ -33,13 +33,15 @@ To see what has been blocked or alerted, use:
 snort-mgr report -v
 ```
 
-## Configuration
+## New configuration options
 
 The configuration is stored in UCI under the `snort` configuration file.
-This package add the following extra UCI options:
+
+This package add the following extra UCI options under the `snort` section:
 
 - `ns_policy` - the policy to use for the Snort rules. Possible values are `connectivity`, `balanced`, `security`, `max-detect`.
 - `ns_disabled_rules` - a list of SIDs to disable.
+- `ns_suppress` - a list of suppress rules. See [Rule suppression](#rule-suppression) for more details.
 
 ## Download rules
 
@@ -74,6 +76,8 @@ If rules have been downloaded, the `ns-snort-rules` script will not download the
 
 ### Disable rules
 
+A disabled rule is a rule that is not include in the Snort ruleset.
+
 To disable some rules use the `ns_disabled_rules` option inside UCI.
 The option is a list of rule SIDS.
 
@@ -99,7 +103,7 @@ uci commit snort
 /etc/init.d/snort restart
 ```
 
-## Bypass IDS
+## Bypass IPS
 
 The IPS support bypass for destination or source IP addresses. Both IPv4 and IPv6 are supported.
 
@@ -115,4 +119,22 @@ uci add_list snort.nfq.bypass_src_v4=192.168.100.23
 uci add_list snort.nfq.bypass_src_v4=192.168.100.28
 uci commit snort
 /etc/init.d/snort restart
+```
+## Rule suppression
+
+A suppression rule is a rule that is ignored by Snort for a specific IP address or CIDR.
+
+To add a suppress rule use the `ns_suppress` option inside UCI `snort.snort` section.
+Each suppress rule is a comma separated list of values: `gid,sid,direction,ip,description`:
+
+- `gid` - the rule GID, it is a number and usually is always `1`
+- `sid` - the rule SID, it is a number
+- `direction` - the direction of the rule, it can be `by_src` or `by_dst`
+- `ip` - the IPv4 address or CIDR to suppress
+- `description` - a description of the suppress rule, it is optional and can be omitted; it must contain no commas nor no spaces and newlines
+
+Example:
+```bash
+uci add_list snort.snort.ns_suppress='1,1234,by_src,1.2.3.4,very_bad'
+uci add_list snort.snort.ns_suppress='1,1234,by_dst,8.8.8.8,noisy_rule'
 ```
