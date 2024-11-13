@@ -42,8 +42,8 @@ server {
 	ssl_certificate_key $key;
 	ssl_session_cache shared:SSL:32k;
 	ssl_session_timeout 64m;
-	error_log syslog:server=unix:/dev/log;
-	access_log syslog:server=unix:/dev/log;
+	error_log syslog:server=unix:/dev/log,nohostname;
+	access_log syslog:server=unix:/dev/log,nohostname;
 
 	# enable NS UI
 	location / {

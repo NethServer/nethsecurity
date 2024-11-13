@@ -1,6 +1,6 @@
 uci -q batch << EOI
-set nginx._lan.error_log=syslog:server=unix:/dev/log
-set nginx._lan.access_log=syslog:server=unix:/dev/log
+set nginx._lan.error_log=syslog:server=unix:/dev/log,nohostname
+set nginx._lan.access_log=syslog:server=unix:/dev/log,nohostname
 commit nginx
 EOI
 
