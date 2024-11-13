@@ -48,7 +48,7 @@ def remove_wireguard_interface(u, interface):
     u.delete("network", interface)
     u.save("network")
 
-def set_wireguard_peer(u, interface, account, route_all_traffic, client_to_client):
+def set_wireguard_peer(u, interface, account, route_all_traffic, client_to_client, ns_routes):
     peer_section = f"{interface}_{account}_peer"
     if u.get("network", peer_section, default=None) is None:
         # First time configuration
@@ -72,15 +72,25 @@ def set_wireguard_peer(u, interface, account, route_all_traffic, client_to_clien
                 break
         if not ipaddr:
             return utils.validation_error("ipaddr", "no_available_ip", account)
-        u.set("network", peer_section, "allowed_ips", [ipaddr])
+        # save peer ip address to custom field, allowed_ips will be calculated later
+        u.set("network", peer_section, "ns_ip", ipaddr)
         u.set("network", peer_section, "persistent_keepalive", 25)
         u.set("network", peer_section, "description", account)
         u.set("network", peer_section, "ns_link", f"wireguard/{interface}")
         # automatically create route for the peer
         u.set("network", peer_section, "route_allowed_ips", '1')
+
     # Update configuration
     u.set("network", peer_section, "ns_route_all_traffic", '1' if route_all_traffic else '0')
     u.set("network", peer_section, "ns_client_to_client", '1' if client_to_client else '0')
+    u.set("network", peer_section, "ns_routes", ns_routes)
+    # Set allowed_ips: the IP of the peer must be the first one
+    allowed_ips = [u.get("network", peer_section, "ns_ip")]
+    if ns_routes:
+        # add all ns_routes to allowed_ip: smake sure the server can reach the peer and the newtorks behind it
+        allowed_ips += ns_routes
+    u.set("network", peer_section, "allowed_ips", allowed_ips)
+
     u.save("network")
     return {"section": peer_section}
 
@@ -174,7 +184,7 @@ def get_configuration(instance):
 
 def set_peer(args):
     u = EUci()
-    ret = set_wireguard_peer(u, args["instance"], args["account"], args["route_all_traffic"], args["client_to_client"])
+    ret = set_wireguard_peer(u, args["instance"], args["account"], args["route_all_traffic"], args["client_to_client"], args["ns_routes"])
     return ret
 
 def remove_peer(args):
@@ -250,7 +260,7 @@ if cmd == 'list':
             "routes": ["192.168.100.0/24"]
         },
         "remove-instance": {"instance": "wg1"},
-        "set-peer": {"instance": "wg1", "account": "user1", "route_all_traffic": False, "client_to_client": False},
+        "set-peer": {"instance": "wg1", "account": "user1", "route_all_traffic": False, "client_to_client": False, "ns_routes": []},
         "remove-peer": {"instance": "wg1", "account": "user1"},
         "download-peer-config": {"instance": "wg1", "account": "user1"}
     }))
