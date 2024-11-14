@@ -1,0 +1,60 @@
+name: Update Project Status on Label Changes
+
+on:
+  issues:
+    types:
+      - labeled
+      - unlabeled
+
+permissions:
+  issues: write
+
+jobs:
+  update-project-status:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      OWNER: ${{ github.repository_owner }}
+      REPO: ${{ github.event.repository.name }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ACTION: ${{ github.event.action }}
+      LABEL_CHANGED: ${{ github.event.label.name }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Determine new status on added label
+        if: ${{ github.event.action == 'labeled' }}
+        id: labeled
+        run: |
+          # Check if the label added is 'testing' or 'verified'
+          # If yes, set the status to 'Testing' or 'Verified' respectively
+          # Also, remove the other label if it exists
+          if [ "$LABEL_CHANGED" == "testing" ]; then
+            echo "status=Testing" >> $GITHUB_OUTPUT
+            gh issue edit "$ISSUE_NUMBER" -R "$OWNER/$REPO" --remove-label "verified" || true
+          elif [ "$LABEL_CHANGED" == "verified" ]; then
+            echo "status=Verified" >> $GITHUB_OUTPUT
+            gh issue edit "$ISSUE_NUMBER" -R "$OWNER/$REPO" --remove-label "testing" || true
+          else
+            echo "status=skip" >> $GITHUB_OUTPUT
+          fi
+      - name: Determine new status on removed Label
+        if: ${{ github.event.action == 'unlabeled' }}
+        id: unlabeled
+        run: |
+          # Check if the label removed is 'testing' or 'verified'
+          # If yes, set the status to 'In Progress'
+          if [ "$LABEL_CHANGED" == "testing" ] || [ "$LABEL_CHANGED" == "verified" ]; then
+            echo "status=In Progress" >> $GITHUB_OUTPUT
+          else
+            echo "status=skip" >> $GITHUB_OUTPUT
+          fi
+      - name: Set new status
+        id: status
+        if: ${{ steps.labeled.outputs.status != 'skip' || steps.unlabeled.outputs.status != 'skip' }}
+        run: |
+          scripts/update_issue_status.sh --owner "$OWNER" --repo "$REPO" --issue-number "$ISSUE_NUMBER" --new-status "$NEW_STATUS"
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_STATUS_BOT_TOKEN }}
+          NEW_STATUS: ${{ steps.labeled.outputs.status || steps.unlabeled.outputs.status }}
