@@ -1,4 +1,4 @@
-name: Notify open issues
+name: Call for QA
 
 on:
   workflow_dispatch:
@@ -21,4 +21,4 @@ jobs:
         env:
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
         run: |
-          python script.py $WEBHOOK_URL
+          python scripts/send_call_for_qa.py $WEBHOOK_URL
