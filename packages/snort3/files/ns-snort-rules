@@ -81,8 +81,9 @@ def download_official_rules(oinkcode):
         log(f"Failed to download rules from {url}: {e}")
         sys.exit(1)
 
-def filter_official_rules(policy, disabled_sids):
-    rules = []
+def filter_official_rules(policy, alert_excluded, disabled_sids):
+    drop_rules = []
+    alert_rules = []
     ret = []
     # official rules are downloaded to /var/snort.d/snort3-community-rules/snort3-community.rules
     for rule in snort.parse_file(os.path.join(OFFICIAL_RULES_DIR, "snort3-community-rules/snort3-community.rules")):
@@ -95,17 +96,23 @@ def filter_official_rules(policy, disabled_sids):
             log(f"Skipping disabled rule {rule.sid}")
             continue
         if policy == "connectivity" and 'policy connectivity-ips drop' in rule.metadata:
-            rules.append(rule)
+            drop_rules.append(rule)
         elif policy == "balanced" and 'policy balanced-ips drop' in rule.metadata:
-            rules.append(rule)
+            drop_rules.append(rule)
         elif policy == "security" and 'policy security-ips drop' in rule.metadata:
-            rules.append(rule)
+            drop_rules.append(rule)
         elif policy == "max-detect" and 'policy max-detect-ips drop' in rule.metadata:
-            rules.append(rule)
-    for rule in rules:
+            drop_rules.append(rule)
+        else:
+            # Add excluded rules as alerts but not if they are ICMP (too noisy)
+            if alert_excluded and 'PROTOCOL-ICMP' not in rule.msg:
+                alert_rules.append(rule)
+    for rule in drop_rules:
         if rule.action != 'drop':
             rule.raw = rule.raw.replace(rule.action, "drop", 1)
         ret.append(rule.raw)
+    # append alert rules
+    ret += alert_rules
     return ret
 
 def prepare_rule_file():
@@ -162,7 +169,8 @@ def main():
         download_official_rules(oinkcode)
     
     official_policy = uci.get("snort", "snort", "ns_policy", default="security")
-    rules = filter_official_rules(official_policy, disabled_rules)
+    alert_excluded = uci.get("snort", "snort", "ns_alert_excluded", default="")
+    rules = filter_official_rules(official_policy, alert_excluded, disabled_rules)
 
     append_rules_to_file(rules)
 

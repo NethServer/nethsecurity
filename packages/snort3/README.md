@@ -10,6 +10,7 @@ Changes:
 - use `/var/ns-snort` as working directory
 - rules are not part of backup to avoid large backups and generating a new remote backup every time rules are updated
 - added new options for rules management in UCI
+- log alerts as JSON files to `/var/log/snort`
 
 ## Quick start
 
@@ -28,6 +29,13 @@ uci commit snort
 /etc/init.d/snort stop
 ```
 
+To change the policy to `balanced` and download the rules:
+```bash
+echo '{"enabled": true, "set_home_net": true, "include_vpn": false, "ns_policy": "balanced", "ns_disabled_rules": []}' | /usr/libexec/rpcd/ns.snort call setup
+uci commit snort
+ns-snort-rules --restart
+```
+
 To see what has been blocked or alerted, use:
 ```bash
 snort-mgr report -v
@@ -40,6 +48,7 @@ The configuration is stored in UCI under the `snort` configuration file.
 This package add the following extra UCI options under the `snort` section:
 
 - `ns_policy` - the policy to use for the Snort rules. Possible values are `connectivity`, `balanced`, `security`, `max-detect`.
+- `ns_alert_excluded` - if set to `1` the rules that are not part of any policy are added as alert rules, ICMP rules are always excluded because they are used for testing.
 - `ns_disabled_rules` - a list of SIDs to disable.
 - `ns_suppress` - a list of suppress rules. See [Rule suppression](#rule-suppression) for more details.
 
