@@ -11,6 +11,7 @@ Changes:
 - rules are not part of backup to avoid large backups and generating a new remote backup every time rules are updated
 - added new options for rules management in UCI
 - log alerts as JSON files to `/var/log/snort`
+- log alerts to syslog
 
 ## Quick start
 

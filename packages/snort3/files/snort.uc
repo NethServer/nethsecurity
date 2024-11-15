@@ -86,8 +86,8 @@ daq = {
   }
 }
 
--- alert_syslog = { level = 'info', }  -- Generate output to syslog.
-alert_syslog = nil -- Disable output to syslog
+alert_syslog = { level = 'info', }  -- Generate output to syslog.
+-- alert_syslog = nil -- Disable output to syslog
 
 {% if (int(snort.logging)): %}
 -- Note that this is also the location of the PID file, if you use it.
