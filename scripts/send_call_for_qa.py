@@ -41,7 +41,7 @@ def get_issues(url, params, headers):
 issues = get_issues(url, params, headers)
 
 # Preparing the message
-if len(issue) <= 0:
+if len(issues) <= 0:
     print("No QA needed")
     sys.exit(0)
 output = "## Call for testing! \n\nCiao a tutti @here! Ci sono alcune issue aperte che richiedono il vostro aiuto per il QA:\n\n"
