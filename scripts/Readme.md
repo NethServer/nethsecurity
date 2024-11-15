@@ -1,5 +1,7 @@
 # Scripts Documentation
 
+This directory contains scripts used inside GitHub Actions workflows. 
+
 ## update_issue_status.sh
 
 ### Description
@@ -63,3 +65,32 @@ The script provides informative output at each step, including:
 - The script assumes that the `Status` field exists in the associated projects and that the `NEW_STATUS` provided is a valid option.
 - If the `NEW_STATUS` is not found in a project's status options, the script will issue a warning and continue to the next project.
 - Ensure that the `gh` CLI has the necessary scopes and permissions to perform the operations.
+
+## send_call_for_qa.sh
+
+This script retrieves open issues labeled "testing" from the NethServer/nethsecurity GitHub repository and sends a call for QA message to a Mattermost channel via webhook if there are any issues that need QA.
+
+### Usage
+
+```bash
+./send_call_for_qa.sh <Mattermost Webhook URL>
+```
+
+### Requirements
+
+- Python 3
+- requests library (install via `pip install requests`)
+
+### How It Works
+
+1. Defines the GitHub API endpoint and parameters to fetch open issues labeled "testing".
+2. Sends a GET request to the GitHub API to retrieve the issues.
+3. Prepares a message listing the issues that need QA.
+  - Issues open for more than 4 days are marked as "URGENT".
+4. Sends the prepared message to a Mattermost channel using the provided webhook URL.
+
+### Exit Codes
+
+- 0 - Success
+- 1 - Error when sending the message or missing Mattermost webhook URL
+- 2 - Error when loading issues from GitHub
