@@ -7555,3 +7555,117 @@ Output example:
 ```json
 {"hours":[["00",0],["01",0],["02",0],["03",0],["04",0],["05",0],["06",0],["07",0],["08",0],["09",0],["10",0],["11",0],["12",7877909812],["13",0],["14",0],["15",0],["16",0],["17",0],["18",0],["19",0],["20",0],["21",0],["22",0],["23",0]]}
 ```
+
+### latency-and-quality-report
+
+Report latency metrics (minimum, maximum and average) and connectivy quality data (packet delivery rate) for every host configured in Netdata fping configuration file, located at `/etc/netdata/fping.conf`.
+Usage example:
+```
+api-cli ns.report latency-and-quality-report
+```
+
+Output example:
+```json
+{
+  "8.8.8.8": {
+    "latency": {
+      "labels": [
+        "time",
+        "minimum",
+        "maximum",
+        "average"
+      ],
+      "data": [
+        [
+          1731485630,
+          9.2926149,
+          17.3652723,
+          11.2476048
+        ],
+        [
+          1731485262,
+          9.2831232,
+          17.3944183,
+          11.5604364
+        ],
+        [
+          1731484894,
+          9.294786,
+          18.153445,
+          11.376502
+        ]
+      ]
+    },
+    "quality": {
+      "labels": [
+        "time",
+        "returned"
+      ],
+      "data": [
+        [
+          1731485630,
+          100
+        ],
+        [
+          1731485262,
+          99.8152174
+        ],
+        [
+          1731484894,
+          100
+        ]
+      ]
+    }
+  },
+  "1.1.1.1": {
+    "latency": {
+      "labels": [
+        "time",
+        "minimum",
+        "maximum",
+        "average"
+      ],
+      "data": [
+        [
+          1731485630,
+          14.8992382,
+          25.0276303,
+          17.3071943
+        ],
+        [
+          1731485262,
+          14.8918498,
+          23.8407958,
+          17.3052552
+        ],
+        [
+          1731484894,
+          14.8776663,
+          24.2058399,
+          17.0578876
+        ]
+      ]
+    },
+    "quality": {
+      "labels": [
+        "time",
+        "returned"
+      ],
+      "data": [
+        [
+          1731485630,
+          100
+        ],
+        [
+          1731485262,
+          99.8152174
+        ],
+        [
+          1731484894,
+          100
+        ]
+      ]
+    }
+  }
+}
+```
