@@ -53,17 +53,19 @@ if len(dhcp_interfaces) > 0:
         # if interface is not in one where the DHCP server is configured, allow DHCP queries and check with bindingListV4 for all rest
         chain input {{
             type filter hook input priority -110; policy drop;
-            ct state established,related counter accept
-            iifname != {{ {' , '.join(dhcp_interfaces)} }} counter accept
-            udp dport { 67, 68 } counter accept
+            ct state established,related accept
+            iifname != {{ {' , '.join(dhcp_interfaces)} }} accept
+            udp dport 67-68 accept
             ether saddr . ip saddr @bindingListV4 counter accept
+            log flags all prefix "ns-binding DROP: " counter
         }}
         
         chain forward {{
             type filter hook forward priority -110; policy drop;
-            ct state established,related counter accept
-            iifname != {{ {' , '.join(dhcp_interfaces)} }} counter accept
+            ct state established,related accept
+            iifname != {{ {' , '.join(dhcp_interfaces)} }} accept
             ether saddr . ip saddr @bindingListV4 counter accept
+            log flags all prefix "ns-binding DROP: " counter
         }}
     }}
     """
