@@ -195,6 +195,17 @@ def instance2number(input_string):
     numbers = re.findall(r'\d+', input_string)
     return int(numbers[0]) if numbers else None
 
+def get_user_extra_config(u, user_id):
+    try:
+        details = u.get_all("users", user_id)
+        extra_config = {}
+        for opt in details:
+            if opt.startswith("openvpn_") or opt.startswith("wireguard_"):
+                extra_config[opt] = details[opt]
+        return extra_config
+    except:
+        return {}
+
 ## APIs
 
 def list_bridges():
@@ -648,9 +659,8 @@ def add_user(args):
     if user_id == None:
         return utils.validation_error("username", "user_not_in_db", args["username"])
 
-    for user in db_users:
-        if os.path.exists(f"/etc/openvpn/{ovpninstance}/pki/issued/{args['username']}.crt"):
-            return utils.validation_error("username", "user_certificate_already_exists", args["username"])
+    if os.path.exists(f"/etc/openvpn/{ovpninstance}/pki/issued/{args['username']}.crt"):
+        return utils.validation_error("username", "user_certificate_already_exists", args["username"])
     if "ipaddr" in args and args["ipaddr"]:
         valid, error = is_valid_ip(ovpninstance, args["ipaddr"])
         if not valid:
@@ -663,7 +673,9 @@ def add_user(args):
         print(e, file=sys.stderr)
         return utils.validation_error("username", "user_add_failed", args["username"])
 
-    ovpn_config={"openvpn_enabled":  args.get("enabled", "1"), "openvpn_ipaddr": args.get("ipaddr", ""), "openvpn_2fa": generate_2fa_secret()}
+    extra_fields = get_user_extra_config(u, user_id)
+    ovpn_config = {"openvpn_enabled":  args.get("enabled", "1"), "openvpn_ipaddr": args.get("ipaddr", ""), "openvpn_2fa": generate_2fa_secret()}
+    ovpn_config.update(extra_fields)
 
     if u.get("users", db) == "ldap":
         # remote user
