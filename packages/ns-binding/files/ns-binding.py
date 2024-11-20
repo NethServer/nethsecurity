@@ -50,17 +50,16 @@ if len(dhcp_interfaces) > 0:
             {'}' if len(binding_items) > 0 else ''}
         }}
         
-        # if interface is not in other_interfaces, allow dhcp queries and check with bindingListV4 for all rest
+        # if interface is not in one where the DHCP server is configured, allow DHCP queries and check with bindingListV4 for all rest
         chain input {{
             type filter hook input priority -110; policy drop;
             ct state established,related counter accept
             iifname != {{ {' , '.join(dhcp_interfaces)} }} counter accept
-            udp dport 67 counter accept
-            udp dport 68 counter accept
+            udp dport { 67, 68 } counter accept
             ether saddr . ip saddr @bindingListV4 counter accept
         }}
         
-        chain lan-forward {{
+        chain forward {{
             type filter hook forward priority -110; policy drop;
             ct state established,related counter accept
             iifname != {{ {' , '.join(dhcp_interfaces)} }} counter accept

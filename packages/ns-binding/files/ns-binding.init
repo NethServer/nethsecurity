@@ -16,11 +16,6 @@ start_service() {
     procd_close_instance
 }
 
-reload_service()
-{
-    restart
-}
-
 service_triggers()
 {
     procd_add_reload_trigger dhcp
