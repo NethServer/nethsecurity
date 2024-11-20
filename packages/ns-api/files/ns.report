@@ -362,6 +362,7 @@ if cmd == 'list':
         'tsip-attack-report': {},
         'mwan-report': {},
         'latency-and-quality-report': {},
+        'get-public-ip-addresses': {},
         'ovpnrw-list-days': {
             'instance': 'String'
         },
@@ -417,4 +418,7 @@ elif cmd == 'call':
             save_cached_report('mwan-report', ret)
     elif action == "latency-and-quality-report":
         ret = latency_and_quality_report()
+    elif action == "get-public-ip-addresses":
+        data = json.loads(sys.stdin.read())
+        ret = { 'public_ip_addresses': utils.get_public_ip_addresses(data.get('ip_address'))}
     print(json.dumps(ret))
