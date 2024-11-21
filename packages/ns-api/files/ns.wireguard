@@ -72,7 +72,7 @@ def remove_wireguard_interface(u, interface):
     u.delete("network", interface)
     u.save("network")
 
-def set_wireguard_peer(u, enabled, interface, account, route_all_traffic, client_to_client, ns_routes, preshared_key=None, ipaddr=None):
+def set_wireguard_peer(u, enabled, interface, account, route_all_traffic, client_to_client, ns_routes, preshared_key=None, ipaddr=None, endpoint=None):
     # check if the parent instance exists
     if u.get("network", interface, default=None) is None:
         return utils.validation_error("instance", "instance_not_found", interface)
@@ -162,6 +162,18 @@ def set_wireguard_peer(u, enabled, interface, account, route_all_traffic, client
     else:
         try:
             u.delete("network", peer_section, "preshared_key")
+        except:
+            pass
+
+    if endpoint:
+        host, port = endpoint.split(":")
+        u.set("network", peer_section, "endpoint_host", host)
+        u.set("network", peer_section, "endpoint_port", port)
+
+    else:
+        try:
+            u.delete("network", peer_section, "endpoint_host")
+            u.delete("network", peer_section, "endpoint_port")
         except:
             pass
 
@@ -297,12 +309,29 @@ def set_peer(args):
         else:
             psk = cur_key
 
-    ret = set_wireguard_peer(u, args["enabled"], args["instance"], args["account"], args["route_all_traffic"], args["client_to_client"], args["ns_routes"], psk)
+    ret = set_wireguard_peer(u, 
+        args["enabled"], 
+        args["instance"], 
+        args["account"], 
+        args["route_all_traffic"], 
+        args["client_to_client"], 
+        args["ns_routes"],
+        psk)
     return ret
 
 def import_peer(args):
     u = EUci()
-    ret = set_wireguard_peer(u, args["enabled"], args["instance"], args["account"], args["route_all_traffic"], args["client_to_client"], args["ns_routes"], args["preshared_key"], args.get("ipaddr", None))
+    ret = set_wireguard_peer(u, 
+        args["enabled"], 
+        args["instance"], 
+        args["account"], 
+        args["route_all_traffic"], 
+        args["client_to_client"], 
+        args["ns_routes"], 
+        args["preshared_key"], 
+        args.get("ipaddr", None), 
+        args.get("endpoint", None))
+    return ret
 
 def remove_peer(args):
     u = EUci()
@@ -428,9 +457,9 @@ def import_configuration(args):
         "ns_routes": [],
         "preshared_key": config_parser["Peer"].get("PreSharedKey", None),
         "ipaddr": config_parser["Peer"]["AllowedIPs"],
+        "endpoint": config_parser["Peer"]["Endpoint"]
     })
 
-    print(config_parser.sections())
     return {"result": "success"}
 
 
