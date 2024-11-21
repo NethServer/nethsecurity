@@ -12,6 +12,7 @@ from euci import EUci
 from nethsec import utils, firewall, ovpn, users
 import ipaddress
 import base64
+import configparser
 
 ## Utils
 
@@ -40,17 +41,30 @@ def get_user_extra_config(u, user_id):
     except:
         return {}
 
-def set_wireguard_interface(u, name, enabled, interface, private_key, listen_port, network, public_endpoint, routes, dns, user_db = None):
+def set_wireguard_interface(u, name, enabled, interface, private_key, listen_port, network, public_endpoint, routes, dns, user_db = None, isimport = False):
     u.set("network", interface, "interface")
     u.set("network", interface, "proto", "wireguard")
     u.set("network", interface, "private_key", private_key)
     u.set("network", interface, "listen_port", listen_port)
-    # calculate the first IP for network
-    net = ipaddress.ip_network(network, strict=False)
-    first_ip = str(list(net.hosts())[0])
-    u.set("network", interface, "addresses", [first_ip])
+
+    if isimport:
+        # honor passed configuration
+        if ',' in network:
+            # imported configuration with multiple networks
+            network = network.split(',')
+        u.set("network", interface, "addresses", network)
+        if len(network) > 1:
+            u.set("network", interface, "ns_network", network[:1])
+        else:
+            u.set("network", interface, "ns_network", "")
+    else:
+        # calculate the first IP for network
+        net = ipaddress.ip_network(network, strict=False)
+        first_ip = str(list(net.hosts())[0])
+        u.set("network", interface, "addresses", [first_ip])
+        u.set("network", interface, "ns_network", network)
+
     u.set("network", interface, "ns_dns", dns) # do no use official dns field, we do not want to modify resolv.conf
-    u.set("network", interface, "ns_network", network)
     u.set("network", interface, "ns_public_endpoint", public_endpoint)
     u.set("network", interface, "ns_routes", routes)
     u.set("network", interface, "ns_name", name)
@@ -71,7 +85,7 @@ def remove_wireguard_interface(u, interface):
     u.delete("network", interface)
     u.save("network")
 
-def set_wireguard_peer(u, enabled, interface, account, route_all_traffic, client_to_client, ns_routes, preshared_key=False):
+def set_wireguard_peer(u, enabled, interface, account, route_all_traffic, client_to_client, ns_routes, preshared_key=None, ipaddr=None, endpoint=None, public_key=None):
     # check if the parent instance exists
     if u.get("network", interface, default=None) is None:
         return utils.validation_error("instance", "instance_not_found", interface)
@@ -91,7 +105,6 @@ def set_wireguard_peer(u, enabled, interface, account, route_all_traffic, client
 
         wg_config = {"wireguard_peer": peer_section}
         if u.get("users", user_db) == "ldap":
-            print(user)
             # remote user
             if user_id is not None: # id is None if the user is not found
                 extra_config = get_user_extra_config(u, user_id)
@@ -110,30 +123,44 @@ def set_wireguard_peer(u, enabled, interface, account, route_all_traffic, client
     if u.get("network", peer_section, default=None) is None:
         # First time configuration
         u.set("network", peer_section, "wireguard_%s" % interface)
-        private_key, public_key = generate_wireguard_keys()
-        u.set("network", peer_section, "public_key", public_key)
-        u.set("network", peer_section, "private_key", private_key)
+        if public_key:
+            # import existing peer
+            u.set("network", peer_section, "public_key", public_key)
+        else:
+            # generate new keys
+            private_key, public_key = generate_wireguard_keys()
+            u.set("network", peer_section, "public_key", public_key)
+            u.set("network", peer_section, "private_key", private_key)
 
-        # calculate next available IP
-        vpn_addr = u.get("network", interface, "ns_network")
-        net = ipaddress.ip_network(vpn_addr, strict=False)
-        used_ips = set()
-        used_ips.add(str(list(net.hosts())[0])) # first host is reserved for the server
-        for p in utils.get_all_by_type(u, "network", f"wireguard_{interface}"):
-            peer_ip = u.get("network", p, "allowed_ips", default="")
-            if peer_ip:
-                used_ips.add(peer_ip)
-        for ip in net.hosts():
-            if str(ip) not in used_ips:
-                ipaddr = str(ip)
-                break
         if not ipaddr:
-            return utils.validation_error("ipaddr", "no_available_ip", account)
+            # calculate next available IP, skip for imported peers
+            vpn_addr = u.get("network", interface, "ns_network")
+            net = ipaddress.ip_network(vpn_addr, strict=False)
+            used_ips = set()
+            used_ips.add(str(list(net.hosts())[0])) # first host is reserved for the server
+            for p in utils.get_all_by_type(u, "network", f"wireguard_{interface}"):
+                peer_ip = u.get("network", p, "allowed_ips", default="")
+                if peer_ip:
+                    used_ips.add(peer_ip)
+            for ip in net.hosts():
+                if str(ip) not in used_ips:
+                    ipaddr = str(ip)
+                    break
+            if not ipaddr:
+                return utils.validation_error("ipaddr", "no_available_ip", account)
+
         # save peer ip address to custom field, allowed_ips will be calculated later
-        u.set("network", peer_section, "ns_ip", ipaddr)
+        try:
+          ip_list = ipaddr.split(",")
+          if len(ip_list) > 1:
+            ns_routes += ip_list[1:]
+        except:
+          ip_list = [ipaddr]
+
+        u.set("network", peer_section, "ns_ip", ip_list[0])
         u.set("network", peer_section, "persistent_keepalive", 25)
         u.set("network", peer_section, "description", account)
-        u.set("network", peer_section, "ns_link", f"wireguard/{interface}")
+        u.set("network", peer_section, "ns_link", f"network/{interface}")
         # automatically create route for the peer
         u.set("network", peer_section, "route_allowed_ips", '1')
 
@@ -156,13 +183,22 @@ def set_wireguard_peer(u, enabled, interface, account, route_all_traffic, client
     u.set("network", peer_section, "allowed_ips", allowed_ips)
 
     if preshared_key:
-        cur_key = u.get("network", peer_section, "preshared_key", default=None)
-        if not cur_key:
-            psk = subprocess.run(["wg", "genpsk"], capture_output=True, text=True).stdout.strip()
-            u.set("network", peer_section, "preshared_key", psk)
+        u.set("network", peer_section, "preshared_key", preshared_key)
     else:
         try:
             u.delete("network", peer_section, "preshared_key")
+        except:
+            pass
+
+    if endpoint:
+        host, port = endpoint.split(":")
+        u.set("network", peer_section, "endpoint_host", host)
+        u.set("network", peer_section, "endpoint_port", port)
+
+    else:
+        try:
+            u.delete("network", peer_section, "endpoint_host")
+            u.delete("network", peer_section, "endpoint_port")
         except:
             pass
 
@@ -231,11 +267,15 @@ def set_instance(args):
     # check if the interface already exists
     if u.get("network", args['instance'], default=None) is None:
         # First time configuration
-        firewall.add_service(u, f'WireGuard{args["instance"]}', args['listen_port'], ['udp'], link=f"wireguard/{args['instance']}")
+        firewall.add_service(u, f'WireGuard{args["instance"]}', args['listen_port'], ['udp'], link=f"network/{args['instance']}")
         zone = f"{args['instance']}vpn"
-        firewall.add_trusted_zone(u, zone, link=f"wireguard/{args['instance']}")
+        firewall.add_trusted_zone(u, zone, link=f"network/{args['instance']}")
         firewall.add_device_to_zone(u,  args['instance'], zone)
-        private_key, public_key = generate_wireguard_keys()
+        if not args.get('private_key'):
+             private_key, public_key = generate_wireguard_keys()
+        else:
+            private_key = args['private_key']
+            public_key = subprocess.run(["wg", "pubkey"], input=private_key, capture_output=True, text=True).stdout.strip()
     else:
         private_key = u.get("network", args['instance'], "private_key")
         public_key = subprocess.run(["wg", "pubkey"], input=private_key, capture_output=True, text=True).stdout.strip()
@@ -249,7 +289,8 @@ def set_instance(args):
                             args['public_endpoint'],
                             args['routes'],
                             args['dns'],
-                            args.get('user_db', None)
+                            args.get('user_db', None),
+                            args.get('isimport', False)
     )
 
     return {"public_key": public_key}
@@ -259,7 +300,7 @@ def remove_instance(instance):
     user_db = u.get("network", instance, "ns_user_db", default=None)
     remove_wireguard_interface(u, instance)
     firewall.remove_device_from_zone(u, instance, f"{instance}vpn")
-    firewall.delete_linked_sections(u, f"wireguard/{instance}")
+    firewall.delete_linked_sections(u, f"network/{instance}")
     if user_db:
         # remove wireguard_peer from all users
         users = utils.get_all_by_type(u, "users", "user")
@@ -284,7 +325,40 @@ def get_configuration(instance):
 
 def set_peer(args):
     u = EUci()
-    ret = set_wireguard_peer(u, args["enabled"], args["instance"], args["account"], args["route_all_traffic"], args["client_to_client"], args["ns_routes"], args.get("preshared_key", False))
+
+    # create the preshared key if needed
+    if args['preshared_key']:
+        peer_section = f"{args['instance']}_{args['account']}_peer"
+        cur_key = u.get("network", peer_section, "preshared_key", default=None)
+        if not cur_key:
+            psk = subprocess.run(["wg", "genpsk"], capture_output=True, text=True).stdout.strip()
+        else:
+            psk = cur_key
+
+    ret = set_wireguard_peer(u, 
+        args["enabled"], 
+        args["instance"], 
+        args["account"], 
+        args["route_all_traffic"], 
+        args["client_to_client"], 
+        args["ns_routes"],
+        psk)
+    return ret
+
+def import_peer(args):
+    u = EUci()
+    ret = set_wireguard_peer(u, 
+        args["enabled"], 
+        args["instance"], 
+        args["account"], 
+        args["route_all_traffic"], 
+        args["client_to_client"], 
+        args["ns_routes"], 
+        args["preshared_key"], 
+        args.get("ipaddr", None), 
+        args.get("endpoint", None),
+        args.get("public_key", None)
+        )
     return ret
 
 def remove_peer(args):
@@ -303,7 +377,6 @@ def download_peer_config(args):
     private_key = data["private_key"]
     server_private_key = u.get("network", interface, "private_key")
     server_public_key = subprocess.run(["wg", "pubkey"], input=server_private_key, capture_output=True, text=True).stdout.strip()
-    peer_ip = ','.join(list(data["allowed_ips"]))
     persistent_keepalive = data["persistent_keepalive"]
     server_port = u.get("network", interface, "listen_port")
     public_endpoint = u.get("network", interface, "ns_public_endpoint")
@@ -330,7 +403,7 @@ def download_peer_config(args):
             allowed_ips.append(u.get("network", interface, "ns_network"))
         else:
             allowed_ips.append(u.get("network", interface, "addresses"))
-
+        
     # Pre-shared key
     if data.get("preshared_key", None):
         psk = u.get("network", peer_section, "preshared_key")
@@ -343,7 +416,7 @@ def download_peer_config(args):
 # Account: {account} for {name}
 [Interface]
 PrivateKey = {private_key}
-Address = {peer_ip}
+Address = {data.get("ns_ip")}
 {dns_config}
 
 [Peer]
@@ -358,6 +431,54 @@ PersistentKeepalive = {persistent_keepalive}
     # encode qrcode in base64
     qrcode = base64.b64encode(qrcode.encode()).decode()
     return {"config": config.strip(), "qrcode": qrcode}
+
+def import_configuration(args):
+    u = EUci()
+    config = args["config"]
+    try:
+        data = base64.b64decode(config).decode()
+    except:
+        return utils.validation_error("config", "invalid_config", config)
+
+    config_parser = configparser.ConfigParser(allow_no_value=True)
+    config_parser.read_string(data)
+
+    # Import is like a set-instance plus a set-peer for the remote server
+    # Steps:
+    # 1. create the instance
+    # 2. create the peer for the remote server
+    defaults = get_instance_defaults()
+    #{"listen_port": 51821, "instance": "wg2", "network": "10.50.98.0/24", "routes": ["192.168.100.0/24"], "public_endpoint": ""}
+    # add to defaults PrivateKey, Address, DNS
+    defaults["private_key"] = config_parser["Interface"]["PrivateKey"]
+    defaults["dns"] = config_parser["Interface"].get("DNS", "").split(',')
+    
+    defaults["user_db"] = ""
+    defaults["name"] = f"imported_{defaults['instance']}"
+    defaults["enabled"] = True
+    defaults["routes"] = [] # FIXME
+    # Address can be a single IP, or an IP,network1,network2, ....
+    defaults["network"] = config_parser["Interface"]["Address"]
+    defaults["isimport"] = True
+
+    set_instance(defaults)
+    
+    import_peer({
+        "enabled": True,
+        "instance": defaults["instance"],
+        "account": "imported",
+        "route_all_traffic": False,
+        "client_to_client": True,
+        "ns_routes": [],
+        "preshared_key": config_parser["Peer"].get("PreSharedKey", None),
+        "ipaddr": config_parser["Peer"]["AllowedIPs"],
+        "endpoint": config_parser["Peer"]["Endpoint"],
+        "public_key": config_parser["Peer"]["PublicKey"]
+    })
+
+    return {"result": "success"}
+
+
 
 cmd = sys.argv[1]
 
@@ -387,7 +508,8 @@ if cmd == 'list':
             "preshared_key": True
             },
         "remove-peer": {"instance": "wg1", "account": "user1"},
-        "download-peer-config": {"instance": "wg1", "account": "user1"}
+        "download-peer-config": {"instance": "wg1", "account": "user1"},
+        "import-configuration": {"config": "base64encodedconfig"}
     }))
 else:
     action = sys.argv[2]
@@ -407,6 +529,9 @@ else:
     elif action == "download-peer-config":
         args = json.loads(sys.stdin.read())
         ret = download_peer_config(args)
+    elif action == "import-configuration":
+        args = json.loads(sys.stdin.read())
+        ret = import_configuration(args)
     elif action == "list-instances":
         ret = list_instances()
     elif action == "set-instance":
