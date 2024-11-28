@@ -221,7 +221,11 @@ When releasing a new image, follow these steps:
 8. **Release NethSecurity Controller:**
   - Release the version of NethSecurity Controller on NethServer 8, if applicable.
 
-9. **Announce the release:**
+9. **Release the milestone inside the subscription repository:**
+  - Access distfeed.nethesis.it and release the [milestone](https://github.com/nethesis/parceler?tab=readme-ov-file#milestone-release):
+    the image with its own packages will be available also in the subscription repository.
+
+10. **Announce the release:**
   - Post English announcement on [NethServer Community](https://community.nethserver.org).
   - Post Italian announcement on [Nethesis Partner Portal](https://partner.nethesis.it).
 
