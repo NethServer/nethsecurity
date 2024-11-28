@@ -7848,7 +7848,7 @@ Parameters:
 - `network`: the network of the WireGuard instance, this is the network where the clients will be connected
 - `routes`: the routes that the clients will receive when connected, this parameter is used during the client configuration creation
 - `public_endpoint`: the public endpoint of the WireGuard server, it can be an IP address or a domain name, it's used during the client configuration creation
-- `dns`: the DNS servers that the clients will receive when connected, it's used during the client configuration creation; this option is honored nly if the peer
+- `dns`: the DNS servers that the clients will receive when connected, it's used during the client configuration creation; this option is honored only if the peer
    has the `ns_route_all_traffic` option set to `1`   
 - `user_db`: the user database to use for authentication; if empty, the instance will not be connected to an existing user db and the WireGuard peer will be 
   indipendent; if the user db is set, each new peer must be have a user with the same name in the user db
@@ -7888,9 +7888,9 @@ Parameters:
 - `instance`: the name of the WireGuard instance, the instance must exist
 - `account`: the name of the peer, it must be unique for the instance; if the instance is connected to a user db, the account must be the name of an existing user
 - `enabled`: `true` to enable the peer, `false` to disable it
-- `route_all_traffic`: `true` to route all the traffic of the peer through the WireGuard tunnel, `false` to route only the traffic for the `ns_routes` through the tunnel; if this option iset the `dns` option in the instance configuration will be honored
+- `route_all_traffic`: `true` to route all the traffic of the peer through the WireGuard tunnel, `false` to route only the traffic for the `ns_routes` through the tunnel; if this option is set the `dns` option in the instance configuration will be honored
 - `client_to_client`: `true` to allow the peer to communicate with other peers connected to the same instance, `false` to disallow it; it must be set to `true`
-   if the `route_all_traffic` is set to `true` if the client is not a Road Warrior user but another firewall for a site-to-site connection
+   if the `route_all_traffic` is set to `true` when the client is not a Road Warrior user but another firewall for a site-to-site connection
 - `ns_routes`: the routes that the peer will receive when connected, this parameter is used during the client configuration creation
 - `preshared_key`: `true` to generate a new preshared key for the peer, `false` to not use it
 
@@ -7919,7 +7919,7 @@ Response example:
 ```
 
 Output parameters:
-- `config`: the configuration of the peer, it's in clear text; remember to encode it in base64 before importing into another firewall
+- `config`: the configuration of the peer, it's in clear text; remember to encode it to base64 before importing it into another firewall
 - `qrcode`: the QR code of the configuration, it's a base64 encoded image; it can be used to import the configuration into a mobile app
 
 ### import-configuration
