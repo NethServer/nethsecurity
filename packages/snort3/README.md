@@ -6,7 +6,7 @@ Changes:
 
 - ported to OpenWrt 23.05.5
 - added custom script for downloading rules, `ns-snort-rules`: the script reads configuration from UCI, then download and filter rules
-- small patch to init.d script to make sure that snort3 is started even if no rules are present
+- patched init.d script to implement bypass and rule suppression
 - use `/var/ns-snort` as working directory
 - rules are not part of backup to avoid large backups and generating a new remote backup every time rules are updated
 - added new options for rules management in UCI
