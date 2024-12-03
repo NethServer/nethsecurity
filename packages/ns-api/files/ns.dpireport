@@ -13,6 +13,8 @@ import glob
 import socket
 from datetime import date
 
+BASE_PATH = '/var/run/dpireport'
+
 def reverse_dns(ip):
     try:
         return socket.gethostbyaddr(ip)[0]
@@ -27,6 +29,9 @@ def list_days():
     return {"days": ret}
 
 def summary(year, month, day, client="*", limit=10):
+    """
+    Deprecated, please use summary_v2
+    """
     hours = dict()
     for i in range(24):
         hours[f'{i:02}'] = 0
@@ -44,7 +49,7 @@ def summary(year, month, day, client="*", limit=10):
                 ret["hours"][hour] += cdetails["hours"][hour]["total"]
             except:
                 pass
-        ret["total"] += cdetails["total"] 
+        ret["total"] += cdetails["total"]
 
         for key in ("protocol", "host", "application"):
             for el in cdetails[key]:
@@ -52,7 +57,7 @@ def summary(year, month, day, client="*", limit=10):
                     ret[key][el] = 0
                 ret[key][el] += cdetails[key][el]
     try:
-        tmp_c = sorted(ret['clients'].items(), key=lambda x:x[1], reverse=True)
+        tmp_c = sorted(ret['clients'].items(), key=lambda x: x[1], reverse=True)
     except:
         tmp_c = list()
     try:
@@ -65,7 +70,7 @@ def summary(year, month, day, client="*", limit=10):
 
     for key in ("protocol", "host", "application"):
         try:
-            tmp = sorted(ret[key].items(), key=lambda x:x[1], reverse=True)
+            tmp = sorted(ret[key].items(), key=lambda x: x[1], reverse=True)
         except:
             tmp = list()
         ret[key] = tmp[0:10]
@@ -73,12 +78,15 @@ def summary(year, month, day, client="*", limit=10):
     return ret
 
 def _details(year, month, day, client):
+    """
+    Deprecated, please use summary_v2
+    """
     hours = dict()
     if not client:
         return ret
     for i in range(24):
         hours[f'{i:02}'] = dict()
-    ret = {"hours": hours, "total": 0, "name": reverse_dns(client), "protocol" : {}, "host": {}, "application": {}}
+    ret = {"hours": hours, "total": 0, "name": reverse_dns(client), "protocol": {}, "host": {}, "application": {}}
     ddir = f'/var/run/dpireport/{year}/{month}/{day}/{client}/'
     for hour_f in glob.glob(f'{ddir}??.json'):
         hour = hour_f.removesuffix(".json").removeprefix(ddir)
@@ -92,6 +100,148 @@ def _details(year, month, day, client):
         ret["total"] += ret["hours"][hour]["total"]
     return ret
 
+
+def _load_data(year, month, day):
+    search_path = f'{BASE_PATH}/{year}/{month}/{day}/'
+    clients = dict()
+    for client_file in glob.glob(f'{search_path}/*'):
+        client_name = client_file.removeprefix(search_path)
+        client_data = dict()
+        client_hourly = glob.glob(f'{client_file}/*.json')
+        for data_file in client_hourly:
+            time = data_file.removeprefix(f'{client_file}/').removesuffix('.json')
+            client_data[time] = _extract_data(data_file)
+        clients[client_name] = client_data
+
+    return clients
+
+
+def _extract_data(dpi_file: str):
+    try:
+        with open(dpi_file, 'r') as file:
+            return json.load(file)
+    except:
+        return dict()
+
+
+def summary_v2(year=None, month=None, day=None, narrow_client=None, narrow_application=None, limit=20):
+    if year is None:
+        year = f'{date.today().year:02}'
+    if month is None:
+        month = f'{date.today().month:02}'
+    if day is None:
+        day = f'{date.today().day:02}'
+    data = _load_data(year, month, day)
+
+    total_traffic = 0
+    raw_hourly_traffic = dict[str, int]()
+    raw_applications = dict[str, int]()
+    raw_clients = list[dict]()
+    raw_remote_hosts = dict[str, int]()
+    raw_protocols = dict[str, int]()
+
+    for client in data:
+        if narrow_client is not None and narrow_client != client:
+            continue
+        resolved_client = reverse_dns(client)
+        raw_client_total_traffic = 0
+
+        for time in data[client]:
+            for application in data[client][time]['application']:
+                # application
+                if narrow_application is not None and application != narrow_application:
+                    continue
+                if application not in raw_applications:
+                    raw_applications[application] = 0
+                raw_applications[application] += data[client][time]['application'][application]
+                # total traffic
+                total_traffic += data[client][time]['application'][application]
+                # hourly traffic
+                if time not in raw_hourly_traffic:
+                    raw_hourly_traffic[time] = 0
+                raw_hourly_traffic[time] += data[client][time]['application'][application]
+                # client total traffic
+                raw_client_total_traffic += data[client][time]['application'][application]
+
+            if narrow_application is None:
+                # remote hosts
+                for host in data[client][time]['host']:
+                    if host not in raw_remote_hosts:
+                        raw_remote_hosts[host] = 0
+                    raw_remote_hosts[host] += data[client][time]['host'][host]
+                # protocols
+                for protocol in data[client][time]['protocol']:
+                    if protocol not in raw_protocols:
+                        raw_protocols[protocol] = 0
+                    raw_protocols[protocol] += data[client][time]['protocol'][protocol]
+
+        # append client
+        raw_clients.append({
+            'id': client,
+            'label': resolved_client,
+            'traffic': raw_client_total_traffic
+        })
+
+    raw_clients.sort(key=lambda x: x['traffic'], reverse=True)
+    final_clients = raw_clients[:limit]
+
+    final_applications = list()
+    for item in raw_applications:
+        label = item
+        if item == 'unknown':
+            label = 'Unknown'
+        else:
+            label = label.removeprefix('netify.').capitalize()
+        final_applications.append({
+            'id': item,
+            'label': label,
+            'traffic': raw_applications[item]
+        })
+    final_applications.sort(key=lambda x: x['traffic'], reverse=True)
+    final_applications = final_applications[:limit]
+
+    final_hourly_traffic = list()
+    for item in raw_hourly_traffic:
+        final_hourly_traffic.append({
+            'id': item,
+            'traffic': raw_hourly_traffic[item]
+        })
+    final_hourly_traffic.sort(key=lambda x: x['id'])
+
+    response = {
+        'total_traffic': total_traffic,
+        'hourly_traffic': final_hourly_traffic,
+        'applications': final_applications,
+        'clients': final_clients,
+    }
+
+    if narrow_application is None:
+        # remote hosts
+        final_remote_hosts = list()
+        for item in raw_remote_hosts:
+            final_remote_hosts.append({
+                'id': item,
+                'traffic': raw_remote_hosts[item]
+            })
+        final_remote_hosts.sort(key=lambda x: x['traffic'], reverse=True)
+        final_remote_hosts = final_remote_hosts[:limit]
+        response['remote_hosts'] = final_remote_hosts
+
+        # protocols
+        final_protocols = list()
+        for item in raw_protocols:
+            final_protocols.append({
+                'id': item,
+                'label': item.upper(),
+                'traffic': raw_protocols[item]
+            })
+        final_protocols.sort(key=lambda x: x['traffic'], reverse=True)
+        final_protocols = final_protocols[:limit]
+        response['protocols'] = final_protocols
+
+    return response
+
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
@@ -99,12 +249,18 @@ if cmd == 'list':
         "summary": {"year": "2023", "month": "06", "day": "02", "limit": 10},
         "summary-by-client": {"year": "2023", "month": "06", "day": "02", "client": "192.168.1.1", "limit": 10},
         "details": {"year": "2023", "month": "06", "day": "16", "client": "192.168.100.22"},
-        "days":{}
-        }))
+        "days": {},
+        "summary-v2": {"year": "2024", "month": "06", "day": "02", "client": "127.0.0.1", "application": "netify.http",
+                       "limit": 20}
+    }))
 else:
     action = sys.argv[2]
     if action == "days":
         print(json.dumps(list_days()))
+    elif action == 'summary-v2':
+        args = json.loads(sys.stdin.read())
+        print(json.dumps(summary_v2(args.get('year'), args.get('month'), args.get('day'), args.get('client'),
+                                    args.get('application'), args.get('limit', 20))))
     else:
         args = json.loads(sys.stdin.read())
         year = args.get('year', f'{date.today().year:02}')
