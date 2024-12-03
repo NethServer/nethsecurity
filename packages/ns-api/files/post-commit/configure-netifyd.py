@@ -23,16 +23,30 @@ if 'network' in changes:
     if config[cname].get('autoconfig', '1') == "1":
         uci.set("netifyd", cname, "autoconfig", "0")
         commit = True
-        
+
+    # Fetch excluded interfaces (one-liner)
+    excluded_interfaces = set(uci.get_all("netifyd").get(cname, {}).get("exclude", []))
+
+    # Collect interfaces
     internal_if = set()
     external_if = set()
     zones = firewall.list_zones(uci)
     for z in zones:
         zone = zones[z]
+        devices = utils.get_all_devices_by_zone(uci, zone['name'], exclude_aliases=True)
+        # Filter interfaces based on exclusion patterns
+        filtered_devices = set()
+        for iface in devices:
+            if any(iface.startswith(pattern) for pattern in excluded_interfaces):
+                continue
+            filtered_devices.add(iface.split('.')[0])  # Strip VLAN part for base interface
+        filtered_devices = sorted(filtered_devices)  # Return sorted list
+
+        # Assign devices to internal or external interfaces
         if zone['name'] == "wan":
-            external_if.update(utils.get_all_devices_by_zone(uci, zone['name'], exclude_aliases=True))
+            external_if.update(filtered_devices)
         else:
-            internal_if.update(utils.get_all_devices_by_zone(uci, zone['name'], exclude_aliases=True))
+            internal_if.update(filtered_devices)
 
     if tuple(internal_if) != uci.get("netifyd", cname, "internal_if", default=()):
         uci.set("netifyd", cname, "internal_if", list(internal_if))
