@@ -124,7 +124,7 @@ def _extract_data(dpi_file: str):
         return dict()
 
 
-def summary_v2(year=None, month=None, day=None, narrow_client=None, narrow_application=None, limit=20):
+def summary_v2(year=None, month=None, day=None, narrow_client=None, narrow_section=None, narrow_value=None, limit=20):
     if year is None:
         year = f'{date.today().year:02}'
     if month is None:
@@ -135,6 +135,8 @@ def summary_v2(year=None, month=None, day=None, narrow_client=None, narrow_appli
 
     total_traffic = 0
     raw_hourly_traffic = dict[str, int]()
+    for i in range(24):
+        raw_hourly_traffic[f'{i:02}'] = 0
     raw_applications = dict[str, int]()
     raw_clients = list[dict]()
     raw_remote_hosts = dict[str, int]()
@@ -148,32 +150,53 @@ def summary_v2(year=None, month=None, day=None, narrow_client=None, narrow_appli
 
         for time in data[client]:
             for application in data[client][time]['application']:
-                # application
-                if narrow_application is not None and application != narrow_application:
+                if narrow_section == 'application' and application != narrow_value:
                     continue
+                elif narrow_section is not None and narrow_section != 'application':
+                    break
                 if application not in raw_applications:
                     raw_applications[application] = 0
                 raw_applications[application] += data[client][time]['application'][application]
-                # total traffic
-                total_traffic += data[client][time]['application'][application]
-                # hourly traffic
-                if time not in raw_hourly_traffic:
-                    raw_hourly_traffic[time] = 0
-                raw_hourly_traffic[time] += data[client][time]['application'][application]
-                # client total traffic
-                raw_client_total_traffic += data[client][time]['application'][application]
+            for host in data[client][time]['host']:
+                if narrow_section == 'host' and host != narrow_value:
+                    continue
+                elif narrow_section is not None and narrow_section != 'host':
+                    break
+                if host not in raw_remote_hosts:
+                    raw_remote_hosts[host] = 0
+                raw_remote_hosts[host] += data[client][time]['host'][host]
+            for protocol in data[client][time]['protocol']:
+                if narrow_section == 'protocol' and protocol != narrow_value:
+                    continue
+                elif narrow_section is not None and narrow_section != 'protocol':
+                    break
+                if protocol not in raw_protocols:
+                    raw_protocols[protocol] = 0
+                raw_protocols[protocol] += data[client][time]['protocol'][protocol]
 
-            if narrow_application is None:
-                # remote hosts
-                for host in data[client][time]['host']:
-                    if host not in raw_remote_hosts:
-                        raw_remote_hosts[host] = 0
-                    raw_remote_hosts[host] += data[client][time]['host'][host]
-                # protocols
-                for protocol in data[client][time]['protocol']:
-                    if protocol not in raw_protocols:
-                        raw_protocols[protocol] = 0
-                    raw_protocols[protocol] += data[client][time]['protocol'][protocol]
+            match narrow_section:
+                case 'host':
+                    if narrow_value not in data[client][time]['host']:
+                        continue
+                    total_traffic += data[client][time]['host'][narrow_value]
+                    raw_hourly_traffic[time] += data[client][time]['host'][narrow_value]
+                    raw_client_total_traffic += data[client][time]['host'][narrow_value]
+                case 'protocol':
+                    if narrow_value not in data[client][time]['protocol']:
+                        continue
+                    total_traffic += data[client][time]['protocol'][narrow_value]
+                    raw_hourly_traffic[time] += data[client][time]['protocol'][narrow_value]
+                    raw_client_total_traffic += data[client][time]['protocol'][narrow_value]
+                case 'application':
+                    if narrow_value not in data[client][time]['application']:
+                        continue
+                    total_traffic += data[client][time]['application'][narrow_value]
+                    raw_hourly_traffic[time] += data[client][time]['application'][narrow_value]
+                    raw_client_total_traffic += data[client][time]['application'][narrow_value]
+                case _:
+                    total_traffic += data[client][time]['total']
+                    raw_hourly_traffic[time] += data[client][time]['total']
+                    raw_client_total_traffic += data[client][time]['total']
 
         # append client
         raw_clients.append({
@@ -184,21 +207,6 @@ def summary_v2(year=None, month=None, day=None, narrow_client=None, narrow_appli
 
     raw_clients.sort(key=lambda x: x['traffic'], reverse=True)
     final_clients = raw_clients[:limit]
-
-    final_applications = list()
-    for item in raw_applications:
-        label = item
-        if item == 'unknown':
-            label = 'Unknown'
-        else:
-            label = label.removeprefix('netify.').capitalize()
-        final_applications.append({
-            'id': item,
-            'label': label,
-            'traffic': raw_applications[item]
-        })
-    final_applications.sort(key=lambda x: x['traffic'], reverse=True)
-    final_applications = final_applications[:limit]
 
     final_hourly_traffic = list()
     for item in raw_hourly_traffic:
@@ -211,12 +219,26 @@ def summary_v2(year=None, month=None, day=None, narrow_client=None, narrow_appli
     response = {
         'total_traffic': total_traffic,
         'hourly_traffic': final_hourly_traffic,
-        'applications': final_applications,
         'clients': final_clients,
     }
 
-    if narrow_application is None:
-        # remote hosts
+    if len(raw_applications) > 0:
+        final_applications = list()
+        for item in raw_applications:
+            label = item
+            if item == 'unknown':
+                label = 'Unknown'
+            else:
+                label = label.removeprefix('netify.').capitalize()
+            final_applications.append({
+                'id': item,
+                'label': label,
+                'traffic': raw_applications[item]
+            })
+        final_applications.sort(key=lambda x: x['traffic'], reverse=True)
+        response['applications'] = final_applications[:limit]
+
+    if len(raw_remote_hosts) > 0:
         final_remote_hosts = list()
         for item in raw_remote_hosts:
             final_remote_hosts.append({
@@ -224,10 +246,9 @@ def summary_v2(year=None, month=None, day=None, narrow_client=None, narrow_appli
                 'traffic': raw_remote_hosts[item]
             })
         final_remote_hosts.sort(key=lambda x: x['traffic'], reverse=True)
-        final_remote_hosts = final_remote_hosts[:limit]
-        response['remote_hosts'] = final_remote_hosts
+        response['remote_hosts'] = final_remote_hosts[:limit]
 
-        # protocols
+    if len(raw_protocols) > 0:
         final_protocols = list()
         for item in raw_protocols:
             final_protocols.append({
@@ -236,8 +257,7 @@ def summary_v2(year=None, month=None, day=None, narrow_client=None, narrow_appli
                 'traffic': raw_protocols[item]
             })
         final_protocols.sort(key=lambda x: x['traffic'], reverse=True)
-        final_protocols = final_protocols[:limit]
-        response['protocols'] = final_protocols
+        response['protocols'] = final_protocols[:limit]
 
     return response
 
@@ -250,8 +270,8 @@ if cmd == 'list':
         "summary-by-client": {"year": "2023", "month": "06", "day": "02", "client": "192.168.1.1", "limit": 10},
         "details": {"year": "2023", "month": "06", "day": "16", "client": "192.168.100.22"},
         "days": {},
-        "summary-v2": {"year": "2024", "month": "06", "day": "02", "client": "127.0.0.1", "application": "netify.http",
-                       "limit": 20}
+        "summary-v2": {"year": "2024", "month": "06", "day": "02", "client": "127.0.0.1", "section": "application",
+                       "value": "netify.http", "limit": 20}
     }))
 else:
     action = sys.argv[2]
@@ -260,7 +280,7 @@ else:
     elif action == 'summary-v2':
         args = json.loads(sys.stdin.read())
         print(json.dumps(summary_v2(args.get('year'), args.get('month'), args.get('day'), args.get('client'),
-                                    args.get('application'), args.get('limit', 20))))
+                                    args.get('section'), args.get('value'), args.get('limit', 20))))
     else:
         args = json.loads(sys.stdin.read())
         year = args.get('year', f'{date.today().year:02}')
