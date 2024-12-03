@@ -1,0 +1,13 @@
+{
+  "snort-manager": {
+    "description": "Manage snort configuration",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.snort": [
+          "*"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,154 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Read SSH authorized keys
+
+import os
+import json
+import subprocess
+import json
+import sys
+import ipaddress
+from nethsec import utils
+from euci import EUci
+
+# Retrieve all non-WAN interfaces and their IP addresses
+# It also return the IP address of VPN interfaces
+def get_snort_homenet(uci, include_vpn=False):
+    snort_homenet = []
+    # load JSON from `ip` command
+    snort_homenet = set()
+    try:
+        ip_output = subprocess.check_output(['ip', '--json', 'addr', 'show'])
+        ip_data = json.loads(ip_output)
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to execute ip command: {e}", file=sys.stderr)
+        return []
+    except json.JSONDecodeError as e:
+        print(f"Failed to parse JSON: {e}", file=sys.stderr)
+        return []
+    wan_devices = utils.get_all_wan_devices(uci)
+    device_ip_map = {}
+    for interface in ip_data:
+        ifname = interface.get('ifname')
+        addr_info = interface.get('addr_info', [])
+        for addr in addr_info:
+            if addr.get('family') == 'inet':
+                local_ip = addr.get('local')
+                prefixlen = addr.get('prefixlen')
+                network = ipaddress.IPv4Network(f"{local_ip}/{prefixlen}", strict=False).network_address
+                device_ip_map[ifname] = f"{network}/{prefixlen}"
+                break
+    for device in device_ip_map:
+        # exclude WAN interfaces, loopback, PPPoE and VPN interfaces
+        if device in wan_devices or device == 'lo' or device.startswith('tun') or device.startswith('ipsec') or device.startswith('wg') or device.startswith('tap') or device.startswith("ppp"):
+            continue
+        snort_homenet.add(device_ip_map[device])
+
+    if include_vpn:
+        ipsec_tunnels = utils.get_all_by_type(uci, 'ipsec', 'tunnel')
+        for tunnel in ipsec_tunnels:
+            try:
+                remote_subnet = list(uci.get_all('ipsec', tunnel, 'remote_subnet'))
+            except:
+                remote_subnet = None
+            if remote_subnet:
+                for network in remote_subnet:
+                    snort_homenet.add(network)
+
+        ovpn_tunnels = utils.get_all_by_type(uci, 'openvpn', 'openvpn')
+        for tunnel in ovpn_tunnels:
+            # skip custom config
+            if not tunnel.startswith("ns_"):
+                continue
+            # skip road warrior servers
+            if uci.get('openvpn', tunnel, 'ns_auth_mode', default='') != '':
+                continue
+            # skip disabled tunnels
+            if uci.get('openvpn', tunnel, 'enabled', default='0') == '0':
+                continue
+            try:
+                remote_network = list(uci.get_all('openvpn', tunnel, 'route'))
+            except:
+                remote_network = None
+            if remote_network:
+                # route has this form: '192.168.6.0 255.255.255.0'
+                for network in remote_network:
+                    ip, netmask = network.split()
+                    addr = ipaddress.IPv4Network(f"{ip}/{netmask}", strict=False)
+                    snort_homenet.add(str(addr))
+
+    return ' '.join(list(snort_homenet))
+
+def add_download_cron_job():
+    # add download rules cron job: every night at 2:30 plus random 30 minutes
+    cron_job = f"30 2 * * * sleep $((RANDOM % 1800)) && /usr/bin/ns-snort-rules --download --restart"
+    with open('/etc/crontabs/root', 'r') as f:
+        lines = f.readlines()
+    for line in lines:
+        if 'ns-snort-rules' in line:
+            return
+    with open('/etc/crontabs/root', 'w') as f:
+        for line in lines:
+            f.write(line)
+        f.write(f'{cron_job}\n')
+
+def remove_download_cron_job():
+    with open('/etc/crontabs/root', 'r') as f:
+        lines = f.readlines()
+    with open('/etc/crontabs/root', 'w') as f:
+        for line in lines:
+            if 'ns-snort-rules' not in line:
+                f.write(line)
+
+def setup(enabled, set_home_net = False, include_vpn = False, ns_policy = 'balanced', ns_disabled_rules = []):
+    uci = EUci()
+
+    # first setup
+    config_dir = uci.get('snort', 'snort', 'config_dir', default = '')
+    if config_dir != '/var/ns-snort':
+        uci.set('snort', 'snort', 'config_dir', '/var/ns-snort')
+        uci.set('snort', 'snort', 'log_dir', '/var/log/snort')
+        uci.set('snort', 'snort', 'mode', 'ips')
+        uci.set('snort', 'snort', 'manual', '0')
+        uci.set('snort', 'snort', 'method', 'nfq')
+        uci.set('snort', 'snort', 'external_net', '!$HOME_NET')
+        uci.set('snort', 'nfq', 'chain_type', 'forward')
+
+    # always set the number of threads to the number of CPUs
+    # if the hardware changes, a new setup is required
+    uci.set('snort', 'nfq', 'queue_count', str(os.cpu_count()))
+    uci.set('snort', 'nfq', 'thread_count', str(os.cpu_count()))
+
+    if set_home_net:
+        uci.set('snort', 'snort', 'home_net', get_snort_homenet(uci, include_vpn))
+
+    uci.set('snort', 'snort', 'ns_policy', ns_policy)
+    uci.set('snort', 'snort', 'ns_disabled_rules', ns_disabled_rules)
+
+    if enabled:
+        uci.set('snort', 'snort', 'enabled', '1')
+        add_download_cron_job()
+    else:
+        uci.set('snort', 'snort', 'enabled', '0')
+        remove_download_cron_job()
+
+    uci.save('snort')
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({
+        "setup": {"enabled": True, "set_home_net": True, "include_vpn": False, "ns_policy": "balanced", "ns_disabled_rules": []},
+        }))
+else:
+    action = sys.argv[2]
+    if action == "setup":
+        data = json.JSONDecoder().decode(sys.stdin.read())
+        setup(data.get('enabled', True), data.get('set_home_net', True), data.get('include_vpn', False), data.get('ns_policy', 'connectivity'), data.get('ns_disabled_rules', []))
+        print(json.dumps({"status": "success"}))
+        

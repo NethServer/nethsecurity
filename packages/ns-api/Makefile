@@ -154,6 +154,8 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.scan.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.objects $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.objects.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.snort $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.snort.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.nathelpers $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.nathelpers.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
@@ -169,6 +171,7 @@ define Package/ns-api/install
 	$(INSTALL_BIN) ./files/pre-commit/update-objects.py $(1)/usr/libexec/ns-api/pre-commit
 	$(INSTALL_BIN) ./files/post-commit/configure-netifyd.py $(1)/usr/libexec/ns-api/post-commit
 	$(INSTALL_BIN) ./files/post-commit/reload-ipsets.py $(1)/usr/libexec/ns-api/post-commit
+	$(INSTALL_BIN) ./files/post-commit/restart-cron.py $(1)/usr/libexec/ns-api/post-commit
 	$(INSTALL_BIN) ./files/remove-pppoe-keepalive $(1)/usr/share/ns-api
 endef
  

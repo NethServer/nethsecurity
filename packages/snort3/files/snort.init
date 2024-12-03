@@ -1,0 +1,121 @@
+#!/bin/sh /etc/rc.common
+# shellcheck disable=SC2039  # "local" not defined in POSIX sh
+
+START=99
+STOP=10
+
+USE_PROCD=1
+PROG=/usr/bin/snort
+MGR=/usr/bin/snort-mgr
+
+validate_snort_section() {
+	$MGR -q check || return 1
+	uci_validate_section snort snort "${1}" \
+		'enabled:bool:0' \
+		'manual:bool:1' \
+		'config_dir:string' \
+		'interface:string'
+}
+
+update_bypass_set() {
+	set_name=$1
+	set_file="/var/ns-snort/${set_name}.conf"
+	ips=$(uci -q get snort.nfq.${set_name})
+	if [ -z "$ips" ]; then
+		: > $set_file
+	else
+		echo -n "elements = {" > $set_file
+		for ip in $ips; do
+			echo -n " $ip," >> $set_file
+		done
+		echo " }" >> $set_file
+    fi
+}
+
+download_rules_if_needed () {
+	if ! find /var/ns-snort/rules/ -type f -name "*.rules" | grep -q . ; then
+		# no rules file found, start downloaded loop
+		attempt=0
+		until /usr/bin/ns-snort-rules --download; do
+			attempt=$((attempt + 1))
+			if [ "$attempt" -ge 6 ]; then
+				echo "Error: failed to download snort rules after 6 attempts (1 minute)."
+				break
+			fi
+			sleep 10
+		done
+	fi
+}
+
+setup_tweaks() {
+	tweaks_file="/var/ns-snort/ns_local.lua"
+	echo -e "suppress = \n{\n" > $tweaks_file
+	# suppress element format: gid,sid,direction,ip,description
+	suppress=$(uci -q get snort.snort.ns_suppress)
+	for s in $suppress; do
+		s=$(echo $s | sed "s/'//g")
+		gid=$(echo $s | cut -d, -f1)
+		sid=$(echo $s | cut -d, -f2)
+		direction=$(echo $s | cut -d, -f3)
+		ip=$(echo $s | cut -d, -f4)
+		echo -e "    { gid = $gid, sid = $sid, track = '$direction', ip = '$ip' },\n" >> $tweaks_file
+	done
+	echo "}" >> $tweaks_file
+}
+
+start_service() {
+	# If you wish to use application-managed PID file:
+	# output.logdir, in the snort lua config, determines the PID file location.
+	# Add '--create-pidfile' to the 'command', below.
+
+        local enabled
+	local manual
+	local config_dir
+	local interface
+
+	# nethesis patch: config_dir sometimes seems empty, read it using external command
+	if [ "$(uci -q get snort.snort.config_dir)" == "/var/ns-snort" ]; then
+		cdir="$(uci -q get snort.snort.config_dir)"
+		mkdir -p "${cdir}/rules"
+		find /etc/snort -type f ! -name snort.rules -exec cp '{}' "${cdir}" \;
+		update_bypass_set "bypass_src_v4"
+		update_bypass_set "bypass_dst_v4"
+		update_bypass_set "bypass_src_v6"
+		update_bypass_set "bypass_dst_v6"
+		download_rules_if_needed
+		setup_tweaks
+	fi
+
+        validate_snort_section snort || {
+                echo "Validation failed, try 'snort-mgr check'."
+                return 1
+        }
+
+	[ "$enabled" = 0 ] && return
+
+	procd_open_instance
+	if [ "$manual" = 0 ]; then
+		local config_file=$($MGR setup)
+		procd_set_param command "$PROG" -c "${config_file}" --tweaks ns_local
+	else
+		procd_set_param command $PROG -q -i "$interface" -c "${config_dir%/}/snort.lua" --tweaks local
+		procd_set_param env SNORT_LUA_PATH="$config_dir"
+		procd_set_param file $CONFIGFILE
+	fi
+	procd_set_param respawn
+	procd_set_param stdout 1
+	procd_set_param stderr 1
+	procd_close_instance
+}
+
+stop_service()
+{
+	service_stop "$PROG"
+	$MGR teardown
+}
+
+service_triggers()
+{
+	procd_add_reload_trigger "snort"
+	procd_add_validation validate_snort_section
+}
