@@ -16,6 +16,11 @@ start_service() {
     procd_close_instance
 }
 
+stop_service() {
+    # Destroy nft table
+    /usr/sbin/nft delete table inet ns-binding &> /dev/null
+}
+
 service_triggers()
 {
     procd_add_reload_trigger dhcp
