@@ -540,6 +540,8 @@ def list_users(ovpninstance):
     connected = ovpn.list_connected_clients(ovpninstance)
     expirations = list_user_expirations(ovpninstance)
     db = u.get("openvpn", ovpninstance, "ns_user_db", default=None)
+    if not db:
+        return {"users": []}
     db_users = users.list_users(u, db)
     try:
        tags = u.get_all("openvpn", ovpninstance, "ns_tag")
