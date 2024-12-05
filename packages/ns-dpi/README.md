@@ -23,7 +23,7 @@ Global options:
 - `firewall_exemption`: can be `0` or `1`, if set to `1` all firewall IP addresses will be
   added to global exemption list and will not match DPI rules
 - `popular_filters`: list of filters that will be returned to from `api-cli ns.dpi list-popular` call.
-- `exclude`: list of network interface exclusions in Netifyd that will be returned by `uci show netifyd.@netifyd[0].exclude`
+- `ns_exclude`: list of network interface exclusions in Netifyd that will be returned by `uci show netifyd.@netifyd[0].ns_exclude`
 
 Rule options:
 
@@ -153,26 +153,29 @@ By default, Netifyd monitors all interfaces. To exclude specific interfaces, you
 
 - Add interfaces to exclusion list
 ```
-uci add_list netifyd.@netifyd[0].exclude='eth1'
-uci add_list netifyd.@netifyd[0].exclude='tun'
-uci add_list netifyd.@netifyd[0].exclude='wg'
+uci add_list netifyd.@netifyd[0].ns_exclude='eth1'
+uci add_list netifyd.@netifyd[0].ns_exclude='tun*'
+uci add_list netifyd.@netifyd[0].ns_exclude='wg*'
 uci commit netifyd
+echo '{"changes": {"network": {}}}' | /usr/libexec/rpcd/ns.commit call commit
 ```
 
 - Modify exclusion list
 ```
-uci delete netifyd.@netifyd[0].exclude='eth1'
-uci add_list netifyd.@netifyd[0].exclude='eth2'
+uci delete netifyd.@netifyd[0].ns_exclude='eth1'
+uci add_list netifyd.@netifyd[0].ns_exclude='eth2'
 uci commit netifyd
+echo '{"changes": {"network": {}}}' | /usr/libexec/rpcd/ns.commit call commit
 ```
 
 - Clear exclusion list
 ```
-uci delete netifyd.@netifyd[0].exclude
+uci delete netifyd.@netifyd[0].ns_exclude
 uci commit netifyd
+echo '{"changes": {"network": {}}}' | /usr/libexec/rpcd/ns.commit call commit
 ```
 
 - Return the exclusion list
 ```
-uci show netifyd.@netifyd[0].exclude
+uci show netifyd.@netifyd[0].ns_exclude
 ```
