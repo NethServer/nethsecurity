@@ -18,7 +18,7 @@ start_service() {
 
 stop_service() {
     # Destroy nft table
-    /usr/sbin/nft delete table inet ns-binding &> /dev/null
+    /usr/sbin/nft delete table inet ns-binding > /dev/null 2>&1
 }
 
 service_triggers()
