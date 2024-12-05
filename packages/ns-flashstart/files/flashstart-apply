@@ -27,7 +27,7 @@ if [ "$enabled" = "1" ]; then
         /etc/init.d/dnsdist restart
     fi
     /usr/share/ns-flashstart/flashstart-auth
-    crontab -l | grep -q '/usr/share/ns-flashstart/flashstart-auth' || echo '*/30 * * * * sleep $$(( RANDOM % 60 )); /usr/share/ns-flashstart/flashstart-auth' >> /etc/crontabs/root
+    crontab -l | grep -q '/usr/share/ns-flashstart/flashstart-auth' || echo '*/30 * * * * sleep $(( RANDOM % 60 )); /usr/share/ns-flashstart/flashstart-auth' >> /etc/crontabs/root
 else
     crontab -l | grep -v '/usr/share/ns-flashstart/flashstart-auth' | sort | uniq | crontab -
     rm -f "$conf"
