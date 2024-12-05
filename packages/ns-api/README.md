@@ -799,6 +799,108 @@ api-cli ns.dpireport summary-by-client --data '{"year": "2023", "month": "06", "
 
 It has the same structure of the `summary` API.
 
+### summary-v2
+
+Improved version of the `summary` API, the api can accept the following parameters:
+
+- year: the year of the report (default to the current year)
+- month: the month of the report (default to the current month)
+- day: the day of the report (default to the current day)
+- client: filter data for the given client
+- section: section to filter data (application, protocol, host)
+- value: value to filter the previous section
+- limit: limit the items returned in the lists (default to 20)
+
+Example:
+
+```
+api-cli ns.dpireport summary-v2 --data '{"year": "2023", "month": "06", "day": "16", "limit": 10}'
+```
+
+Response:
+
+```json
+{
+  "total_traffic": 16035446620,
+  "hourly_traffic": [
+    {
+      "id": "00",
+      "traffic": 120281002
+    },
+    {
+      "id": "01",
+      "traffic": 879624129
+    },
+    {
+      "id": "02",
+      "traffic": 127278297
+    },
+    {
+      "id": "03",
+      "traffic": 320193579
+    }
+  ],
+  "clients": [
+    {
+      "id": "11.0.1.1",
+      "label": "11.0.1.1",
+      "traffic": 1962950942
+    },
+    {
+      "id": "10.0.0.2",
+      "label": "cool-PC",
+      "traffic": 1413666916
+    }
+  ],
+  "applications": [
+    {
+      "id": "unknown",
+      "label": "Unknown",
+      "traffic": 2148481014
+    },
+    {
+      "id": "netify.google",
+      "label": "Google",
+      "traffic": 2012854079
+    },
+    {
+      "id": "netify.youtube",
+      "label": "Youtube",
+      "traffic": 732979058
+    }
+  ],
+  "remote_hosts": [
+    {
+      "id": "nethservice.nethesis.it",
+      "traffic": 1142530419
+    },
+    {
+      "id": "community.nethserver.org",
+      "traffic": 389680308
+    },
+    {
+      "id": "1d.tlu.dl.delivery.mp.microsoft.com",
+      "traffic": 296533256
+    }
+  ],
+  "protocols": [
+    {
+      "id": "http/s",
+      "label": "HTTP/S",
+      "traffic": 9277455653
+    },
+    {
+      "id": "quic",
+      "label": "QUIC",
+      "traffic": 3638009875
+    }
+  ]
+}
+```
+
+Note: the fields `applications`, `remote_hosts` and `protocols` will always be present if no section is specified. If 
+a section is specified, the response will contain only the `clients`, `hourly_traffic` and `total_traffic` fields.
+
 ## ns.ovpntunnel
 
 ### list-tunnels
