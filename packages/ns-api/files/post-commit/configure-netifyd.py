@@ -11,6 +11,7 @@
 # - reload netifyd service
 
 import subprocess
+from fnmatch import fnmatch
 from euci import EUci
 from nethsec import utils, firewall
 
@@ -25,7 +26,7 @@ if 'network' in changes:
         commit = True
 
     # Fetch excluded interfaces (one-liner)
-    excluded_interfaces = set(uci.get_all("netifyd").get(cname, {}).get("exclude", []))
+    excluded_interfaces = set(uci.get_all("netifyd").get(cname, {}).get("ns_exclude", []))
 
     # Collect interfaces
     internal_if = set()
@@ -36,8 +37,15 @@ if 'network' in changes:
         devices = utils.get_all_devices_by_zone(uci, zone['name'], exclude_aliases=True)
         # Filter interfaces based on exclusion patterns
         filtered_devices = set()
+        if not devices:
+            continue
         for iface in devices:
-            if any(iface.startswith(pattern) for pattern in excluded_interfaces):
+            skip = False
+            for pattern in excluded_interfaces:
+                if fnmatch(iface, pattern):  # Use fnmatch here
+                    skip = True
+                    break
+            if skip:
                 continue
             filtered_devices.add(iface.split('.')[0])  # Strip VLAN part for base interface
         filtered_devices = sorted(filtered_devices)  # Return sorted list
@@ -62,7 +70,6 @@ if 'network' in changes:
         if rule['device'] not in internal_if and rule['device'] not in external_if:
             uci.delete("dpi", r)
             commit = True
-
 if commit:
     uci.commit("netifyd")
     uci.commit("dpi")
