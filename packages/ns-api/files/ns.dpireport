@@ -205,6 +205,9 @@ def summary_v2(year=None, month=None, day=None, narrow_client=None, narrow_secti
             'traffic': raw_client_total_traffic
         })
 
+    # do not display empty values when seeing details
+    if narrow_section and narrow_value:
+        raw_clients = [client for client in raw_clients if client['traffic'] > 0]
     raw_clients.sort(key=lambda x: x['traffic'], reverse=True)
     final_clients = raw_clients[:limit]
 
