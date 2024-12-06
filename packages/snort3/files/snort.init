@@ -96,7 +96,11 @@ start_service() {
 	procd_open_instance
 	if [ "$manual" = 0 ]; then
 		local config_file=$($MGR setup)
-		procd_set_param command "$PROG" -c "${config_file}" --tweaks ns_local
+	        maxlen=$(uci -q get snort.nfq.queue_maxlen)
+		if [ -z "${maxlen}" ]; then
+			maxlen=1024
+		fi
+		procd_set_param command "$PROG" -c "${config_file}" --tweaks ns_local --daq nfq --daq-var queue_maxlen=${maxlen}
 	else
 		procd_set_param command $PROG -q -i "$interface" -c "${config_dir%/}/snort.lua" --tweaks local
 		procd_set_param env SNORT_LUA_PATH="$config_dir"
