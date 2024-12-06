@@ -21,10 +21,17 @@ def run(cmd):
         return utils.generic_error("command_failed")
 
 def get_storage_info(u):
+    ret = None
     for section in utils.get_all_by_type(u, 'fstab', 'mount'):
         if u.get('fstab', section, 'target', default='') == '/mnt/data':
-            return u.get_all('fstab', section)
-    return None
+            ret = u.get_all('fstab', section)
+            if section != 'ns_data':
+                # Fix section name that get lost during the upgrade:
+                # the section name is used by remove-storage script
+                u.rename('fstab', section, 'ns_data')
+                u.commit('fstab')
+            break
+    return ret
 
 def list_devices():
     devices = []
