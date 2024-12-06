@@ -8,6 +8,84 @@
 from euci import EUci
 from nethsec import utils
 import subprocess
+from jinja2 import Environment, BaseLoader
+
+template = """
+table inet ns-binding
+delete table inet ns-binding
+table inet ns-binding {
+    set ipV4Bound {
+        type ipv4_addr
+        flags interval
+        auto-merge
+        {% if reservations | length > 0 -%}
+        elements = { {{ reservations.values() | join(', ') }} }
+        {%- endif %}
+    }
+
+    set etherBound {
+        type ether_addr
+        flags interval
+        auto-merge
+        {% if reservations | length > 0 -%}
+        elements = { {{ reservations.keys() | join(', ') }} }
+        {%- endif %}
+    }
+
+    set bindingListV4 {
+        type ether_addr . ipv4_addr
+        policy memory
+        flags interval
+        auto-merge
+        {% if reservations | length > 0 -%}
+        elements = {
+            {%- for mac, ip in reservations.items() -%}
+            {{ mac }} . {{ ip }},
+            {%- endfor -%}
+        }
+        {%- endif %}
+    }
+
+    chain input {
+        type filter hook input priority -110; policy drop;
+        ct state established,related accept
+        iifname != { {{ dhcp_interfaces | join(' , ') }} } accept
+        udp dport 67-68 accept
+        {%- for iface, mode in dhcp_interfaces.items() %}
+        {%- if mode == '1' %}
+        iifname {{ iface }} jump soft-binding
+        {%- elif mode == '2' %}
+        iifname {{ iface }} jump binding
+        {%- endif %}
+        {%- endfor %}
+        log flags all prefix "ns-binding DROP: " counter
+    }
+
+    chain forward {
+        type filter hook forward priority -110; policy drop;
+        ct state established,related accept
+        iifname != { {{ dhcp_interfaces | join(' , ') }} } accept
+        {%- for iface, mode in dhcp_interfaces.items() %}
+        {%- if mode == '1' %}
+        iifname {{ iface }} jump soft-binding
+        {%- elif mode == '2' %}
+        iifname {{ iface }} jump binding
+        {%- endif %}
+        {%- endfor %}
+        log flags all prefix "ns-binding DROP: " counter
+    }
+
+    chain soft-binding {
+        ether saddr @etherBound counter goto binding
+        ip saddr @ipV4Bound counter goto binding
+        accept
+    }
+
+    chain binding {
+        ether saddr . ip saddr @bindingListV4 counter accept
+    }
+}
+"""
 
 e_uci = EUci()
 
@@ -32,93 +110,9 @@ if len(dhcp_interfaces) > 0:
         reservation['mac']: reservation['ip']
         for reservation in utils.get_all_by_type(e_uci, 'dhcp', 'host').values()
     }
-    # file generation
-    binding_items = [f'{mac} . {ip}' for mac, ip in reservations.items()]
-    file = f"""
-    table inet ns-binding
-    delete table inet ns-binding
-
-    table inet ns-binding {{
-        set ipV4Bound {{
-            type ipv4_addr
-            flags interval
-            auto-merge
-            {'elements = {' if len(reservations) > 0 else ''}
-                {', '.join(reservations.values())}
-            {'}' if len(reservations) > 0 else ''}
-        }}
-        
-        set etherBound {{
-            type ether_addr
-            flags interval
-            auto-merge
-            {'elements = {' if len(reservations) > 0 else ''}
-                {', '.join(reservations.keys())}
-            {'}' if len(reservations) > 0 else ''}
-        }}
-    
-        set bindingListV4 {{
-            type ether_addr . ipv4_addr
-            policy memory
-            flags interval
-            auto-merge
-            {'elements = {' if len(binding_items) > 0 else ''}
-                {', '.join(binding_items)}
-            {'}' if len(binding_items) > 0 else ''}
-        }}
-    """
-
-    # if interface is not in one where the DHCP server is configured, allow DHCP queries and check with bindingListV4 for all rest
-    file += f"""
-        chain input {{
-            type filter hook input priority -110; policy drop;
-            ct state established,related accept
-            iifname != {{ {' , '.join(dhcp_interfaces)} }} accept
-            udp dport 67-68 accept
-        """
-    for iface in dhcp_interfaces:
-        if dhcp_interfaces[iface] == '1':
-            file += f"""
-            iifname {iface} jump soft-binding
-            """
-        elif dhcp_interfaces[iface] == '2':
-            file += f"""
-            iifname {iface} jump binding
-            """
-    file += f"""
-            log flags all prefix "ns-binding DROP: " counter
-        }}
-        
-        chain forward {{
-            type filter hook forward priority -110; policy drop;
-            ct state established,related accept
-            iifname != {{ {' , '.join(dhcp_interfaces)} }} accept
-        """
-    for iface in dhcp_interfaces:
-        if dhcp_interfaces[iface] == '1':
-            file += f"""
-            iifname {iface} jump soft-binding
-            """
-        elif dhcp_interfaces[iface] == '2':
-            file += f"""
-            iifname {iface} jump binding
-            """
-    file += f"""
-            log flags all prefix "ns-binding DROP: " counter
-        }}
-        
-        chain soft-binding {{
-            ether saddr @etherBound counter goto binding
-            ip saddr @ipV4Bound counter goto binding
-            accept
-        }}
-        
-        chain binding {{
-            ether saddr . ip saddr @bindingListV4 counter accept
-        }}
-    }}
-    """
-    subprocess.run(['/usr/sbin/nft', '-f', '-'], input=file.encode(), check=True)
+    template = Environment(loader=BaseLoader()).from_string(template)
+    render = template.render(reservations=reservations, dhcp_interfaces=dhcp_interfaces)
+    subprocess.run(['/usr/sbin/nft', '-f', '-'], input=render.encode(), check=True)
     print('ns-binding table created')
 else:
     subprocess.run(['/usr/sbin/nft', 'delete', 'table', 'inet', 'ns-binding'], capture_output=True)
