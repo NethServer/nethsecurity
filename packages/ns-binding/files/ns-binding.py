@@ -18,13 +18,13 @@ network_interfaces = {
 }
 dhcp_servers = [
     server for server in utils.get_all_by_type(e_uci, 'dhcp', 'dhcp').values()
-    if server.get('ns_binding', '0') == '1' and server.get('interface') in network_interfaces
+    if server.get('ns_binding', '0') != '0' and server.get('interface') in network_interfaces
 ]
 # generate list of interfaces used by DHCP servers
-dhcp_interfaces = [
-    network_interfaces[server.get('interface')]
+dhcp_interfaces = {
+    network_interfaces[server.get('interface')]: server.get('ns_binding')
     for server in dhcp_servers
-]
+}
 
 if len(dhcp_interfaces) > 0:
     # reservation entry
@@ -39,7 +39,6 @@ if len(dhcp_interfaces) > 0:
     delete table inet ns-binding
 
     table inet ns-binding {{
-    
         set ipV4Bound {{
             type ipv4_addr
             flags interval
@@ -67,27 +66,55 @@ if len(dhcp_interfaces) > 0:
                 {', '.join(binding_items)}
             {'}' if len(binding_items) > 0 else ''}
         }}
-        
-        # if interface is not in one where the DHCP server is configured, allow DHCP queries and check with bindingListV4 for all rest
+    """
+
+    # if interface is not in one where the DHCP server is configured, allow DHCP queries and check with bindingListV4 for all rest
+    file += f"""
         chain input {{
-            type filter hook input priority -110; policy accept;
+            type filter hook input priority -110; policy drop;
             ct state established,related accept
             iifname != {{ {' , '.join(dhcp_interfaces)} }} accept
             udp dport 67-68 accept
-            ether saddr @etherBound counter jump binding
-            ip saddr @ipV4Bound counter jump binding
+        """
+    for iface in dhcp_interfaces:
+        if dhcp_interfaces[iface] == '1':
+            file += f"""
+            iifname {iface} jump soft-binding
+            """
+        elif dhcp_interfaces[iface] == '2':
+            file += f"""
+            iifname {iface} jump binding
+            """
+    file += f"""
+            log flags all prefix "ns-binding DROP: " counter
         }}
         
         chain forward {{
-            type filter hook forward priority -110; policy accept;
+            type filter hook forward priority -110; policy drop;
             ct state established,related accept
             iifname != {{ {' , '.join(dhcp_interfaces)} }} accept
-            ether saddr @etherBound counter jump binding
-            ip saddr @ipV4Bound counter jump binding
+        """
+    for iface in dhcp_interfaces:
+        if dhcp_interfaces[iface] == '1':
+            file += f"""
+            iifname {iface} jump soft-binding
+            """
+        elif dhcp_interfaces[iface] == '2':
+            file += f"""
+            iifname {iface} jump binding
+            """
+    file += f"""
+            log flags all prefix "ns-binding DROP: " counter
+        }}
+        
+        chain soft-binding {{
+            ether saddr @etherBound counter goto binding
+            ip saddr @ipV4Bound counter goto binding
+            accept
         }}
         
         chain binding {{
-            ether saddr . ip saddr != @bindingListV4 log flags all prefix "ns-binding DROP: " drop
+            ether saddr . ip saddr @bindingListV4 counter accept
         }}
     }}
     """

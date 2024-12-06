@@ -22,7 +22,7 @@ define Package/ns-binding
 	CATEGORY:=NethSecurity
 	TITLE:=MAC/IP binding
 	URL:=https://github.com/NethServer/nethsecurity
-	DEPENDS:=+python3-nethsec +dnsmasq-full
+	DEPENDS:=+python3-nethsec +dnsmasq-full +python3-jinja2
 	PKGARCH:=all
 endef
  
