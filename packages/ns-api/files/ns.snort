@@ -118,6 +118,7 @@ def setup(enabled, set_home_net = False, include_vpn = False, ns_policy = 'balan
         uci.set('snort', 'snort', 'method', 'nfq')
         uci.set('snort', 'snort', 'external_net', '!$HOME_NET')
         uci.set('snort', 'nfq', 'chain_type', 'forward')
+        uci.set('snort', 'nfq', 'queue_maxlen', '4096')
 
     # always set the number of threads to the number of CPUs
     # if the hardware changes, a new setup is required
