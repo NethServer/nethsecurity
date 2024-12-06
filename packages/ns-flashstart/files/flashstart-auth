@@ -10,7 +10,6 @@
 #
 
 from euci import EUci
-from nethsec import utils
 import subprocess
 import sys
 import syslog
@@ -22,8 +21,18 @@ if not u.get("flashstart", "global", "enabled", default=False):
 
 user = u.get("flashstart", "global", "username", default="")
 password = u.get("flashstart", "global", "password", default="")
+
+# Get WAN devices from fw4 to get the real device names, including pppx interfaces for PPPoE
+wan_devices = set()
+res = subprocess.run(["/sbin/fw4", "zone", "wan"], capture_output=True, text=True)
+if res.returncode != 0:
+    syslog.syslog(syslog.LOG_ERR, f'Failed to get WAN devices with error: {res.stdout}')
+    sys.exit(1)
+wan_devices.update([line.strip() for line in res.stdout.splitlines() if line.strip()])
+
+# Order the devices to make sure to not mix ids for the same device
 counter = 0
-for wan in utils.get_all_wan_devices(u):
+for wan in sorted(wan_devices):
     if counter > 0:
         id = f"{user}-{counter}"
     else:
