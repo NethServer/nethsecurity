@@ -83,9 +83,9 @@ def download_official_rules(oinkcode):
         sys.exit(1)
 
 def filter_official_rules(policy, alert_excluded, disabled_sids, oinkcode=None):
-    drop_rules = []
-    alert_rules = []
-    ret = []
+    drop_rules = set()
+    alert_rules = set()
+    ret = set()
     rule_files = []
     if oinkcode:
         rule_files = glob.glob(os.path.join(OFFICIAL_RULES_DIR, "rules/*.rules"))
@@ -105,24 +105,24 @@ def filter_official_rules(policy, alert_excluded, disabled_sids, oinkcode=None):
                 log(f"Skipping disabled rule {rule.sid}")
                 continue
             if policy == "connectivity" and 'policy connectivity-ips drop' in rule.metadata:
-                drop_rules.append(rule)
+                drop_rules.add(rule)
             elif policy == "balanced" and 'policy balanced-ips drop' in rule.metadata:
-                drop_rules.append(rule)
+                drop_rules.add(rule)
             elif policy == "security" and 'policy security-ips drop' in rule.metadata:
-                drop_rules.append(rule)
+                drop_rules.add(rule)
             elif policy == "max-detect" and 'policy max-detect-ips drop' in rule.metadata:
-                drop_rules.append(rule)
+                drop_rules.add(rule)
             else:
                 # Add excluded rules as alerts but not if they are ICMP (too noisy)
                 if alert_excluded and 'PROTOCOL-ICMP' not in rule.msg:
-                    alert_rules.append(rule)
+                    alert_rules.add(rule)
         for rule in drop_rules:
             if rule.action != 'drop':
                 rule.raw = rule.raw.replace(rule.action, "drop", 1)
-            ret.append(rule.raw)
+            ret.add(rule.raw)
     # append alert rules
-    ret += alert_rules
-    return ret
+    ret.update(alert_rules)
+    return list(ret)
 
 def prepare_rule_file():
     rule_file = os.path.join(RULES_DIR, "snort.rules")
