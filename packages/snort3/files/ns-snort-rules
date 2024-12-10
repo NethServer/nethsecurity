@@ -82,11 +82,20 @@ def download_official_rules(oinkcode):
         log(f"Failed to download rules from {url}: {e}")
         sys.exit(1)
 
-def filter_official_rules(policy, alert_excluded, disabled_sids, oinkcode=None):
+def filter_official_rules(policy, alert_excluded, disabled_rules, oinkcode=None):
     drop_rules = set()
     alert_rules = set()
     ret = set()
+    disabled_sids = set()
     rule_files = []
+
+    # A disabled rule is a list of 3 elements separated by commas:
+    # <gid>,<sid>,<description>
+    # the description is optional, the following chars are not allowed: , \n and space
+    for d in disabled_rules:
+        parts = d.split(",")
+        disabled_sids.add(f'{parts[0]}:{parts[1]}')
+
     if oinkcode:
         rule_files = glob.glob(os.path.join(OFFICIAL_RULES_DIR, "rules/*.rules"))
     else:
@@ -101,8 +110,8 @@ def filter_official_rules(policy, alert_excluded, disabled_sids, oinkcode=None):
             # - policy connectivity-ips drop
             # - policy security-ips drop
             # - policy max-detect-ips drop
-            if rule.metadata is None or not rule.enabled or rule.sid in disabled_sids:
-                log(f"Skipping disabled rule {rule.sid}")
+            if rule.metadata is None or not rule.enabled or f'{rule.gid}:{rule.sid}' in disabled_sids:
+                log(f"Skipping disabled rule {rule.gid}:{rule.sid}")
                 continue
             if policy == "connectivity" and 'policy connectivity-ips drop' in rule.metadata:
                 drop_rules.add(rule)
@@ -169,7 +178,7 @@ def main():
     prepare_rule_file() # /etc/snort/rules/snort.rules
 
     try:
-        disabled_rules = list(map(int, uci.get_all("snort", "snort", "ns_disabled_rules")))
+        disabled_rules = list(uci.get_all("snort", "snort", "ns_disabled_rules"))
     except:
         disabled_rules = []
 
