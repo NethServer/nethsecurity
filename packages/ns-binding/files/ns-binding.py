@@ -76,13 +76,13 @@ table inet ns-binding {
     }
 
     chain soft-binding {
-        ether saddr @etherBound counter goto binding
-        ip saddr @ipV4Bound counter goto binding
+        ether saddr @etherBound goto binding
+        ip saddr @ipV4Bound goto binding
         accept
     }
 
     chain binding {
-        ether saddr . ip saddr @bindingListV4 counter accept
+        ether saddr . ip saddr @bindingListV4 accept
     }
 }
 """
