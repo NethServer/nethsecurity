@@ -50,7 +50,7 @@ This package add the following extra UCI options under the `snort` section:
 
 - `ns_policy` - the policy to use for the Snort rules. Possible values are `connectivity`, `balanced`, `security`, `max-detect`.
 - `ns_alert_excluded` - if set to `1` the rules that are not part of any policy are added as alert rules, ICMP rules are always excluded because they are used for testing.
-- `ns_disabled_rules` - a list of SIDs to disable.
+- `ns_disabled_rules` - a list of rules to disable. See [Disable rules](#disable-rules) for more details.
 - `ns_suppress` - a list of suppress rules. See [Rule suppression](#rule-suppression) for more details.
 
 This package also adds the following extra UCI options under the `nfq` section:
@@ -96,12 +96,16 @@ If rules have been downloaded, the `ns-snort-rules` script will not download the
 A disabled rule is a rule that is not include in the Snort ruleset.
 
 To disable some rules use the `ns_disabled_rules` option inside UCI.
-The option is a list of rule SIDS.
+The option is a list of entries in this format: `<gid>,<sid>,<description>`.
+
+- `gid` - the rule GID, it is a number and usually is always `1`
+- `sid` - the rule SID, it is a number
+- `description` - a description of the disabled rule, it is optional and can be omitted; the following characters are not allowed: `,`, ` `, `\n`;
 
 Example: disable rules with SID 24225 and 24227:
 ```bash
-uci add_list snort.snort.ns_disabled_rules=24225
-uci add_list snort.snort.ns_disabled_rules=24227
+uci add_list snort.snort.ns_disabled_rules=1,24225
+uci add_list snort.snort.ns_disabled_rules=3,24227,false_positive
 uci commit snort
 /etc/init.d/snort restart
 ```
@@ -148,7 +152,7 @@ Each suppress rule is a comma separated list of values: `gid,sid,direction,ip,de
 - `sid` - the rule SID, it is a number
 - `direction` - the direction of the rule, it can be `by_src` or `by_dst`
 - `ip` - the IPv4 address or CIDR to suppress
-- `description` - a description of the suppress rule, it is optional and can be omitted; it must contain no commas nor no spaces and newlines
+- `description` - a description of the suppress rule, it is optional and can be omitted; the following characters are not allowed: `,`, ` `, `\n`;
 
 Example:
 ```bash
