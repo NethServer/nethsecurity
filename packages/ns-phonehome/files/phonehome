@@ -57,15 +57,13 @@ if os.path.isdir('/proc/bus/pci'):
         pci[fields[0]]['device_name'] = fields[3]
         pci[fields[0]]['driver'] =  drivers.get(fields[0], '')
 
-# use hardware uuid, if not present just generate one
-sid = _run("cat /sys/class/dmi/id/product_uuid")
+# generate the UUID if not present
+u = EUci()
+sid = u.get('phonehome', 'config', 'uuid', default=None)
 if not sid:
-    u = EUci()
-    sid = u.get('phonehome', 'config', 'uuid', default=None)
-    if not sid:
-        sid = str(uuid.uuid4())
-        u.set('phonehome', 'config', 'uuid', sid)
-        u.commit('phonehome')
+    sid = str(uuid.uuid4())
+    u.set('phonehome', 'config', 'uuid', sid)
+    u.commit('phonehome')
 
 product = _run("cat /sys/devices/virtual/dmi/id/product_name")
 if not product:
