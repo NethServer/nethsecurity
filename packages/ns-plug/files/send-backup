@@ -37,10 +37,20 @@ if [ -z "$SYSTEM_ID" ] || [ -z "$SYSTEM_SECRET" ]; then
     exit 0
 fi
 
+# hack: avoid to backup non-config file
+if [ -f /etc/acme/http.header ]; then
+    mv /etc/acme/http.header /tmp
+fi
+
 # Create the backup
 mkdir -p $WORK_DIR
 sysupgrade -k -b $BACKUP 2>/dev/null
 md5sum $BACKUP | awk '{print $1}' > $MD5
+
+# hack: restore acme working file
+if [ -f /tmp/http.header ]; then
+    mv /tmp/http.header /etc/acme
+fi
 
 # Send backup if there is no md5 saved
 if [ ! -f "$MD5_LAST" ]; then
