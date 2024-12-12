@@ -7788,3 +7788,148 @@ If `set_home_net` is `true`, the API will set the `HOME_NET` variable for the Sn
 If `include_vpn` is `true`, the API will include the VPN networks in the `HOME_NET` variable.
 The `ns_policy` can be `balanced`, `security` or `connectivity` or `max-detect`.
 The `ns_disabled_rules` is a list of SIDs (integer) of rules to be disabled.
+
+## ns.wireguard
+
+Configure WireGuard VPN both in Road Warrior and site-to-site mode.
+
+### list-instances
+
+List all WireGuard instances:
+```
+api-cli ns.wireguard list-instances
+```
+
+Response example:
+```json
+{"instances": ["wg1", "wg2"]}
+```
+
+### get-instance-defaults
+
+Generate defaults for a new WireGuard instance:
+```
+api-cli ns.wireguard get-instance-defaults
+```
+
+Response example:
+```json
+{"listen_port": 51821, "instance": "wg2", "network": "10.210.112.0/24", "routes": ["192.168.100.0/24"], "public_endpoint": "185.96.1.1"}
+```
+
+### get-configuration
+
+Return current instance configuration:
+```
+api-cli ns.wireguard get-configuration --data '{"instance": "wg1"}'
+```
+
+Response example:
+```json
+{"proto": "wireguard", "private_key": "oBwTyCkOgUz29UEvuJZstuAjB87SH4x26MVLxAj152M=", "listen_port": "51820", "addresses": ["10.103.1.1"], "ns_network": "10.103.1.0/24", "ns_public_endpoint": "192.168.122.49", "ns_routes": ["192.168.100.0/24"], "ns_name": "wg1", "disabled": "0", "ns_client_to_client": false, "ns_route_all_traffic": false, "enabled": true}
+```
+
+### set-instance
+
+Create a new instance or configure an existing one:
+```
+api-cli ns.wireguard set-instance --data '{"listen_port": 51820, "name": "wg1", "instance": "wg1", "enabled": true, "network": "10.103.1.0/24", "routes": ["192.168.100.0/24"], "public_endpoint": "192.168.122.49", "dns": [], "user_db": ""}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+Parameters:
+- `listen_port`: the port where the WireGuard server listens
+- `name`: the name of the instance, it must be unique and it's the name of the interface on the system, it must be a valid interface name and start with `wg`
+- `enabled`: `true` to enable the instance, `false` to disable it
+- `network`: the network of the WireGuard instance, this is the network where the clients will be connected
+- `routes`: the routes that the clients will receive when connected, this parameter is used during the client configuration creation
+- `public_endpoint`: the public endpoint of the WireGuard server, it can be an IP address or a domain name, it's used during the client configuration creation
+- `dns`: the DNS servers that the clients will receive when connected, it's used during the client configuration creation; this option is honored only if the peer
+   has the `ns_route_all_traffic` option set to `1`   
+- `user_db`: the user database to use for authentication; if empty, the instance will not be connected to an existing user db and the WireGuard peer will be 
+  indipendent; if the user db is set, each new peer must be have a user with the same name in the user db
+
+### remove-instance
+
+Remove an existing instance and all associated peers:
+```
+api-cli ns.wireguard remove-instance --data '{"instance": "wg1"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+### set-peer
+
+Create or configure a peer.
+
+Example to create a Road Warrior peer:
+```
+api-cli ns.wireguard set-peer --data '{"instance": "wg1", "account": "user1", "enabled": true, "route_all_traffic": false, "client_to_client": false, "ns_routes": [], "preshared_key": true}'
+```
+
+Example to create a Site-to-Site peer:
+```
+api-cli ns.wireguard set-peer --data '{"instance": "wg1", "account": "site1", "enabled": true, "route_all_traffic": true, "client_to_client": true, "ns_routes": ["192.168.100.0/24"], "preshared_key": true}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+Parameters:
+- `instance`: the name of the WireGuard instance, the instance must exist
+- `account`: the name of the peer, it must be unique for the instance; if the instance is connected to a user db, the account must be the name of an existing user
+- `enabled`: `true` to enable the peer, `false` to disable it
+- `route_all_traffic`: `true` to route all the traffic of the peer through the WireGuard tunnel, `false` to route only the traffic for the `ns_routes` through the tunnel; if this option is set the `dns` option in the instance configuration will be honored
+- `client_to_client`: `true` to allow the peer to communicate with other peers connected to the same instance, `false` to disallow it; it must be set to `true`
+   if the `route_all_traffic` is set to `true` when the client is not a Road Warrior user but another firewall for a site-to-site connection
+- `ns_routes`: the routes that the peer will receive when connected, this parameter is used during the client configuration creation
+- `preshared_key`: `true` to generate a new preshared key for the peer, `false` to not use it
+
+### remove-peer
+
+Remove an existing peer:
+```
+api-cli ns.wireguard remove-peer --data '{"instance": "wg1", "account": "user1"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+### download-peer-config
+
+Download the configuration of a peer:
+```
+api-cli ns.wireguard download-peer-config --data '{"instance": "wg1", "account": "user1"}'
+```
+
+Response example:
+```json
+{"config": "# Account: user1 for wg1\n[Interface]\nPrivateKey = 4OoVRqKW0Tur511IL6ttX6iz/EnxrbKzUcAX89bUxlU=\nAddress = 10.103.1.2\n# Custom DNS disabled\n\n[Peer]\nPublicKey = gm1cTae6ub4QGvQcknrb3FbN46x1tbaXJjOQbwX/siM=\nPreSharedKey = /3EbK9a8DW3D7vn0SFp3oK2XSoem05DpG4IxEZ4qoyU=\nAllowedIPs = 192.168.100.0/24,10.103.1.0/24\nEndpoint = 192.168.122.49:51820\nPersistentKeepalive = 25", "qrcode": "G1s0MDszNzs..."}
+```
+
+Output parameters:
+- `config`: the configuration of the peer, it's in clear text; remember to encode it to base64 before importing it into another firewall
+- `qrcode`: the QR code of the configuration, it's a base64 encoded image; it can be used to import the configuration into a mobile app
+
+### import-configuration
+
+Import a WireGuard configuration:
+```
+api-cli ns.wireguard import-configuration --data '{"config": "base64encodedconfig"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
