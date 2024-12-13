@@ -8,6 +8,7 @@
 import argparse
 import os
 import sys
+import glob
 import shutil
 import logging
 import urllib.request
@@ -55,7 +56,7 @@ def generate_testing_rules():
 def download_official_rules(oinkcode):
     if oinkcode:
         log("Downloading subscriber rules...")
-        url = f"https://www.snort.org/downloads/snortrules-snapshot-{oinkcode}.tar.gz"
+        url = f"https://www.snort.org/rules/snortrules-snapshot-31470.tar.gz?oinkcode={oinkcode}"
         archive_loc = f"snortrules-snapshot-{oinkcode}"
     else:
         log("Downloading community rules...")
@@ -81,39 +82,56 @@ def download_official_rules(oinkcode):
         log(f"Failed to download rules from {url}: {e}")
         sys.exit(1)
 
-def filter_official_rules(policy, alert_excluded, disabled_sids):
-    drop_rules = []
-    alert_rules = []
-    ret = []
-    # official rules are downloaded to /var/snort.d/snort3-community-rules/snort3-community.rules
-    for rule in snort.parse_file(os.path.join(OFFICIAL_RULES_DIR, "snort3-community-rules/snort3-community.rules")):
-        # rule.metadata can contain:
-        # - policy balanced-ips drop
-        # - policy connectivity-ips drop
-        # - policy security-ips drop
-        # - policy max-detect-ips drop
-        if rule.metadata is None or not rule.enabled or rule.sid in disabled_sids:
-            log(f"Skipping disabled rule {rule.sid}")
-            continue
-        if policy == "connectivity" and 'policy connectivity-ips drop' in rule.metadata:
-            drop_rules.append(rule)
-        elif policy == "balanced" and 'policy balanced-ips drop' in rule.metadata:
-            drop_rules.append(rule)
-        elif policy == "security" and 'policy security-ips drop' in rule.metadata:
-            drop_rules.append(rule)
-        elif policy == "max-detect" and 'policy max-detect-ips drop' in rule.metadata:
-            drop_rules.append(rule)
-        else:
-            # Add excluded rules as alerts but not if they are ICMP (too noisy)
-            if alert_excluded and 'PROTOCOL-ICMP' not in rule.msg:
-                alert_rules.append(rule)
-    for rule in drop_rules:
-        if rule.action != 'drop':
-            rule.raw = rule.raw.replace(rule.action, "drop", 1)
-        ret.append(rule.raw)
+def filter_official_rules(policy, alert_excluded, disabled_rules, oinkcode=None):
+    drop_rules = set()
+    alert_rules = set()
+    ret = set()
+    disabled_sids = set()
+    rule_files = []
+
+    # A disabled rule is a list of 3 elements separated by commas:
+    # <gid>,<sid>,<description>
+    # the description is optional, the following chars are not allowed: , \n and space
+    for d in disabled_rules:
+        parts = d.split(",")
+        disabled_sids.add(f'{parts[0]}:{parts[1]}')
+
+    if oinkcode:
+        rule_files = glob.glob(os.path.join(OFFICIAL_RULES_DIR, "rules/*.rules"))
+    else:
+        # official rules are downloaded to /var/snort.d/snort3-community-rules/snort3-community.rules
+            rule_files = [os.path.join(OFFICIAL_RULES_DIR, "snort3-community-rules/snort3-community.rules")]
+
+    for file in rule_files:
+        log(f"Processing rule file {file}")
+        for rule in snort.parse_file(file):
+            # rule.metadata can contain:
+            # - policy balanced-ips drop
+            # - policy connectivity-ips drop
+            # - policy security-ips drop
+            # - policy max-detect-ips drop
+            if rule.metadata is None or not rule.enabled or f'{rule.gid}:{rule.sid}' in disabled_sids:
+                log(f"Skipping disabled rule {rule.gid}:{rule.sid}")
+                continue
+            if policy == "connectivity" and 'policy connectivity-ips drop' in rule.metadata:
+                drop_rules.add(rule)
+            elif policy == "balanced" and 'policy balanced-ips drop' in rule.metadata:
+                drop_rules.add(rule)
+            elif policy == "security" and 'policy security-ips drop' in rule.metadata:
+                drop_rules.add(rule)
+            elif policy == "max-detect" and 'policy max-detect-ips drop' in rule.metadata:
+                drop_rules.add(rule)
+            else:
+                # Add excluded rules as alerts but not if they are ICMP (too noisy)
+                if alert_excluded and 'PROTOCOL-ICMP' not in rule.msg:
+                    alert_rules.add(rule)
+        for rule in drop_rules:
+            if rule.action != 'drop':
+                rule.raw = rule.raw.replace(rule.action, "drop", 1)
+            ret.add(rule.raw)
     # append alert rules
-    ret += alert_rules
-    return ret
+    ret.update(alert_rules)
+    return list(ret)
 
 def prepare_rule_file():
     rule_file = os.path.join(RULES_DIR, "snort.rules")
@@ -160,17 +178,17 @@ def main():
     prepare_rule_file() # /etc/snort/rules/snort.rules
 
     try:
-        disabled_rules = list(map(int, uci.get_all("snort", "snort", "ns_disabled_rules")))
+        disabled_rules = list(uci.get_all("snort", "snort", "ns_disabled_rules"))
     except:
         disabled_rules = []
- 
+
+    oinkcode = uci.get("snort", "snort", "oinkcode", default=None)
     if args.download:
-        oinkcode = uci.get("snort", "snort", "oinkcode", default=None)
         download_official_rules(oinkcode)
     
     official_policy = uci.get("snort", "snort", "ns_policy", default="security")
     alert_excluded = uci.get("snort", "snort", "ns_alert_excluded", default="")
-    rules = filter_official_rules(official_policy, alert_excluded, disabled_rules)
+    rules = filter_official_rules(official_policy, alert_excluded, disabled_rules, oinkcode)
 
     append_rules_to_file(rules)
 
