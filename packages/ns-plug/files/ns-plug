@@ -71,7 +71,7 @@ response=""
 until [ "${valid}" -eq 1 ] || [ "${watchdog}" -ge "${max_attempts}" ]
 do
     response=$(curl ${curl_opts} -H "Content-Type: application/json" -H "RegistrationToken: ${token}" ${server}/api/units/register -X POST --data '{"unit_id": "'${unit_id}'", "username": "'${user}'", "password": "'${secret}'", "unit_name": "'${unit_name}'", "version": "'${VERSION_ID}'", "subscription_type": "'${subscription_type}'", "system_id": "'${system_id}'"}')
-    http_code=$(echo ${response} | jq -r .code)
+    http_code=$(echo ${response} | jq -r '.code // empty')
     if [ "${http_code}" == "409" ]; then
         # Duplicate entry, cleanup uci config
         uci delete rpcd.controller
@@ -112,6 +112,7 @@ dev tun-nsplug
 tls-client
 script-security 2
 route-up /usr/sbin/ns-controller-push-info
+down "/usr/sbin/restart-ns-plug"
 <ca>
 ${ca}
 </ca>
