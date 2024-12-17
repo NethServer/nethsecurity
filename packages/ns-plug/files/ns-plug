@@ -112,7 +112,7 @@ dev tun-nsplug
 tls-client
 script-security 2
 route-up /usr/sbin/ns-controller-push-info
-down "/usr/sbin/restart-ns-plug"
+down "/usr/libexec/restart-ns-plug"
 <ca>
 ${ca}
 </ca>
