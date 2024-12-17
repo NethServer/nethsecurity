@@ -7,7 +7,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-binding
-PKG_VERSION:=0.0.1
+PKG_VERSION:=0.0.2
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-binding-$(PKG_VERSION)
