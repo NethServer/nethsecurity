@@ -74,18 +74,18 @@ def setup(role, lan_interface, ha_interface, virtual_ip, ha_main_ipaddress, ha_s
         u.set('keepalived', 'ha_peer', 'ssh_port', '22')
         u.set('keepalived', 'ha_peer', 'ssh_key', '/etc/keepalived/keys/id_rsa')
 
-        u.set('keepalived', 'vrrp_instance', 'main')
-        u.set('keepalived', 'vrrp_instance', 'name', 'master')
-        u.set('keepalived', 'vrrp_instance', 'state', 'MASTER')
-        u.set('keepalived', 'vrrp_instance', 'interface', ha_interface)
-        u.set('keepalived', 'vrrp_instance', 'virtual_router_id', '100')
-        u.set('keepalived', 'vrrp_instance', 'priority', '100')
-        u.set('keepalived', 'vrrp_instance', 'advert_int', '1')
-        u.set('keepalived', 'vrrp_instance', 'nopreempt', '0')
-        u.set('keepalived', 'vrrp_instance', 'virtual_ipaddress', [f'{lan_interface}_ha'])
-        u.set('keepalived', 'vrrp_instance', 'unicast_src_ip', ha_main_ipaddress)
-        u.set('keepalived', 'vrrp_instance', 'unicast_peer', ['backup'])
-        u.set('keepalived', 'vrrp_instance', 'auth_type', 'PASS')
+        u.set('keepalived', 'main', 'vrrp_instance')
+        u.set('keepalived', 'main', 'name', 'master')
+        u.set('keepalived', 'main', 'state', 'MASTER')
+        u.set('keepalived', 'main', 'interface', ha_interface)
+        u.set('keepalived', 'main', 'virtual_router_id', '100')
+        u.set('keepalived', 'main', 'priority', '100')
+        u.set('keepalived', 'main', 'advert_int', '1')
+        u.set('keepalived', 'main', 'nopreempt', '0')
+        u.set('keepalived', 'main', 'virtual_ipaddress', [f'{lan_interface}_ha'])
+        u.set('keepalived', 'main', 'unicast_src_ip', ha_main_ipaddress)
+        u.set('keepalived', 'main', 'unicast_peer', ['backup'])
+        u.set('keepalived', 'main', 'auth_type', 'PASS')
 
         password = u.get('keepalived', 'vrrp_instance', 'auth_pass', default=None)
         if not password:
@@ -93,9 +93,9 @@ def setup(role, lan_interface, ha_interface, virtual_ip, ha_main_ipaddress, ha_s
             current_time = str(time.time()).encode('utf-8')
             password = hashlib.sha1(current_time).hexdigest()[:8]
         ret['password'] = password
-        u.set('keepalived', 'vrrp_instance', 'auth_pass', password)
-        u.set('keepalived', 'vrrp_instance', 'track_interface', [f'{lan_interface}_ha'])
-        u.set('keepalived', 'vrrp_instance', 'track_script', ['sender'])
+        u.set('keepalived', 'main', 'auth_pass', password)
+        u.set('keepalived', 'main', 'track_interface', [f'{lan_interface}_ha'])
+        u.set('keepalived', 'main', 'track_script', ['sender'])
 
         # Generate the private key if it does not exist
         private_key_path = '/etc/keepalived/keys/id_rsa'
@@ -121,34 +121,35 @@ def setup(role, lan_interface, ha_interface, virtual_ip, ha_main_ipaddress, ha_s
         u.set('keepalived', 'ha_peer', 'sync_dir', '/usr/share/keepalived/rsync')
         u.set('keepalived', 'ha_peer', 'ssh_pubkey', pubkey)
   
-        u.set('keepalived', 'vrrp_instance', 'backup')
-        u.set('keepalived', 'vrrp_instance', 'name', 'backup')
-        u.set('keepalived', 'vrrp_instance', 'state', 'BACKUP')
-        u.set('keepalived', 'vrrp_instance', 'interface', ha_interface)
-        u.set('keepalived', 'vrrp_instance', 'virtual_router_id', '100')
-        u.set('keepalived', 'vrrp_instance', 'priority', '50')
-        u.set('keepalived', 'vrrp_instance', 'advert_int', '1')
-        u.set('keepalived', 'vrrp_instance', 'nopreempt', '0')
-        u.set('keepalived', 'vrrp_instance', 'virtual_ipaddress', [f'{lan_interface}_ha'])
-        u.set('keepalived', 'vrrp_instance', 'unicast_src_ip', ha_secondary_ipaddress)
-        u.set('keepalived', 'vrrp_instance', 'unicast_peer', ['master'])
-        u.set('keepalived', 'vrrp_instance', 'auth_type', 'PASS')
-        u.set('keepalived', 'vrrp_instance', 'auth_pass', password)
-        u.set('keepalived', 'vrrp_instance', 'track_interface', [f'{lan_interface}_ha'])
-        u.set('keepalived', 'vrrp_instance', 'track_script', ['receiver'])
+        u.set('keepalived', 'backup', 'vrrp_instance')
+        u.set('keepalived', 'backup', 'name', 'backup')
+        u.set('keepalived', 'backup', 'state', 'BACKUP')
+        u.set('keepalived', 'backup', 'interface', ha_interface)
+        u.set('keepalived', 'backup', 'virtual_router_id', '100')
+        u.set('keepalived', 'backup', 'priority', '50')
+        u.set('keepalived', 'backup', 'advert_int', '1')
+        u.set('keepalived', 'backup', 'nopreempt', '0')
+        u.set('keepalived', 'backup', 'virtual_ipaddress', [f'{lan_interface}_ha'])
+        u.set('keepalived', 'backup', 'unicast_src_ip', ha_secondary_ipaddress)
+        u.set('keepalived', 'backup', 'unicast_peer', ['master'])
+        u.set('keepalived', 'backup', 'auth_type', 'PASS')
+        u.set('keepalived', 'backup', 'auth_pass', password)
+        u.set('keepalived', 'backup', 'track_interface', [f'{lan_interface}_ha'])
+        u.set('keepalived', 'backup', 'track_script', ['receiver'])
 
         # Fix OpenVPN permissions
         group_file = '/etc/group'
         rsync_dir = '/usr/share/keepalived/rsync/etc/'
 
-        # Update the group file
+        # Update the group file, if needed
         with open(group_file, 'r') as file:
             group_data = file.read()
 
-        group_data = group_data.replace('root:x:0:', 'root:x:0:keepalived')
+        if 'root:x:0:keepalived' not in group_data:
+            group_data = group_data.replace('root:x:0:', 'root:x:0:keepalived')
 
-        with open(group_file, 'w') as file:
-            file.write(group_data)
+            with open(group_file, 'w') as file:
+                file.write(group_data)
 
         # Create the rsync directory if it doesn't exist
         os.makedirs(rsync_dir, exist_ok=True)
