@@ -1,0 +1,21 @@
+#!/bin/bash
+
+#
+# Copyright (C) 2024 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Restart the ns-plug service when tun-nsplug goes down
+
+# the service can take a while to stop
+if /etc/init.d/ns-plug status ; then
+    sleep 30
+fi
+
+# Check if the service is NOT running
+if ! /etc/init.d/ns-plug status ; then
+    exit 0
+fi
+
+# Restart the service
+/etc/init.d/ns-plug restart
