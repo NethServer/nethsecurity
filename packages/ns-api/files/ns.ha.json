@@ -1,0 +1,13 @@
+{
+  "ha-manager": {
+    "description": "Read and set HA configuration",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.ha": [
+          "*"
+        ]
+      }
+    }
+  }
+}
