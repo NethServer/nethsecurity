@@ -15,6 +15,60 @@ import subprocess
 import hashlib
 import time
 from nethsec import firewall
+from jinja2 import Template
+
+conntrack_template = """
+Sync {
+    Mode FTFW {
+        DisableExternalCache Off
+        CommitTimeout 180
+        PurgeTimeout 5
+    }
+
+    UDP {
+        # Dedicated link for connection replication
+        IPv4_address {{ first_ip }}
+        IPv4_Destination_Address {{ second_ip }}
+        Port 3780
+        Interface {{ ha_interface }}
+        SndSocketBuffer 1249280
+        RcvSocketBuffer 1249280
+        Checksum on
+    }
+}
+
+General {
+    HashSize 32768
+    HashLimit 131072
+    LogFile off
+    Syslog on
+    NetlinkOverrunResync 5
+    NetlinkEventsReliable on
+    PollSecs 5
+    EventIterationLimit 200
+    LockFile /var/lock/conntrack.lock
+    UNIX {
+        Path /var/run/conntrackd.ctl
+    }
+    NetlinkBufferSize 2097152
+    NetlinkBufferSizeMaxGrowth 8388608
+    Filter From Userspace {
+        Protocol Accept {
+            TCP
+            UDP
+        }
+        Address Ignore {
+            IPv4_address 127.0.0.1 # loopback
+            IPv4_address 10.0.0.1
+            IPv4_address 10.0.0.2
+            IPv4_address 10.0.0.3
+            IPv4_address 192.168.255.2
+            IPv4_address 192.168.255.52
+            IPv4_address 192.168.255.250
+        }
+    }
+}
+"""
 
 
 def setup(role, lan_interface, ha_interface, virtual_ip, ha_main_ipaddress, ha_secondary_ipaddress, pubkey = "", password = ""):
@@ -107,6 +161,12 @@ def setup(role, lan_interface, ha_interface, virtual_ip, ha_main_ipaddress, ha_s
         for line in result.stdout.splitlines():
             if 'ssh-rsa' in line:
                 ret['pubkey'] = line
+
+        # Setup conntrackd configuration
+        conntrack_template = Template(conntrack_template)
+        conntrack_conf = conntrack_template.render(first_ip=ha_main_ipaddress, second_ip=ha_secondary_ipaddress, ha_interface=ha_interface)
+        with open('/etc/conntrackd/conntrackd.conf', 'w') as file:
+            file.write(conntrack_conf)
     else:
         u.set('keepalived', 'ha_receiver', 'track_script')
         u.set('keepalived', 'ha_receiver', 'name', 'receiver')
@@ -147,7 +207,16 @@ def setup(role, lan_interface, ha_interface, virtual_ip, ha_main_ipaddress, ha_s
         # Change permissions of the rsync directory
         os.chmod(rsync_dir, 0o2775)
 
+        # Setup conntrackd configuration
+        conntrack_template = Template(conntrack_template)
+        conntrack_conf = conntrack_template.render(first_ip=ha_secondary_ipaddress, second_ip=ha_main_ipaddress, ha_interface=ha_interface)
+        with open('/etc/conntrackd/conntrackd.conf', 'w') as file:
+            file.write(conntrack_conf)
+
     u.save('keepalived')
+    # enable and start conntrackd
+    subprocess.run(['/etc/init.d/conntrackd', 'enable'], capture_output=True)
+    subprocess.run(['/etc/init.d/conntrackd', 'restart'], capture_output=True)
 
     return ret
 
