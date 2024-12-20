@@ -37,9 +37,11 @@ endef
 define Package/ns-ha/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/keepalived
+	$(INSTALL_DIR) $(1)/lib/functions/keepalived
 	$(INSTALL_BIN) ./files/keepalived-config $(1)/usr/sbin
 	$(INSTALL_DATA) ./files/600-openvpn $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/900-ns-plug $(1)/etc/hotplug.d/keepalived
+	$(INSTALL_DATA) ./files/ns.sh $(1)/lib/functions/keepalived
 endef
  
 $(eval $(call BuildPackage,ns-ha))
