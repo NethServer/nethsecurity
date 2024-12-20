@@ -137,23 +137,13 @@ def setup(role, lan_interface, ha_interface, virtual_ip, ha_main_ipaddress, ha_s
         u.set('keepalived', 'backup', 'track_interface', [f'{lan_interface}_ha'])
         u.set('keepalived', 'backup', 'track_script', ['receiver'])
 
-        # Fix OpenVPN permissions
-        group_file = '/etc/group'
-        rsync_dir = '/usr/share/keepalived/rsync/etc/'
-
-        # Update the group file, if needed
-        with open(group_file, 'r') as file:
-            group_data = file.read()
-
-        if 'root:x:0:keepalived' not in group_data:
-            group_data = group_data.replace('root:x:0:', 'root:x:0:keepalived')
-
-            with open(group_file, 'w') as file:
-                file.write(group_data)
+        # Append publick key to root dropbear authorized_keys
+        with open('/etc/dropbear/authorized_keys', 'a') as file:
+            file.write(pubkey + '\n')
 
         # Create the rsync directory if it doesn't exist
+        rsync_dir = '/usr/share/keepalived/rsync/etc/'
         os.makedirs(rsync_dir, exist_ok=True)
-
         # Change permissions of the rsync directory
         os.chmod(rsync_dir, 0o2775)
 
