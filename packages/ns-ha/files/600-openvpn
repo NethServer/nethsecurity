@@ -5,7 +5,8 @@
 
 set_service_name openvpn
 
-set_reload_if_sync
+set_restart_if_master
+set_stop_if_backup
 
 add_sync_file /etc/openvpn
 add_sync_file /etc/config/openvpn

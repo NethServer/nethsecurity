@@ -1,0 +1,31 @@
+#!/bin/sh
+
+# shellcheck source=/dev/null
+. /lib/functions/keepalived/hotplug.sh
+
+disable_cron() {
+    crontab -l | sed '/send-heartbeat/s/^/#/' | crontab -
+    crontab -l | sed '/send-backup/s/^/#/' | crontab -
+    crontab -l | sed '/send-inventory/s/^/#/' | crontab -
+}
+
+enable_command() {
+    crontab -l | sed '/send-heartbeat/s/^#//' | crontab -
+    crontab -l | sed '/send-backup/s/^#//' | crontab -
+    crontab -l | sed '/send-inventory/s/^#//' | crontab -
+}
+
+set_service_name ns-plug
+
+set_restart_if_master
+set_stop_if_backup
+
+if [ "$ACTION" == "NOTIFY_BACKUP" ]; then
+    disable_cron
+elif [ "$ACTION" == "NOTIFY_MASTER" ]; then
+    enable_cron
+fi
+
+add_sync_file /etc/config/ns-plug
+
+keepalived_hotplug
