@@ -1,0 +1,12 @@
+# shellcheck source=/dev/null
+. /lib/functions/keepalived/hotplug.sh
+
+if [ "$ACTION" == "NOTIFY_BACKUP" ]; then
+    /usr/libexec/conntrackd.sh backup
+elif [ "$ACTION" == "NOTIFY_MASTER" ]; then
+    /usr/libexec/conntrackd.sh primary
+elif [ "$ACTION" == "NOTIFY_FAULT" ]; then
+    /usr/libexec/conntrackd.sh fault
+fi
+
+keepalived_hotplug
