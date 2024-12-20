@@ -53,7 +53,7 @@ ha_sync_send() {
 	done
 
 	ssh_options="-y -y -i $ssh_key -p $ssh_port"
-	ssh_remote="$RSYNC_USER@$address"
+	ssh_remote="root@$address"
 
 	# shellcheck disable=SC2086
 	timeout 10 ssh $ssh_options $ssh_remote mkdir -m 755 -p "$dirs_list /tmp" || {
