@@ -11,9 +11,8 @@ import os
 import sys
 import json
 import time
-import urllib
 import subprocess
-import urllib.request
+import requests
 from nethsec import utils
 from urllib.parse import urlparse
 from euci import EUci
@@ -89,19 +88,30 @@ def install_package_updates():
 def check_system_update():
     e_uci = EUci()
     current_version = get_system_version()
-    ret = {"currentVersion": f'NethSecurity {current_version}', "lastVersion": "", "scheduledAt": get_update_schedule()}
+    data = {"currentVersion": f'NethSecurity {current_version}', "lastVersion": "", "scheduledAt": get_update_schedule()}
+    url = e_uci.get('ns-plug', 'config', 'repository_url')
+    if e_uci.get('ns-plug', 'config', 'system_id', default=None) is None:
+        url = f"{url}/{get_distfeed_channel()}"
     try:
-        url = e_uci.get('ns-plug', 'config', 'repository_url')
-        if (e_uci.get('ns-plug', 'config', 'system_id', default=None) is None):
-            url = f"{url}/{get_distfeed_channel()}"
-
-        p = subprocess.run(["/usr/bin/curl", "-L", "-s", f"{url}/latest_release"], check=True, capture_output=True, text=True)
-        version = p.stdout.rstrip()
+        response = requests.get(f"{url}/latest_release", headers={"Accept": "application/json"}, timeout=5)
+        response.raise_for_status()
+        version = response.text.strip()
         if current_version != version:
-            ret["lastVersion"] = f'NethSecurity {version}'
-    except Exception as e:
-        print(e, file=sys.stderr)
-    return ret
+            data["lastVersion"] = f'NethSecurity {version}'
+    except requests.exceptions.ConnectionError:
+        return utils.generic_error("connection_error")
+    except requests.exceptions.RequestException as e:
+        match e.response.status_code:
+            case requests.codes.service_unavailable:
+                return utils.generic_error("maintenance")
+            case requests.codes.unauthorized:
+                return utils.generic_error("unauthorized")
+            case _:
+                return utils.generic_error("server_error")
+    except Exception:
+        return utils.generic_error("generic_error")
+
+    return data
 
 def schedule_system_update(timestamp):
     if timestamp < 0:
