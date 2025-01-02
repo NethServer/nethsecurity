@@ -9,6 +9,7 @@
 lk=$(uci -q get ns-plug.config.system_id)
 secret=$(uci -q get ns-plug.config.secret)
 url=$(uci -q get ns-plug.config.alerts_url)"alerts/store"
+pidfile="/tmp/mwan3.$INTERFACE"
 
 # Do not send alert if system_id or secret is not set
 if [ -z "$lk" ] || [ -z "$secret" ]; then
@@ -17,8 +18,21 @@ fi
 
 # Ignore ifup and ifdown events, they both triggers connected and disconnected events
 if [ "${ACTION}" == "connected" ]; then
+    pid=$(cat "$pidfile" 2>/dev/null)
+    # If a wan is connected within 30 seconds from disconnect, assume it's a restart
+    # and kill the alert sending process
+    # mwan3 restart should complete within 30 seconds
+    if [ -n "$pid" ]; then
+        kill -s SIGHUP "$pid"
+	rm "$pidfile"
+	exit 0
+    fi
     status="OK"
 elif [ "${ACTION}" == "disconnected" ]; then
+    echo $$ > "$pidfile"
+    # Delay alert by 30 seconds, so that it can be canceled
+    sleep 30
+    rm "$pidfile"
     status="FAILURE"
 fi
 
@@ -30,6 +44,6 @@ fi
 alert_id="wan:${INTERFACE}:down"
 logger -t mwan3-alert "Sending alert ${alert_id} with status ${status}"
 payload='{"lk": "'$lk'", "alert_id": "'$alert_id'", "status": "'$status'"}'
-/usr/bin/curl -m 180 --retry 3 -L -s \
+/usr/bin/curl -m 30 --retry 3 -L -s \
     --header "Authorization: token ${secret}"  --header "Content-Type: application/json" --header "Accept: application/json"  \
     --data-raw "${payload}" ${url}
