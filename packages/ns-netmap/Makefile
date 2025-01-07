@@ -40,6 +40,7 @@ endef
 define Package/ns-netmap/postinst
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
+  /etc/init.d/ns-netmap enable
   /etc/init.d/ns-netmap restart
 fi
 exit 0
