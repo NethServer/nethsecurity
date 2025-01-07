@@ -37,15 +37,22 @@ endef
 define Build/Compile
 endef
 
+define Package/ns-netmap/postinst
+#!/bin/sh
+if [ -z "$${IPKG_INSTROOT}" ]; then
+  /etc/init.d/ns-netmap enable
+  /etc/init.d/ns-netmap restart
+fi
+exit 0
+endef
+
 define Package/ns-netmap/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_DIR) $(1)/usr/libexec/ns-api/pre-commit
-	$(INSTALL_DIR) $(1)/usr/libexec/ns-api/post-commit
 	$(INSTALL_BIN) ./files/ns-netmap $(1)/usr/sbin/ns-netmap
 	$(INSTALL_CONF) ./files/config $(1)/etc/config/netmap
-	$(INSTALL_BIN) ./files/generate-netmap.py $(1)/usr/libexec/ns-api/pre-commit/
-	$(INSTALL_BIN) ./files/reload-netmap.py $(1)/usr/libexec/ns-api/post-commit/
+	$(INSTALL_DIR) $(1)/etc/init.d
+	$(INSTALL_BIN) ./files/ns-netmap.init $(1)/etc/init.d/ns-netmap
 endef
  
 $(eval $(call BuildPackage,ns-netmap))
