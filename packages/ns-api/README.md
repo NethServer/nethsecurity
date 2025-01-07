@@ -5404,7 +5404,10 @@ Response example:
       "type": "ldap",
       "description": "OpenLDAP NS7",
       "schema": "rfc2307",
-      "uri": "ldap://192.168.100.2"
+      "uri": "ldap://192.168.100.2",
+      "used": [
+        "wireguard"
+      ]
     }
   ]
 }
