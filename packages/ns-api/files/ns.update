@@ -89,7 +89,9 @@ def check_system_update():
     e_uci = EUci()
     current_version = get_system_version()
     data = {"currentVersion": f'NethSecurity {current_version}', "lastVersion": "", "scheduledAt": get_update_schedule()}
-    url = e_uci.get('ns-plug', 'config', 'repository_url')
+    url = e_uci.get('ns-plug', 'config', 'repository_url', default=None)
+    if url is None:
+        return utils.generic_error("repository_url_not_set")
     if e_uci.get('ns-plug', 'config', 'system_id', default=None) is None:
         url = f"{url}/{get_distfeed_channel()}"
     try:
