@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-netmap
-PKG_VERSION:=0.0.2
+PKG_VERSION:=0.0.3
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-netmap-$(PKG_VERSION)
