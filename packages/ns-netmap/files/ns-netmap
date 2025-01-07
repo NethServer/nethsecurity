@@ -12,6 +12,8 @@
 #
 
 import os
+import subprocess
+import sys
 import ipaddress
 from euci import EUci
 from nethsec import utils
@@ -79,9 +81,13 @@ def generate_rules():
     df.close()
 
 def main():
-    setup()
-    cleanup()
-    generate_rules()
+    if len(sys.argv) > 1 and sys.argv[1] == "cleanup":
+        cleanup()
+    else:
+        setup()
+        cleanup()
+        generate_rules()
+    subprocess.run(['/etc/init.d/firewall', 'reload'])
 
 if __name__ == "__main__":
     main()
