@@ -175,6 +175,9 @@ elif data['rw']['auth'] == 'certificate-otp':
 
 # Create user entries
 for user in data["users"]:
+    if user['key'] is None or user['crt'] is None:
+        nsmigration.vprint(f"Skipping OpenVPN Road Warrior user {user['name']}, missing key or certificate")
+        continue
     sname = utils.get_random_id()
     nsmigration.vprint(f"Creating OpenVPN Road Warrior user {user['name']}")
     u.set("users", sname, "user")
