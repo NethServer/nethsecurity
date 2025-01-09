@@ -53,7 +53,7 @@ for issue in issues:
         output += f"* {issue['title']} - {issue['html_url']}\n"
 output += "\nSe avete un po' di tempo, potreste aiutare a testare queste issue e fornire feedback? Grazie mille!"
 
-# Invio del messaggio a Mattermost tramite webhook
+# Send the message to Mattermost
 if len(sys.argv)!= 2:
     print("No Mattermost webhook")
     sys.exit(1)
