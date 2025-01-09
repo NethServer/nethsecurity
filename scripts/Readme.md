@@ -8,6 +8,8 @@ This directory contains scripts used inside GitHub Actions workflows.
 
 `update_issue_status.sh` is a Bash script that updates the status of a GitHub issue across all associated projects. It utilizes the GitHub CLI (`gh`) to interact with GitHub's GraphQL API.
 
+Thi script is used inside ``change-status-on-labels.yml`` workflow.
+
 ### Prerequisites
 
 - **GitHub CLI (`gh`)**: Ensure that the GitHub CLI is installed and authenticated. You can download it from [here](https://cli.github.com/).
@@ -66,14 +68,14 @@ The script provides informative output at each step, including:
 - If the `NEW_STATUS` is not found in a project's status options, the script will issue a warning and continue to the next project.
 - Ensure that the `gh` CLI has the necessary scopes and permissions to perform the operations.
 
-## send_call_for_qa.sh
+## send_call_for_qa.py
 
 This script retrieves open issues labeled "testing" from the NethServer/nethsecurity GitHub repository and sends a call for QA message to a Mattermost channel via webhook if there are any issues that need QA.
 
 ### Usage
 
 ```bash
-./send_call_for_qa.sh <Mattermost Webhook URL>
+./send_call_for_qa.py <Mattermost Webhook URL>
 ```
 
 ### Requirements
@@ -94,3 +96,24 @@ This script retrieves open issues labeled "testing" from the NethServer/nethsecu
 - 0 - Success
 - 1 - Error when sending the message or missing Mattermost webhook URL
 - 2 - Error when loading issues from GitHub
+
+## announce_updates.py
+
+This script is used to announce packages updates released today. The announce is sent to a Mattermost channel via webhook.
+
+### Usage
+
+```bash
+export GITHUB_TOKEN=ghoxxx; ./announce_updates.py <Mattermost Webhook URL>
+```
+
+### Requirements
+
+- Python 3
+- ghexplain library (install via `pip install ghexplain`)
+
+### How It Works
+
+1. Fetches the list of packages updated today from the NethServer/nethserver GitHub repository.
+2. Prepares a message listing the updated packages.
+3. Sends the prepared message to a Mattermost channel using the provided webhook URL.
