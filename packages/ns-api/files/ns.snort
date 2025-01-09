@@ -8,13 +8,14 @@
 # Read SSH authorized keys
 
 import os
-import json
 import subprocess
 import json
 import sys
 import ipaddress
 from nethsec import utils
 from euci import EUci
+from nethsec.utils import ValidationError
+
 
 # Retrieve all non-WAN interfaces and their IP addresses
 # It also return the IP address of VPN interfaces
@@ -105,7 +106,8 @@ def remove_download_cron_job():
             if 'ns-snort-rules' not in line:
                 f.write(line)
 
-def setup(enabled, set_home_net = False, include_vpn = False, ns_policy = 'balanced', ns_disabled_rules = []):
+
+def setup(enabled, set_home_net=False, include_vpn=False, ns_policy='balanced'):
     uci = EUci()
 
     # first setup
@@ -129,7 +131,6 @@ def setup(enabled, set_home_net = False, include_vpn = False, ns_policy = 'balan
         uci.set('snort', 'snort', 'home_net', get_snort_homenet(uci, include_vpn))
 
     uci.set('snort', 'snort', 'ns_policy', ns_policy)
-    uci.set('snort', 'snort', 'ns_disabled_rules', ns_disabled_rules)
 
     if enabled:
         uci.set('snort', 'snort', 'enabled', '1')
@@ -144,12 +145,63 @@ cmd = sys.argv[1]
 
 if cmd == 'list':
     print(json.dumps({
-        "setup": {"enabled": True, "set_home_net": True, "include_vpn": False, "ns_policy": "balanced", "ns_disabled_rules": []},
+        "setup": {"enabled": True, "set_home_net": True, "include_vpn": False, "ns_policy": "balanced"},
+        "status": {
+            "enabled": True,
+            "ns_policy": "balanced",
+            "oinkcode": "1234567890",
+        },
+        "save": {"enabled": True, "ns_policy": "balanced", "oinkcode": "1234567890"},
+        "check-oinkcode": {},
         }))
 else:
-    action = sys.argv[2]
-    if action == "setup":
-        data = json.JSONDecoder().decode(sys.stdin.read())
-        setup(data.get('enabled', True), data.get('set_home_net', True), data.get('include_vpn', False), data.get('ns_policy', 'connectivity'), data.get('ns_disabled_rules', []))
-        print(json.dumps({"status": "success"}))
-        
+    try:
+        action = sys.argv[2]
+        if action == "setup":
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            setup(data.get('enabled', True), data.get('set_home_net', True), data.get('include_vpn', False),
+                  data.get('ns_policy', 'connectivity'), data.get('ns_disabled_rules', []))
+            print(json.dumps({"status": "success"}))
+        elif action == "status":
+            e_uci = EUci()
+            response = {
+                "enabled": e_uci.get('snort', 'snort', 'enabled', dtype=bool, default=False),
+                "ns_policy": e_uci.get('snort', 'snort', 'ns_policy', default='connectivity'),
+                "oinkcode": e_uci.get('snort', 'snort', 'oinkcode', default=''),
+            }
+            print(json.dumps(response))
+        elif action == "save":
+            data = json.load(sys.stdin)
+            if 'enabled' not in data:
+                raise ValidationError('enabled', 'required')
+            if not isinstance(data['enabled'], bool):
+                raise ValidationError('enabled', 'invalid')
+            if 'ns_policy' not in data:
+                raise ValidationError('ns_policy', 'required')
+            if data['ns_policy'] not in ['connectivity', 'balanced', 'security']:
+                raise ValidationError('ns_policy', 'invalid')
+
+            setup(data.get('enabled'), ns_policy=data.get('ns_policy'))
+            e_uci = EUci()
+            e_uci.set('snort', 'snort', 'oinkcode', data.get('oinkcode', ''))
+            e_uci.save('snort')
+        elif action == "check-oinkcode":
+            data = json.load(sys.stdin)
+            if 'oinkcode' not in data:
+                raise ValidationError('oinkcode', 'required')
+            res = subprocess.run([
+                "curl",
+                "--fail",
+                "--location",
+                "--output",
+                "/dev/null",
+                # remember to change the URL even in the `ns-snort-rules` script
+                f"https://www.snort.org/rules/snortrules-snapshot-31470.tar.gz?oinkcode={data.get('oinkcode')}"],
+                capture_output=True)
+            if res.returncode != 0:
+                raise ValidationError('oinkcode', 'invalid')
+            print(json.dumps({"status": "success"}))
+        else:
+            utils.validation_error('action', 'invalid')
+    except ValidationError as e:
+        print(json.dumps(utils.validation_error(e.parameter, e.message, e.value)))
