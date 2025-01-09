@@ -382,10 +382,14 @@ def dns_edit_blocklist(e_uci, payload):
 
 def dns_list_settings(e_uci):
     try:
-        zones = list(e_uci.get('adblock', 'global', 'adb_zonelist'))
+        zones = list(e_uci.get_all('adblock', 'global', 'adb_zonelist'))
     except:
         zones = []
-    return { 'data': {'enabled': e_uci.get('adblock', 'global', 'ts_enabled') == '1', "zones": zones} }
+    try:
+        ports = list(e_uci.get_all('adblock', 'global', 'adb_portlist'))
+    except:
+        ports = []
+    return { 'data': {'enabled': e_uci.get('adblock', 'global', 'ts_enabled') == '1', "zones": zones, "ports": ports} }
 
 def dns_edit_settings(e_uci, payload):
     if payload['enabled']:
