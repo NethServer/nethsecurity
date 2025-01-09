@@ -5964,14 +5964,14 @@ api-cli ns.threatshield dns-list-settings
 
 Response example:
 ```json
-{"data": {"enabled": true, "zones": ["lan"]}}
+{"data": {"enabled": true, "zones": ["lan"], "ports": ["53", "853"]}}
 ```
 
 ### dns-edit-settings
 
 Edit dns adblock settings:
 ```
-api-cli ns.threatshield dns-edit-settings --data '{"enabled": true, "zones": ["lan"]}'
+api-cli ns.threatshield dns-edit-settings --data '{"enabled": true, "zones": ["lan"], "ports": ["53", "853"]}'
 ```
 
 Response example:
