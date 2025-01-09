@@ -21,4 +21,4 @@ jobs:
         env:
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
         run: |
-          python scripts/announce_updates.py $WEBHOOK_URL
+          GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} python scripts/announce_updates.py $WEBHOOK_URL
