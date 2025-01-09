@@ -367,7 +367,6 @@ def dns_list_blocklist(e_uci):
     return { "data": ret }
 
 def dns_edit_blocklist(e_uci, payload):
-    feeds = list_dns_feeds()
     try:
         enabled = list(e_uci.get_all('adblock', 'global', 'adb_sources'))
     except:
