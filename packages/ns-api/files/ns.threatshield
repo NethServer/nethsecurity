@@ -397,10 +397,7 @@ def dns_edit_settings(e_uci, payload):
         e_uci.set('adblock', 'global', 'adb_backup', '1')
         e_uci.set('adblock', 'global', 'adb_forcedns', '1')
         e_uci.set('adblock', 'global', 'adb_zonelist', payload.get('zones', ['lan']))
-        try:
-            e_uci.get('adblock', 'global', 'adb_portlist')
-        except:
-            e_uci.set('adblock', 'global', 'adb_portlist', ['53', '853'])
+        e_uci.set('adblock', 'global', 'adb_portlist', payload.get('ports', ['53', '853']))
     else:
         e_uci.set('adblock', 'global', 'ts_enabled', '0')
         e_uci.set('adblock', 'global', 'adb_enabled', '0')
@@ -506,7 +503,7 @@ if cmd == 'list':
         'dns-list-blocklist': {},
         'dns-edit-blocklist': { "blocklist": "blocklist_name", "enabled": True },
         'dns-list-settings': {},
-        'dns-edit-settings': { 'enabled': True, 'zones': ["lan"] },
+        'dns-edit-settings': { 'enabled': True, 'zones': ["lan"], "ports": ["53", "853"] },
         'dns-list-allowed': {},
         'dns-add-allowed': { 'address': 'test.org' , 'description': 'optional'},
         'dns-edit-allowed': { 'address': 'test.org', 'description': 'optional' },
