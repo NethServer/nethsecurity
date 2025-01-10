@@ -202,6 +202,6 @@ else:
                 raise ValidationError('oinkcode', 'invalid')
             print(json.dumps({"status": "success"}))
         else:
-            utils.validation_error('action', 'invalid')
+            print(json.dumps(utils.generic_error(f"Unknown action: {action}")))
     except ValidationError as e:
         print(json.dumps(utils.validation_error(e.parameter, e.message, e.value)))

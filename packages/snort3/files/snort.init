@@ -32,19 +32,17 @@ update_bypass_set() {
     fi
 }
 
-download_rules_if_needed () {
-	if ! find /var/ns-snort/rules/ -type f -name "*.rules" | grep -q . ; then
-		# no rules file found, start downloaded loop
-		attempt=0
-		until /usr/bin/ns-snort-rules --download; do
-			attempt=$((attempt + 1))
-			if [ "$attempt" -ge 6 ]; then
-				echo "Error: failed to download snort rules after 6 attempts (1 minute)."
-				break
-			fi
-			sleep 10
-		done
-	fi
+download_rules () {
+  # this is done every time the service is started
+  attempt=0
+  until /usr/bin/ns-snort-rules --download; do
+    attempt=$((attempt + 1))
+    if [ "$attempt" -ge 6 ]; then
+      echo "Error: failed to download snort rules after 6 attempts (1 minute)."
+      break
+    fi
+    sleep 10
+  done
 }
 
 setup_tweaks() {
@@ -82,7 +80,7 @@ start_service() {
 		update_bypass_set "bypass_dst_v4"
 		update_bypass_set "bypass_src_v6"
 		update_bypass_set "bypass_dst_v6"
-		download_rules_if_needed
+		download_rules
 		setup_tweaks
 	fi
 
@@ -122,4 +120,10 @@ service_triggers()
 {
 	procd_add_reload_trigger "snort"
 	procd_add_validation validate_snort_section
+}
+
+reload_service()
+{
+  stop
+  start
 }
