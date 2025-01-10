@@ -26,7 +26,7 @@ update_bypass_set() {
 	else
 		echo -n "elements = {" > $set_file
 		for ip in $ips; do
-			echo -n " $ip," >> $set_file
+			 echo -n "$(echo "$ip" | cut -d, -f1)," >> $set_file
 		done
 		echo " }" >> $set_file
     fi
