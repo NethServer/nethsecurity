@@ -7792,6 +7792,65 @@ If `include_vpn` is `true`, the API will include the VPN networks in the `HOME_N
 The `ns_policy` can be `balanced`, `security` or `connectivity` or `max-detect`.
 The `ns_disabled_rules` is a list of SIDs (integer) of rules to be disabled.
 
+### status
+
+Returns the configuration set for `snort`.
+
+```bash
+api-cli ns.snort status
+```
+
+Response example:
+
+```json
+{
+  "enabled": true,
+  "ns_policy": "connectivity",
+  "oinkcode": "123456789"
+}
+```
+
+### save
+
+Set `snort` configuration
+
+```bash
+api-cli ns.snort save --data '{"enabled": true, "ns_policy": "balanced", "oinkcode": "123456789"}'
+```
+
+### check-oinkcode
+
+Checks if the provided oinkcode is valid
+
+```bash
+api-cli ns.snort check-oinkcode --data '{"oinkcode": "123456789"}'
+```
+
+Response example:
+
+```json
+{
+  "status": "success"
+}
+```
+
+or 
+
+```json
+{
+  "validation": {
+    "errors": [
+      {
+        "message": "invalid",
+        "parameter": "oinkcode",
+        "value": ""
+      }
+    ]
+  }
+}
+```
+
+
 ## ns.wireguard
 
 Configure WireGuard VPN both in Road Warrior and site-to-site mode.

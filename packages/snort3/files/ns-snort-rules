@@ -56,6 +56,7 @@ def generate_testing_rules():
 def download_official_rules(oinkcode):
     if oinkcode:
         log("Downloading subscriber rules...")
+        # remember to change the URL even in the `ns.snort` script
         url = f"https://www.snort.org/rules/snortrules-snapshot-31470.tar.gz?oinkcode={oinkcode}"
         archive_loc = f"snortrules-snapshot-{oinkcode}"
     else:
