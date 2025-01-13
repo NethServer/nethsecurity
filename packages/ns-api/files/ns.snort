@@ -107,7 +107,7 @@ def remove_download_cron_job():
                 f.write(line)
 
 
-def setup(enabled, set_home_net=False, include_vpn=False, ns_policy='balanced'):
+def __setup(enabled, set_home_net=False, include_vpn=False, ns_policy='balanced'):
     uci = EUci()
 
     # first setup
@@ -145,7 +145,6 @@ cmd = sys.argv[1]
 
 if cmd == 'list':
     print(json.dumps({
-        "setup": {"enabled": True, "set_home_net": True, "include_vpn": False, "ns_policy": "balanced"},
         "status": {
             "enabled": True,
             "ns_policy": "balanced",
@@ -157,12 +156,7 @@ if cmd == 'list':
 else:
     try:
         action = sys.argv[2]
-        if action == "setup":
-            data = json.JSONDecoder().decode(sys.stdin.read())
-            setup(data.get('enabled', True), data.get('set_home_net', True), data.get('include_vpn', False),
-                  data.get('ns_policy', 'connectivity'), data.get('ns_disabled_rules', []))
-            print(json.dumps({"status": "success"}))
-        elif action == "status":
+        if action == "status":
             e_uci = EUci()
             response = {
                 "enabled": e_uci.get('snort', 'snort', 'enabled', dtype=bool, default=False),
@@ -181,7 +175,7 @@ else:
             if data['ns_policy'] not in ['connectivity', 'balanced', 'security']:
                 raise ValidationError('ns_policy', 'invalid')
 
-            setup(data.get('enabled'), ns_policy=data.get('ns_policy'))
+            __setup(data.get('enabled'), ns_policy=data.get('ns_policy'))
             e_uci = EUci()
             e_uci.set('snort', 'snort', 'oinkcode', data.get('oinkcode', ''))
             e_uci.save('snort')
