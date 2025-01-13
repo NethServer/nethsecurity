@@ -33,6 +33,14 @@ update_bypass_set() {
 }
 
 download_rules () {
+  oinkcode="$(uci -q get snort.snort.oinkcode)"
+  if [ -z "$oinkcode" ]; then
+    rules="$(find /var/ns-snort -type f -name "snortrules-*.tar.gz")"
+    [ -n "$rules" ] && return
+  else
+    rules="$(find /var/ns-snort/ -type f -name "*community-rules.tar.gz")"
+    [ -n "$rules" ] && return
+  fi
   # this is done every time the service is started
   attempt=0
   until /usr/bin/ns-snort-rules --download; do
