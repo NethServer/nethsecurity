@@ -1,2 +1,3 @@
 # setup mwan3 custom scripts
-grep -q '/usr/libexec/ns-plug/mwan-hooks' /etc/mwan3.user || echo '/usr/libexec/ns-plug/mwan-hooks' >> /etc/mwan3.user
+grep -q '/usr/libexec/ns-plug/mwan-hooks &' /etc/mwan3.user || echo '/usr/libexec/ns-plug/mwan-hooks &' >> /etc/mwan3.user
+sed -i 's#^/usr/libexec/ns-plug/mwan-hooks$#/usr/libexec/ns-plug/mwan-hooks \&#' /etc/mwan3.user
