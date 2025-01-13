@@ -34,10 +34,12 @@ update_bypass_set() {
 
 download_rules () {
   oinkcode="$(uci -q get snort.snort.oinkcode)"
-  if [ -z "$oinkcode" ]; then
+  if [ -n "$oinkcode" ]; then
+    rm -f /var/ns-snort/*community-rules.tar.gz
     rules="$(find /var/ns-snort -type f -name "snortrules-*.tar.gz")"
     [ -n "$rules" ] && return
   else
+    rm -f /var/ns-snort/snortrules-*.tar.gz
     rules="$(find /var/ns-snort/ -type f -name "*community-rules.tar.gz")"
     [ -n "$rules" ] && return
   fi
