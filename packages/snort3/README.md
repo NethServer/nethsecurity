@@ -15,27 +15,7 @@ Changes:
 
 ## Quick start
 
-Enable snort3 and configure it to run in IPS mode, use only a limited number of rules from the official Snort ruleset and download them:
-```bash
-echo '{"enabled": true, "set_home_net": true, "include_vpn": false, "ns_policy": "connectivity", "ns_disabled_rules": []}' | /usr/libexec/rpcd/ns.snort call setup
-ns-snort-rules --download
-uci commit snort
-/etc/init.d/snort restart
-```
-
-To disable snort3:
-```bash
-echo '{"enabled": false}' | /usr/libexec/rpcd/ns.snort call setup
-uci commit snort
-/etc/init.d/snort stop
-```
-
-To change the policy to `balanced` and download the rules:
-```bash
-echo '{"enabled": true, "set_home_net": true, "include_vpn": false, "ns_policy": "balanced", "ns_disabled_rules": []}' | /usr/libexec/rpcd/ns.snort call setup
-uci commit snort
-ns-snort-rules --restart
-```
+Enable snort3 and configure it to run in IPS mode refer to the documentation under [ns.snort](../ns-api/README.md)
 
 To see what has been blocked or alerted, use:
 ```bash
@@ -78,16 +58,6 @@ Snort rules support 4 policies:
 - `max-detect` - This ruleset is meant to be used in testing environments and as such is not optimized for performance. False Positives for many of the rules in this policy are tolerated and/or expected and FP investigations will normally not be undertaken.
 
 Above description is extracted from [official Snort FAQ](https://www.snort.org/faq/why-are-rules-commented-out-by-default).
-
-When downloading the ules you must specify the policy to use.
-
-Example: setup the policy to `connectivity` and download the official Community Snort rules:
-```bash
-uci set snort.snort.ns_policy=connectivity
-ns-snort-rules --download
-uci commit snort
-/etc/init.d/snort restart
-```
 
 If rules have been downloaded, the `ns-snort-rules` script will not download them again unless the `--download` argument is used.
 

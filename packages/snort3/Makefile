@@ -96,6 +96,10 @@ define Package/snort3/install
 		./files/ns-snort-rules \
 		$(1)/usr/bin/
 
+	$(INSTALL_BIN) \
+		./files/ns-bypass-config \
+		$(1)/usr/bin/
+
 	$(INSTALL_DIR) $(1)/usr/lib/snort
 	$(CP) \
 		$(PKG_INSTALL_DIR)/usr/lib/snort/daq/daq_hext.so \

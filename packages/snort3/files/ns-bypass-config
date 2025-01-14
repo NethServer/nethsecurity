@@ -1,0 +1,32 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+from euci import EUci
+from jinja2 import Environment, BaseLoader
+
+CONFIGS = [
+    'bypass_src_v4',
+    'bypass_dst_v4',
+    'bypass_src_v6',
+    'bypass_dst_v6'
+]
+
+TEMPLATE = """
+{%- if elements | length > 0 -%}
+elements = { {{ elements | join(', ') }} }
+{%- endif %}
+"""
+
+if __name__ == '__main__':
+    e_uci = EUci()
+    for config in CONFIGS:
+        target_file=f'/var/ns-snort/{config}.conf'
+        entries = e_uci.get('snort', 'nfq', config, list=True, default=[])
+        entries = [entry.split(',')[0] for entry in entries]
+        template = Environment(loader=BaseLoader()).from_string(TEMPLATE)
+        with open(target_file, 'w') as file:
+            file.write(template.render(elements=entries))
