@@ -143,6 +143,171 @@ def __setup(enabled, set_home_net=False, include_vpn=False, ns_policy='balanced'
 
 cmd = sys.argv[1]
 
+
+def validate_request(request):
+    if 'protocol' not in request or request['protocol'] == '':
+        raise ValidationError('protocol', 'required')
+    if request['protocol'] not in ['ipv4', 'ipv6']:
+        raise ValidationError('protocol', 'invalid')
+    if 'ip' not in request or request['ip'] == '':
+        raise ValidationError('ip', 'required')
+    if 'direction' not in request or request['direction'] == '':
+        raise ValidationError('direction', 'required')
+    if request['direction'] not in ['src', 'dst']:
+        raise ValidationError('direction', 'invalid')
+
+
+def validate_ip(request):
+    try:
+        if request['protocol'] == 'ipv4':
+            ipaddress.IPv4Address(request['ip'])
+        else:
+            ipaddress.IPv6Address(request['ip'])
+    except ipaddress.AddressValueError:
+        raise ValidationError('ip', 'invalid')
+
+
+def __save_settings():
+    data = json.load(sys.stdin)
+    if 'enabled' not in data:
+        raise ValidationError('enabled', 'required')
+    if not isinstance(data['enabled'], bool):
+        raise ValidationError('enabled', 'invalid')
+    if 'ns_policy' not in data:
+        raise ValidationError('ns_policy', 'required')
+    if data['ns_policy'] not in ['connectivity', 'balanced', 'security']:
+        raise ValidationError('ns_policy', 'invalid')
+    __setup(data.get('enabled'), ns_policy=data.get('ns_policy'))
+    e_uci = EUci()
+    e_uci.set('snort', 'snort', 'oinkcode', data.get('oinkcode', ''))
+    e_uci.save('snort')
+
+
+def __status():
+    e_uci = EUci()
+    return {
+        "enabled": e_uci.get('snort', 'snort', 'enabled', dtype=bool, default=False),
+        "ns_policy": e_uci.get('snort', 'snort', 'ns_policy', default='connectivity'),
+        "oinkcode": e_uci.get('snort', 'snort', 'oinkcode', default=''),
+    }
+
+
+def __check_oinkcode():
+    data = json.load(sys.stdin)
+    if 'oinkcode' not in data:
+        raise ValidationError('oinkcode', 'required')
+    res = subprocess.run([
+        "curl",
+        "--fail",
+        "--location",
+        "--output",
+        "/dev/null",
+        # remember to change the URL even in the `ns-snort-rules` script
+        f"https://www.snort.org/rules/snortrules-snapshot-31470.tar.gz?oinkcode={data.get('oinkcode')}"],
+        capture_output=True)
+    if res.returncode != 0:
+        raise ValidationError('oinkcode', 'invalid')
+
+
+def __list_bypasses():
+    e_uci = EUci()
+    bypasses_src_v4 = e_uci.get('snort', 'nfq', 'bypass_src_v4', list=True, default=[])
+    bypasses_dst_v4 = e_uci.get('snort', 'nfq', 'bypass_dst_v4', list=True, default=[])
+    bypasses_src_v6 = e_uci.get('snort', 'nfq', 'bypass_src_v6', list=True, default=[])
+    bypasses_dst_v6 = e_uci.get('snort', 'nfq', 'bypass_dst_v6', list=True, default=[])
+    # for each bypass, we need to give direction, protocol and ip, also it can contain a comma after the value for the description
+    bypasses = []
+    for bypass in bypasses_src_v4:
+        bypasses.append({
+            "direction": "src",
+            "protocol": "ipv4",
+            "ip": bypass.split(',')[0],
+            "description": bypass.split(',')[1] if ',' in bypass else ""
+        })
+    for bypass in bypasses_dst_v4:
+        bypasses.append({
+            "direction": "dst",
+            "protocol": "ipv4",
+            "ip": bypass.split(',')[0],
+            "description": bypass.split(',')[1] if ',' in bypass else ""
+        })
+    for bypass in bypasses_src_v6:
+        bypasses.append({
+            "direction": "src",
+            "protocol": "ipv6",
+            "ip": bypass.split(',')[0],
+            "description": bypass.split(',')[1] if ',' in bypass else ""
+        })
+    for bypass in bypasses_dst_v6:
+        bypasses.append({
+            "direction": "dst",
+            "protocol": "ipv6",
+            "ip": bypass.split(',')[0],
+            "description": bypass.split(',')[1] if ',' in bypass else ""
+        })
+
+    return bypasses
+
+
+def __create_bypass():
+    request = json.load(sys.stdin)
+    validate_request(request)
+    validate_ip(request)
+    e_uci = EUci()
+    if request['direction'] == 'src':
+        if request['protocol'] == 'ipv4':
+            bypasses = list(e_uci.get('snort', 'nfq', 'bypass_src_v4', list=True, default=[]))
+            if any(request['ip'] in bypass for bypass in bypasses):
+                raise ValidationError('ip', 'ip_already_used')
+            bypasses.append(f"{request['ip']},{request.get('description', '')}")
+            e_uci.set('snort', 'nfq', 'bypass_src_v4', bypasses)
+        else:
+            bypasses = list(e_uci.get('snort', 'nfq', 'bypass_src_v6', list=True, default=[]))
+            if any(request['ip'] in bypass for bypass in bypasses):
+                raise ValidationError('ip', 'ip_already_used')
+            bypasses.append(f"{request['ip']},{request.get('description', '')}")
+            e_uci.set('snort', 'nfq', 'bypass_src_v6', bypasses)
+    else:
+        if request['protocol'] == 'ipv4':
+            bypasses = list(e_uci.get('snort', 'nfq', 'bypass_dst_v4', list=True, default=[]))
+            if any(request['ip'] in bypass for bypass in bypasses):
+                raise ValidationError('ip', 'ip_already_used')
+            bypasses.append(f"{request['ip']},{request.get('description', '')}")
+            e_uci.set('snort', 'nfq', 'bypass_dst_v4', bypasses)
+        else:
+            bypasses = list(e_uci.get('snort', 'nfq', 'bypass_dst_v6', list=True, default=[]))
+            if any(request['ip'] in bypass for bypass in bypasses):
+                raise ValidationError('ip', 'ip_already_used')
+            bypasses.append(f"{request['ip']},{request.get('description', '')}")
+            e_uci.set('snort', 'nfq', 'bypass_dst_v6', bypasses)
+    e_uci.save('snort')
+
+
+def __delete_bypass():
+    request = json.load(sys.stdin)
+    validate_request(request)
+    e_uci = EUci()
+    if request['direction'] == 'src':
+        if request['protocol'] == 'ipv4':
+            bypasses = list(e_uci.get('snort', 'nfq', 'bypass_src_v4', list=True, default=[]))
+            bypasses = [bypass for bypass in bypasses if bypass.split(',')[0] != request['ip']]
+            e_uci.set('snort', 'nfq', 'bypass_src_v4', bypasses)
+        else:
+            bypasses = list(e_uci.get('snort', 'nfq', 'bypass_src_v6', list=True, default=[]))
+            bypasses = [bypass for bypass in bypasses if bypass.split(',')[0] != request['ip']]
+            e_uci.set('snort', 'nfq', 'bypass_src_v6', bypasses)
+    else:
+        if request['protocol'] == 'ipv4':
+            bypasses = list(e_uci.get('snort', 'nfq', 'bypass_dst_v4', list=True, default=[]))
+            bypasses = [bypass for bypass in bypasses if bypass.split(',')[0] != request['ip']]
+            e_uci.set('snort', 'nfq', 'bypass_dst_v4', bypasses)
+        else:
+            bypasses = list(e_uci.get('snort', 'nfq', 'bypass_dst_v6', list=True, default=[]))
+            bypasses = [bypass for bypass in bypasses if bypass.split(',')[0] != request['ip']]
+            e_uci.set('snort', 'nfq', 'bypass_dst_v6', bypasses)
+    e_uci.save('snort')
+
+
 if cmd == 'list':
     print(json.dumps({
         "status": {
@@ -152,49 +317,30 @@ if cmd == 'list':
         },
         "save": {"enabled": True, "ns_policy": "balanced", "oinkcode": "1234567890"},
         "check-oinkcode": {},
-        }))
+        "list-bypasses": {},
+        "create-bypass": {"protocol": "ipv4", "ip": "*.*.*.*", "direction": "src", "description": "Description"},
+        "delete-bypass": {"protocol": "ipv4", "ip": "*.*.*.*", "direction": "src"}
+    }))
 else:
     try:
         action = sys.argv[2]
         if action == "status":
-            e_uci = EUci()
-            response = {
-                "enabled": e_uci.get('snort', 'snort', 'enabled', dtype=bool, default=False),
-                "ns_policy": e_uci.get('snort', 'snort', 'ns_policy', default='connectivity'),
-                "oinkcode": e_uci.get('snort', 'snort', 'oinkcode', default=''),
-            }
-            print(json.dumps(response))
+            print(json.dumps(__status()))
         elif action == "save":
-            data = json.load(sys.stdin)
-            if 'enabled' not in data:
-                raise ValidationError('enabled', 'required')
-            if not isinstance(data['enabled'], bool):
-                raise ValidationError('enabled', 'invalid')
-            if 'ns_policy' not in data:
-                raise ValidationError('ns_policy', 'required')
-            if data['ns_policy'] not in ['connectivity', 'balanced', 'security']:
-                raise ValidationError('ns_policy', 'invalid')
-
-            __setup(data.get('enabled'), ns_policy=data.get('ns_policy'))
-            e_uci = EUci()
-            e_uci.set('snort', 'snort', 'oinkcode', data.get('oinkcode', ''))
-            e_uci.save('snort')
-        elif action == "check-oinkcode":
-            data = json.load(sys.stdin)
-            if 'oinkcode' not in data:
-                raise ValidationError('oinkcode', 'required')
-            res = subprocess.run([
-                "curl",
-                "--fail",
-                "--location",
-                "--output",
-                "/dev/null",
-                # remember to change the URL even in the `ns-snort-rules` script
-                f"https://www.snort.org/rules/snortrules-snapshot-31470.tar.gz?oinkcode={data.get('oinkcode')}"],
-                capture_output=True)
-            if res.returncode != 0:
-                raise ValidationError('oinkcode', 'invalid')
+            __save_settings()
             print(json.dumps({"status": "success"}))
+        elif action == "check-oinkcode":
+            __check_oinkcode()
+            print(json.dumps({"status": "success"}))
+        elif action == "list-bypasses":
+            print(json.dumps({"bypasses": __list_bypasses()}))
+        elif action == "create-bypass":
+            __create_bypass()
+            print(json.dumps({"status": "success"}))
+        elif action == "delete-bypass":
+            __delete_bypass()
+            print(json.dumps({"status": "success"}))
+
         else:
             print(json.dumps(utils.generic_error(f"Unknown action: {action}")))
     except ValidationError as e:
