@@ -7779,19 +7779,6 @@ Output example:
 
 Configure Snort IDS.
 
-### setup
-
-Setup Snort IDS:
-```bash
-api-cli ns.snort setup --data '{"enabled": true, "set_home_net": true, "include_vpn": false, "ns_policy": "balanced", "ns_disabled_rules": []}'
-```
-
-If the API has been called for the first time, it will set all required configuration including IDS behavior.
-If `set_home_net` is `true`, the API will set the `HOME_NET` variable for the Snort configuration.
-If `include_vpn` is `true`, the API will include the VPN networks in the `HOME_NET` variable.
-The `ns_policy` can be `balanced`, `security` or `connectivity` or `max-detect`.
-The `ns_disabled_rules` is a list of SIDs (integer) of rules to be disabled.
-
 ### status
 
 Returns the configuration set for `snort`.
@@ -7805,7 +7792,7 @@ Response example:
 ```json
 {
   "enabled": true,
-  "ns_policy": "connectivity",
+  "ns_policy": "balanced",
   "oinkcode": "123456789"
 }
 ```
@@ -7834,19 +7821,74 @@ Response example:
 }
 ```
 
-or 
+or
 
 ```json
 {
   "validation": {
-    "errors": [
-      {
-        "message": "invalid",
-        "parameter": "oinkcode",
-        "value": ""
-      }
-    ]
+    "oinkcode": "invalid"
   }
+}
+```
+
+### list-bypasses
+
+List all configured bypasses for Snort IDS.
+
+```bash
+api-cli ns.snort list-bypasses
+```
+
+Response example:
+
+```json
+{
+  "bypasses": [
+    {
+      "direction": "src",
+      "protocol": "ipv4",
+      "ip": "192.168.100.23",
+      "description": "Description"
+    },
+    {
+      "direction": "dst",
+      "protocol": "ipv6",
+      "ip": "2001:db8::1",
+      "description": "Another description"
+    }
+  ]
+}
+```
+
+### create-bypass
+
+Create a new bypass rule for Snort IDS.
+
+```bash
+api-cli ns.snort create-bypass --data '{"protocol": "ipv4", "ip": "192.168.100.23", "direction": "src", "description": "Description"}'
+```
+
+Response example:
+
+```json
+{
+  "status": "success"
+}
+```
+
+### delete-bypass
+
+Delete an existing bypass rule for Snort IDS.
+
+```bash
+api-cli ns.snort delete-bypass --data '{"protocol": "ipv4", "ip": "192.168.100.23", "direction": "src"}'
+```
+
+Response example:
+
+```json
+{
+  "status": "success"
 }
 ```
 
