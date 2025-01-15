@@ -308,6 +308,51 @@ def __delete_bypass():
     e_uci.save('snort')
 
 
+def __list_disabled_rules():
+    e_uci = EUci()
+    disabled_rules = []
+    for rule in e_uci.get('snort', 'snort', 'ns_disabled_rules', list=True, default=[]):
+        split_record = rule.split(',')
+        disabled_rules.append({
+            "id": f'{split_record[0]}:{split_record[1]}',
+            "gid": split_record[0],
+            "sid": split_record[1],
+            "description": split_record[2] if len(split_record) > 2 else ""
+        })
+
+    return disabled_rules
+
+
+def __disable_rule():
+    request = json.load(sys.stdin)
+    if 'gid' not in request and request['gid'] == '':
+        raise ValidationError('gid', 'required')
+    if 'sid' not in request and request['sid'] == '':
+        raise ValidationError('sid', 'required')
+    if 'description' not in request and request['description'] == '':
+        raise ValidationError('description', 'required')
+    e_uci = EUci()
+    disabled_rules = list(e_uci.get('snort', 'snort', 'ns_disabled_rules', list=True, default=[]))
+    if any(f"{request['gid']},{request['sid']}," in rule for rule in disabled_rules):
+        raise ValidationError('gid', 'duplicate_rule')
+    disabled_rules.append(f"{request['gid']},{request['sid']},{request['description']}")
+    e_uci.set('snort', 'snort', 'ns_disabled_rules', disabled_rules)
+    e_uci.save('snort')
+
+
+def __enable_rule():
+    request = json.load(sys.stdin)
+    if 'gid' not in request and request['gid'] == '':
+        raise ValidationError('gid', 'required')
+    if 'sid' not in request and request['sid'] == '':
+        raise ValidationError('sid', 'required')
+    e_uci = EUci()
+    disabled_rules = list(e_uci.get('snort', 'snort', 'ns_disabled_rules', list=True, default=[]))
+    disabled_rules = [rule for rule in disabled_rules if f"{request['gid']},{request['sid']}," not in rule]
+    e_uci.set('snort', 'snort', 'ns_disabled_rules', disabled_rules)
+    e_uci.save('snort')
+
+
 if cmd == 'list':
     print(json.dumps({
         "status": {
@@ -319,7 +364,10 @@ if cmd == 'list':
         "check-oinkcode": {},
         "list-bypasses": {},
         "create-bypass": {"protocol": "ipv4", "ip": "*.*.*.*", "direction": "src", "description": "Description"},
-        "delete-bypass": {"protocol": "ipv4", "ip": "*.*.*.*", "direction": "src"}
+        "delete-bypass": {"protocol": "ipv4", "ip": "*.*.*.*", "direction": "src"},
+        "list-disabled-rules": {},
+        "disable-rule": {"gid": 1, "sid": 100000, "description": "Description"},
+        "enable-rule": {"gid": 1, "sid": 100000},
     }))
 else:
     try:
@@ -339,6 +387,14 @@ else:
             print(json.dumps({"status": "success"}))
         elif action == "delete-bypass":
             __delete_bypass()
+            print(json.dumps({"status": "success"}))
+        elif action == "list-disabled-rules":
+            print(json.dumps({"rules": __list_disabled_rules()}))
+        elif action == "disable-rule":
+            __disable_rule()
+            print(json.dumps({"status": "success"}))
+        elif action == "enable-rule":
+            __enable_rule()
             print(json.dumps({"status": "success"}))
 
         else:
