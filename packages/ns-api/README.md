@@ -7892,6 +7892,58 @@ Response example:
 }
 ```
 
+### list-disabled-rules
+
+List all disabled rules:
+
+```bash
+api-cli ns.snort list-disabled-rules
+```
+
+Response example:
+```json
+{
+  "rules": [
+    {
+      "gid": "1",
+      "sid": "24225",
+      "description": ""
+    }
+  ]
+}
+```
+
+### disable-rule
+
+Disable a specific rule:
+
+```bash
+api-cli ns.snort disable-rule --data '{"gid": 1, "sid": 24225, "description": "false_positive"}'
+```
+
+Response example:
+
+```json
+{
+  "status": "success"
+}
+```
+
+### enable-rule
+
+Enable a previously disabled rule:
+
+```bash
+api-cli ns.snort enable-rule --data '{"gid": 1, "sid": 24225}'
+```
+
+Response example:
+
+```json
+{
+  "status": "success"
+}
+```
 
 ## ns.wireguard
 
