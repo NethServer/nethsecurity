@@ -425,7 +425,7 @@ def dns_add_blocked(payload):
     # extract address from cur list
     if payload['address'] in [x['address'] for x in cur]:
         raise ValidationError('address', 'address_already_present', payload['address'])
-    cur.append({ "address": payload['address'], "description": payload['description'] })
+    cur.append({ "address": payload['address'], "description": payload.get('description') })
     write_allow_list(cur, '/etc/adblock/adblock.blacklist')
     return {'message': 'success'}
 
@@ -446,7 +446,7 @@ def dns_edit_blocked(payload):
         raise ValidationError('address', 'address_not_found', payload['address'])
     for i in range(len(cur)):
         if cur[i]['address'] == payload['address']:
-            cur[i]['description'] = payload['description']
+            cur[i]['description'] = payload.get('description')
             break
     write_allow_list(cur, '/etc/adblock/adblock.blacklist')
     return {'message': 'success'}
