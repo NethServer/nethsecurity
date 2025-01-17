@@ -6094,7 +6094,8 @@ Response example:
       "description": "Lorem ipsum dolor sit amet"
     },
     {
-      "address": "nastydomain.net"
+      "address": "nastydomain.net",
+      "description": ""
     }
   ]
 }
