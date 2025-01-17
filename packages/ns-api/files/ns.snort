@@ -353,6 +353,68 @@ def __enable_rule():
     e_uci.save('snort')
 
 
+def __list_suppressed_alerts():
+    e_uci = EUci()
+    suppressed_alerts = []
+    for rule in e_uci.get('snort', 'snort', 'ns_suppress', list=True, default=[]):
+        split_record = rule.split(',')
+        suppressed_alerts.append({
+            "id": f'{split_record[0]}:{split_record[1]}',
+            "gid": split_record[0],
+            "sid": split_record[1],
+            "direction": split_record[2],
+            "ip": split_record[3],
+            "description": split_record[4] if len(split_record) > 4 else ""
+        })
+
+    return suppressed_alerts
+
+
+def __suppress_alert():
+    request = json.load(sys.stdin)
+    if 'gid' not in request or request['gid'] == '':
+        raise ValidationError('gid', 'required')
+    if 'sid' not in request or request['sid'] == '':
+        raise ValidationError('sid', 'required')
+    if 'direction' not in request or request['direction'] == '':
+        raise ValidationError('direction', 'required')
+    if 'ip' not in request or request['direction'] == '':
+        raise ValidationError('ip', 'required')
+
+    if request['direction'] not in ['by_src', 'by_dst']:
+        raise ValidationError('direction', 'invalid')
+    try:
+        ipaddress.ip_network(request['ip'])
+    except:
+        raise ValidationError('ip', 'invalid')
+
+    e_uci = EUci()
+    suppressed_alerts = list(e_uci.get('snort', 'snort', 'ns_suppress', list=True, default=[]))
+    if any(f"{request['gid']},{request['sid']},{request['direction']},{request['ip']}," in rule for rule in suppressed_alerts):
+        raise ValidationError('gid', 'duplicate_suppression')
+    suppressed_alerts.append(f"{request['gid']},{request['sid']},{request['direction']},{request['ip']},{request.get('description', '')}")
+    e_uci.set('snort', 'snort', 'ns_suppress', suppressed_alerts)
+    e_uci.save('snort')
+
+
+def __delete_suppression():
+    request = json.load(sys.stdin)
+    if 'gid' not in request or request['gid'] == '':
+        raise ValidationError('gid', 'required')
+    if 'sid' not in request or request['sid'] == '':
+        raise ValidationError('sid', 'required')
+    if 'direction' not in request or request['direction'] == '':
+        raise ValidationError('direction', 'required')
+    if 'ip' not in request or request['direction'] == '':
+        raise ValidationError('ip', 'required')
+
+    e_uci = EUci()
+    suppressed_alerts = list(e_uci.get('snort', 'snort', 'ns_suppress', list=True, default=[]))
+    suppressed_alerts = [rule for rule in suppressed_alerts if f"{request['gid']},{request['sid']},{request['direction']},{request['ip']}," not in rule]
+    e_uci.set('snort', 'snort', 'ns_suppress', suppressed_alerts)
+    e_uci.save('snort')
+
+
 if cmd == 'list':
     print(json.dumps({
         "status": {
@@ -368,6 +430,9 @@ if cmd == 'list':
         "list-disabled-rules": {},
         "disable-rule": {"gid": 1, "sid": 100000, "description": "Description"},
         "enable-rule": {"gid": 1, "sid": 100000},
+        "list-suppressed-alerts": {},
+        "suppress-alert": {"gid": 1, "sid": 100000, "direction": "by_src", "ip": "*.*.*.*", "description": "Description"},
+        "delete-suppression": {"gid": 1, "sid": 100000, "direction": "by_src", "ip": "*.*.*.*"}
     }))
 else:
     try:
@@ -395,6 +460,14 @@ else:
             print(json.dumps({"status": "success"}))
         elif action == "enable-rule":
             __enable_rule()
+            print(json.dumps({"status": "success"}))
+        elif action == "list-suppressed-alerts":
+            print(json.dumps({"alerts": __list_suppressed_alerts()}))
+        elif action == "suppress-alert":
+            __suppress_alert()
+            print(json.dumps({"status": "success"}))
+        elif action == "delete-suppression":
+            __delete_suppression()
             print(json.dumps({"status": "success"}))
 
         else:
