@@ -8017,6 +8017,68 @@ Response example:
 }
 ```
 
+### list-suppressed-alerts
+
+List all suppressed alerts:
+
+```bash
+api-cli ns.snort list-suppressed-alerts
+```
+
+Response example:
+
+```json
+{
+  "rules": [
+    {
+      "id": "1:24225",
+      "gid": "1",
+      "sid": "24225",
+      "direction": "by_src",
+      "ip": "*.*.*.*",
+      "description": "false_positive"
+    }
+  ]
+}
+```
+
+### suppress-alert
+
+Suppress a specific alert:
+
+```bash
+api-cli ns.snort suppress-alert --data '{"gid": "1", "sid": "24225", "direction": "by_src", "ip": "*.*.*.*", "description": "false_positive"}'
+```
+
+Notes:
+- `direction` can be `by_src` or `by_dst`
+- `ip` and only be IPv4 or CIDR notation
+
+
+Response example:
+
+```json
+{
+  "status": "success"
+}
+```
+
+### delete-suppression
+
+Delete an existing suppression:
+
+```bash
+api-cli ns.snort delete-suppression --data '{"gid": "1", "sid": "24225", "direction": "by_dst", "ip": "*.*.*.*"}'
+```
+
+Response example:
+
+```json
+{
+  "status": "success"
+}
+```
+
 ## ns.wireguard
 
 Configure WireGuard VPN both in Road Warrior and site-to-site mode.
