@@ -367,7 +367,6 @@ def dns_list_blocklist(e_uci):
     return { "data": ret }
 
 def dns_edit_blocklist(e_uci, payload):
-    feeds = list_dns_feeds()
     try:
         enabled = list(e_uci.get_all('adblock', 'global', 'adb_sources'))
     except:
@@ -382,10 +381,14 @@ def dns_edit_blocklist(e_uci, payload):
 
 def dns_list_settings(e_uci):
     try:
-        zones = list(e_uci.get('adblock', 'global', 'adb_zonelist'))
+        zones = list(e_uci.get_all('adblock', 'global', 'adb_zonelist'))
     except:
         zones = []
-    return { 'data': {'enabled': e_uci.get('adblock', 'global', 'ts_enabled') == '1', "zones": zones} }
+    try:
+        ports = list(e_uci.get_all('adblock', 'global', 'adb_portlist'))
+    except:
+        ports = []
+    return { 'data': {'enabled': e_uci.get('adblock', 'global', 'ts_enabled') == '1', "zones": zones, "ports": ports} }
 
 def dns_edit_settings(e_uci, payload):
     if payload['enabled']:
@@ -394,10 +397,7 @@ def dns_edit_settings(e_uci, payload):
         e_uci.set('adblock', 'global', 'adb_backup', '1')
         e_uci.set('adblock', 'global', 'adb_forcedns', '1')
         e_uci.set('adblock', 'global', 'adb_zonelist', payload.get('zones', ['lan']))
-        try:
-            e_uci.get('adblock', 'global', 'adb_portlist')
-        except:
-            e_uci.set('adblock', 'global', 'adb_portlist', ['53', '853'])
+        e_uci.set('adblock', 'global', 'adb_portlist', payload.get('ports', ['53', '853']))
     else:
         e_uci.set('adblock', 'global', 'ts_enabled', '0')
         e_uci.set('adblock', 'global', 'adb_enabled', '0')
@@ -408,6 +408,9 @@ def dns_edit_settings(e_uci, payload):
 def dns_list_allowed():
     return { "data": get_allow_list('/etc/adblock/adblock.whitelist') }
 
+def dns_list_blocked():
+    return { "data": get_allow_list('/etc/adblock/adblock.blacklist') }
+
 def dns_add_allowed(payload):
     cur = get_allow_list('/etc/adblock/adblock.whitelist')
     # extract address from cur list
@@ -415,6 +418,15 @@ def dns_add_allowed(payload):
         raise ValidationError('address', 'address_already_present', payload['address'])
     cur.append({ "address": payload['address'], "description": payload['description'] })
     write_allow_list(cur, '/etc/adblock/adblock.whitelist')
+    return {'message': 'success'}
+
+def dns_add_blocked(payload):
+    cur = get_allow_list('/etc/adblock/adblock.blacklist')
+    # extract address from cur list
+    if payload['address'] in [x['address'] for x in cur]:
+        raise ValidationError('address', 'address_already_present', payload['address'])
+    cur.append({ "address": payload['address'], "description": payload.get('description') })
+    write_allow_list(cur, '/etc/adblock/adblock.blacklist')
     return {'message': 'success'}
 
 def dns_edit_allowed(payload):
@@ -428,6 +440,17 @@ def dns_edit_allowed(payload):
     write_allow_list(cur, '/etc/adblock/adblock.whitelist')
     return {'message': 'success'}
 
+def dns_edit_blocked(payload):
+    cur = get_allow_list('/etc/adblock/adblock.blacklist')
+    if payload['address'] not in [x['address'] for x in cur]:
+        raise ValidationError('address', 'address_not_found', payload['address'])
+    for i in range(len(cur)):
+        if cur[i]['address'] == payload['address']:
+            cur[i]['description'] = payload.get('description')
+            break
+    write_allow_list(cur, '/etc/adblock/adblock.blacklist')
+    return {'message': 'success'}
+
 def dns_delete_allowed(payload):
     cur = get_allow_list('/etc/adblock/adblock.whitelist')
     if payload['address'] not in [x['address'] for x in cur]:
@@ -438,6 +461,18 @@ def dns_delete_allowed(payload):
             del cur[i]
             break
     write_allow_list(cur, '/etc/adblock/adblock.whitelist')
+    return {'message': 'success'}
+
+def dns_delete_blocked(payload):
+    cur = get_allow_list('/etc/adblock/adblock.blacklist')
+    if payload['address'] not in [x['address'] for x in cur]:
+        raise ValidationError('address', 'address_not_found', payload['address'])
+    # remove address from cur list
+    for i in range(len(cur)):
+        if cur[i]['address'] == payload['address']:
+            del cur[i]
+            break
+    write_allow_list(cur, '/etc/adblock/adblock.blacklist')
     return {'message': 'success'}
 
 def dns_list_bypass(e_uci):
@@ -503,11 +538,15 @@ if cmd == 'list':
         'dns-list-blocklist': {},
         'dns-edit-blocklist': { "blocklist": "blocklist_name", "enabled": True },
         'dns-list-settings': {},
-        'dns-edit-settings': { 'enabled': True, 'zones': ["lan"] },
+        'dns-edit-settings': { 'enabled': True, 'zones': ["lan"], "ports": ["53", "853"] },
         'dns-list-allowed': {},
         'dns-add-allowed': { 'address': 'test.org' , 'description': 'optional'},
         'dns-edit-allowed': { 'address': 'test.org', 'description': 'optional' },
         'dns-delete-allowed' : { 'address': 'test.org' },
+        'dns-list-blocked': {},
+        'dns-add-blocked': {'address': '1.2.3.4', 'description': 'optional'},
+        'dns-edit-blocked': {'address': '1.2.3.4', 'description': 'optional'},
+        'dns-delete-blocked': {'address': '1.2.3.4'},
         'dns-list-bypass': {},
         'dns-add-bypass': { 'address': '1.2.3.4' },
         'dns-delete-bypass': { 'address': '1.2.3.4' }
@@ -578,6 +617,17 @@ elif cmd == 'call':
         elif action == 'dns-delete-bypass':
             payload = json.loads(sys.stdin.read())
             ret = dns_delete_bypass(e_uci, payload)
+        elif action == 'dns-list-blocked':
+            ret = dns_list_blocked()
+        elif action == 'dns-add-blocked':
+            payload = json.loads(sys.stdin.read())
+            ret = dns_add_blocked(payload)
+        elif action == 'dns-edit-blocked':
+            payload = json.loads(sys.stdin.read())
+            ret = dns_edit_blocked(payload)
+        elif action == 'dns-delete-blocked':
+            payload = json.loads(sys.stdin.read())
+            ret = dns_delete_blocked(payload)
 
         print(json.dumps(ret))
     except ValidationError as ex:

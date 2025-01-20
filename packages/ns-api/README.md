@@ -5964,14 +5964,14 @@ api-cli ns.threatshield dns-list-settings
 
 Response example:
 ```json
-{"data": {"enabled": true, "zones": ["lan"]}}
+{"data": {"enabled": true, "zones": ["lan"], "ports": ["53", "853"]}}
 ```
 
 ### dns-edit-settings
 
 Edit dns adblock settings:
 ```
-api-cli ns.threatshield dns-edit-settings --data '{"enabled": true, "zones": ["lan"]}'
+api-cli ns.threatshield dns-edit-settings --data '{"enabled": true, "zones": ["lan"], "ports": ["53", "853"]}'
 ```
 
 Response example:
@@ -6009,9 +6009,12 @@ Response example:
 {"message": "success"}
 ```
 
+It can raise the following validation errors:
+- `address_already_present` if the address is already inside the allow list
+
 ### dns-edit-allowed
 
-Change the description of an address already insie the allow list:
+Change the description of an address already inside the allow list:
 ```
 api-cli ns.threatshield dns-edit-allowed --data '{"address": "nethesis.it", "description": "my new desc"}'
 ```
@@ -6020,6 +6023,9 @@ Response example:
 ```json
 {"message": "success"}
 ```
+
+It can raise the following validation errors:
+- `address_not_found` if the address is not inside the allow list
 
 ### dns-delete-allowed
 
@@ -6032,6 +6038,9 @@ Response example:
 ```json
 {"message": "success"}
 ```
+
+It can raise the following validation errors:
+- `address_not_found` if the address is not inside the allow list
 
 ### dns-list-bypass
 
@@ -6068,6 +6077,69 @@ Response example:
 ```json
 {"message": "success"}
 ```
+
+### dns-list-blocked
+
+List blocked domains from the local DNS block list:
+```
+api-cli ns.threatshield dns-list-blocked
+```
+
+Response example:
+```json
+{
+  "data": [
+    {
+      "address": "dangerousdomain.com",
+      "description": "Lorem ipsum dolor sit amet"
+    },
+    {
+      "address": "nastydomain.net",
+      "description": ""
+    }
+  ]
+}
+```
+
+### dns-add-blocked
+
+Add a domain to the local DNS block list:
+```
+api-cli ns.threatshield dns-add-blocked --data '{"address": "nastydomain.net", "description": "my block1"}'
+```
+
+Response example:
+```json
+{"message": "success"}
+```
+
+It can raise the following validation errors:
+- `address_already_present` if the address is already inside the block list
+
+### dns-edit-blocked
+
+Change the description of an address already inside the local DNS block list:
+```
+api-cli ns.threatshield dns-edit-blocked --data '{"address": "nastydomain.net", "description": "My new desc"}'
+```
+
+It can raise the following validation errors:
+- `address_not_found` if the address is not inside the block list
+
+### dns-delete-blocked
+
+Delete an address from the local DNS block list:
+```
+api-cli ns.threatshield dns-delete-blocked --data '{"address": "nastydomain.net"}'
+```
+
+Response example:
+```json
+{"message": "success"}
+```
+
+It can raise the following validation errors:
+- `address_not_found` if the address is not inside the block list
 
 ## ns.qos
 
