@@ -187,7 +187,7 @@ def __save_settings():
     e_uci.save('snort')
 
 
-def __status():
+def __settings():
     e_uci = EUci()
     return {
         "enabled": e_uci.get('snort', 'snort', 'enabled', dtype=bool, default=False),
@@ -422,11 +422,15 @@ def __list_events():
     List events only from the last day
     """
     events = []
+    last_day = datetime.now() - timedelta(days=1)
     for file in glob(f"{LOG_DIR}/*_json.txt"):
         for line in open(file):
             raw = json.loads(line)
+            timestamp = datetime.strptime(raw.get('timestamp'), "%y/%m/%d-%H:%M:%S.%f")
+            if timestamp < last_day:
+                continue
             events.append({
-                'timestamp': datetime.strptime(raw.get('timestamp'), "%y/%m/%d-%H:%M:%S.%f").isoformat(),
+                'timestamp': timestamp.isoformat(),
                 'protocol': raw.get('proto'),
                 'source_address': raw.get('src_addr'),
                 'source_port': str(raw.get('src_port')),
@@ -439,20 +443,40 @@ def __list_events():
             })
 
     events.sort(key=lambda x: x['timestamp'], reverse=True)
-    last_day = datetime.now() - timedelta(days=1)
-    events = [event for event in events if datetime.fromisoformat(event['timestamp']) > last_day]
 
     return events
 
 
+def __status():
+    alerts = 0
+    drops = 0
+    last_day = datetime.now() - timedelta(days=1)
+    for file in glob(f"{LOG_DIR}/*_json.txt"):
+        for line in open(file):
+            raw = json.loads(line)
+            if datetime.strptime(raw.get('timestamp'), "%y/%m/%d-%H:%M:%S.%f") < last_day:
+                continue
+            if raw.get('action') == 'alert':
+                alerts += 1
+            elif raw.get('action') == 'drop':
+                drops += 1
+    e_uci = EUci()
+    enabled = e_uci.get('snort', 'snort', 'enabled', dtype=bool, default=False)
+    return {
+        'enabled': enabled,
+        'alerts': alerts,
+        'drops': drops
+    }
+
+
 if cmd == 'list':
     print(json.dumps({
-        "status": {
+        "settings": {
             "enabled": True,
             "ns_policy": "balanced",
             "oinkcode": "1234567890",
         },
-        "save": {"enabled": True, "ns_policy": "balanced", "oinkcode": "1234567890"},
+        "save-settings": {"enabled": True, "ns_policy": "balanced", "oinkcode": "1234567890"},
         "check-oinkcode": {},
         "list-bypasses": {},
         "create-bypass": {"protocol": "ipv4", "ip": "*.*.*.*", "direction": "src", "description": "Description"},
@@ -464,13 +488,14 @@ if cmd == 'list':
         "suppress-alert": {"gid": 1, "sid": 100000, "direction": "by_src", "ip": "*.*.*.*", "description": "Description"},
         "delete-suppression": {"gid": 1, "sid": 100000, "direction": "by_src", "ip": "*.*.*.*"},
         "list-events": {},
+        "status": {}
     }))
 else:
     try:
         action = sys.argv[2]
-        if action == "status":
-            print(json.dumps(__status()))
-        elif action == "save":
+        if action == "settings":
+            print(json.dumps(__settings()))
+        elif action == "save-settings":
             __save_settings()
             print(json.dumps({"status": "success"}))
         elif action == "check-oinkcode":
@@ -502,6 +527,8 @@ else:
             print(json.dumps({"status": "success"}))
         elif action == "list-events":
             print(json.dumps({"events": __list_events()}))
+        elif action == "status":
+            print(json.dumps({"status": __status()}))
 
         else:
             print(json.dumps(utils.generic_error(f"Unknown action: {action}")))
