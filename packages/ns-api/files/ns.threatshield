@@ -380,10 +380,7 @@ def dns_edit_blocklist(e_uci, payload):
     return {'message': 'success'}
 
 def dns_list_settings(e_uci):
-    try:
-        ts_enabled = e_uci.get('adblock', 'global', 'ts_enabled')
-    except:
-        ts_enabled = '0'
+     ts_enabled = e_uci.get('adblock', 'global', 'ts_enabled', default='0')
     try:
         zones = list(e_uci.get_all('adblock', 'global', 'adb_zonelist'))
     except:
