@@ -97,15 +97,25 @@ def write_allow_list(allow_list, file='/etc/banip/banip.allowlist'):
 def write_block_list(block_list):
     write_allow_list(block_list, '/etc/banip/banip.blocklist')
 
-
-def list_dns_feeds():
-    # Decompress and read the JSON file /etc/adblock/combined.sources.gz
-    sources = '/etc/adblock/combined.sources.gz'
-    if os.path.exists(sources) and os.path.getsize(sources) > 0:
-        data = subprocess.run(["gunzip", "-c", sources], capture_output=True).stdout
+def read_gz(file):
+    if os.path.exists(file) and os.path.getsize(file) > 0:
+        data = subprocess.run(["gunzip", "-c", file], capture_output=True).stdout
         return json.loads(data)
     else:
         return {}
+
+def list_dns_feeds(enterprise=False):
+    # Decompress and read the JSON file /etc/adblock/combined.sources.gz
+    ret = {}
+    sources = '/etc/adblock/combined.sources.gz'
+    if not os.path.exists(sources):
+        ret = read_gz('/usr/share/threat_shield/community-dns.sources.gz')
+        if enterprise:
+            ret.update(read_gz('/usr/share/threat_shield/nethesis-dns.sources.gz'))
+    else:
+        ret = read_gz(sources)
+
+    return ret
 
 def get_confidence(f):
     confidence = -1
@@ -343,8 +353,8 @@ def edit_blocked(payload):
 
 def dns_list_blocklist(e_uci):
     ret = []
-    feeds = list_dns_feeds()
     has_bl = has_bl_entitlement(e_uci)
+    feeds = list_dns_feeds(has_bl)
     try:
         enabled_feeds = list(e_uci.get_all('adblock', 'global', 'adb_sources'))
     except:
