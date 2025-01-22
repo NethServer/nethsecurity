@@ -7851,12 +7851,12 @@ Output example:
 
 Configure Snort IDS.
 
-### status
+### settings
 
 Returns the configuration set for `snort`.
 
 ```bash
-api-cli ns.snort status
+api-cli ns.snort settings
 ```
 
 Response example:
@@ -7869,12 +7869,12 @@ Response example:
 }
 ```
 
-### save
+### save-settings
 
 Set `snort` configuration
 
 ```bash
-api-cli ns.snort save --data '{"enabled": true, "ns_policy": "balanced", "oinkcode": "123456789"}'
+api-cli ns.snort save-settings --data '{"enabled": true, "ns_policy": "balanced", "oinkcode": "123456789"}'
 ```
 
 ### check-oinkcode
@@ -8076,6 +8076,24 @@ Response example:
 ```json
 {
   "status": "success"
+}
+```
+
+### status
+
+Returns general status for `snort`.
+
+```bash
+api-cli ns.snort status
+```
+
+Response example:
+
+```json
+{
+  "enabled": true,
+  "alerts": 0,
+  "drops": 1
 }
 ```
 

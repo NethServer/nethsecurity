@@ -12,10 +12,14 @@ import subprocess
 import json
 import sys
 import ipaddress
+from datetime import datetime, timedelta
+from glob import glob
+
 from nethsec import utils
 from euci import EUci
 from nethsec.utils import ValidationError
 
+LOG_DIR = "/var/log/snort"
 
 # Retrieve all non-WAN interfaces and their IP addresses
 # It also return the IP address of VPN interfaces
@@ -183,7 +187,7 @@ def __save_settings():
     e_uci.save('snort')
 
 
-def __status():
+def __settings():
     e_uci = EUci()
     return {
         "enabled": e_uci.get('snort', 'snort', 'enabled', dtype=bool, default=False),
@@ -314,7 +318,6 @@ def __list_disabled_rules():
     for rule in e_uci.get('snort', 'snort', 'ns_disabled_rules', list=True, default=[]):
         split_record = rule.split(',')
         disabled_rules.append({
-            "id": f'{split_record[0]}:{split_record[1]}',
             "gid": split_record[0],
             "sid": split_record[1],
             "description": split_record[2] if len(split_record) > 2 else ""
@@ -348,7 +351,7 @@ def __enable_rule():
         raise ValidationError('sid', 'required')
     e_uci = EUci()
     disabled_rules = list(e_uci.get('snort', 'snort', 'ns_disabled_rules', list=True, default=[]))
-    disabled_rules = [rule for rule in disabled_rules if f"{request['gid']},{request['sid']}," not in rule]
+    disabled_rules = [rule for rule in disabled_rules if f"{request['gid']},{request['sid']}" not in rule]
     e_uci.set('snort', 'snort', 'ns_disabled_rules', disabled_rules)
     e_uci.save('snort')
 
@@ -359,7 +362,6 @@ def __list_suppressed_alerts():
     for rule in e_uci.get('snort', 'snort', 'ns_suppress', list=True, default=[]):
         split_record = rule.split(',')
         suppressed_alerts.append({
-            "id": f'{split_record[0]}:{split_record[1]}',
             "gid": split_record[0],
             "sid": split_record[1],
             "direction": split_record[2],
@@ -410,19 +412,71 @@ def __delete_suppression():
 
     e_uci = EUci()
     suppressed_alerts = list(e_uci.get('snort', 'snort', 'ns_suppress', list=True, default=[]))
-    suppressed_alerts = [rule for rule in suppressed_alerts if f"{request['gid']},{request['sid']},{request['direction']},{request['ip']}," not in rule]
+    suppressed_alerts = [rule for rule in suppressed_alerts if f"{request['gid']},{request['sid']},{request['direction']},{request['ip']}" not in rule]
     e_uci.set('snort', 'snort', 'ns_suppress', suppressed_alerts)
     e_uci.save('snort')
 
 
+def __list_events():
+    """
+    List events only from the last day
+    """
+    events = []
+    last_day = datetime.now() - timedelta(days=1)
+    for file in glob(f"{LOG_DIR}/*_json.txt"):
+        for line in open(file):
+            raw = json.loads(line)
+            timestamp = datetime.strptime(raw.get('timestamp'), "%y/%m/%d-%H:%M:%S.%f")
+            if timestamp < last_day:
+                continue
+            events.append({
+                'timestamp': timestamp.isoformat(),
+                'protocol': raw.get('proto'),
+                'source_address': raw.get('src_addr'),
+                'source_port': str(raw.get('src_port')),
+                'destination_address': raw.get('dst_addr'),
+                'destination_port': str(raw.get('dst_port')),
+                'gid': str(raw.get('gid')),
+                'sid': str(raw.get('sid')),
+                'action': raw.get('action'),
+                'description': raw.get('msg')
+            })
+
+    events.sort(key=lambda x: x['timestamp'], reverse=True)
+
+    return events
+
+
+def __status():
+    alerts = 0
+    drops = 0
+    last_day = datetime.now() - timedelta(days=1)
+    for file in glob(f"{LOG_DIR}/*_json.txt"):
+        for line in open(file):
+            raw = json.loads(line)
+            if datetime.strptime(raw.get('timestamp'), "%y/%m/%d-%H:%M:%S.%f") < last_day:
+                continue
+            if raw.get('action') == 'alert':
+                alerts += 1
+            elif raw.get('action') == 'drop':
+                drops += 1
+    e_uci = EUci()
+    enabled = e_uci.get('snort', 'snort', 'enabled', dtype=bool, default=False)
+    return {
+        'enabled': enabled,
+        'alerts': alerts,
+        'drops': drops
+    }
+
+
 if cmd == 'list':
     print(json.dumps({
-        "status": {
+        "settings": {
             "enabled": True,
             "ns_policy": "balanced",
             "oinkcode": "1234567890",
         },
-        "save": {"enabled": True, "ns_policy": "balanced", "oinkcode": "1234567890"},
+        "save-settings": {"enabled": True, "ns_policy": "balanced", "oinkcode": "1234567890"},
         "check-oinkcode": {},
         "list-bypasses": {},
         "create-bypass": {"protocol": "ipv4", "ip": "*.*.*.*", "direction": "src", "description": "Description"},
@@ -432,14 +486,16 @@ if cmd == 'list':
         "enable-rule": {"gid": 1, "sid": 100000},
         "list-suppressed-alerts": {},
         "suppress-alert": {"gid": 1, "sid": 100000, "direction": "by_src", "ip": "*.*.*.*", "description": "Description"},
-        "delete-suppression": {"gid": 1, "sid": 100000, "direction": "by_src", "ip": "*.*.*.*"}
+        "delete-suppression": {"gid": 1, "sid": 100000, "direction": "by_src", "ip": "*.*.*.*"},
+        "list-events": {},
+        "status": {}
     }))
 else:
     try:
         action = sys.argv[2]
-        if action == "status":
-            print(json.dumps(__status()))
-        elif action == "save":
+        if action == "settings":
+            print(json.dumps(__settings()))
+        elif action == "save-settings":
             __save_settings()
             print(json.dumps({"status": "success"}))
         elif action == "check-oinkcode":
@@ -469,6 +525,10 @@ else:
         elif action == "delete-suppression":
             __delete_suppression()
             print(json.dumps({"status": "success"}))
+        elif action == "list-events":
+            print(json.dumps({"events": __list_events()}))
+        elif action == "status":
+            print(json.dumps({"status": __status()}))
 
         else:
             print(json.dumps(utils.generic_error(f"Unknown action: {action}")))
