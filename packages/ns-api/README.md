@@ -7851,18 +7851,251 @@ Output example:
 
 Configure Snort IDS.
 
-### setup
+### settings
 
-Setup Snort IDS:
+Returns the configuration set for `snort`.
+
 ```bash
-api-cli ns.snort setup --data '{"enabled": true, "set_home_net": true, "include_vpn": false, "ns_policy": "balanced", "ns_disabled_rules": []}'
+api-cli ns.snort settings
 ```
 
-If the API has been called for the first time, it will set all required configuration including IDS behavior.
-If `set_home_net` is `true`, the API will set the `HOME_NET` variable for the Snort configuration.
-If `include_vpn` is `true`, the API will include the VPN networks in the `HOME_NET` variable.
-The `ns_policy` can be `balanced`, `security` or `connectivity` or `max-detect`.
-The `ns_disabled_rules` is a list of SIDs (integer) of rules to be disabled.
+Response example:
+
+```json
+{
+  "enabled": true,
+  "ns_policy": "balanced",
+  "oinkcode": "123456789"
+}
+```
+
+### save-settings
+
+Set `snort` configuration
+
+```bash
+api-cli ns.snort save-settings --data '{"enabled": true, "ns_policy": "balanced", "oinkcode": "123456789"}'
+```
+
+### check-oinkcode
+
+Checks if the provided oinkcode is valid
+
+```bash
+api-cli ns.snort check-oinkcode --data '{"oinkcode": "123456789"}'
+```
+
+Response example:
+
+```json
+{
+  "status": "success"
+}
+```
+
+or
+
+```json
+{
+  "validation": {
+    "oinkcode": "invalid"
+  }
+}
+```
+
+### list-bypasses
+
+List all configured bypasses for Snort IDS.
+
+```bash
+api-cli ns.snort list-bypasses
+```
+
+Response example:
+
+```json
+{
+  "bypasses": [
+    {
+      "direction": "src",
+      "protocol": "ipv4",
+      "ip": "192.168.100.23",
+      "description": "Description"
+    },
+    {
+      "direction": "dst",
+      "protocol": "ipv6",
+      "ip": "2001:db8::1",
+      "description": "Another description"
+    }
+  ]
+}
+```
+
+### create-bypass
+
+Create a new bypass rule for Snort IDS.
+
+```bash
+api-cli ns.snort create-bypass --data '{"protocol": "ipv4", "ip": "192.168.100.23", "direction": "src", "description": "Description"}'
+```
+
+Response example:
+
+```json
+{
+  "status": "success"
+}
+```
+
+### delete-bypass
+
+Delete an existing bypass rule for Snort IDS.
+
+```bash
+api-cli ns.snort delete-bypass --data '{"protocol": "ipv4", "ip": "192.168.100.23", "direction": "src"}'
+```
+
+Response example:
+
+```json
+{
+  "status": "success"
+}
+```
+
+### list-disabled-rules
+
+List all disabled rules:
+
+```bash
+api-cli ns.snort list-disabled-rules
+```
+
+Response example:
+```json
+{
+  "rules": [
+    {
+      "gid": "1",
+      "sid": "24225",
+      "description": ""
+    }
+  ]
+}
+```
+
+### disable-rule
+
+Disable a specific rule:
+
+```bash
+api-cli ns.snort disable-rule --data '{"gid": 1, "sid": 24225, "description": "false_positive"}'
+```
+
+Response example:
+
+```json
+{
+  "status": "success"
+}
+```
+
+### enable-rule
+
+Enable a previously disabled rule:
+
+```bash
+api-cli ns.snort enable-rule --data '{"gid": 1, "sid": 24225}'
+```
+
+Response example:
+
+```json
+{
+  "status": "success"
+}
+```
+
+### list-suppressed-alerts
+
+List all suppressed alerts:
+
+```bash
+api-cli ns.snort list-suppressed-alerts
+```
+
+Response example:
+
+```json
+{
+  "rules": [
+    {
+      "id": "1:24225",
+      "gid": "1",
+      "sid": "24225",
+      "direction": "by_src",
+      "ip": "*.*.*.*",
+      "description": "false_positive"
+    }
+  ]
+}
+```
+
+### suppress-alert
+
+Suppress a specific alert:
+
+```bash
+api-cli ns.snort suppress-alert --data '{"gid": "1", "sid": "24225", "direction": "by_src", "ip": "*.*.*.*", "description": "false_positive"}'
+```
+
+Notes:
+- `direction` can be `by_src` or `by_dst`
+- `ip` and only be IPv4 or CIDR notation
+
+
+Response example:
+
+```json
+{
+  "status": "success"
+}
+```
+
+### delete-suppression
+
+Delete an existing suppression:
+
+```bash
+api-cli ns.snort delete-suppression --data '{"gid": "1", "sid": "24225", "direction": "by_dst", "ip": "*.*.*.*"}'
+```
+
+Response example:
+
+```json
+{
+  "status": "success"
+}
+```
+
+### status
+
+Returns general status for `snort`.
+
+```bash
+api-cli ns.snort status
+```
+
+Response example:
+
+```json
+{
+  "enabled": true,
+  "alerts": 0,
+  "drops": 1
+}
+```
 
 ## ns.wireguard
 
