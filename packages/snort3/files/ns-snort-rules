@@ -127,8 +127,8 @@ def filter_official_rules(policy, alert_excluded, disabled_rules, oinkcode=None)
                 if alert_excluded and 'PROTOCOL-ICMP' not in rule.msg:
                     alert_rules.add(rule)
         for rule in drop_rules:
-            if rule.action != 'drop':
-                rule.raw = rule.raw.replace(rule.action, "drop", 1)
+            if rule.action != 'block':
+                rule.raw = rule.raw.replace(rule.action, "block", 1)
             ret.add(rule.raw)
     # append alert rules
     ret.update(alert_rules)
