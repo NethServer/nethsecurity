@@ -5,19 +5,55 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
+import re
 import os
 import sys
 import sqlite3
+from euci import EUci
+from nethsec import users
+
+# The certificate of a migrated user is not present inside the index.txt
+def is_migrated(instance, user):
+    try:
+        with open(f"/etc/openvpn/{instance}/pki/index.txt", "r") as fp:
+            lines = fp.readlines()
+            for line in lines:
+                (_, _, _, _, _, name) = line.split("\t")
+                if name == user:
+                    return False
+    except:
+        return True
+    return True
+
+config_path = sys.argv[1]
+instance = re.sub(r'^openvpn-|\.conf$', '', config_path)
+virtual_ip_addr = ''
+uci = EUci()
+
+# The OpenVPN server sets the virtual IP address of the client in the environment variable ifconfig_pool_remote_ip,
+# still this value is not reliable in case of an IP reservation.
+try:
+    db = uci.get("openvpn", instance, "ns_user_db")
+    cn = os.environ.get("common_name")
+    if '@' in cn and is_migrated(instance, os.environ.get("common_name")):
+        # remove domain suffix
+        cn = cn.split('@')[0]
+    user = users.get_user_by_name(uci, cn, db)
+    if user:
+        ipaddr = user.get('openvpn_ipaddr', '')
+        if ipaddr:
+            virtual_ip_addr = ipaddr
+except:
+    # user db not set, ignoring IP reservation, use the value from server
+    virtual_ip_addr = os.environ.get("ifconfig_pool_remote_ip")
 
 try:
-    conn = sqlite3.connect(f'/var/openvpn/{sys.argv[1]}/connections.db')
+    conn = sqlite3.connect(f'/var/openvpn/{instance}/connections.db')
     c = conn.cursor()
 
-    env = os.environ
-    common_name = env['common_name']
-    virtual_ip_addr = env['ifconfig_pool_remote_ip']
-    remote_ip_addr = env['untrusted_ip']
-    start_time = int(env['time_unix'])
+    common_name = os.environ.get('common_name')
+    remote_ip_addr = os.environ.get('untrusted_ip')
+    start_time = int(os.environ.get('time_unix'))
 
     c.execute("INSERT INTO connections (common_name, virtual_ip_addr, remote_ip_addr, start_time) VALUES (?, ?, ?, ?)", (common_name, virtual_ip_addr, remote_ip_addr, start_time))
 
