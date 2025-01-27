@@ -4623,15 +4623,60 @@ Read SSH keys
 
 ### list-keys
 
-Return the content of `/etc/dropbear/authorized_keys` file:
-```
+Returns list of authorized keys:
+
+```bash
 api-cli ns.ssh list-keys
 ```
 
 Output example:
+
 ```json
-{'keys': '\nssh-rsa AAAAB3N...6m5 test@nethserver.org\n'}
+{
+  "keys": [
+    {
+      "type": "ssh-rsa",
+      "key": "...",
+      "comment": "very_cool_key"
+    }
+  ]
+}
 ```
+
+### add-key
+
+Add a new key for SSH access:
+
+```bash
+api-cli ns.ssh add-key --data '{"key": "..."}'
+```
+
+Example response:
+
+```json
+{
+  "message": "success"
+}
+```
+
+### delete-key
+
+Delete a key from the list:
+
+```bash
+api-cli ns.ssh delete-key --data '{"key": "..."}'
+```
+
+NOTE: API call only requires the key, not the full entry. Discard the comment and type of key.
+
+Example response:
+
+```json
+{
+  "message": "success"
+}
+```
+
 
 ## ns.reverseproxy
 
