@@ -500,7 +500,6 @@ The `proto` and `dest_port` field will be validated and saved only if `ns_servic
 
 Possible validation errors:
 - `invalid_format` for `dest_ip` and `src_ip`
-- `same_zone` is `src` is equal to `dest`
 - `invalid_target` for `target`
 - if `ns_service` is `custom`: `invalid_proto` for `proto` and `invalid_port` for `dest_port`
 - if `ns_service` is not `cutom` or `*`: `invalid_service` for `ns_service
