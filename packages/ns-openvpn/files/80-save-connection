@@ -27,7 +27,7 @@ def is_migrated(instance, user):
 
 config_path = sys.argv[1]
 instance = re.sub(r'^openvpn-|\.conf$', '', config_path)
-virtual_ip_addr = ''
+virtual_ip_addr = os.environ.get("ifconfig_pool_remote_ip")
 uci = EUci()
 
 # The OpenVPN server sets the virtual IP address of the client in the environment variable ifconfig_pool_remote_ip,
@@ -45,7 +45,7 @@ try:
             virtual_ip_addr = ipaddr
 except:
     # user db not set, ignoring IP reservation, use the value from server
-    virtual_ip_addr = os.environ.get("ifconfig_pool_remote_ip")
+    pass
 
 try:
     conn = sqlite3.connect(f'/var/openvpn/{instance}/connections.db')
