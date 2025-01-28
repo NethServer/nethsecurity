@@ -18,7 +18,8 @@ if cmd == 'list':
     print(json.dumps({
         'set-password': {
             'username': 'str',
-            'password': 'str'
+            'password': 'str',
+            'old_password': 'str',
         }
     }))
 elif cmd == 'call':
@@ -26,19 +27,22 @@ elif cmd == 'call':
     e_uci = EUci()
     if action == 'set-password':
         try:
-            data = json.JSONDecoder().decode(sys.stdin.read())
+            data = json.load(sys.stdin)
             rpcd_user_list = utils.get_all_by_type(e_uci, 'rpcd', 'login')
             user_list = utils.get_all_by_type(e_uci, 'users', 'user')
             # check if username is inside config
             if data['username'] not in [user['username'] for user in rpcd_user_list.values()]:
                 raise utils.ValidationError('username', 'invalid', data['username'])
 
+            old_password = data.get('old_password', '')
             # if user is not root, change rpcd config
             if data['username'] != 'root':
+                new_password_hash = users.shadow_password(data['password'])
                 for user_key, user in rpcd_user_list.items():
-                    password_hash = users.shadow_password(data['password'])
                     if user['username'] == data['username']:
-                        e_uci.set('rpcd', user_key, 'password', password_hash)
+                        if not users.check_password(old_password, user['password']):
+                            raise utils.ValidationError('old_password', 'invalid_old_password')
+                        e_uci.set('rpcd', user_key, 'password', new_password_hash)
                         e_uci.save('rpcd')
                         e_uci.commit('rpcd')
                         break
@@ -46,13 +50,30 @@ elif cmd == 'call':
                 for user_key, user in user_list.items():
                     is_local = users.get_database_type(e_uci, user['database']) == 'local'
                     if user['name'] == data['username'] and is_local:
-                        e_uci.set('users', user_key, 'password', password_hash)
+                        if not users.check_password(old_password, user['password']):
+                            raise utils.ValidationError('old_password', 'invalid_old_password')
+                        e_uci.set('users', user_key, 'password', new_password_hash)
                         e_uci.save('users')
                         e_uci.commit('users')
                         break
 
             else:
-                # otherwise, change `passwd` file using pre-existing ubus call
+                # read shadow file and get root user line
+                with open('/etc/shadow', 'r') as shadow_file:
+                    shadow_lines = shadow_file.readlines()
+                    root_line = next((line for line in shadow_lines if line.startswith('root:')), None)
+                    if root_line is None:
+                        raise RuntimeError('root user not found in shadow file')
+                # split sections of root line
+                root_hash = root_line.split(':')[1]
+                root_hash_type = root_hash.split('$')[1]
+                root_hash_salt = root_hash.split('$')[2]
+                root_hash_match = root_hash.split('$')[3]
+                # check if old password is correct
+                openssl_cmd = subprocess.run(['openssl', 'passwd', f'-{root_hash_type}', '-salt', root_hash_salt, old_password], capture_output=True, check=True, text=True)
+                if openssl_cmd.stdout.strip() != root_hash:
+                    raise utils.ValidationError('old_password', 'invalid_old_password')
+                # change `passwd` file using pre-existing ubus call
                 subprocess.run(['ubus', 'call', 'luci', 'setPassword', json.dumps({
                     'username': data['username'],
                     'password': data['password']
