@@ -6,7 +6,8 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-api-server
-PKG_VERSION:=1.3.0
+# FIXME: use the correct version once released
+PKG_VERSION:=api-restrictions
 PKG_RELEASE:=2
  
 PKG_SOURCE:=ns-api-server-$(PKG_VERSION).tar.gz
