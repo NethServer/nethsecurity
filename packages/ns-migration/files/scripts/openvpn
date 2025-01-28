@@ -14,6 +14,7 @@ import shutil
 import nsmigration
 import subprocess
 import ipaddress
+import pyotp
 from nethsec import firewall, utils, ovpn
 
 def save_cert(path, data):
@@ -189,6 +190,8 @@ for user in data["users"]:
         u.set("users", sname, "password", user["password"])
     if '2fa' in user and user.get('2fa'):
         u.set("users", sname, "openvpn_2fa", user["2fa"])
+    else:
+        u.set("users", sname, "openvpn_2fa", pyotp.random_base32())
     save_cert(os.path.join(cert_dir, f'private/{user["name"]}.key'), user['key'])
     save_cert(os.path.join(cert_dir, f'issued/{user["name"]}.crt'), user['crt'])
 
