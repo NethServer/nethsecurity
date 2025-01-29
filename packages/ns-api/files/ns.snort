@@ -438,7 +438,7 @@ def __list_events():
                 'destination_port': str(raw.get('dst_port')),
                 'gid': str(raw.get('gid')),
                 'sid': str(raw.get('sid')),
-                'action': raw.get('action'),
+                'action': 'alert' if raw.get('action') == 'allow' else raw.get('action'),
                 'description': raw.get('msg')
             })
 
@@ -448,24 +448,19 @@ def __list_events():
 
 
 def __status():
-    alerts = 0
-    drops = 0
+    events = 0
     last_day = datetime.now() - timedelta(days=1)
     for file in glob(f"{LOG_DIR}/*_json.txt"):
         for line in open(file):
             raw = json.loads(line)
             if datetime.strptime(raw.get('timestamp'), "%y/%m/%d-%H:%M:%S.%f") < last_day:
                 continue
-            if raw.get('action') == 'alert':
-                alerts += 1
-            elif raw.get('action') == 'drop':
-                drops += 1
+            events += 1
     e_uci = EUci()
     enabled = e_uci.get('snort', 'snort', 'enabled', dtype=bool, default=False)
     return {
         'enabled': enabled,
-        'alerts': alerts,
-        'drops': drops
+        'events': events
     }
 
 
