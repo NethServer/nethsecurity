@@ -93,6 +93,14 @@ def write_allow_list(allow_list, file='/etc/banip/banip.allowlist'):
             f.write('\n')
     subprocess.run(["/etc/init.d/banip", "reload"], capture_output=True)
 
+def dns_write_local_list(local_list, file):
+    with open(file, 'w') as f:
+        for x in local_list:
+            f.write(x['address'])
+            if x['description']:
+                f.write(' #' + x['description'])
+            f.write('\n')
+    subprocess.run(["/etc/init.d/adblock", "restart"], capture_output=True)
 
 def write_block_list(block_list):
     write_allow_list(block_list, '/etc/banip/banip.blocklist')
@@ -428,7 +436,7 @@ def dns_add_allowed(payload):
     if payload['address'] in [x['address'] for x in cur]:
         raise ValidationError('address', 'address_already_present', payload['address'])
     cur.append({ "address": payload['address'], "description": payload['description'] })
-    write_allow_list(cur, '/etc/adblock/adblock.whitelist')
+    dns_write_local_list(cur, '/etc/adblock/adblock.whitelist')
     return {'message': 'success'}
 
 def dns_add_blocked(payload):
@@ -437,7 +445,7 @@ def dns_add_blocked(payload):
     if payload['address'] in [x['address'] for x in cur]:
         raise ValidationError('address', 'address_already_present', payload['address'])
     cur.append({ "address": payload['address'], "description": payload.get('description') })
-    write_allow_list(cur, '/etc/adblock/adblock.blacklist')
+    dns_write_local_list(cur, '/etc/adblock/adblock.blacklist')
     return {'message': 'success'}
 
 def dns_edit_allowed(payload):
@@ -448,7 +456,7 @@ def dns_edit_allowed(payload):
         if cur[i]['address'] == payload['address']:
             cur[i]['description'] = payload['description']
             break
-    write_allow_list(cur, '/etc/adblock/adblock.whitelist')
+    dns_write_local_list(cur, '/etc/adblock/adblock.whitelist')
     return {'message': 'success'}
 
 def dns_edit_blocked(payload):
@@ -459,7 +467,7 @@ def dns_edit_blocked(payload):
         if cur[i]['address'] == payload['address']:
             cur[i]['description'] = payload.get('description')
             break
-    write_allow_list(cur, '/etc/adblock/adblock.blacklist')
+    dns_write_local_list(cur, '/etc/adblock/adblock.blacklist')
     return {'message': 'success'}
 
 def dns_delete_allowed(payload):
