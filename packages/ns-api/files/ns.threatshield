@@ -14,7 +14,7 @@ import urllib.request
 import urllib.error
 from euci import EUci
 from nethsec.utils import ValidationError
-from nethsec import utils
+from nethsec import utils, firewall
 import base64
 import time
 import subprocess
@@ -397,6 +397,13 @@ def dns_edit_blocklist(e_uci, payload):
     e_uci.save('adblock')
     return {'message': 'success'}
 
+def dns_list_zones(e_uci):
+    zones_no_wan = {zone_name: zone for zone_name, zone in firewall.list_zones_no_aliases(e_uci).items() if zone['name'] != 'wan'}
+    zones = []
+    for zone in zones_no_wan.values():
+        zones.append(zone['name'])
+    return { 'data': zones }
+
 def dns_list_settings(e_uci):
     ts_enabled = e_uci.get('adblock', 'global', 'ts_enabled', default='0')
     try:
@@ -411,6 +418,8 @@ def dns_list_settings(e_uci):
 
 def dns_edit_settings(e_uci, payload):
     if payload['enabled']:
+        if 'zones' in payload and 'wan' in payload['zones']:
+            raise ValidationError('zones', 'wan_zone_not_allowed', payload['zones'])
         e_uci.set('adblock', 'global', 'ts_enabled', '1')
         e_uci.set('adblock', 'global', 'adb_enabled', '1')
         e_uci.set('adblock', 'global', 'adb_backup', '1')
@@ -557,6 +566,7 @@ if cmd == 'list':
         'dns-list-blocklist': {},
         'dns-edit-blocklist': { "blocklist": "blocklist_name", "enabled": True },
         'dns-list-settings': {},
+        'dns-list-zones': {},
         'dns-edit-settings': { 'enabled': True, 'zones': ["lan"], "ports": ["53", "853"] },
         'dns-list-allowed': {},
         'dns-add-allowed': { 'address': 'test.org' , 'description': 'optional'},
@@ -617,6 +627,8 @@ elif cmd == 'call':
         elif action == 'dns-edit-settings':
             payload = json.loads(sys.stdin.read())
             ret = dns_edit_settings(e_uci, payload)
+        elif action == 'dns-list-zones':
+            ret = dns_list_zones(e_uci)
         elif action == 'dns-add-allowed':
             payload = json.loads(sys.stdin.read())
             ret = dns_add_allowed(payload)
