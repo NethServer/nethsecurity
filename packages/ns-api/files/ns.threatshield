@@ -479,7 +479,7 @@ def dns_delete_allowed(payload):
         if cur[i]['address'] == payload['address']:
             del cur[i]
             break
-    write_allow_list(cur, '/etc/adblock/adblock.whitelist')
+    dns_write_local_list(cur, '/etc/adblock/adblock.whitelist')
     return {'message': 'success'}
 
 def dns_delete_blocked(payload):
@@ -491,7 +491,7 @@ def dns_delete_blocked(payload):
         if cur[i]['address'] == payload['address']:
             del cur[i]
             break
-    write_allow_list(cur, '/etc/adblock/adblock.blacklist')
+    dns_write_local_list(cur, '/etc/adblock/adblock.blacklist')
     return {'message': 'success'}
 
 def dns_list_bypass(e_uci):
