@@ -5978,6 +5978,23 @@ Response example:
 {"message": "success"}
 ```
 
+### dns-list-zones
+
+List firewall zones that can be configured on Threat shield DNS (all zones but WAN):
+```
+api-cli ns.threatshield dns-list-zones
+```
+
+Response example:
+```json
+{
+  "data": [
+    "lan",
+    "myzone"
+  ]
+}
+```
+
 ### dns-list-allowed
 
 List domains always allowed:
