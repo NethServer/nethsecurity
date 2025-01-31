@@ -7,15 +7,16 @@
 
 failed_count=0
 
-# Execute all mwan scrips
+# Execute all mwan scripts
 for f in $(find /usr/libexec/mwan-hooks/ -type f -executable)
 do
-    # Execute the script
-    $f
+    # Execute the script and capture the output:
+    # avoid unwanted output if the script is terminated with a SIGHUP
+    output=$($f 2>&1)
     exit_code=$?
-    if [ $exit_code -gt 0 ]; then
+    if [[ $exit_code -gt 0 && $exit_code != 129 ]]; then
         ((failed_count++))
-        logger -t mwan3-hook "Script $f failed with exit code $exit_code"
+	logger -t mwan3-hook "Script $f returned $exit_code: $output"
     fi
 done
 
