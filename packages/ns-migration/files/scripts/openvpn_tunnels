@@ -75,7 +75,7 @@ def import_tunnel(u, tunnel, ttype):
     # Add management socket
     u.set("openvpn", iname, 'management', f'/var/run/openvpn_{iname}.socket unix')
     # Setup the device with max 16 characters
-    device = f'tun{name}'[:16]
+    device = f'tun{name}'[:15]
     u.set("openvpn", iname, 'dev', device)
     # Add interface to LAN
     ovpn_interface = firewall.add_vpn_interface(u, name, device, link=f'openvpn/{iname}')
