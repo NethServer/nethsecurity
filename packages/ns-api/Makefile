@@ -27,7 +27,6 @@ endef
 
 define Package/ns-api/conffiles
 /etc/config/ns-api
-/etc/config/templates
 endef
  
 define Package/ns-api/description
