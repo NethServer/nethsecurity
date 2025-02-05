@@ -10,6 +10,7 @@ import pwd
 import grp
 import sys
 import os.path
+import hashlib
 import nsmigration
 import subprocess
 from nethsec import firewall, utils
@@ -34,6 +35,12 @@ def save_cert(path, data):
 def import_tunnel(u, tunnel, ttype):
     name = tunnel.pop('ns_name')
     iname = utils.get_id(name, 10)
+    if u.get("openvpn", iname, default=None) is not None:
+        # A tunnel with the same name already exists:
+        # create an hash for it
+        nhash = hashlib.md5(name.encode('ascii')).hexdigest()
+        name = f'mgr-{nhash[:5]}'
+        iname = utils.get_id(name, 10)
     cert_dir=f"/etc/openvpn/{iname}/pki/"
     os.makedirs(cert_dir, exist_ok=True)
 
