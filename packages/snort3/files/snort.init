@@ -45,7 +45,7 @@ setup_tweaks() {
 	echo -e "suppress = \n{\n" > $tweaks_file
 	# suppress element format: gid,sid,direction,ip,description
 	suppress=$(uci -q get snort.snort.ns_suppress)
-	for s in $suppress; do
+	echo "$suppress" | grep -oE "'[^']*'|[^ ]+" | while IFS= read -r s; do
 		s=$(echo $s | sed "s/'//g")
 		gid=$(echo $s | cut -d, -f1)
 		sid=$(echo $s | cut -d, -f2)
