@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+import hashlib
 
 #
 # Copyright (C) 2022 Nethesis S.r.l.
@@ -6,6 +7,7 @@
 #
 
 from nethsec import utils, mwan
+from nethsec.utils import ValidationError
 
 import nsmigration
 import subprocess
@@ -86,7 +88,16 @@ mwan.store_policy(u, policy_name, interfaces)
 for i in interfaces:
     pname = i.get("name")
     # make sure to not exceed 12 chars
-    mwan.store_policy(u, f'{pname[0:6]}_only', [i])
+    try:
+        mwan.store_policy(u, f'{pname[0:6]}_only', [i])
+    except ValidationError as e:
+        if e.parameter == 'name' and e.message == 'unique':
+            nsmigration.vprint(f"Found duplicate entry for {pname}, generating hash")
+            policy_hash = hashlib.md5(pname.encode('ascii')).hexdigest()
+            mwan.store_policy(u, f'{policy_hash[0:6]}_only', [i])
+            nsmigration.vprint(f"Policy {pname} renamed to {policy_hash[0:6]}_only")
+        else:
+            raise e
 
 # divert rule are not migrated
 

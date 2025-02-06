@@ -40,6 +40,7 @@ def import_tunnel(u, tunnel, ttype):
         # create an hash for it
         nhash = hashlib.md5(name.encode('ascii')).hexdigest()
         name = f'mgr-{nhash[:5]}'
+        nsmigration.vprint(f"Found duplicated OpenVPN tunnel {iname}, renaming to {name}")
         iname = utils.get_id(name, 10)
     cert_dir=f"/etc/openvpn/{iname}/pki/"
     os.makedirs(cert_dir, exist_ok=True)
