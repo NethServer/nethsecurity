@@ -336,3 +336,19 @@ index 000000000..f698df353
 +               http_aaa_finish(&requests[idx]);
 +             } else {
 +               syslog(LOG_ERR, "%s: Could not find request in queue", strerror(errno));
+diff --git a/net/coova-chilli/patches/070-curl_http11_fix.patch b/net/coova-chilli/patches/070-curl_http11_fix.patch
+new file mode 100644
+index 000000000..d438ac382
+--- /dev/null
++++ b/net/coova-chilli/patches/070-curl_http11_fix.patch
+@@ -0,0 +1,10 @@
++--- a/src/main-proxy.c
+++++ b/src/main-proxy.c
++@@ -471,6 +471,7 @@ static int http_aaa_setup(struct radius_
++
++     curl_easy_setopt(curl, CURLOPT_URL, req->url->data);
++
+++    curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
++     curl_easy_setopt(curl, CURLOPT_USERAGENT, "CoovaChilli " VERSION);
++     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
++     curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1);
