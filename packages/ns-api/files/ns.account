@@ -18,7 +18,8 @@ if cmd == 'list':
     print(json.dumps({
         'set-password': {
             'username': 'str',
-            'password': 'str'
+            'password': 'str',
+            'old_password': 'str',
         }
     }))
 elif cmd == 'call':
@@ -26,17 +27,19 @@ elif cmd == 'call':
     e_uci = EUci()
     if action == 'set-password':
         try:
-            data = json.JSONDecoder().decode(sys.stdin.read())
+            data = json.load(sys.stdin)
             rpcd_user_list = utils.get_all_by_type(e_uci, 'rpcd', 'login')
             user_list = utils.get_all_by_type(e_uci, 'users', 'user')
             # check if username is inside config
             if data['username'] not in [user['username'] for user in rpcd_user_list.values()]:
                 raise utils.ValidationError('username', 'invalid', data['username'])
 
+            if not users.check_old_password(data.get('username'), data.get('old_password', '')):
+                raise utils.ValidationError('old_password', 'invalid_old_password')
             # if user is not root, change rpcd config
             if data['username'] != 'root':
+                password_hash = users.shadow_password(data['password'])
                 for user_key, user in rpcd_user_list.items():
-                    password_hash = users.shadow_password(data['password'])
                     if user['username'] == data['username']:
                         e_uci.set('rpcd', user_key, 'password', password_hash)
                         e_uci.save('rpcd')
