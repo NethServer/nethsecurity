@@ -6,8 +6,8 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-ui
-PKG_VERSION:=1.20.3
-PKG_RELEASE:=2
+PKG_VERSION:=1.20.4
+PKG_RELEASE:=1
 
 PKG_SOURCE:=ui-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://nethsecurity.ams3.digitaloceanspaces.com/ui-dist/
