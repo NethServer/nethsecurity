@@ -17,7 +17,7 @@ import time
 from nethsec import firewall
 from jinja2 import Template
 
-conntrack_template = """
+conntrack_ji_template = """
 Sync {
     Mode FTFW {
         DisableExternalCache Off
@@ -163,7 +163,7 @@ def setup(role, lan_interface, ha_interface, virtual_ip, ha_main_ipaddress, ha_s
                 ret['pubkey'] = line
 
         # Setup conntrackd configuration
-        conntrack_template = Template(conntrack_template)
+        conntrack_template = Template(conntrack_ji_template)
         conntrack_conf = conntrack_template.render(first_ip=ha_main_ipaddress, second_ip=ha_secondary_ipaddress, ha_interface=ha_interface)
         with open('/etc/conntrackd/conntrackd.conf', 'w') as file:
             file.write(conntrack_conf)
@@ -208,7 +208,7 @@ def setup(role, lan_interface, ha_interface, virtual_ip, ha_main_ipaddress, ha_s
         os.chmod(rsync_dir, 0o2775)
 
         # Setup conntrackd configuration
-        conntrack_template = Template(conntrack_template)
+        conntrack_template = Template(conntrack_ji_template)
         conntrack_conf = conntrack_template.render(first_ip=ha_secondary_ipaddress, second_ip=ha_main_ipaddress, ha_interface=ha_interface)
         with open('/etc/conntrackd/conntrackd.conf', 'w') as file:
             file.write(conntrack_conf)
