@@ -11,17 +11,79 @@ import os
 import sys
 import json
 
+from nethsec.utils import validation_error, ValidationError, generic_error
+
+
+def __list_keys():
+    keys = []
+    if os.path.exists(KEYS_FILE):
+        with open(KEYS_FILE, 'r') as file:
+            for line in file:
+                if line.startswith('#') or len(line.split()) < 2:
+                    continue
+                line_split = line.strip().split()
+                keys.append({
+                    'type': line_split[0],
+                    'key': line_split[1],
+                    'comment': ' '.join(line_split[2:])
+                })
+    return keys
+
+
+def __add_key():
+    data = json.load(sys.stdin)
+    if 'key' not in data:
+        raise ValidationError('key', 'required')
+    # NOTE: we are not validating the key format here, it can be done using `ssh-keygen -lf <keyfile>`, but it's
+    # overkill and can be implemented later on if needed.
+    if len(data['key'].split()) < 2:
+        raise ValidationError('key', 'key_invalid_format', data['key'])
+    if data['key'].split()[1] in [key['key'] for key in __list_keys()]:
+        raise ValidationError('key', 'key_already_exists', data['key'])
+    file_descriptor = os.open(
+        KEYS_FILE,
+        os.O_APPEND | os.O_WRONLY | os.O_CREAT,
+        mode=0o600
+    )
+    with open(file_descriptor, 'w') as file:
+        file.write(data['key'] + '\n')
+
+
+def __delete_key():
+    data = json.load(sys.stdin)
+    if 'key' not in data:
+        raise ValidationError('key', 'required')
+    keys = __list_keys()
+    if data['key'] not in [key['key'] for key in keys]:
+        raise ValidationError('key', 'key_not_found', data['key'])
+    with open(KEYS_FILE, 'w') as file:
+        for key in keys:
+            if key['key'] != data['key']:
+                file.write(f"{key['type']} {key['key']} {key['comment']}\n")
+
+
+KEYS_FILE = '/etc/dropbear/authorized_keys'
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
-    print(json.dumps({"list-keys": {}}))
+    print(json.dumps({
+        "list-keys": {},
+        "add-key": {"key": "string"},
+        "delete-key": {"key": "string"}
+    }))
 else:
     action = sys.argv[2]
-    if action == "list-keys":
-        keys = '/etc/dropbear/authorized_keys'
-        if os.path.exists(keys):
-            with open(keys, 'r') as fp:
-                print(json.dumps({"keys": fp.read()}))
-        else:
-            print(json.dumps({"keys": ""}))
-
+    try:
+        if action == "list-keys":
+            print(json.dumps({"keys": __list_keys()}))
+        elif action == "add-key":
+            __add_key()
+            print(json.dumps({"message": "success"}))
+        elif action == "delete-key":
+            __delete_key()
+            print(json.dumps({"message": "success"}))
+    except ValidationError as e:
+        print(json.dumps(validation_error(e.parameter, e.message, e.value)))
+    except Exception as e:
+        print(json.dumps(generic_error(str(e))))
