@@ -53,6 +53,7 @@ define Package/ns-ha/install
 	$(INSTALL_DATA) ./files/900-phonehome $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/900-msmtp $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/900-snmpd $(1)/etc/hotplug.d/keepalived
+	$(INSTALL_DATA) ./files/900-ddns $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/100-conntrackd $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/ns.sh $(1)/lib/functions/keepalived
 	$(INSTALL_BIN) ./files/conntrackd.sh $(1)/usr/libexec/
