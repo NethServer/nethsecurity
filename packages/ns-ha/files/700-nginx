@@ -12,7 +12,6 @@ add_sync_file /etc/config/nginx
 if [ "$ACTION" == "NOTIFY_SYNC" ]; then
     home=$(get_rsync_user_home)
     rsync -avr $home/etc/nginx/ /etc/nginx/
-    rsync -avr $home/etc/config/nginx /etc/config/nginx
 fi
 
 keepalived_hotplug
