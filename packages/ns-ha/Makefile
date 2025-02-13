@@ -41,6 +41,7 @@ define Package/ns-ha/install
 	$(INSTALL_DIR) $(1)/usr/libexec
 	$(INSTALL_DIR) $(1)/etc/keepalived/scripts/
 	$(INSTALL_BIN) ./files/keepalived-config $(1)/usr/sbin
+	$(INSTALL_DATA) ./files/600-backup $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/600-openvpn $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/900-ns-plug $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/900-phonehome $(1)/etc/hotplug.d/keepalived
