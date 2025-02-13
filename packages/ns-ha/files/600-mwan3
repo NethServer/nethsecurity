@@ -1,0 +1,18 @@
+#!/bin/sh
+
+# shellcheck source=/dev/null
+. /lib/functions/keepalived/hotplug.sh
+
+set_service_name mwan3
+
+set_restart_if_master
+set_stop_if_backup
+
+add_sync_file /etc/config/mwan3
+
+if [ "$ACTION" == "NOTIFY_SYNC" ]; then
+    home=$(get_rsync_user_home)
+    rsync -avr $home/etc/config/mwan3 /etc/config/mwan3
+fi
+
+keepalived_hotplug
