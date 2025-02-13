@@ -92,6 +92,12 @@ def setup(role, lan_interface, ha_interface, virtual_ip, ha_main_ipaddress, ha_s
     if 'ha' not in z_config.get('network', []):
         u.set('firewall', z_name, 'network', ['ha'])
         u.save('firewall')
+
+    u.set('dropbear', 'ha_link', 'dropbear')
+    u.set('dropbear', 'ha_link', 'Port', '65022')
+    u.set('dropbear', 'ha_link', 'RootPasswordAuth', '0')
+    u.set('dropbear', 'ha_link', 'PasswordAuth', '0')
+    u.save('dropbear')
     
     u.set('keepalived', 'ha_address', 'ipaddress')
     u.set('keepalived', 'ha_address', 'name', f'{lan_interface}_ha')
@@ -125,7 +131,7 @@ def setup(role, lan_interface, ha_interface, virtual_ip, ha_main_ipaddress, ha_s
         u.set('keepalived', 'ha_peer', 'sync', '1')
         u.set('keepalived', 'ha_peer', 'sync_mode', 'send')
         u.set('keepalived', 'ha_peer', 'sync_dir', '/usr/share/keepalived/rsync')
-        u.set('keepalived', 'ha_peer', 'ssh_port', '22')
+        u.set('keepalived', 'ha_peer', 'ssh_port', '65022')
         u.set('keepalived', 'ha_peer', 'ssh_key', '/etc/keepalived/keys/id_rsa')
 
         u.set('keepalived', 'main', 'vrrp_instance')
@@ -221,7 +227,7 @@ def setup(role, lan_interface, ha_interface, virtual_ip, ha_main_ipaddress, ha_s
     return ret
 
 def status():
-    ret = {"role": "", "status": ""}
+    ret = {"role": "", "status": "", "last_sync_status": "", "last_sync_time": ""}
     try:
         subprocess.run("kill -USR2 $(/etc/init.d/keepalived info | jq -r .keepalived.instances.instance1.pid)", shell=True, capture_output=True, check=True)
         ret["status"] = "enabled"
@@ -234,6 +240,11 @@ def status():
                 if 'VRRP Instance' in line:
                     ret["role"] = line.split()[2]
                     break
+
+    # Using uci to query the sate, with EUci(confdir="/var/state/"), the library can't read the data
+    ret["last_sync_status"] = subprocess.run(["uci", "-P", "/var/state/", "get", "keepalived.ha_peer.last_sync_status"], capture_output=True, text=True).stdout.strip()
+    ret["last_sync_time"] = subprocess.run(["uci", "-P", "/var/state/", "get", "keepalived.ha_peer.last_sync_time"], capture_output=True, text=True).stdout.strip()
+
     return ret
 
 
