@@ -42,6 +42,7 @@ define Package/ns-ha/install
 	$(INSTALL_DIR) $(1)/etc/keepalived/scripts/
 	$(INSTALL_BIN) ./files/keepalived-config $(1)/usr/sbin
 	$(INSTALL_DATA) ./files/500-nathelpers $(1)/etc/hotplug.d/keepalived
+	$(INSTALL_DATA) ./files/500-netmap $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/600-backup $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/600-openvpn $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/600-mwan3 $(1)/etc/hotplug.d/keepalived
