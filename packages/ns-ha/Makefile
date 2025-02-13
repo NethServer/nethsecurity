@@ -51,6 +51,7 @@ define Package/ns-ha/install
 	$(INSTALL_DATA) ./files/700-nginx $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/800-adblock $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/800-banip $(1)/etc/hotplug.d/keepalived
+	$(INSTALL_DATA) ./files/800-netifyd $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/900-ns-plug $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/900-phonehome $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/900-msmtp $(1)/etc/hotplug.d/keepalived
