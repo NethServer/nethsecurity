@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# shellcheck source=/dev/null
+. /lib/functions/keepalived/hotplug.sh
+. /lib/functions/keepalived/ns.sh
+
+set_service_name phonehome
+
+if [ "$ACTION" == "NOTIFY_BACKUP" ]; then
+    update_cron "disable" "send-phonehome"
+elif [ "$ACTION" == "NOTIFY_MASTER" ]; then
+    update_cron "enable" "send-phonehome"
+fi
+
+add_sync_file /etc/config/phonehome
+
+keepalived_hotplug
