@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# shellcheck source=/dev/null
+. /lib/functions/keepalived/hotplug.sh
+
+set_service_name nathelpers
+
+add_sync_file /etc/modules.d/ns-nathelpers
+
+if [ "$ACTION" == "NOTIFY_SYNC" ]; then
+    home=$(get_rsync_user_home)
+    rsync -avr $home/etc/modules.d/ns-nathelpers /etc/modules.d/ns-nathelpers
+elif [ "$ACTION" == "NOTIFY_MASTER" ]; then
+    /usr/sbin/load-kernel-modules
+fi
+
+keepalived_hotplug
