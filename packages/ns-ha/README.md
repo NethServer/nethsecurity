@@ -8,6 +8,14 @@ Requirements:
 - nodes must have a dedicated interface for the HA configuration
 - nodes must have only one WAN interface configured with DHCP
 
+The setup process will configure all the following:
+- create a new firewall zone `ha`
+- configure the HA interface, the one dedicated for the HA traffic
+- setup keepalived with the virtual IP, a random password and a public key for the sync
+- setup a new dropbear configuration listening on port `65022`: this is used to sync data between the nodes using rsync, only
+  key-based authentication is allowed
+- setup conntrackd to sync the connection tracking table
+
 In this example:
 - `main` is the primary node, with LAN IP `192.168.100.238` and HA IP `10.12.12.1`
 - `secondary` is the secondary node, with LAN IP `192.168.100.237` and HA IP `10.12.12.2`
