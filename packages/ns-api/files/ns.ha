@@ -220,6 +220,23 @@ def setup(role, lan_interface, ha_interface, virtual_ip, ha_main_ipaddress, ha_s
 
     return ret
 
+def status():
+    ret = {"role": "", "status": ""}
+    try:
+        subprocess.run("kill -USR2 $(/etc/init.d/keepalived info | jq -r .keepalived.instances.instance1.pid)", shell=True, capture_output=True, check=True)
+        ret["status"] = "enabled"
+    except:
+        ret["status"] = "disabled"
+
+    if os.path.exists('/var/keepalived.stats'):
+        with open('/var/keepalived.stats') as f:
+            for line in f:
+                if 'VRRP Instance' in line:
+                    ret["role"] = line.split()[2]
+                    break
+    return ret
+
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
@@ -232,12 +249,16 @@ if cmd == 'list':
         "ha_secondary_ipaddress": "100.100.100.2",
         "pubkey": "ssh-rsa AAAAB....",
         "password": "admin"
-        }}))
+        },
+        "status": {}
+        }))
 else:
     action = sys.argv[2]
     if action == "setup":
         # Paramaters:
         args = json.loads(sys.stdin.read())
         ret = setup(args.get('role'), args.get('lan_interface'), args.get('ha_interface'), args.get('virtual_ip'), args.get('ha_main_ipaddress'), args.get('ha_secondary_ipaddress'), args.get('pubkey'), args.get('password'))
+    elif action == "status":
+        ret = status()
 
     print(json.dumps(ret))
