@@ -1,0 +1,53 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Import the network configuration exported by the master node but in a disabled state
+
+import os
+import json
+from euci import EUci
+
+out_dir = "/etc/ha"
+
+def import_interfaces(file):
+    u = EUci()
+    with open(os.path.join(out_dir, file), 'r') as f:
+        interfaces = json.load(f)
+    for interface, options in interfaces.items():
+        u.set('network', interface, 'interface')
+        for opt in options:
+            u.set('network', interface, opt, options[opt])
+        u.set('network', interface, 'disabled', '1')
+    u.commit('network')
+
+def import_wireguard_peers():
+    u = EUci()
+    with open(os.path.join(out_dir, 'wg_peers'), 'r') as f:
+        peers = json.load(f)
+    for section, options in peers.items():
+        stype = "wireguard_"+section.split("_")[0]
+        u.set('network', section, stype)
+        for opt in options:
+            u.set('network', section, opt, options[opt])
+    u.commit('network')
+
+def import_routes():
+    u = EUci()
+    with open(os.path.join(out_dir, 'routes'), 'r') as f:
+        routes = json.load(f)
+    for section, options in routes.items():
+        u.set('network', section, 'route')
+        for opt in options:
+            u.set('network', section, opt, options[opt])
+        u.set('network', section, 'disabled', '1')
+    u.commit('network')
+
+if __name__ == "__main__":
+    import_interfaces('wg_interfaces')
+    import_wireguard_peers()
+    import_interfaces('ipsec_interfaces')
+    import_routes()
