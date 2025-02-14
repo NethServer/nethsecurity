@@ -1,0 +1,67 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Export the folloing network configuration to /etc/ha:
+# - routes
+# - ipsec interfaces
+# - wireguard interfaces
+# - wireguard peers
+# This configuration will be imported as disabled on the backup node
+
+import os
+import json
+from euci import EUci
+from nethsec import utils
+
+out_dir = "/etc/ha"
+
+def export_routes():
+    routes = {}
+    u = EUci()
+    for route in utils.get_all_by_type(u, 'network', 'route'):
+        routes[route] = u.get_all('network', route)
+
+    with open(os.path.join(out_dir, 'routes'), 'w') as f:
+        json.dump(routes, f)
+
+def export_ipsec_interfaces():
+    ipsec_interfaces = {}
+    u = EUci()
+    for interface in utils.get_all_by_type(u, 'network', 'interface'):
+        if interface.startswith('ipsec'):
+            ipsec_interfaces[interface] = u.get_all('network', interface)
+
+    with open(os.path.join(out_dir, 'ipsec_interfaces'), 'w') as f:
+        json.dump(ipsec_interfaces, f)
+
+def export_wireguard_interfaces():
+    wireguard_interfaces = {}
+    u = EUci()
+    for interface in utils.get_all_by_type(u, 'network', 'interface'):
+        if interface.startswith('wg'):
+            wireguard_interfaces[interface] = u.get_all('network', interface)
+
+    with open(os.path.join(out_dir, 'wg_interfaces'), 'w') as f:
+        json.dump(wireguard_interfaces, f)
+
+def export_wireguard_peers():
+    wireguard_peers = {}
+    u = EUci()
+    for section in u.get_all('network'):
+        if u.get('network', section).startswith('wireguard_'):
+            wireguard_peers[section] = u.get_all('network', section)
+
+    with open(os.path.join(out_dir, 'wg_peers'), 'w') as f:
+        json.dump(wireguard_peers, f)
+
+
+if __name__ == '__main__':
+    os.makedirs(out_dir, exist_ok=True)
+    export_routes()
+    export_ipsec_interfaces()
+    export_wireguard_interfaces()
+    export_wireguard_peers()
