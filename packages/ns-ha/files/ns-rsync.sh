@@ -33,6 +33,7 @@ ha_sync_send() {
 	local address ssh_key ssh_port sync_list sync_dir sync_file count
 	local ssh_options ssh_remote dirs_list files_list
 	local changelog="/tmp/changelog"
+	local ha_export="/etc/ha"
 
 	config_get address "$cfg" address
 	[ -z "$address" ] && return 0
@@ -80,7 +81,7 @@ ha_sync_send() {
 	fi
 
 	# shellcheck disable=SC2086
-	rsync -a --relative ${files_list} ${changelog} -e "ssh $ssh_options" --rsync-path="sudo rsync" "$ssh_remote":"$sync_dir" || {
+	rsync -a --relative ${files_list} ${ha_export} ${changelog} -e "ssh $ssh_options" --rsync-path="sudo rsync" "$ssh_remote":"$sync_dir" || {
 		log_err "rsync transfer failed for $address"
 		update_last_sync_time "$cfg"
 		update_last_sync_status "$cfg" "Rsync Transfer Failed"
@@ -151,6 +152,7 @@ main() {
 		return 1
 	fi
 
+	/usr/sbin/ns-ha-export
 	config_load keepalived
 	config_foreach ha_sync vrrp_instance
 
