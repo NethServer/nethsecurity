@@ -49,6 +49,7 @@ define Package/ns-ha/install
 	$(INSTALL_DATA) ./files/600-users-objects $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/600-qosify $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/600-snort $(1)/etc/hotplug.d/keepalived
+	$(INSTALL_DATA) ./files/600-ipsec $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/700-nginx $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/800-adblock $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/800-banip $(1)/etc/hotplug.d/keepalived
