@@ -10,9 +10,9 @@ set_restart_if_master
 set_stop_if_backup
 
 if [ "$ACTION" == "NOTIFY_BACKUP" ]; then
-    update_cron "disable" "send-heartbeat send-backup send-inventory"
+    update_cron "disable" "send-heartbeat send-backup send-inventory" "ns-push-reports"
 elif [ "$ACTION" == "NOTIFY_MASTER" ]; then
-    update_cron "enable" "send-heartbeat send-backup send-inventory"
+    update_cron "enable" "send-heartbeat send-backup send-inventory" "ns-push-reports"
 fi
 
 add_sync_file /etc/config/ns-plug
