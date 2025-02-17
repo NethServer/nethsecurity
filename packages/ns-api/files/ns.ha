@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 #
-# Copyright (C) 2024 Nethesis S.r.l.
+# Copyright (C) 2024-2025 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
@@ -241,7 +241,7 @@ def status():
                     ret["role"] = line.split()[2]
                     break
 
-    # Using uci to query the sate, with EUci(confdir="/var/state/"), the library can't read the data
+    # Using uci to query the state, with EUci(confdir="/var/state/"), the library can't read the data
     ret["last_sync_status"] = subprocess.run(["uci", "-P", "/var/state/", "get", "keepalived.ha_peer.last_sync_status"], capture_output=True, text=True).stdout.strip()
     ret["last_sync_time"] = subprocess.run(["uci", "-P", "/var/state/", "get", "keepalived.ha_peer.last_sync_time"], capture_output=True, text=True).stdout.strip()
 
