@@ -1,0 +1,11 @@
+diff --git a/net/net-snmp/files/snmpd.conf b/net/net-snmp/files/snmpd.conf
+index e18864d53..b2510bc62 100644
+--- a/net/net-snmp/files/snmpd.conf
++++ b/net/net-snmp/files/snmpd.conf
+@@ -126,5 +126,5 @@ config engineid
+ #	option trapsess	'-v 3 -e 0x80001f88808c18d3f7b0000 -u trapuser -a MD5 -A administrator -l authPriv -x DES -X rootpasswd udp:127.0.0.1:162'
+ 
+ config snmpd general
+-	option enabled '1'
++	option enabled '0'
+ #	list network 'wan'
