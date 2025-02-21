@@ -120,6 +120,12 @@ def edit_interface(args):
     args['last'] = args['last'].strip()
     if ip2int(args['first']) > ip2int(args['last']):
         return utils.validation_error("last", "last_must_be_greater_than_first", args["last"])
+    starting_ip = ipaddress.ip_address(args['first'])
+    end_ip = ipaddress.ip_address(args['last'])
+    ip_ranges = ipaddress.summarize_address_range(starting_ip, end_ip)
+    for ip_range in ip_ranges:
+        if ipaddress.ip_address(ipaddr) in ip_range:
+            return utils.validation_error("first", "dhcp_range_cannot_contain_interface", args["first"])
     (start, limit) = range_to_conf(ipaddr, netmask, args["first"].strip(), args["last"].strip())
     if args['active']:
         u.set("dhcp", dhcp_id, 'dhcpv4', 'server')
