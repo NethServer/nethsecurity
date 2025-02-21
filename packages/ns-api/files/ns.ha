@@ -111,9 +111,6 @@ def setup(role, lan_interface, ha_interface, virtual_ip, ha_main_ipaddress, ha_s
     u.set('keepalived', 'ha_sync', 'interval', '60')
     u.set('keepalived', 'ha_sync', 'weight', '100')
 
-    u.set('keepalived', 'lan_static', 'static_ipaddress')
-    u.set('keepalived', 'lan_static', 'address', f'{lan_interface}_ha')
-
     u.set('keepalived', 'lan_track', 'track_interface')
     u.set('keepalived', 'lan_track', 'name', f'{lan_interface}_ha')
     u.set('keepalived', 'lan_track', 'value', lan_interface)
