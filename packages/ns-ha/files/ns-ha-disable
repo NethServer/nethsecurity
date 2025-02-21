@@ -1,0 +1,35 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import os
+import json
+import subprocess
+from euci import EUci
+
+out_dir = "/etc/ha"
+
+def disable_interfaces(file):
+    u = EUci()
+    with open(os.path.join(out_dir, file), 'r') as f:
+        interfaces = json.load(f)
+    for interface in interfaces.keys():
+        u.set('network', interface, 'disabled', '1')
+    u.commit('network')
+
+def disable_routes():
+    u = EUci()
+    with open(os.path.join(out_dir, 'routes'), 'r') as f:
+        routes = json.load(f)
+    for route in routes.keys():
+        u.set('network', route, 'disabled', '1')
+    u.commit('network')
+
+if __name__ == "__main__":
+    disable_interfaces('wg_interfaces')
+    disable_interfaces('ipsec_interfaces')
+    disable_routes()
+    subprocess.run(["/sbin/reload_config"], capture_output=True)
