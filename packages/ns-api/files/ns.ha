@@ -107,7 +107,7 @@ def setup(role, lan_interface, ha_interface, virtual_ip, ha_main_ipaddress, ha_s
 
     u.set('keepalived', 'ha_sync', 'vrrp_script')
     u.set('keepalived', 'ha_sync', 'name', 'ha_sync')
-    u.set('keepalived', 'ha_sync', 'script', '/etc/keepalived/scripts/ns-rsync.sh')
+    u.set('keepalived', 'ha_sync', 'script', '/usr/libexec/ns-rsync.sh')
     u.set('keepalived', 'ha_sync', 'interval', '60')
     u.set('keepalived', 'ha_sync', 'weight', '100')
 
