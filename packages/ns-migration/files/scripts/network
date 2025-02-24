@@ -19,6 +19,7 @@ alias_zones = dict()
 devices = dict()
 bond_zones = dict()
 bonds = dict()
+interface_names = dict()
 
 def exists(key):
     try:
@@ -236,11 +237,12 @@ for a in data['aliases']:
 
 # Create interfaces
 for i in data['interfaces']:
-    iname = utils.sanitize(i["interface"])
+    siname = utils.sanitize(i["interface"])
     if i["proto"] == "pppoe":
-        iname = iname[0:8] # make sure interface name is 8 chars max, reserve space for "pppoe-" prefix
+        iname = siname[0:8] # make sure interface name is 8 chars max, reserve space for "pppoe-" prefix
     else:
-        iname = iname[0:14] # make sure interface name is 15 chars max
+        iname = siname[0:14] # make sure interface name is 15 chars max
+    interface_names[siname] = iname
     nsmigration.vprint(f'Creating interface {iname}')
     u.set("network", iname, "interface") # create named record
     u.set("network", iname, "proto", i["proto"])
@@ -290,7 +292,8 @@ for z in data['zones']:
             if base_name in z["network"]:
                 z["network"].remove(base_name) # avoid duplicate bond like bond0 and bond0_lan
         z["network"] = z["network"] + bond_zones[z["name"]]
-    u.set("firewall", zname, "network", [utils.sanitize(n) for n in z["network"]])
+    # retrieve reduced network name, if present
+    u.set("firewall", zname, "network", [interface_names.get(utils.sanitize(n), utils.sanitize(n)) for n in z["network"]])
     if z["name"].startswith("wan"): # setup masquerading for wans
         u.set("firewall", zname, "masq", '1')
         u.set("firewall", zname, "mtu_fix", '1')
