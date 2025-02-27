@@ -67,7 +67,7 @@ def list_interfaces():
     if not dhcps:
         dhcps = []
     for i in interfaces:
-        record = {"device": "", "start": "", "end": "", "active": False, "options": {}, "force": False }
+        record = {"device": "", "start": "", "end": "", "active": False, "options": {}, "force": False, "ns_binding": 0 }
         # skip loopback, bond devices, wans, aliases and interfaces with no IP address (e.g. DHCP interfaces)
         if i == "loopback" or i in wans or not ('ipaddr' in interfaces[i]) or interfaces[i].get('proto') == 'bonding' or interfaces[i].get('device', '').startswith('@'):
             continue
@@ -89,6 +89,7 @@ def list_interfaces():
                 else:
                     force_default = '1'
                 record['force'] = ds.get('force', force_default) == '1'
+                record['ns_binding'] = int(ds.get('ns_binding', 0))
                 record['options']['leasetime'] = ds.get('leasetime', '12h')
                 if 'dhcp_option' in ds:
                     for opt in ds['dhcp_option']:
@@ -106,6 +107,9 @@ def edit_interface(args):
         u.get_all("network", args["interface"])
     except:
         return utils.generic_error("interface_not_found")
+    # ns-binding validation, this check is more controller-safe
+    if 'ns_binding' in args and args['ns_binding'] not in [0, 1, 2]:
+        return utils.validation_error("ns_binding", "invalid", args["ns_binding"])
     # handle migrated dhcp config: issue #855
     dhcp_id = args['interface']
     dhcp_servers = utils.get_all_by_type(u, 'dhcp', 'dhcp')
@@ -136,6 +140,8 @@ def edit_interface(args):
     u.set("dhcp", dhcp_id, "leasetime", args["leasetime"])
     u.set("dhcp", dhcp_id, "interface", args['interface'])
     u.set("dhcp", dhcp_id, "force", '1' if args.get('force', False) else '0')
+    if 'ns_binding' in args:
+        u.set("dhcp", dhcp_id, "ns_binding", args.get('ns_binding'))
     opts = []
     for opt in args['options']:
         k = list(opt.keys())[0]
@@ -181,6 +187,7 @@ def get_interface(args):
             tmp = opt.split(",")
             tmp[0] = tmp[0].removeprefix('option:')
             ret["options"].append({tmp[0]: ",".join(tmp[1:])})
+    ret['ns_binding'] = int(dhcp.get('ns_binding', 0))
 
     return ret
 
@@ -304,14 +311,23 @@ if cmd == 'list':
         "list-interfaces": {},
         "list-dhcp-options": {},
         "get-interface": {"interface": "lan"},
-        "edit-interface": {"interface": "lan", "first": "192.168.100.2", "last": "192.168.100.150", "leasetime": "12h", "active": True, "force": True, "options": [
-            {"router": "192.168.100.1"},
-            {"domain-name": "nethserver.org"},
-            {"dns-server": "1.1.1.1,8.8.8.8"},
-            {"netbios-ns": ""},
-            {"tftp-server": ""},
-            {"120": "192.168.100.151"}
-        ]},
+        "edit-interface": {
+            "interface": "lan",
+            "first": "192.168.100.2",
+            "last": "192.168.100.150",
+            "leasetime": "12h",
+            "active": True,
+            "force": True,
+            "ns_binding": 0,
+            "options": [
+                {"router": "192.168.100.1"},
+                {"domain-name": "nethserver.org"},
+                {"dns-server": "1.1.1.1,8.8.8.8"},
+                {"netbios-ns": ""},
+                {"tftp-server": ""},
+                {"120": "192.168.100.151"}
+            ]
+        },
         "list-active-leases": {},
         "list-static-leases": {},
         "get-static-lease": {"lease": "ns_mylease"},
