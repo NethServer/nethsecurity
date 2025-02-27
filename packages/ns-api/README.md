@@ -2615,7 +2615,8 @@ Response example:
     },
     "zone": "lan",
     "first": "192.168.100.2",
-    "last": "192.168.100.150"
+    "last": "192.168.100.150",
+    "ns_binding": 0
   },
   "blue": {
     "device": "eth2.1",
@@ -2624,7 +2625,8 @@ Response example:
     "active": false,
     "force": false,
     "options": {},
-    "zone": ""
+    "zone": "",
+    "ns_binding": 1
   }
 }
 ```
@@ -2680,7 +2682,8 @@ Successfull response example:
   "last": "192.168.100.150",
   "leasetime": "12h",
   "active": true,
-  "force": true
+  "force": true,
+  "ns_binding": 0
 }
 ```
 
@@ -2692,7 +2695,7 @@ Multiple values can be comma-separated.
 
 Change or add the DHCPv4 configuration for a given interface:
 ```
-api-cli ns.dhcp edit-interface --data '{"interface":"lan","first":"192.168.100.2","last":"192.168.100.150","active":true,"leasetime": "12h","force":true,"options":[{"gateway":"192.168.100.1"},{"domain":"nethserver.org"},{"dns":"1.1.1.1,8.8.8.8"},{"120":"192.168.100.151"}]}'
+api-cli ns.dhcp edit-interface --data '{"interface":"lan","first":"192.168.100.2","last":"192.168.100.150","active":true,"leasetime": "12h","force":true,"options":[{"gateway":"192.168.100.1"},{"domain":"nethserver.org"},{"dns":"1.1.1.1,8.8.8.8"},{"120":"192.168.100.151"}], "ns_binding": 0}'
 ```
 
 See [ns.dhcp get-interface][#get-interface] for the `options` array format.
