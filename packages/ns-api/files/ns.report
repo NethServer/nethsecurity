@@ -91,7 +91,7 @@ def tsip_attack_report():
 
 def tsip_malware_report():
     file_paths = ['/var/log/messages.1.gz', '/var/log/messages']
-    keywords = ['kernel', 'banIP/.*/drop', 'banIP/.*/reject']
+    keywords = ['banIP/.*/drop', 'banIP/.*/reject']
 
     # Get the current date in the format '%b %e ' (e.g., 'Aug  8 ')
     date_str = datetime.now().strftime('%b %e ').rstrip()
