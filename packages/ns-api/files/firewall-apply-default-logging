@@ -1,0 +1,16 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+from nethsec import firewall
+from euci import EUci
+import subprocess
+
+uci = EUci()
+firewall.apply_default_logging_options(uci)
+uci.commit('firewall')
+# note: a reload is not enough to apply new limits to zones
+subprocess.run(["/sbin/fw4", "restart"], check=True)
