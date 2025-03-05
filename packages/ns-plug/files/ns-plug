@@ -108,6 +108,7 @@ nobind
 float
 explicit-exit-notify 1
 remote ${host} ${port} udp
+connect-retry-max 5
 dev tun-nsplug
 tls-client
 script-security 2
