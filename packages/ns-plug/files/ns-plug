@@ -65,7 +65,7 @@ fi
 
 # Register the server
 valid=0
-max_attempts=30 # 60 seconds
+max_attempts=5 # 10 seconds
 watchdog=0
 response=""
 until [ "${valid}" -eq 1 ] || [ "${watchdog}" -ge "${max_attempts}" ]
@@ -108,6 +108,7 @@ nobind
 float
 explicit-exit-notify 1
 remote ${host} ${port} udp
+connect-retry-max 5
 dev tun-nsplug
 tls-client
 script-security 2
