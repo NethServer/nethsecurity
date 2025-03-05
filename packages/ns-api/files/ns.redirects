@@ -144,9 +144,14 @@ def add_redirect(args):
         u.set('firewall', rname, 'src', 'wan')
         u.set('firewall', rname, 'target', 'DNAT')
         restrict = args.pop('restrict', '')
+        log = args.pop('log', '0')
         if restrict:
             sname = add_ipset(u, rname, restrict)
             u.set('firewall', rname, 'ipset', sname)
+        if log == '1':
+            log_opts = firewall.get_default_logging_options(u)
+            u.set('firewall', rname, 'log', '1')
+            u.set('firewall', rname, 'log_limit', log_opts['redirect_log_limit'])
         for a in args:
             u.set('firewall', rname, a, args.get(a))
         firewall.update_redirect_rules(u) # expand objects and save firewall config
@@ -165,6 +170,7 @@ def edit_redirect(args):
             return utils.generic_error("ns_dst_invalid_object_type")
     rname = args.pop('id')
     restrict = args.pop('restrict', '')
+    log = args.pop('log', '0')
     try:
         # try to convert from single IP to ipset
         u.delete('firewall', rname, 'src_ip')
@@ -178,6 +184,17 @@ def edit_redirect(args):
         try:
            u.delete('firewall', f"{rname}_ipset")
            u.delete("firewall", rname, "ipset")
+        except:
+            pass
+    if log == '1':
+        log_opts = firewall.get_default_logging_options(u)
+        u.set('firewall', rname, 'log', '1')
+        if u.get('firewall', 'config', 'log_limit', default=None) is None:
+            u.set('firewall', rname, 'log_limit', log_opts['redirect_log_limit'])
+    else:
+        try:
+            u.delete('firewall', rname, 'log')
+            u.delete('firewall', rname, 'log_limit')
         except:
             pass
     try:

@@ -164,6 +164,7 @@ define Package/ns-api/install
 	$(INSTALL_CONF) files/nat-helpers.keep $(1)/lib/upgrade/keep.d/nat-helpers
 	$(LN) /usr/bin/msmtp $(1)/usr/sbin/sendmail
 	$(INSTALL_BIN) ./files/load-kernel-modules $(1)/usr/sbin/load-kernel-modules
+	$(INSTALL_BIN) ./files/firewall-apply-default-logging $(1)/usr/sbin/firewall-apply-default-logging
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/config $(1)/etc/config/ns-api
 	$(INSTALL_CONF) ./files/templates $(1)/etc/config/
