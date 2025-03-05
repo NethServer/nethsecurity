@@ -1,0 +1,94 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# This file configures the boards for Nethesis boxes.
+# To add more boxes, add a new case statement with the board name that can be found in /tmp/sysinfo/board_name file.
+# For the PCIs, use `lspci -D` to find the PCI address of the network interfaces, then look for it's link under
+# /sys/bus/pci/devices, that is the path that should be used in the ucidef_set_network_device_path function.
+
+. /lib/functions/system.sh
+. /lib/functions/uci-defaults.sh
+
+board_config_update
+
+case "$(board_name)" in
+nethesis-nethbox-z11)
+  ucidef_set_network_device_path "eth0" "pci0000:00/0000:00:01.0/0000:01:00.0" # fiber
+  ucidef_set_network_device_path "eth1" "pci0000:00/0000:00:01.0/0000:01:00.1" # fiber
+  ucidef_set_network_device_path "eth2" "pci0000:00/0000:00:1a.0/0000:03:00.0" # fiber
+  ucidef_set_network_device_path "eth3" "pci0000:00/0000:00:1a.0/0000:03:00.1" # fiber
+  ucidef_set_network_device_path "eth4" "pci0000:00/0000:00:1c.0/0000:04:00.0" # ethernet
+  ucidef_set_network_device_path "eth5" "pci0000:00/0000:00:1c.1/0000:05:00.0" # ethernet
+  ucidef_set_network_device_path "eth6" "pci0000:00/0000:00:1c.2/0000:06:00.0" # ethernet
+  ucidef_set_network_device_path "eth7" "pci0000:00/0000:00:1c.3/0000:07:00.0" # ethernet
+  ucidef_set_network_device_path "eth8" "pci0000:00/0000:00:1c.4/0000:08:00.0" # ethernet
+  ucidef_set_network_device_path "eth9" "pci0000:00/0000:00:1c.5/0000:09:00.0" # ethernet
+  ucidef_set_network_device_path "eth10" "pci0000:00/0000:00:1c.6/0000:0a:00.0" # ethernet
+  ucidef_set_network_device_path "eth11" "pci0000:00/0000:00:1c.7/0000:0b:00.0" # ethernet
+  ucidef_set_interfaces_lan_wan "eth4" "eth5"
+  ;;
+nethesis-nethbox-z9)
+  if lspci -D | grep -q "SFP+"
+  then
+    ucidef_set_network_device_path "eth0" "pci0000:00/0000:00:01.1/0000:02:00.0" # fiber
+    ucidef_set_network_device_path "eth1" "pci0000:00/0000:00:01.1/0000:02:00.1" # fiber
+    ucidef_set_network_device_path "eth2" "pci0000:00/0000:00:01.1/0000:02:00.2" # fiber
+    ucidef_set_network_device_path "eth3" "pci0000:00/0000:00:01.1/0000:02:00.3" # fiber
+    ucidef_set_network_device_path "eth4" "pci0000:00/0000:00:1c.0/0000:03:00.0" # ethernet
+    ucidef_set_network_device_path "eth5" "pci0000:00/0000:00:1c.3/0000:04:00.0" # ethernet
+    ucidef_set_network_device_path "eth6" "pci0000:00/0000:00:1c.4/0000:05:00.0" # ethernet
+    ucidef_set_network_device_path "eth7" "pci0000:00/0000:00:1c.5/0000:06:00.0" # ethernet
+    ucidef_set_network_device_path "eth8" "pci0000:00/0000:00:1c.6/0000:07:00.0" # ethernet
+    ucidef_set_network_device_path "eth9" "pci0000:00/0000:00:1c.7/0000:08:00.0" # ethernet
+    ucidef_set_network_device_path "eth10" "pci0000:00/0000:00:1d.0/0000:09:00.0" # ethernet
+    ucidef_set_network_device_path "eth11" "pci0000:00/0000:00:1d.1/0000:0a:00.0" # ethernet
+    ucidef_set_interfaces_lan_wan "eth4" "eth5"
+  else
+    ucidef_set_interfaces_lan_wan "eth0" "eth1"
+  fi
+  ;;
+nethesis-nethbox-z7s)
+  ucidef_set_network_device_path "eth0" "pci0000:00/0000:00:01.0/0000:01:00.0" # fiber
+  ucidef_set_network_device_path "eth1" "pci0000:00/0000:00:01.0/0000:01:00.1" # fiber
+  ucidef_set_network_device_path "eth2" "pci0000:00/0000:00:1c.0/0000:03:00.0" # ethernet
+  ucidef_set_network_device_path "eth3" "pci0000:00/0000:00:1c.3/0000:04:00.0" # ethernet
+  ucidef_set_network_device_path "eth4" "pci0000:00/0000:00:1c.4/0000:05:00.0" # ethernet
+  ucidef_set_network_device_path "eth5" "pci0000:00/0000:00:1c.5/0000:06:00.0" # ethernet
+  ucidef_set_network_device_path "eth6" "pci0000:00/0000:00:1c.6/0000:07:00.0" # ethernet
+  ucidef_set_network_device_path "eth7" "pci0000:00/0000:00:1c.7/0000:08:00.0" # ethernet
+  ucidef_set_interfaces_lan_wan "eth2" "eth3"
+  ;;
+nethesis-nethbox-z7)
+  ucidef_set_network_device_path "eth0" "pci0000:00/0000:00:1c.0/0000:02:00.0" # ethernet
+  ucidef_set_network_device_path "eth1" "pci0000:00/0000:00:1c.3/0000:03:00.0" # ethernet
+  ucidef_set_network_device_path "eth2" "pci0000:00/0000:00:1c.4/0000:04:00.0" # ethernet
+  ucidef_set_network_device_path "eth3" "pci0000:00/0000:00:1c.5/0000:05:00.0" # ethernet
+  ucidef_set_network_device_path "eth4" "pci0000:00/0000:00:1c.6/0000:06:00.0" # ethernet
+  ucidef_set_network_device_path "eth5" "pci0000:00/0000:00:1c.7/0000:07:00.0" # ethernet
+  ucidef_set_interfaces_lan_wan "eth0" "eth1"
+  ;;
+nethesis-nethbox-z3)
+  ucidef_set_network_device_path "eth0" "pci0000:00/0000:00:1c.0/0000:01:00.0" # ethernet
+  ucidef_set_network_device_path "eth1" "pci0000:00/0000:00:1c.3/0000:02:00.0" # ethernet
+  ucidef_set_network_device_path "eth2" "pci0000:00/0000:00:1c.4/0000:03:00.0" # ethernet
+  ucidef_set_network_device_path "eth3" "pci0000:00/0000:00:1c.5/0000:04:00.0" # ethernet
+  ucidef_set_network_device_path "eth4" "pci0000:00/0000:00:1c.6/0000:05:00.0" # ethernet
+  ucidef_set_network_device_path "eth5" "pci0000:00/0000:00:1c.7/0000:06:00.0" # ethernet
+  ucidef_set_interfaces_lan_wan "eth0" "eth1"
+  ;;
+nethesis-nethbox-z1)
+  ucidef_set_network_device_path "eth0" "pci0000:00/0000:00:1c.0/0000:01:00.0" # ethernet
+  ucidef_set_network_device_path "eth1" "pci0000:00/0000:00:1c.1/0000:02:00.0" # ethernet
+  ucidef_set_network_device_path "eth2" "pci0000:00/0000:00:1c.2/0000:03:00.0" # ethernet
+  ucidef_set_network_device_path "eth3" "pci0000:00/0000:00:1c.3/0000:04:00.0" # ethernet
+  ucidef_set_interfaces_lan_wan "eth0" "eth1"
+  ;;
+esac
+board_config_flush
+
+exit 0
+
