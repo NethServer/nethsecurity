@@ -102,9 +102,22 @@ for section in u.get_all('dpi'):
         else:
             criteria = f'({sources_s}) && ({applications_s}) ;'
 
+    device = rule.get('device', '*')
+    vlan_id = None
+    base_if = None
+    for item in utils.get_all_by_type(u, 'network', 'device').values():
+        if item.get('vid', None) is not None and item.get('name', '') == device:
+            vlan_id = item.get('vid', '')
+            base_if = item.get('ifname', '')
+            break
+
+    if vlan_id is not None:
+        criteria = f'vlan_id == {vlan_id} && {criteria}'
+        device = base_if
+
     config["actions"][f"rule{rcount}"] = {
         "enabled": rule['enabled'] == '1',
-        "interface": rule.get('device', '*'),
+        "interface": device,
         "criteria": criteria,
         "targets": [rule['action']],
         "exemptions": rule.get('exemption', [])
