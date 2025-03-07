@@ -189,7 +189,7 @@ def edit_redirect(args):
     if log == '1':
         log_opts = firewall.get_default_logging_options(u)
         u.set('firewall', rname, 'log', '1')
-        if u.get('firewall', 'config', 'log_limit', default=None) is None:
+        if u.get('firewall', rname, 'log_limit', default=None) is None:
             u.set('firewall', rname, 'log_limit', log_opts['redirect_log_limit'])
     else:
         try:
