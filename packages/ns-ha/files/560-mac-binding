@@ -1,0 +1,10 @@
+#!/bin/sh
+
+. /lib/functions/keepalived/hotplug.sh
+
+set_service_name ns-binding
+
+set_stop_if_backup
+set_restart_if_master
+
+keepalived_hotplug
