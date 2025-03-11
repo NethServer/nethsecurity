@@ -127,19 +127,17 @@ verb 3
 EOF
 
 # Configure rsyslog to send to promtail
-if [ "$(uci -q get rsyslog.promtail)" == "" ]; then
-    uci set rsyslog.promtail=forwarder
-    uci set rsyslog.promtail.source=*.*
-    uci set rsyslog.promtail.protocol=tcp
-    uci set rsyslog.promtail.port=$(echo "$response" | jq -r .data.promtail_port)
-    uci set rsyslog.promtail.rfc=5424
-    uci set rsyslog.promtail.target=$(echo "$response" | jq -r .data.promtail_address)
-    uci commit rsyslog
-    # Use FQDN when sending logs #733
-    grep -qF '$PreserveFQDN on' /etc/rsyslog.conf || echo '$PreserveFQDN on' >> /etc/rsyslog.conf
-    /etc/init.d/rsyslog restart
-    sleep 5 # wait for rsyslog
-fi
+uci set rsyslog.promtail=forwarder
+uci set rsyslog.promtail.source=*.*
+uci set rsyslog.promtail.protocol=tcp
+uci set rsyslog.promtail.port="$(echo "$response" | jq -r .data.promtail_port)"
+uci set rsyslog.promtail.rfc=5424
+uci set rsyslog.promtail.target="$(echo "$response" | jq -r .data.promtail_address)"
+uci commit rsyslog
+# Use FQDN when sending logs #733
+grep -qF '$PreserveFQDN on' /etc/rsyslog.conf || echo '$PreserveFQDN on' >> /etc/rsyslog.conf
+/etc/init.d/rsyslog restart
+sleep 5 # wait for rsyslog
 
 # Send data to controller every 15 minutes, only if subscription is enabled
 if [ ! -z "$subscription_type" ]; then
