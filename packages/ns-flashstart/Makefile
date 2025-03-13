@@ -37,14 +37,20 @@ endef
 define Build/Compile
 endef
 
+# this allows uci-defaults scripts to run on post-install
+define Package/ns-flashstart/postinst
+endef
+
 define Package/ns-flashstart/install
 	$(INSTALL_DIR) $(1)/usr/share/ns-flashstart
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_DIR) $(1)/etc/config
+	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface/
 	$(INSTALL_BIN) ./files/flashstart-apply $(1)/usr/sbin/flashstart-apply
 	$(INSTALL_BIN) ./files/flashstart-auth $(1)/usr/share/ns-flashstart/flashstart-auth
 	$(INSTALL_BIN) ./files/flashstart-setup-firewall $(1)/usr/share/ns-flashstart/flashstart-setup-firewall
+	$(INSTALL_BIN) ./files/uci-default $(1)/etc/uci-defaults/99-flashstart
 	$(INSTALL_CONF) ./files/config $(1)/etc/config/flashstart
 	$(INSTALL_DATA) ./files/hotplug $(1)/etc/hotplug.d/iface/90-flashstart
 endef
