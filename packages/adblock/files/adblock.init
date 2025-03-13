@@ -50,6 +50,7 @@ start_service() {
 reload_service() {
 	/usr/sbin/ts-dns # configure threat shield dns, if needed
 	rc_procd start_service reload
+	/etc/init.d/firewall restart
 }
 
 stop_service() {
@@ -59,6 +60,7 @@ stop_service() {
 restart() {
 	/usr/sbin/ts-dns # configure threat shield dns, if needed
 	rc_procd start_service restart
+	/etc/init.d/firewall restart
 }
 
 suspend() {
