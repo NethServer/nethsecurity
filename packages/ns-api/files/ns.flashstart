@@ -8,11 +8,10 @@
 import json
 import subprocess
 import sys
-import ipaddress
 
 import nethsec.firewall
 from euci import EUci
-from nethsec.utils import ValidationError, validation_error, get_all_by_type, generic_error
+from nethsec.utils import ValidationError, validation_error, generic_error
 
 
 def __fetch_data(e_uci):
@@ -46,43 +45,8 @@ elif cmd == 'call':
     e_uci = EUci()
     if action == 'set-config':
         try:
-            # fetch previous config
-            previous_config = __fetch_data(e_uci)
             # decode data
             data = json.JSONDecoder().decode(sys.stdin.read())
-
-            # if flashstart changes activation status
-            if previous_config['enabled'] != bool(data['enabled']):
-                # flashstart will be enabled
-                if bool(data['enabled']):
-                    # backup old DNS servers
-                    for dnsmasq in get_all_by_type(e_uci, 'dhcp', 'dnsmasq'):
-                        # supporting at the moment only one dhcp
-                        e_uci.set('flashstart', 'ns_old_conf', 'dnsmasq')
-                        preserved_forwarders = []
-                        try:
-                            cur_server = e_uci.get_all('dhcp', dnsmasq, 'server')
-                        except:
-                            cur_server = []
-                        for server in cur_server:
-                            # preserve all forwarders thar are not simple IP address, like /domain/1.2.3.4
-                            try:
-                                ipaddress.ip_address(server)
-                            except:
-                                preserved_forwarders.append(server)
-                        e_uci.set('flashstart', 'ns_old_conf', 'server', cur_server)
-                        # add flashstart as only DNS
-                        e_uci.set('dhcp', dnsmasq, 'server', preserved_forwarders + ['127.0.0.1#5300'])
-
-                # flashstart will be disabled
-                else:
-                    # restore old DNS servers
-                    for dhcp in get_all_by_type(e_uci, 'dhcp', 'dnsmasq'):
-                        # supporting at the moment only one dhcp
-                        e_uci.set('dhcp', dhcp, 'server',
-                                  e_uci.get('flashstart', 'ns_old_conf', 'server', list=True, default=""))
-                    # deleting old conf
-                    e_uci.delete('flashstart', 'ns_old_conf')
 
             # save data
             e_uci.set('flashstart', 'global', 'enabled', bool(data['enabled']))
