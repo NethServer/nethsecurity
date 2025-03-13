@@ -10,9 +10,10 @@ You can create custom images using [Image Builder](https://openwrt.org/docs/guid
 
 Download the image builder from:
 ```
-https://updates.nethsecurity.nethserver.org/<version>/targets/x86/64/nethsecurity-imagebuilder-<version>-x86-64.Linux-x86_64.tar.xz
+https://updates.nethsecurity.nethserver.org/stable/<owrt_version>/targets/x86/64/nethsecurity-imagebuilder-8-<owrt_version>-ns.<nsec_version>-x86-64.Linux-x86_64.tar.xz
 ```
-Replace `version` with the latest release, like `23.05.06`.
+
+Replace `owrt_version` with the latest OpenWrt release, like `23.05.05` and `nsec_version` with lates NethSecurity release like `1.4.1`.
 
 ## Using Image Builder inside CentOS 7
 
