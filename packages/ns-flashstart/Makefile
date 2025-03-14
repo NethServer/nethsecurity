@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-flashstart
-PKG_VERSION:=0.0.6
+PKG_VERSION:=0.0.7
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-flashstart-$(PKG_VERSION)
@@ -35,10 +35,6 @@ endef
 
 # this is required, otherwise compile will fail
 define Build/Compile
-endef
-
-# this allows uci-defaults scripts to run on post-install
-define Package/ns-flashstart/postinst
 endef
 
 define Package/ns-flashstart/install

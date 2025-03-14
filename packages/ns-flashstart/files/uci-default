@@ -26,6 +26,4 @@ then
   uci commit firewall
   uci commit flashstart
   uci commit dhcp
-  # this appears to be needed, otherwise the dnsmasq service is not restarted
-  service dnsmasq restart
 fi
