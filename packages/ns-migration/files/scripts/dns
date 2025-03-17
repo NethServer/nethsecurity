@@ -44,7 +44,10 @@ for address in data["addresses"]:
     aname = utils.get_id(address["name"])
     nsmigration.vprint(f'Creating wildcard record {aname}')
     addresses.append(f'/{address["name"]}/{address["ip"]}')
-u.set("dhcp", dnsmasq_section, "address", addresses)
+    dname = utils.get_random_id()
+    u.set("dhcp", dname, "domain") # create named record
+    for o in address:
+        u.set("dhcp", dname, o, address[o])
 
 # Save configuration
 u.commit("dhcp")
