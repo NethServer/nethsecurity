@@ -1,0 +1,29 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# This uci-default script is used to migrate the old configuration to the new one
+# Issue: https://github.com/NethServer/nethsecurity/issues/1125
+
+if [ "$(uci -q get flashstart.global.enabled)" = "1" ] && uci -q get flashstart.ns_old_conf
+then
+  # restore old DNS configuration
+  uci -q del dhcp.@dnsmasq[0].server
+  old_config=$(uci -q get flashstart.ns_old_conf.server)
+  for server in $old_config; do
+    uci -q add_list dhcp.@dnsmasq[0].server="$server"
+  done
+  uci -q del flashstart.ns_old_conf
+
+  # Move resolution to dnsmasq to dnsdist
+  for section in $(uci show firewall | grep "ns_flashstart.*=redirect" | cut -d'=' -f1); do
+    uci -q set "$section.dest_port=5300"
+  done
+
+  uci commit firewall
+  uci commit flashstart
+  uci commit dhcp
+fi
