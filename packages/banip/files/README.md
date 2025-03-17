@@ -43,7 +43,6 @@ IP address blocking is commonly used to protect against brute force attacks, pre
 | ipsum               | malicious IPs                  |    x    |    x    |         |              | [Link](https://github.com/stamparm/ipsum)                    |
 | ipthreat            | hacker and botnet TPs          |    x    |    x    |         |              | [Link](https://ipthreat.net)                                 |
 | myip                | real-time IP blocklist         |    x    |    x    |         |              | [Link](https://myip.ms)                                      |
-| nixspam             | iX spam protection             |    x    |    x    |         |              | [Link](http://www.nixspam.org)                               |
 | oisdbig             | OISD-big IPs                   |         |         |    x    | tcp: 80, 443 | [Link](https://github.com/dibdot/banIP-IP-blocklists)        |
 | oisdnsfw            | OISD-nsfw IPs                  |         |         |    x    | tcp: 80, 443 | [Link](https://github.com/dibdot/banIP-IP-blocklists)        |
 | oisdsmall           | OISD-small IPs                 |         |         |    x    | tcp: 80, 443 | [Link](https://github.com/dibdot/banIP-IP-blocklists)        |
