@@ -15,8 +15,8 @@
 . /lib/mwan3/mwan3.sh
 
 # check for passed parameters, if empty use environment variables
-interface_name="${1:-$INTERFACE}"
-action_name="${2:-$ACTION}"
+interface_name="${1:?Interface name is required}"
+action_name="${2:-?Action is required}"
 
 config_load mwan3
 

@@ -95,6 +95,9 @@ define Package/mwan3/install
 	$(INSTALL_DIR) $(1)/usr/libexec/rpcd
 	$(INSTALL_BIN) ./files/usr/libexec/rpcd/mwan3 \
 		$(1)/usr/libexec/rpcd/
+	$(INSTALL_DIR) $(1)/usr/libexec
+	$(INSTALL_BIN) ./files/usr/libexec/mwan3routertraffic \
+		$(1)/usr/libexec/rpcd/
 
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/usr/sbin/mwan3 \
@@ -102,8 +105,6 @@ define Package/mwan3/install
 	$(INSTALL_BIN) ./files/usr/sbin/mwan3rtmon \
 		$(1)/usr/sbin/
 	$(INSTALL_BIN) ./files/usr/sbin/mwan3track \
-		$(1)/usr/sbin/
-	$(INSTALL_BIN) ./files/usr/sbin/mwan3routertraffic \
 		$(1)/usr/sbin/
 
 	$(INSTALL_DIR) $(1)/etc

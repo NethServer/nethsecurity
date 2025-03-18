@@ -5,4 +5,4 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-grep -q "/usr/sbin/mwan3routertraffic \$INTERFACE \$ACTION" /etc/mwan3.user || echo "/usr/sbin/mwan3routertraffic \$INTERFACE \$ACTION" >> /etc/mwan3.user
+grep -q "/usr/libexec/mwan3routertraffic \$INTERFACE \$ACTION" /etc/mwan3.user || echo "/usr/libexec/mwan3routertraffic \$INTERFACE \$ACTION" >> /etc/mwan3.user
