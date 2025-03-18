@@ -8,6 +8,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=mwan3
+# from version 2.11.17 is Nethesis fork: it clears the mwan3 config
 PKG_VERSION:=2.11.17
 PKG_RELEASE:=7
 PKG_MAINTAINER:=Florian Eckert <fe@dev.tdt.de>, \
