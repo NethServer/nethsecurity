@@ -97,7 +97,7 @@ define Package/mwan3/install
 		$(1)/usr/libexec/rpcd/
 	$(INSTALL_DIR) $(1)/usr/libexec
 	$(INSTALL_BIN) ./files/usr/libexec/mwan3routertraffic \
-		$(1)/usr/libexec/rpcd/
+		$(1)/usr/libexec
 
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/usr/sbin/mwan3 \
