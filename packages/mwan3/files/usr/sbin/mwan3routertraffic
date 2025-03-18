@@ -1,0 +1,55 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# This script is intended to be used inside the /etc/mwan.user file, please beware of usage outside of it
+# Params are
+# $interface_name: interface name (passed by $INTERFACE)
+# $2: action name (passed by $ACTION)
+
+. /lib/functions.sh
+. /lib/functions/network.sh
+. /lib/mwan3/mwan3.sh
+
+# check for passed parameters, if empty use environment variables
+interface_name="${1:-$INTERFACE}"
+action_name="${2:-$ACTION}"
+
+config_load mwan3
+
+# Get the id of the interface handled by mwan3, if empty, exit
+id=""
+mwan3_get_iface_id id "$interface_name"
+[ -n "$id" ] || return 0
+
+# Get family of the interface
+family=""
+wan_addr=""
+config_get family "$interface_name" family ipv4
+# exit if the interface is not supported
+if [ "$family" = "ipv4" ]; then
+  IP="$IP4"
+  network_get_ipaddr wan_addr "${1}"
+elif [ "$family" = "ipv6" ] && [ $NO_IPV6 -eq 0 ]; then
+  IP="$IP6"
+  network_get_ipaddr6 wan_addr "${1}"
+else
+  return 1
+fi
+
+if [ "$action_name" = "connected" ]
+then
+  # Add the rule to the routing table
+  $IP rule add pref $((id+1500)) from "$wan_addr" lookup "$id"
+elif [ "$action_name" = "disconnected" ]
+then
+  # Remove the rule from the routing table
+  $IP rule del pref $((id+1500))
+fi
+
+
+
+

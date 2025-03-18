@@ -1,0 +1,8 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+grep -q "/usr/sbin/mwan3routertraffic \$INTERFACE \$ACTION" /etc/mwan3.user || echo "/usr/sbin/mwan3routertraffic \$INTERFACE \$ACTION" >> /etc/mwan3.user

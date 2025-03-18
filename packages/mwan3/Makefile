@@ -102,6 +102,8 @@ define Package/mwan3/install
 		$(1)/usr/sbin/
 	$(INSTALL_BIN) ./files/usr/sbin/mwan3track \
 		$(1)/usr/sbin/
+	$(INSTALL_BIN) ./files/usr/sbin/mwan3routertraffic \
+		$(1)/usr/sbin/
 
 	$(INSTALL_DIR) $(1)/etc
 	$(INSTALL_BIN) ./files/etc/mwan3.user \
@@ -111,6 +113,8 @@ define Package/mwan3/install
 
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_DATA) ./files/etc/uci-defaults/mwan3-migrate-flush_conntrack \
+		$(1)/etc/uci-defaults/
+	$(INSTALL_DATA) ./files/etc/uci-defaults/mwan3-addroutertraffic-execution \
 		$(1)/etc/uci-defaults/
 endef
 
