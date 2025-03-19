@@ -49,6 +49,8 @@ for address in data["addresses"]:
     for o in address:
         u.set("dhcp", dname, o, address[o])
 
+u.set("dhcp", dnsmasq_section, "address", addresses)
+
 # Save configuration
 u.commit("dhcp")
 u.commit("system")
