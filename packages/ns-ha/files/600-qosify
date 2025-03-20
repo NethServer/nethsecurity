@@ -1,0 +1,11 @@
+#!/bin/sh
+
+. /lib/functions/keepalived/hotplug.sh
+
+set_service_name qosify
+
+set_reload_if_sync
+
+add_sync_file /etc/config/qosify
+
+keepalived_hotplug
