@@ -8,9 +8,9 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=mwan3
-# version 2.11.17 is from Nethesis: it clears the mwan3 config
+# from version 2.11.17 is Nethesis fork: it clears the mwan3 config
 PKG_VERSION:=2.11.17
-PKG_RELEASE:=6
+PKG_RELEASE:=7
 PKG_MAINTAINER:=Florian Eckert <fe@dev.tdt.de>, \
 		Aaron Goodman <aaronjg@alumni.stanford.edu>
 PKG_LICENSE:=GPL-2.0
@@ -95,6 +95,9 @@ define Package/mwan3/install
 	$(INSTALL_DIR) $(1)/usr/libexec/rpcd
 	$(INSTALL_BIN) ./files/usr/libexec/rpcd/mwan3 \
 		$(1)/usr/libexec/rpcd/
+	$(INSTALL_DIR) $(1)/usr/libexec
+	$(INSTALL_BIN) ./files/usr/libexec/mwan3routertraffic \
+		$(1)/usr/libexec
 
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/usr/sbin/mwan3 \
@@ -112,6 +115,8 @@ define Package/mwan3/install
 
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_DATA) ./files/etc/uci-defaults/mwan3-migrate-flush_conntrack \
+		$(1)/etc/uci-defaults/
+	$(INSTALL_DATA) ./files/etc/uci-defaults/mwan3-addroutertraffic-execution \
 		$(1)/etc/uci-defaults/
 endef
 
