@@ -12,12 +12,21 @@
 log_opt=""
 if [ $(uci -q get dpi.config.log_blocked) = "1" ]; then
     log_opt='log prefix "DPI block: "'
+    limit=$(uci -q get firewall.ns_defaults.rule_log_limit)
+    # validate limit syntax to avoid error on nft rules
+    if echo "$limit" | grep -qE '^[0-9]+/s$'; then
+        limit="${limit}econd"
+    else
+        limit="1/second"
+    fi
 fi
 
 echo add table inet dpi
 echo add chain inet dpi block '{ type filter hook forward priority -1; policy accept; }'
-echo add rule inet dpi block ct label block counter $log_opt reject
-
+if [ -n "$log_opt" ]; then
+    echo add rule inet dpi block ct label block limit rate $limit burst 5 packets $log_opt
+fi
+echo add rule inet dpi block ct label block counter reject
 echo add chain inet dpi qos '{ type filter hook prerouting priority -1; }'
 echo add rule inet dpi qos ct label bulk counter ip dscp set cs1 return
 echo add rule inet dpi qos ct label best_effort counter ip dscp set cs0 return
