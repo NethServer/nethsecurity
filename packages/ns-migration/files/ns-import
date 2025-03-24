@@ -73,7 +73,8 @@ uci commit
 
 # Restart services
 service network restart
-service firewall restart
+# this will restart the firewall too
+firewall-apply-default-logging
 service system restart
 service banip stop
 service banip start # a restart is not enough
