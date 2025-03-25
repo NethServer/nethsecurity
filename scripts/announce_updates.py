@@ -18,23 +18,21 @@ today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=1, microseco
 # GitHub API URL
 GITHUB_API_URL = f"https://api.github.com/repos/{REPO}/issues"
 
-# Headers for the GitHub API request
-headers = {
-    "Authorization": f"token {GITHUB_TOKEN}",
-    "Accept": "application/vnd.github.v3+json"
-}
-
-# Parameters to filter issues closed today
-params = {
-    "state": "closed",
-    "since": today,
-    "per_page": 100
-}
 
 def fetch_closed_issues():
-    response = requests.get(GITHUB_API_URL, headers=headers, params=params)
+    issues = []
+    headers = {
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    response = requests.get(GITHUB_API_URL, headers=headers, params={"state": "closed", "since": today, "per_page": 100})
     response.raise_for_status()
-    return response.json()
+    for issue in response.json():
+        # skip pull requests and issues with type name "Design" and "Task"
+        if 'pull_request' in issue or issue['type']['name'] in ["Design", "Task"]:
+            continue
+        issues.append(issue)
+    return issues
 
 def create_announcement(issues):
     today_str = datetime.now().strftime("%d %B %Y")
@@ -43,16 +41,15 @@ def create_announcement(issues):
         # log to stderr the processed issue
         print(f"Processing issue {issue['number']}", file=sys.stderr)
         icon = ""
-        if 'pull_request' not in issue:  # Exclude pull requests
-            title = issue["title"]
-            url = issue["html_url"]
-            if any('milestone goal' in label['name'] for label in issue['labels']):
-                icon = f"{title} :crown:"  # Highlight the title
-            announcement += f"#### {title} ([{issue['number']}]({issue['url']})) {icon}\n"
-            explanation = ghexplain.issue(url)
-            announcement += f"{explanation}\n\n"
-            if icon:
-                announcement += "\nThis feature is a milestone goal.\n\n"
+        title = issue["title"]
+        url = issue["html_url"]
+        if any('milestone goal' in label['name'] for label in issue['labels']):
+            icon = f"{title} :crown:"  # Highlight the title
+        announcement += f"#### {title} ([{issue['number']}]({issue['url']})) {icon}\n"
+        explanation = ghexplain.issue(url)
+        announcement += f"{explanation}\n\n"
+        if icon:
+            announcement += "\nThis feature is a milestone goal.\n\n"
     return announcement
 
 if __name__ == "__main__":
