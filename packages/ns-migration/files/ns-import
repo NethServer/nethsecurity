@@ -71,6 +71,12 @@ rm -rf $tmp_dir
 # Commit everything
 uci commit
 
+# generate netifyd configuration
+cat <<EOF | python
+changes = ['network']
+exec(open('/usr/libexec/ns-api/post-commit/configure-netifyd.py').read())
+EOF
+
 # Restart services
 service network restart
 # this will restart the firewall too
