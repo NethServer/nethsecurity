@@ -1,32 +1,59 @@
-#!/bin/sh
+#!/bin/bash
 
 #
-# Copyright (C) 2022 Nethesis S.r.l.
+# Copyright (C) 2025 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-# Execute the backup.
-# If the backup has changes since last run, upload it to remote server
+# Execute the backup using custom command.
+# To check if the backup has changed since the last run, it generates an MD5 checksum for each file in the backup.
+# If the MD5 checksum of any file has changed, it uploads the backup to a remote server using the `remote-backup` command.
 
 set -e
 
 WORK_DIR="/var/backup"
 BACKUP="$WORK_DIR/backup.tar.gz"
-MD5="$WORK_DIR/md5"
-MD5_LAST="/etc/backup.md5"
+MD5_DIR="$WORK_DIR/md5"
+MD5_LAST_DIR="/var/backup_md5"
 PASSPHRASE="/etc/backup.pass"
+INSTALLED_PACKAGES="/etc/backup/installed_packages.txt"
+EXCLUDE="/etc/backup.exclude"
+UPLOAD_EXIT_CODE=0
 
-function send {
+log() {
+    logger -t "send-backup" "$@"
+    if [ -t 2 ]; then
+        echo "$@" >&2
+    fi
+}
+
+list_installed_packages() {
+    # Copied from sysupgrade
+    find /usr/lib/opkg/info -name "*.control" \( \
+                                        \( -exec test -f /rom/{} \; -exec echo {} rom \; \) -o \
+                                        \( -exec test -f /overlay/upper/{} \; -exec echo {} overlay \; \) -o \
+                                        \( -exec echo {} unknown \; \) \
+                                        \) | sed -e 's,.*/,,;s/\.control /\t/'
+}
+
+send() {
     if [ -s $PASSPHRASE ]; then
         # send encrypted backup
         gpg --batch -c --passphrase-file $PASSPHRASE $BACKUP
-        remote-backup upload "$BACKUP.gpg"
+        remote-backup upload "$BACKUP.gpg" &> /dev/null || UPLOAD_EXIT_CODE=$?
     else
-        remote-backup upload "$BACKUP"
+        log "[WARNING] No passphrase found, sending unencrypted backup. This method is deprecated and will be removed in the future."
+        remote-backup upload "$BACKUP" &> /dev/null || UPLOAD_EXIT_CODE=$?
     fi
-    rm -f "$BACKUP" "$BACKUP.gpg"
-    mv $MD5 $MD5_LAST
-    exit $?
+    if [ "$UPLOAD_EXIT_CODE" -ne 0 ]; then
+        log "[ERROR] Upload failed with exit code $UPLOAD_EXIT_CODE"
+    else
+        log "[INFO] Backup upload completed successfully"
+    fi
+    rm -f "$BACKUP" "$BACKUP.gpg" "$INSTALLED_PACKAGES"
+    rm -rf "$MD5_LAST_DIR"
+    mv "$MD5_DIR" "$MD5_LAST_DIR"
+    exit $UPLOAD_EXIT_CODE
 }
 
 SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
@@ -37,27 +64,44 @@ if [ -z "$SYSTEM_ID" ] || [ -z "$SYSTEM_SECRET" ]; then
     exit 0
 fi
 
-# hack: avoid to backup non-config file
-if [ -f /etc/acme/http.header ]; then
-    mv /etc/acme/http.header /tmp
+# Create exclude file if it doesn't exist
+if [ ! -f "$EXCLUDE" ]; then
+    touch "$EXCLUDE"
 fi
+
+# List installed packages
+mkdir -p "$(dirname $INSTALLED_PACKAGES)"
+list_installed_packages > $INSTALLED_PACKAGES
 
 # Create the backup
 mkdir -p $WORK_DIR
-sysupgrade -k -b $BACKUP 2>/dev/null
-md5sum $BACKUP | awk '{print $1}' > $MD5
+mkdir -p $MD5_DIR
+sysupgrade -k -l | while read -r file; do
+    [ -e "$file" ] && ! grep -qxF "$file" "$EXCLUDE" && echo "$file"
+done | tar -czf $BACKUP -C / -T - 2>/dev/null
 
-# hack: restore acme working file
-if [ -f /tmp/http.header ]; then
-    mv /tmp/http.header /etc/acme
+# Generate MD5 for each file in the backup
+sysupgrade -k -l | while read -r file; do
+    if [ -e "$file" ] && ! grep -qxF "$file" "$EXCLUDE"; then
+        md5sum "$file" | awk '{print $1}' > "$MD5_DIR/$(basename $file).md5"
+    fi
+done
+
+# Check if any file's MD5 has changed
+CHANGED=0
+if [ ! -d "$MD5_LAST_DIR" ]; then
+    CHANGED=1
+else
+    for file in "$MD5_DIR"/*.md5; do
+        base_file=$(basename "$file")
+        if [ ! -f "$MD5_LAST_DIR/$base_file" ] || [ "$(cat "$file")" != "$(cat "$MD5_LAST_DIR/$base_file")" ]; then
+            CHANGED=1
+            break
+        fi
+    done
 fi
 
-# Send backup if there is no md5 saved
-if [ ! -f "$MD5_LAST" ]; then
-    send
-fi
-
-# Send backup if the md5 is changed
-if [ -f "$MD5_LAST" ] && [ "$(cat $MD5_LAST)" != "$(cat $MD5)" ]; then
+# Send the backup if any file has changed
+if [ "$CHANGED" -eq 1 ]; then
     send
 fi
