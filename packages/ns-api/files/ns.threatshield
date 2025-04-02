@@ -393,6 +393,10 @@ def dns_edit_blocklist(e_uci, payload):
         enabled.append(payload['blocklist'])
     if not payload['enabled'] and payload['blocklist'] in enabled:
         enabled.remove(payload['blocklist'])
+    # cleanup invalid feeds
+    has_bl = has_bl_entitlement(e_uci)
+    feeds = list_dns_feeds(has_bl)
+    enabled = [feed for feed in enabled if feed in feeds]
     e_uci.set('adblock', 'global', 'adb_sources', enabled)
     e_uci.save('adblock')
     return {'message': 'success'}
