@@ -183,7 +183,6 @@ def list_settings(e_uci):
     }
 
 def edit_blocklist(e_uci, payload):
-    feeds = list_feeds()
     try:
         enabled = list(e_uci.get_all('banip', 'global', 'ban_feed'))
     except:
@@ -192,6 +191,10 @@ def edit_blocklist(e_uci, payload):
         enabled.append(payload['blocklist'])
     if not payload['enabled'] and payload['blocklist'] in enabled:
         enabled.remove(payload['blocklist'])
+    # cleanup invalid feeds
+    has_bl = has_bl_entitlement(e_uci)
+    feeds = list_feeds(has_bl)
+    enabled = [feed for feed in enabled if feed in feeds]
     e_uci.set('banip', 'global', 'ban_feed', enabled)
     e_uci.save('banip')
     return {'message': 'success'}
