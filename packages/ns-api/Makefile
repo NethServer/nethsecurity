@@ -167,7 +167,7 @@ define Package/ns-api/install
 	$(INSTALL_BIN) ./files/firewall-apply-default-logging $(1)/usr/sbin/firewall-apply-default-logging
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/config $(1)/etc/config/ns-api
-	$(INSTALL_CONF) ./files/templates $(1)/etc/config/
+	$(INSTALL_DATA) ./files/templates $(1)/etc/config/
 	$(INSTALL_BIN) ./files/post-commit/restart-netdata.py $(1)/usr/libexec/ns-api/post-commit/
 	$(INSTALL_BIN) ./files/pre-commit/fix-redirect-reflections.py $(1)/usr/libexec/ns-api/pre-commit
 	$(INSTALL_BIN) ./files/pre-commit/update-objects.py $(1)/usr/libexec/ns-api/pre-commit
