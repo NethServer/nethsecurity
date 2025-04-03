@@ -63,10 +63,10 @@ def list_talkers(limit = 20, stat_file="/tmp/netify-plugin-stats.json"):
             stats[ip]['totals']['bandwidth'] = stats[ip]['totals']['bandwidth'] / time_diff
 
     ordered = sorted(stats.values(), key=lambda x: x['totals']['bandwidth'], reverse=True)
-    applications = [{"name": k, "value": v} for k, v in sorted(applications.items(), key=lambda x: x[1], reverse=True)]
+    applications = [{"name": k, "value": v / time_diff} for k, v in sorted(applications.items(), key=lambda x: x[1], reverse=True)]
     protocols_naming = dpi.load_protocols()
     protocols = {protocols_naming.get(int(k), k): v for k, v in protocols.items()}
-    protocols = [{"name": k, "value": v} for k, v in sorted(protocols.items(), key=lambda x: x[1], reverse=True)][:limit]
+    protocols = [{"name": k, "value": v / time_diff} for k, v in sorted(protocols.items(), key=lambda x: x[1], reverse=True)][:limit]
     return {
         'top_hosts': ordered[:limit],
         'top_apps': applications[:limit],
