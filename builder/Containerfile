@@ -26,7 +26,7 @@ RUN apt-get update \
 USER buildbot
 WORKDIR /home/buildbot
 ARG OWRT_VERSION=24.10.0
-ADD --chown=buildbot:buildbot https://github.com/openwrt/openwrt.git#v${OWRT_VERSION} /home/buildbot/openwrt
+RUN git clone --branch "v${OWRT_VERSION}" --depth 1 https://github.com/openwrt/openwrt.git
 WORKDIR /home/buildbot/openwrt
 RUN sed -i '/telephony/d' feeds.conf.default
 RUN sed -i 's/src-git-full/src-git/' feeds.conf.default
