@@ -1,0 +1,68 @@
+# 2025-04-07
+FROM debian@sha256:b1211f6d19afd012477bd34fdcabb6b663d680e0f4b0537da6e6b0fd057a3ec3
+ARG SOURCE_DATE_EPOCH=1743984000
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends --no-install-suggests \
+        bison \
+        build-essential \
+        ca-certificates \
+        clang \
+        file \
+        flex \
+        g++ \
+        gawk \
+        gcc-multilib \
+        gettext \
+        git \
+        libncurses5-dev \
+        libssl-dev \
+        python3-distutils \
+        rsync \
+        unzip \
+        wget \
+        zlib1g-dev \
+    && useradd -m -s '/bin/bash' -U 'buildbot'
+
+USER buildbot
+WORKDIR /home/buildbot
+ARG OWRT_VERSION=24.10.0
+ADD --chown=buildbot:buildbot https://github.com/openwrt/openwrt.git#v${OWRT_VERSION} /home/buildbot/openwrt
+WORKDIR /home/buildbot/openwrt
+RUN sed -i '/telephony/d' feeds.conf.default
+RUN sed -i 's/src-git-full/src-git/' feeds.conf.default
+RUN ./scripts/feeds update
+RUN ./scripts/feeds install -a
+RUN make defconfig
+RUN make -j$(nproc) download
+
+COPY --chown=buildbot:buildbot packages nspackages
+RUN echo "src-link nethsecurity /home/buildbot/openwrt/nspackages" >> feeds.conf.default
+RUN ./scripts/feeds update nethsecurity
+RUN ./scripts/feeds install -a -p nethsecurity
+COPY --chmod=777 builder/package-replacement.sh /usr/local/bin/package-replacement
+RUN package-replacement
+
+COPY --chown=buildbot:buildbot config config
+ARG REPO_CHANNEL=stable
+ARG NETHSECURITY_VERSION=1.5.1
+ARG TARGET=x86_64
+ARG VERSION=8-${OWRT_VERSION}-ns.${NETHSECURITY_VERSION}
+COPY --chmod=777 builder/generate-config.sh /usr/local/bin/generate-config
+RUN generate-config
+
+COPY --chown=buildbot:buildbot patches patches
+COPY --chmod=777 builder/apply-patches.sh /usr/local/bin/apply-patches
+RUN apply-patches
+
+COPY --chown=buildbot:buildbot files files
+
+COPY --chmod=777 builder/setup-build.sh /usr/local/bin/setup-build
+COPY --chmod=777 builder/entrypoint.sh /usr/local/bin/entrypoint
+ENTRYPOINT ["/usr/local/bin/entrypoint"]
+CMD ["make", "-j", "$(nproc)", "V=sc", "world"]
+
+RUN mkdir -p \
+      .ccache \
+      build_dir \
+      download \
+      staging_dir
