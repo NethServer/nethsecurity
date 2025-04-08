@@ -283,12 +283,12 @@ The patch can be created following these steps:
 
 First, enter the build system by executing `./run bash`, then enter the directory package to edit. Example:
 ```
-cd /home/build/openwrt/feeds/packages/net/adblock
+cd /home/buildbot/openwrt/feeds/packages/net/adblock
 ```
 
 Edit the files, then generate the patch using `git`:
 ```
-cd /home/build/openwrt
+cd /home/buildbot/openwrt
 mkdir -p patches/feeds/packages
 git -C feeds/packages diff > patches/feeds/packages/100-adblock-bypass.patch
 ```
