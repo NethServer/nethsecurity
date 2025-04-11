@@ -192,8 +192,7 @@ def edit_blocklist(e_uci, payload):
     if not payload['enabled'] and payload['blocklist'] in enabled:
         enabled.remove(payload['blocklist'])
     # cleanup invalid feeds
-    has_bl = has_bl_entitlement(e_uci)
-    feeds = list_feeds(has_bl)
+    feeds = list_feeds()
     enabled = [feed for feed in enabled if feed in feeds]
     e_uci.set('banip', 'global', 'ban_feed', enabled)
     e_uci.save('banip')
