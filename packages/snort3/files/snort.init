@@ -22,15 +22,16 @@ download_rules () {
 	if [ -n "$oinkcode" ]; then
 		rm -f /var/ns-snort/*community-rules.tar.gz
 		rules="$(find /var/ns-snort -type f -name "snortrules-*.tar.gz")"
-		[ -n "$rules" ] && return
 	else
 		rm -f /var/ns-snort/snortrules-*.tar.gz
 		rules="$(find /var/ns-snort/ -type f -name "*community-rules.tar.gz")"
-		[ -n "$rules" ] && return
+	fi
+	if [ -z "$rules" ]; then
+		args="--download"
 	fi
 	# this is done every time the service is started
 	attempt=0
-	until /usr/bin/ns-snort-rules --download; do
+	until /usr/bin/ns-snort-rules $args; do
 		attempt=$((attempt + 1))
 		if [ "$attempt" -ge 6 ]; then
 			echo "Error: failed to download snort rules after 6 attempts (1 minute)."

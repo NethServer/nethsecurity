@@ -39,7 +39,6 @@ def backup_rules():
         log(f"Backup created at {BACKUP_DIR}")
 
 def generate_testing_rules():
-    log("Generating testing rules...")
     shutil.rmtree(RULES_DIR, ignore_errors=True)
     os.makedirs(RULES_DIR, exist_ok=True)
     rules_file = TESTING_RULES_FILE
@@ -51,7 +50,6 @@ def generate_testing_rules():
     with open(rules_file, 'w') as f:
         for rule in testing_rules:
             f.write(rule + "\n")
-    log(f"Testing rules generated at {rules_file}. Restart snort to apply: /etc/init.d/snort restart")
 
 def download_official_rules(oinkcode):
     if oinkcode:
@@ -101,7 +99,7 @@ def filter_official_rules(policy, alert_excluded, disabled_rules, oinkcode=None)
         rule_files = glob.glob(os.path.join(OFFICIAL_RULES_DIR, "rules/*.rules"))
     else:
         # official rules are downloaded to /var/snort.d/snort3-community-rules/snort3-community.rules
-            rule_files = [os.path.join(OFFICIAL_RULES_DIR, "snort3-community-rules/snort3-community.rules")]
+        rule_files = [os.path.join(OFFICIAL_RULES_DIR, "snort3-community-rules/snort3-community.rules")]
 
     for file in rule_files:
         log(f"Processing rule file {file}")
@@ -158,23 +156,11 @@ def main():
     parser = argparse.ArgumentParser(description='Process snort rules.')
 
     # General options
-    parser.add_argument('--testing', action='store_true', help="Create synthetic testing rules instead of downloading.")
     parser.add_argument('--download', action='store_true', help="Download Snort rules.")
     parser.add_argument('--restart', action='store_true', help="Force Snort to restart after updating rules.")
     args = parser.parse_args()
 
     backup_rules()
-    
-    if args.testing:
-        generate_testing_rules()
-        if args.restart:
-            log("Restarting snort...")
-            subprocess.run(["/etc/init.d/snort", "restart"], check=True)
-        sys.exit(0)
-    else:
-        # cleanup testing rules
-        if os.path.exists(TESTING_RULES_FILE):
-            os.remove(TESTING_RULES_FILE)
 
     prepare_rule_file() # /etc/snort/rules/snort.rules
 
@@ -192,6 +178,14 @@ def main():
     rules = filter_official_rules(official_policy, alert_excluded, disabled_rules, oinkcode)
 
     append_rules_to_file(rules)
+
+    if uci.get("snort", "snort", "ns_testing", default=False, dtype=bool):
+        log("Adding testing rules...")
+        generate_testing_rules()
+    else:
+        log("Removing testing rules...")
+        if os.path.exists(TESTING_RULES_FILE):
+            os.remove(TESTING_RULES_FILE)
 
     if args.restart:
         log("Restarting snort...")

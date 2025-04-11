@@ -89,9 +89,16 @@ To use them, no download is required.
 
 Usage example:
 ```bash
-ns-snort-rules  --testing
+uci set snort.snort.ns_testing=1
 uci commit snort
-/etc/init.d/snort restart
+reload_config
+```
+
+To disable the testing rules:
+```bash
+uci set snort.snort.ns_testing=0
+uci commit snort
+reload_config
 ```
 
 ## Bypass IPS
