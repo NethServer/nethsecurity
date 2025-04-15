@@ -37,6 +37,21 @@ def conf_to_range(ip, mask, start, limit):
     last = first + int(limit) - 1
     return (int2ip(first), int2ip(last))
 
+def list_custom_dhcp_options():
+    ret = {}
+    u = EUci()
+    for i in utils.get_all_by_type(u, 'dhcp', 'dhcp'):
+        try:
+            options = u.get_all('dhcp', i, 'dhcp_option')
+            for opt in options:
+                if not opt.startswith('option:'):
+                    tmp = opt.split(",")
+                    ret[tmp[0]] = opt.removeprefix(tmp[0] + ",")
+        except:
+            continue
+    return ret
+
+
 def list_dhcp_options():
     ret = {}
     pd = subprocess.run(["dnsmasq", "--help", "dhcp"], capture_output=True, text=True)
@@ -47,8 +62,7 @@ def list_dhcp_options():
             continue
         tmp = line.strip().split(" ")
         ret[tmp[1]] = tmp[0]
-        
-    return ret
+    return ret | list_custom_dhcp_options()
 
 def list_interfaces():
     ret = {}
@@ -147,7 +161,10 @@ def edit_interface(args):
         k = list(opt.keys())[0]
         v = opt[k].strip().rstrip(',')
         if v:
-            opts.append(f"option:{k},{v}")
+            if k.isdigit(): # custom option, no "option" preffix
+                opts.append(f"{k},{v}")
+            else:
+                opts.append(f"option:{k},{v}")
     u.set("dhcp", dhcp_id, "dhcp_option", opts)
     u.set("dhcp", dhcp_id, "ignore", '0')
     u.save("dhcp")
