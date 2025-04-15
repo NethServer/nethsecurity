@@ -100,6 +100,7 @@ define Package/ns-plug/install
 	$(INSTALL_CONF) files/ns-plug.keep $(1)/lib/upgrade/keep.d/ns-plug
 	$(INSTALL_CONF) files/health_alarm_notify.conf $(1)/etc/netdata
 	$(INSTALL_BIN) ./files/send-mwan-alert $(1)/usr/libexec/mwan-hooks
+	$(INSTALL_BIN) ./files/backup-encryption-alert $(1)/usr/libexec
 	$(INSTALL_BIN) ./files/mwan-hooks $(1)/usr/libexec/ns-plug
 endef
  

@@ -2,6 +2,7 @@
 
 # setup cron jobs for remote servers
 crontab -l | grep -q '/usr/sbin/send-backup' || echo '02 2 * * * sleep $(( RANDOM % 1800 )); /usr/sbin/send-backup' >> /etc/crontabs/root
+crontab -l | grep -q '/usr/libexec/backup-encryption-alert' || echo '02 3 * * * sleep $(( RANDOM % 1800 )); /usr/libexec/backup-encryption-alert' >> /etc/crontabs/root
 crontab -l | grep -q '/usr/sbin/send-heartbeat' || echo '*/10 * * * * sleep $(( RANDOM % 60 )); /usr/sbin/send-heartbeat' >> /etc/crontabs/root
 crontab -l | grep -q '/usr/sbin/send-inventory' || echo '05 3 * * * sleep $(( RANDOM % 1800 )); /usr/sbin/send-inventory' >> /etc/crontabs/root
 

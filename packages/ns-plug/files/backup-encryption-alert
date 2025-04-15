@@ -1,0 +1,36 @@
+#!/bin/bash
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Send a backup alert if backup is not encrypted
+
+lk=$(uci -q get ns-plug.config.system_id)
+secret=$(uci -q get ns-plug.config.secret)
+url=$(uci -q get ns-plug.config.alerts_url)"alerts/store"
+
+# Do not send alert if system_id or secret is not set
+if [ -z "$lk" ] || [ -z "$secret" ]; then
+    exit 0
+fi
+
+# Check if alert is enabled
+if [ "$(uci -q get ns-plug.config.backup_alert_disabled)" = "1" ]; then
+    exit 0
+fi
+
+# Send the alert
+if [ ! -f "/etc/backup.pass" ]; then
+    status="FAILURE"
+else
+    status="OK"
+fi
+
+alert_id="backup:config:notencrypted"
+logger -t backup-alert "Sending alert ${alert_id} with status ${status}"
+payload='{"lk": "'$lk'", "alert_id": "'$alert_id'", "status": "'$status'"}'
+
+/usr/bin/curl -m 30 --retry 3 -L -s \
+    --header "Authorization: token ${secret}"  --header "Content-Type: application/json" --header "Accept: application/json"  \
+    --data-raw "${payload}" ${url}
