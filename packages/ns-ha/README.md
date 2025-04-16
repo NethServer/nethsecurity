@@ -7,7 +7,6 @@ Requirements:
 
 - Two nodes with similar hardware
 - Nodes must be connected to the same LAN
-- Nodes must have a dedicated interface for HA configuration
 - Nodes must have only one WAN interface configured with DHCP
 
 Limitations:
@@ -48,8 +47,7 @@ The following features are supported:
 ## Configuration
 
 The setup process configures the following:
-- Creates a new firewall zone `ha`
-- Configures the HA interface dedicated to HA traffic
+- Configures HA traffic on lan interface
 - Sets up keepalived with the virtual IP, a random password and a public key for the synchronization
 - Configures dropbear to listen on port `65022`: this is used to sync data between the nodes using rsync, only
   key-based authentication is allowed
@@ -57,7 +55,7 @@ The setup process configures the following:
 
 In this example:
 - `main` is the primary node, with LAN IP `192.168.100.238` and HA IP `10.12.12.1`
-- `secondary` is the secondary node, with LAN IP `192.168.100.237` and HA IP `10.12.12.2`
+- `backup` is the backup node, with LAN IP `192.168.100.237` and HA IP `10.12.12.2`
 - the virtual IP is `192.168.100.240`
 
 1. On the primary node:
@@ -67,13 +65,13 @@ In this example:
   - Reserve `eth2` for HA configuration (it must not configured in the network settings)
   - Setup the configuration that will: create the `ha` zone, configure the IP for the HA interface, setup keepalived:
     ```sh
-    echo '{"role": "main", "lan_interface": "br-lan", "ha_interface": "eth2", "virtual_ip": "192.168.100.240/24", "ha_main_ipaddress": "10.12.12.1", "ha_secondary_ipaddress": "10.12.12.2"}' | /usr/libexec/rpcd/ns.ha call setup
+    echo '{"role": "main", "main_node_ip": "192.168.100.238", "backup_node_ip": "192.168.100.239", "virtual_ip": "192.168.100.240/24"}' | /usr/libexec/rpcd/ns.ha call setup
     ```
     The command will output something like:
     ```json
     {"password": "5aeab1d8", "pubkey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDF7MYY8vfgE/JgJT8mOejwIhB4UYKS4g/QSA7fwntCbN0LQ3nTA6LO3AzqhUCHd6LBS5P9aefTqDcG+cJQiGbXReqX1z4trQGs7QkBLbjlXb2Vock17UIGbm5ao8jyPsD4ADNdMF8p0S2xDvnfsOh7MXLy5N7QZGp1G3ISB6JVw0mdCn3GXYg1X9XB7Pqu0OJm7+n2SJvA1KXn9fKUDX92U1fGQcid05C3yRBS5QXB7VAAP55KKYp4RmQMCOcJDhDoHGB6Ia/fTxfhnLdXJcAHU2MTtyaEY7NWoPjKZ3769GIu4KLLDPB8aH9emg23Mej+eiMRIg0vFXsaJWVPuZzj root@primary"}
     ```
-    The `password` and `pubkey` fields must be used in the secondary node configuration.
+    The `password` and `pubkey` fields must be used in the backup node configuration.
   - Apply the configuration:
     ```
     uci commit
@@ -82,14 +80,14 @@ In this example:
     /etc/init.d/keepalived restart
     ```
 
-2. On the secondary node:
-  - Name the secondary firewall `secondary`
+2. On the backup node:
+  - Name the backup firewall `backup`
   - Set `eth0` (LAN) to static IP: `192.168.100.237/24`
   - Set `eth1` (WAN) to DHCP (no PPPoE)
   - The `eth2` interface will be used for the HA configuration
   - Setup the configuration that will: create the `ha` zone, configure the IP for the HA interface, setup keepalived. Use the `password` and `pubkey` from the primary node:
     ```sh
-    echo '{"role": "secondary", "lan_interface": "br-lan", "ha_interface": "eth2", "virtual_ip": "192.168.100.240/24", "ha_main_ipaddress": "10.12.12.1", "ha_secondary_ipaddress": "10.12.12.2", "password": "5aeab1d8", "pubkey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDF7MYY8vfgE/JgJT8mOejwIhB4UYKS4g/QSA7fwntCbN0LQ3nTA6LO3AzqhUCHd6LBS5P9aefTqDcG+cJQiGbXReqX1z4trQGs7QkBLbjlXb2Vock17UIGbm5ao8jyPsD4ADNdMF8p0S2xDvnfsOh7MXLy5N7QZGp1G3ISB6JVw0mdCn3GXYg1X9XB7Pqu0OJm7+n2SJvA1KXn9fKUDX92U1fGQcid05C3yRBS5QXB7VAAP55KKYp4RmQMCOcJDhDoHGB6Ia/fTxfhnLdXJcAHU2MTtyaEY7NWoPjKZ3769GIu4KLLDPB8aH9emg23Mej+eiMRIg0vFXsaJWVPuZzj root@primary"}' | /usr/libexec/rpcd/ns.ha call setup
+    echo '{"role": "backup", "main_node_ip": "192.168.100.238", "backup_node_ip": "192.168.100.239", "virtual_ip": "192.168.100.240/24", "password": "5aeab1d8", "pubkey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDF7MYY8vfgE/JgJT8mOejwIhB4UYKS4g/QSA7fwntCbN0LQ3nTA6LO3AzqhUCHd6LBS5P9aefTqDcG+cJQiGbXReqX1z4trQGs7QkBLbjlXb2Vock17UIGbm5ao8jyPsD4ADNdMF8p0S2xDvnfsOh7MXLy5N7QZGp1G3ISB6JVw0mdCn3GXYg1X9XB7Pqu0OJm7+n2SJvA1KXn9fKUDX92U1fGQcid05C3yRBS5QXB7VAAP55KKYp4RmQMCOcJDhDoHGB6Ia/fTxfhnLdXJcAHU2MTtyaEY7NWoPjKZ3769GIu4KLLDPB8aH9emg23Mej+eiMRIg0vFXsaJWVPuZzj root@primary"}' | /usr/libexec/rpcd/ns.ha call setup
     uci commit
     /etc/init.d/network restart
     /etc/init.d/firewall restart
