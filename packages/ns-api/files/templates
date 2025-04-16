@@ -112,15 +112,6 @@ config template_rule 'ns_guest_dhcp'
 	option proto 'udp'
 	option target 'ACCEPT'
 
-# HA zone
-
-config template_zone 'ns_ha'
-	option name 'ha'
-	option input 'ACCEPT'
-	option output 'ACCEPT'
-	option forward 'ACCEPT'
-	option ns_description 'HA zone for cluster traffic'
-
 # IPSec
 
 config template_rule 'ns_ipsec_esp'
