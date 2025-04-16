@@ -99,6 +99,14 @@ the given passphrase: only the encrypted backup will be sent to the remote serve
 
 To disable the encryption, just delete the file `/etc/backup.pass`.
 
+If the backup is not encrypted, an alert will be sent to the remote portal (my.nethesis.it or my.nethserver.com).
+Unencrypted backups are deprecated and will be removed in the future.
+The alert can be disabled using this command:
+```
+uci set ns-plug.config.backup_alert_disabled=1
+uci commit ns-plug
+```
+
 ### Restore
 
 Download the latest unencrypted backup and restore it:
