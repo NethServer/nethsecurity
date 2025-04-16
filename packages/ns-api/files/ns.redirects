@@ -206,7 +206,15 @@ def edit_redirect(args):
         return utils.generic_error("redirect_not_modified")
 
 def list_protocols():
-    return {"protocols": ["tcp", "udp", "udplite", "icmp", "esp", "ah", "sctp"]}
+    protocols = []
+    with open('/etc/protocols', 'r') as fp:
+        for line in fp:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            parts = re.split(r'\s+', line)
+            protocols.append(parts[0])
+    return {"protocols": sorted(protocols)}
 
 def get_device_ips():
     ret = {}
