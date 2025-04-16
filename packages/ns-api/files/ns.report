@@ -354,6 +354,15 @@ def latency_and_quality_report():
     return ret
 
 
+def get_ip_addresses(device: str):
+    devices = utils.get_all_device_ips()
+    for item in devices:
+        if item == device:
+            if len(devices[item]) > 0:
+                return utils.get_public_ip_addresses(devices[item][0])
+    return []
+
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
@@ -362,7 +371,9 @@ if cmd == 'list':
         'tsip-attack-report': {},
         'mwan-report': {},
         'latency-and-quality-report': {},
-        'get-public-ip-addresses': {},
+        'get-public-ip-addresses': {
+            'device': 'string'
+        },
         'ovpnrw-list-days': {
             'instance': 'String'
         },
@@ -420,5 +431,9 @@ elif cmd == 'call':
         ret = latency_and_quality_report()
     elif action == "get-public-ip-addresses":
         data = json.loads(sys.stdin.read())
-        ret = { 'public_ip_addresses': utils.get_public_ip_addresses(data.get('ip_address'))}
+        if 'device' not in data:
+            ret = utils.validation_error('device', 'required')
+        else:
+            ret = { 'public_ip_addresses': get_ip_addresses(data.get('device'))}
+
     print(json.dumps(ret))
