@@ -143,6 +143,7 @@ def setup_tunnel(u, iname, args):
         u.set('ipsec', iname, opt, args[opt])
     u.set('ipsec', iname, 'crypto_proposal', [ike_p])
     u.set('ipsec', iname, 'rekeytime', args['ike']['rekeytime'])
+    u.set('ipsec', iname, 'keyingtries', 0)
     u.set('ipsec', iname, 'tunnel', tunnels)
 
     u.save('ipsec')
