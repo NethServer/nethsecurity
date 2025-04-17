@@ -5,13 +5,13 @@ Configured with keepalived, it will provide a failover mechanism between two nod
 
 Requirements:
 
-- Two nodes with similar hardware
+- Two nodes must have the same network devices
 - Nodes must be connected to the same LAN
-- Nodes must have only one WAN interface configured with DHCP
 
 Limitations:
 
-- WAN must be configured with DHCP
+- Aliases are not supported
+- IPv4 only
 - Extra packages such as NUT are not supported
 - rsyslog configuration is not synced: if you need to send logs to a remote server, you must use the controller
 - Hotspot is not supported since it requires a new registration when the main node goes down because the MAC address associated with the hotspot interface will be different
@@ -42,11 +42,12 @@ The following features are supported:
 - SMTP client (msmtp)
 - Backup encryption password
 - Controller connection and subscription (ns-plug)
-- Active connections tracking (conntrackd) - NOT tested
+- Active connections tracking (conntrackd)
 
 ## Configuration
 
 The setup process configures the following:
+- Check if requirements are met both on the main and backup nodes
 - Configures HA traffic on lan interface
 - Sets up keepalived with the virtual IP, a random password and a public key for the synchronization
 - Configures dropbear to listen on port `65022`: this is used to sync data between the nodes using rsync, only
@@ -62,61 +63,159 @@ In this example:
 
 The package provides a script to configure the HA cluster automatically:
 ```
-ns-ha-config <main_ip> <backup_ip> <virtual_ip>
+ns-ha-config <action> [<option1> <option2>]
+```
+
+### Check local requirements
+
+First, check the status of the main node:
+```
+ns-ha-config check-main-node
+```
+
+It will check the following:
+
+- the LAN interface must be configured with a static IP address
+- there is at least one WAN interface
+- the WAN interface is not configured as a PPPoE connection
+- if a DHCP server is running
+  - the `Force DHCP server start` option must be enabled
+  - the option `router` must be set: remember to set it to the virtual IP of the interface
+- Hotspot must be disabled
+
+### Check remote requirements
+
+Then, check the status of the backup node:
+```
+ns-ha-config check-backup-node <backup_node_ip>
+```
+
+It will check the following:
+
+- the backup node must be reachable via SSH on port 22 with root user
+- the LAN interface must be configured with a static IP address
+- there is at least one WAN interface
+- the WAN interface is not configured as a PPPoE connection
+
+Execute:
+```
+ns-ha-config check-backup-node <backup_node_ip>
+```
+
+The script will require to enter the password of the root user for the backup node.
+
+You can also pass the SSH directly to standard input:
+```
+echo "password" | ns-ha-config check-backup-node <backup_node_ip>
+```
+
+Example with interactive password:
+```
+ns-ha-config check-backup-node 192.168.100.239
+```
+
+Example with password on standard input:
+```
+echo Nethesis,1234 | ns-ha-config check-backup-node 192.168.100.239
+```
+
+### Initlialize the main node
+
+If the requirements are met, you can initialize the main node:
+```
+ns-ha-config init-main-node <main_node_ip> <backup_node_ip> <virtual_ip>
 ```
 
 The script will:
-- configure the main node with the main IP and virtual IP
-- read the password and public key from the main node
-- configure the backup node with the backup IP and virtual IP using SSH: you may need to enter the password of the backup node
 
-Assumptions:
+- initialize keepalived with the virtual IP
+- configure conntrackd
+- generate a random password and public key for the synchronization
+- configure dropbear to listen on port `65022` and allow only key-based authentication
 
-- the LAN of the main node has a static IP address on the LAN interface already set to `main_node_ip`
-- the LAN of the backup node has a static IP address on the LAN interface already set to `backup_node_ip`
-
-Usage example:
+Example:
 ```
-ns-ha-config 192.168.100.238 192.168.100.239 192.1268.100.240
+ns-ha-config init-main-node 192.168.100.238 192.168.100.239 192.168.100.240/24
 ```
 
-### Manual configuration using APIs
+### Initialize the backup node
 
-1. On the main node:
-  - Name the main firewall `main`
-  - Set `br-lan` (LAN) to static IP: `192.168.100.238/24`
-  - Set `eth1` (WAN) to DHCP (no PPPoE)
-  - Reserve `eth2` for HA configuration (it must not configured in the network settings)
-  - Setup the configuration that will: create the `ha` zone, configure the IP for the HA interface, setup keepalived:
-    ```sh
-    echo '{"role": "main", "main_node_ip": "192.168.100.238", "backup_node_ip": "192.168.100.239", "virtual_ip": "192.168.100.240/24"}' | /usr/libexec/rpcd/ns.ha call setup
-    ```
-    The command will output something like:
-    ```json
-    {"password": "5aeab1d8", "pubkey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDF7MYY8vfgE/JgJT8mOejwIhB4UYKS4g/QSA7fwntCbN0LQ3nTA6LO3AzqhUCHd6LBS5P9aefTqDcG+cJQiGbXReqX1z4trQGs7QkBLbjlXb2Vock17UIGbm5ao8jyPsD4ADNdMF8p0S2xDvnfsOh7MXLy5N7QZGp1G3ISB6JVw0mdCn3GXYg1X9XB7Pqu0OJm7+n2SJvA1KXn9fKUDX92U1fGQcid05C3yRBS5QXB7VAAP55KKYp4RmQMCOcJDhDoHGB6Ia/fTxfhnLdXJcAHU2MTtyaEY7NWoPjKZ3769GIu4KLLDPB8aH9emg23Mej+eiMRIg0vFXsaJWVPuZzj root@main"}
-    ```
-    The `password` and `pubkey` fields must be used in the backup node configuration.
-  - Apply the configuration:
-    ```
-    uci commit
-    /etc/init.d/network restart
-    /etc/init.d/firewall restart
-    /etc/init.d/keepalived restart
-    ```
+If the requirements are met, you can initialize the backup node:
+```
+ns-ha-config init-backup-node
+```
+The script will ask for the password of the root user for the backup node.
 
-2. On the backup node:
-  - Name the backup firewall `backup`
-  - Set `eth0` (LAN) to static IP: `192.168.100.239/24`
-  - Set `eth1` (WAN) to DHCP (no PPPoE)
-  - The `eth2` interface will be used for the HA configuration
-  - Setup the configuration that will: create the `ha` zone, configure the IP for the HA interface, setup keepalived. Use the `password` and `pubkey` from the main node:
-    ```sh
-    echo '{"role": "backup", "main_node_ip": "192.168.100.238", "backup_node_ip": "192.168.100.239", "virtual_ip": "192.168.100.240/24", "password": "5aeab1d8", "pubkey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDF7MYY8vfgE/JgJT8mOejwIhB4UYKS4g/QSA7fwntCbN0LQ3nTA6LO3AzqhUCHd6LBS5P9aefTqDcG+cJQiGbXReqX1z4trQGs7QkBLbjlXb2Vock17UIGbm5ao8jyPsD4ADNdMF8p0S2xDvnfsOh7MXLy5N7QZGp1G3ISB6JVw0mdCn3GXYg1X9XB7Pqu0OJm7+n2SJvA1KXn9fKUDX92U1fGQcid05C3yRBS5QXB7VAAP55KKYp4RmQMCOcJDhDoHGB6Ia/fTxfhnLdXJcAHU2MTtyaEY7NWoPjKZ3769GIu4KLLDPB8aH9emg23Mej+eiMRIg0vFXsaJWVPuZzj root@main"}' | /usr/libexec/rpcd/ns.ha call setup
-    uci commit
-    /etc/init.d/network restart
-    /etc/init.d/firewall restart
-    /etc/init.d/keepalived restart
-    ```
+You can also pass the SSH directly to standard input:
+```
+echo "password" | ns-ha-config init-backup-node
+```
+
+Example with password on standard input:
+```
+echo Nethesis,1234 | ns-ha-config init-backup-node
+```
+
+At this point, the main node and the backup node are configured to talk to each other
+using the LAN interface.
+The virtual IP of the LAN will switch between the two nodes in case of failure.
+
+It's now time to configure additional interfaces, starting at least with the WAN interface.
+
+### Configure the WAN interface
+
+The WAN interface must be configured on both nodes.
+Use the following command to add a WAN interface:
+```
+ns-ha-config add-interface <interface> <virtual_ip_address> <gateway>
+```
+
+Make sure to:
+
+- the interface already exists on both nodes
+- enter the virtual IP address in CIDR notation
+- enter the gateway IP address of the WAN interface
+
+The script will:
+
+- check if the interface exists on both nodes
+- configure the interface on both nodes by using fake IP addresses from the fake network 169.254.0.0/16
+- configure the virtual IP address on both nodes
+
+
+Example:
+```
+ns-ha-config add-interface wan 192.168.122.49/24 192.168.122.1
+```
+
+### Check the status
+
+You can check the status of the HA cluster at any time.
+Just execute:
+```
+ns-ha-config status
+```
+
+Just after the initialization, the script will return something like this:
+```
+Status: enabled
+Role: main
+Current State: master
+Last Sync Status: SSH Connection Failed
+Last Sync Time: Fri Apr 18 13:07:08 UTC 2025
+```
+
+The first synchronization will take up to 10 minutes and will be done in the background.
+After few minutes, the status should be like this:
+```
+Status: enabled
+Role: main
+Current State: master
+Last Sync Status: Up to Date
+Last Sync Time: Fri Apr 18 13:09:08 UTC 2025
+```
+
+
 
 ## How it works
 
