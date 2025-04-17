@@ -1,0 +1,54 @@
+#!/bin/bash
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# This script is used to set up a high availability (HA) configuration
+# between a main node and a backup node in a network environment.
+
+# Read variables as parameters
+MAIN_NODE_IP="$1"
+BACKUP_NODE_IP="$2"
+VIRTUAL_IP="$3"
+
+# Validate input parameters
+if [[ -z "$MAIN_NODE_IP" || -z "$BACKUP_NODE_IP" || -z "$VIRTUAL_IP" ]]; then
+  echo "Usage: $0 <MAIN_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP>"
+  exit 1
+fi
+
+# Execute the first command and capture the JSON output
+OUTPUT=$(echo '{"role": "main", "main_node_ip": "'"$MAIN_NODE_IP"'", "backup_node_ip": "'"$BACKUP_NODE_IP"'", "virtual_ip": "'"$VIRTUAL_IP"'"}' | /usr/libexec/rpcd/ns.ha call setup)
+
+if [[ $? -eq 0 ]]; then
+  uci commit && reload_config
+else
+  echo "Failed to execute the setup command on the main node."
+  exit 1
+fi
+
+# Parse the JSON output to extract password and pubkey
+PASSWORD=$(echo "$OUTPUT" | jq -r '.password')
+PUBKEY=$(echo "$OUTPUT" | jq -r '.pubkey')
+
+# Check if the required values are extracted
+if [[ -z "$PASSWORD" || -z "$PUBKEY" ]]; then
+  echo "Failed to extract required values from the JSON output."
+  exit 1
+fi
+
+# SSH to the backup node and execute the second command
+echo "Setting up backup node..."
+ssh -T -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$BACKUP_NODE_IP" << EOF
+echo '{"role": "backup", "main_node_ip": "'"$MAIN_NODE_IP"'", "backup_node_ip": "'"$BACKUP_NODE_IP"'", "virtual_ip": "'"$VIRTUAL_IP"'", "password": "'"$PASSWORD"'", "pubkey": "'"$PUBKEY"'"}' | /usr/libexec/rpcd/ns.ha call setup \
+&& uci commit && reload_config
+EOF
+
+if [[ $? -ne 0 ]]; then
+  echo "Failed to set up the backup node."
+  exit 1
+fi
+
+echo "Backup node setup completed."
