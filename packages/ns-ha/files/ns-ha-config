@@ -5,50 +5,290 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-# This script is used to set up a high availability (HA) configuration
+# This script is used to manage high availability (HA) configuration
 # between a main node and a backup node in a network environment.
-
-# Read variables as parameters
-MAIN_NODE_IP="$1"
-BACKUP_NODE_IP="$2"
-VIRTUAL_IP="$3"
+# It assumes it is run on the main node and communicates with the backup node
 
 # Validate input parameters
-if [[ -z "$MAIN_NODE_IP" || -z "$BACKUP_NODE_IP" || -z "$VIRTUAL_IP" ]]; then
-  echo "Usage: $0 <MAIN_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP>"
+ACTION="$1"
+
+help() {
+  echo "Usage: $0 <action> [parameters]"
+  echo "Actions:"
+  echo "  init-main <MAIN_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP>"
+  echo "  init-backup <MAIN_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP> <PASSWORD> <PUBKEY>"
+  echo "  add-interface <INTERFACE> <VIRTUAL_IP> [GATEWAY]"
+  echo "  check-main-node"
+  echo "  check-backup-node"
+  echo "  status (This is the only action that can be run on the backup node)"
+}
+
+if [[ -z "$ACTION" ]]; then
+  help
   exit 1
 fi
 
-# Execute the first command and capture the JSON output
-OUTPUT=$(echo '{"role": "main", "main_node_ip": "'"$MAIN_NODE_IP"'", "backup_node_ip": "'"$BACKUP_NODE_IP"'", "virtual_ip": "'"$VIRTUAL_IP"'"}' | /usr/libexec/rpcd/ns.ha call setup)
+# Function to print success messages in green
+success() {
+  echo -e "\e[32mSUCCESS\e[0m"
+}
 
-if [[ $? -eq 0 ]]; then
-  uci commit && reload_config
-else
-  echo "Failed to execute the setup command on the main node."
-  exit 1
-fi
+# Function to print error messages in red
+error() {
+  echo -e "\e[31mERROR\e[0m"
+}
 
-# Parse the JSON output to extract password and pubkey
-PASSWORD=$(echo "$OUTPUT" | jq -r '.password')
-PUBKEY=$(echo "$OUTPUT" | jq -r '.pubkey')
+# Function to initialize HA configuration on the main node
+init_main_node() {
+  MAIN_NODE_IP="$1"
+  BACKUP_NODE_IP="$2"
+  VIRTUAL_IP="$3"
 
-# Check if the required values are extracted
-if [[ -z "$PASSWORD" || -z "$PUBKEY" ]]; then
-  echo "Failed to extract required values from the JSON output."
-  exit 1
-fi
+  if [[ -z "$MAIN_NODE_IP" || -z "$BACKUP_NODE_IP" || -z "$VIRTUAL_IP" ]]; then
+    echo "Usage: $0 init-main-node <MAIN_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP>"
+    exit 1
+  fi
 
-# SSH to the backup node and execute the second command
-echo "Setting up backup node..."
-ssh -T -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$BACKUP_NODE_IP" << EOF
-echo '{"role": "backup", "main_node_ip": "'"$MAIN_NODE_IP"'", "backup_node_ip": "'"$BACKUP_NODE_IP"'", "virtual_ip": "'"$VIRTUAL_IP"'", "password": "'"$PASSWORD"'", "pubkey": "'"$PUBKEY"'"}' | /usr/libexec/rpcd/ns.ha call setup \
-&& uci commit && reload_config
-EOF
+  # Make sure local requirements are met
+  check_main_node
 
-if [[ $? -ne 0 ]]; then
-  echo "Failed to set up the backup node."
-  exit 1
-fi
+  echo -n "Setting up main node... "
 
-echo "Backup node setup completed."
+  # Validate that the virtual IP is in CIDR format
+  if ! [[ "$VIRTUAL_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]]; then
+    error
+    echo "Invalid virtual IP format. It must be in CIDR format (e.g., 192.168.1.1/24)."
+    exit 1
+  fi
+
+  OUTPUT=$(echo '{"role": "main", "main_node_ip": "'"$MAIN_NODE_IP"'", "backup_node_ip": "'"$BACKUP_NODE_IP"'", "virtual_ip": "'"$VIRTUAL_IP"'"}' | /usr/libexec/rpcd/ns.ha call init-local)
+
+  if [[ $? -eq 0 ]]; then
+    uci commit && reload_config
+  else
+    error
+    echo "Failed to execute the setup command on the main node."
+    exit 1
+  fi
+
+  success
+}
+
+# Function to initialize HA configuration on the backup node
+init_backup_node() {
+  read -s -p "Enter password for backup node: " PASSWORD
+  echo
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to read password."
+    exit 1
+  fi
+
+  backup_node_ip=$(uci -q get keepalived.ha_peer.address)
+  if [[ -z "$backup_node_ip" ]]; then
+    error
+    echo "Backup node IP not found in configuration."
+    exit 1
+  fi
+  
+  echo $PASSWORD | check_backup_node "$backup_node_ip"
+
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to check the backup node status."
+    exit 1
+  fi
+
+  echo -n "Initializing remote backup node... "
+  OUTPUT=$(echo '{"ssh_password": "'"$PASSWORD"'"}' | /usr/libexec/rpcd/ns.ha call init-remote)
+
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to initialize the remote backup node."
+    exit 1
+  fi
+
+  SUCCESS=$(echo "$OUTPUT" | jq -r '.success')
+  ERRORS=$(echo "$OUTPUT" | jq -r '.errors')
+
+  if [[ "$SUCCESS" == "true" ]]; then
+    success
+  else
+    error
+    echo "Remote initialization failed. Errors:"
+    echo "$ERRORS" | jq -r '.[]'
+    exit 1
+  fi
+
+  echo "Backup node setup completed."
+}
+
+# Function to check the main node status
+check_main_node() {
+  echo -n "Checking main node status... "
+  OUTPUT=$(echo '{"role": "main"}' | /usr/libexec/rpcd/ns.ha call validate-requirements)
+
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to validate requirements on the main node."
+    exit 1
+  fi
+
+  SUCCESS=$(echo "$OUTPUT" | jq -r '.success')
+
+  if [[ "$SUCCESS" == "true" ]]; then
+    success
+  else
+    error
+    echo "Main node validation failed. Errors:"
+    echo "$ERRORS" | jq -r '.[]'
+    exit 1
+  fi
+}
+
+# Function to check the backup node status
+check_backup_node() {
+  BACKUP_NODE_IP="$1"
+  read -s -p "Enter password for backup node: " PASSWORD
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to read password."
+    exit 1
+  fi
+  echo
+  echo -n "Checking backup node status... "
+
+  OUTPUT=$(echo '{"backup_node_ip": "'${BACKUP_NODE_IP}'", "ssh_password": "'${PASSWORD}'"}' | /usr/libexec/rpcd/ns.ha call check-remote)
+
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to check the backup node status."
+    exit 1
+  fi
+
+  SUCCESS=$(echo "$OUTPUT" | jq -r '.success')
+  ERRORS=$(echo "$OUTPUT" | jq -r '.errors')
+
+  if [[ "$SUCCESS" == "true" ]]; then
+    success
+  else
+    error
+    echo "Backup node status check failed. Errors:"
+    echo "$ERRORS" | jq -r '.[]'
+    exit 1
+  fi
+}
+
+# Function to add an interface
+add_interface() {
+  INTERFACE="$1"
+  VIRTUAL_IP="$2"
+  GATEWAY="${3:-}"
+
+  if [[ -z "$INTERFACE" || -z "$VIRTUAL_IP" ]]; then
+    echo "Usage: $0 add-interface <INTERFACE> <VIRTUAL_IP> [GATEWAY]"
+    exit 1
+  fi
+
+  echo -n "Adding interface configuration... "
+
+  # Validate that the virtual IP is in CIDR format
+  if ! [[ "$VIRTUAL_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]]; then
+    error
+    echo "Invalid virtual IP format. It must be in CIDR format (e.g., 192.168.1.1/24)."
+    exit 1
+  fi
+
+  ERROR_OUTPUT=$(echo '{"role": "main", "interface": "'"$INTERFACE"'", "virtual_ip": "'"$VIRTUAL_IP"'", "gateway": "'"${GATEWAY}"'"}' | /usr/libexec/rpcd/ns.ha call add-interface 2>&1)
+
+  if [[ $? -ne 0 ]]; then
+    error
+    ACTUAL_ERROR=$(echo "$ERROR_OUTPUT" | grep -oE "nethsec.utils.ValidationError: \('.*', '.*'\)" | awk -F", '" '{print $2}' | tr -d "')")
+    echo "Failed to configure the interface. Error: $ACTUAL_ERROR"
+    exit 1
+  fi
+
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to configure the interface."
+    exit 1
+  fi
+
+  success
+}
+
+status() {
+  OUTPUT=$(/usr/libexec/rpcd/ns.ha call status)
+  ROLE=$(echo "$OUTPUT" | jq -r '.role')
+  STATUS=$(echo "$OUTPUT" | jq -r '.status')
+  STATE=$(echo "$OUTPUT" | jq -r '.state')
+  LAST_SYNC_STATUS=$(echo "$OUTPUT" | jq -r '.last_sync_status')
+  LAST_SYNC_TIME=$(echo "$OUTPUT" | jq -r '.last_sync_time')
+
+  if [[ "$STATUS" == "enabled" ]]; then
+    echo -e "Status: \e[32m$STATUS\e[0m" # Green for enabled
+  elif [[ "$STATUS" == "disabled" ]]; then
+    echo -e "Status: \e[37m$STATUS\e[0m" # Gray for disabled
+  else
+    echo -e "Status: \e[31m$STATUS\e[0m" # Red for other statuses
+  fi
+
+  if [[ "$STATUS" == "enabled" ]]; then
+    echo -e "Role: \e[34m$ROLE\e[0m"
+    if [[ "$STATE" == "master" ]]; then
+      echo -e "Current State: \e[94m$STATE\e[0m" # Light blue for master
+
+      if [[ "$ROLE" == "main" ]]; then
+        if [[ "$LAST_SYNC_STATUS" =~ [Ff]ailed ]]; then
+          echo -e "Last Sync Status: \e[31m$LAST_SYNC_STATUS\e[0m"
+        else
+          echo -e "Last Sync Status: \e[32m$LAST_SYNC_STATUS\e[0m"
+        fi
+        echo -e "Last Sync Time: \e[33m$(date -d @$LAST_SYNC_TIME)\e[0m"
+      fi
+
+    else
+      echo -e "Current State: \e[97m$STATE\e[0m" # White for others
+    fi
+
+    if [[ "$ROLE" == "main" ]]; then
+      # Extract and display virtual IPs
+      VIRTUAL_IPS=$(echo "$OUTPUT" | jq -r '.virtual_ips | to_entries[] | "  \(.value.name):   \(.value.address)   (\(.value.device))"')
+      echo -e "Virtual IPs:"
+      echo -e "$VIRTUAL_IPS"
+    fi
+
+  fi
+}
+  
+
+# Main logic to handle actions
+case "$ACTION" in
+  init-main-node)
+    shift
+    init_main_node "$@"
+    ;;
+  init-backup-node)
+    shift
+    init_backup_node "$@"
+    ;;
+  add-interface)
+    shift
+    add_interface "$@"
+    ;;
+  check-main-node)
+    check_main_node
+    ;;
+  check-backup-node)
+    shift
+    check_backup_node "$@"
+    ;;
+  status)
+    status
+    ;;
+  *)
+    echo "Invalid action: $ACTION"
+    help
+    exit 1
+    ;;
+esac
