@@ -1,0 +1,569 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2024-2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Read and set HA configuration
+
+import sys
+import json
+from euci import EUci
+import os
+import subprocess
+import hashlib
+import time
+from nethsec import utils
+from jinja2 import Template
+import paramiko
+import io
+
+### Utilities functions
+
+conntrack_ji_template = """
+Sync {
+    Mode FTFW {
+        DisableExternalCache Off
+        CommitTimeout 180
+        PurgeTimeout 5
+    }
+
+    UDP {
+        # Dedicated link for connection replication
+        IPv4_address {{ main_ip }}
+        IPv4_Destination_Address {{ backup_ip }}
+        Port 3780
+        Interface {{ ha_interface }}
+        SndSocketBuffer 1249280
+        RcvSocketBuffer 1249280
+        Checksum on
+    }
+}
+
+General {
+    HashSize 32768
+    HashLimit 131072
+    LogFile off
+    Syslog on
+    NetlinkOverrunResync 5
+    NetlinkEventsReliable on
+    PollSecs 5
+    EventIterationLimit 200
+    LockFile /var/lock/conntrack.lock
+    UNIX {
+        Path /var/run/conntrackd.ctl
+    }
+    NetlinkBufferSize 2097152
+    NetlinkBufferSizeMaxGrowth 8388608
+    Filter From Userspace {
+        Protocol Accept {
+            TCP
+            UDP
+        }
+        Address Ignore {
+            IPv4_address 127.0.0.1 # loopback
+            IPv4_address 10.0.0.1
+            IPv4_address 10.0.0.2
+            IPv4_address 10.0.0.3
+            IPv4_address 192.168.255.2
+            IPv4_address 192.168.255.52
+            IPv4_address 192.168.255.250
+        }
+    }
+}
+"""
+
+def get_device_from_ip(uci, ipaddr):
+    for n in utils.get_all_by_type(uci, 'network', 'interface'):
+        if uci.get('network', n, 'ipaddr', default=None) == ipaddr:
+            return uci.get('network', n, 'device', default=None)
+
+def allocate_fake_ips(uci):
+    reserved_ips = set()
+    for n in utils.get_all_by_type(uci, 'network', 'interface'):
+        ipaddr = uci.get('network', n, 'ipaddr', default=None)
+        if ipaddr:
+            reserved_ips.add(ipaddr)
+
+    network_base = "169.254.0."
+    for i in range(1, 255, 2):  # Increment by 2 to reserve pairs
+        main_ip = f"{network_base}{i}"
+        backup_ip = f"{network_base}{i + 1}"
+        if main_ip not in reserved_ips and backup_ip not in reserved_ips:
+            return main_ip, backup_ip
+
+def validate_network():
+    errors = []
+    uci = EUci()
+    try:
+        proto = uci.get('network', 'lan', 'proto')
+    except:
+        errors.append('lan_network_not_found')
+
+    if proto != 'static':
+        errors.append('lan_network_not_static')
+
+    try:
+        proto = uci.get('network', 'wan', 'proto')
+    except:
+        errors.append('wan_network_not_found')
+    if proto == 'pppoe':
+        errors.append('wan_network_is_pppoe')
+
+    return errors
+
+def validate_dhcp():
+    errors = []
+    uci = EUci()
+    for server in utils.get_all_by_type(uci, 'dhcp', 'dhcp'):
+        if uci.get('dhcp', server, 'dhcpv4', default=None) == 'server' or uci.get('dhcp', server, 'dhcpv6', default=None) == 'server':
+            if uci.get('dhcp', server, 'force', default="0") != "1":
+                errors.append('dhcp_force_not_enabled')
+            try:
+                options = uci.get_all('dhcp', server, 'dhcp_option')
+                if not any("option:router" in option for option in options):
+                    errors.append('dhcp_router_option_not_found')
+            except:
+                errors.append('dhcp_router_option_not_found')
+    return errors
+
+def validate_hotspot():
+    uci = EUci()
+    disabled = uci.get('dedalo', 'config', 'disabled', default=None)
+    if disabled != '1':
+        return ['hotspot_is_enabled']
+    return []
+
+def execute_remote_command(command):
+    # Connect to the remote server using SSH
+    uci = EUci()
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    port = uci.get('dropbear', 'ha_link', 'Port', default=None)
+    backup_node_ip = uci.get('keepalived', 'ha_peer', 'address', default=None)
+    if not port or not backup_node_ip:
+        raise utils.ValidationError('backup_node_ip', 'missing_backup_node_ip')
+    # Convert the private key from Dropbear to OpenSSH format
+    private_key_path = '/etc/keepalived/keys/id_rsa'
+    proc = subprocess.run(['dropbearconvert', 'dropbear', 'openssh', private_key_path, "-"], check=True, capture_output=True, text=True)
+    private_key = paramiko.RSAKey.from_private_key(io.StringIO(proc.stdout))
+    ssh.connect(backup_node_ip, port=port, username='root', pkey=private_key)
+    # Execute the command
+    _, stdout, stderr = ssh.exec_command(command)
+    # Read the output
+    output = stdout.read().decode()
+    error = stderr.read().decode()
+    return output, error
+
+### API functions
+
+def add_interface(role, interface, virtual_ip, gateway):
+    # Add a new interface to the keepalived configuration:
+    # 1. find a fake unused address inside the fake network 169.254.0.0/16 (reserved for documentation by RFC)
+    # 2. set the fake address to the interface, remove the gateway
+    # 3. create keepalived configuration: ipaddress, track_interface, route (only if wan)
+
+    u = EUci()
+
+    # Check if the interface exists
+    if not u.get('network', interface, default=None):
+        raise utils.ValidationError('interface', 'interface_not_found_on_main_node')
+
+    if role == 'main':
+        _, error = execute_remote_command(f"uci get network.{interface}")
+        if error:
+            raise utils.ValidationError('interface', 'interface_not_found_on_backup_node')
+
+    # Get the fake IP address
+    main_ip, backup_ip = allocate_fake_ips(u)
+
+    # Select keepalived instance and set the fake IP address
+    if role == 'main':
+        kinstance_name = 'main'
+        u.set('network', interface, 'ipaddr', main_ip)
+    else:
+        kinstance_name = 'backup'
+        u.set('network', interface, 'ipaddr', backup_ip)
+    u.set('network', interface, 'netmask', '255.255.0.0')
+    u.set('network', interface, 'proto', 'static')
+    virtual_ips = list(u.get_all('keepalived', kinstance_name, 'virtual_ipaddress'))
+    track_interfaces = list(u.get_all('keepalived', kinstance_name, 'track_interface'))
+    try:
+        virtual_routes = list(u.get_all('keepalived', kinstance_name, 'virtual_routes'))
+    except:
+        virtual_routes = []
+
+    device = u.get('network', interface, 'device', default=None)
+
+    # Set the fake IP address to the interface and remove the gateway
+    if gateway:
+        u.delete('network', interface, 'gateway')
+        # If there is a gateway, a virtual route is needed
+        u.set('keepalived', f'{interface}_route', 'route')
+        u.set('keepalived', f'{interface}_route', 'table', 'main')
+        u.set('keepalived', f'{interface}_route', 'address', '0.0.0.0/0')
+        u.set('keepalived', f'{interface}_route', 'name', f'{interface}_route')
+        u.set('keepalived', f'{interface}_route', 'device', device)
+        u.set('keepalived', f'{interface}_route', 'gateway', gateway)
+        u.set('keepalived', f'{interface}_route', 'src_addr', virtual_ip)
+        # Add the route to the list of virtual routes
+        u.set('keepalived', kinstance_name, 'virtual_routes', virtual_routes + [f'{interface}_route'])
+
+    # Create the VIP address
+    u.set('keepalived', f'{interface}_ipaddress', 'ipaddress')
+    u.set('keepalived', f'{interface}_ipaddress', 'name', f'{interface}_ha')
+    u.set('keepalived', f'{interface}_ipaddress', 'address', virtual_ip)
+    u.set('keepalived', f'{interface}_ipaddress', 'device', device)
+    u.set('keepalived', f'{interface}_ipaddress', 'label_suffix', 'ha')
+    # Add the VIP to the list of virtual IPs
+    u.set('keepalived', kinstance_name, 'virtual_ipaddress', virtual_ips + [f'{interface}_ha'])
+
+    # Create the track interface
+    u.set('keepalived', f'{interface}_track', 'track_interface')
+    u.set('keepalived', f'{interface}_track', 'name', f'{interface}_ha')
+    u.set('keepalived', f'{interface}_track', 'value', device)
+    u.set('keepalived', f'{interface}_track', 'weight', '100')
+    # Add the track interface to the list of tracked interfaces
+    u.set('keepalived', kinstance_name, 'track_interface', track_interfaces + [f'{interface}_ha'])
+
+    u.commit('keepalived')
+    u.commit('network')
+    subprocess.run(["/sbin/reload_config"], capture_output=True)
+
+    if role == 'main':
+        # Execute the add-interface API on the backup node
+        command = json.dumps({
+            "role": "backup",
+            "interface": interface,
+            "virtual_ip": virtual_ip,
+            "gateway": gateway
+        })
+
+        output, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call add-interface")
+        print(output)
+        print(error)
+
+        if error:
+            return utils.generic_error("error_executing_add_interface_on_backup_node")
+
+        return json.loads(output)
+    else:
+        return { "success": True }
+
+
+# This function initializes the local node for high availability (HA) using Keepalived.
+# It is called locally on the main node and remotly using SSH on the backup node.
+def init_local(role, main_node_ip, backup_node_ip, virtual_ip, pubkey = "", password = ""):
+    u = EUci()
+    if role == "main":
+        lan_device = get_device_from_ip(u, main_node_ip)
+    else:
+        lan_device = get_device_from_ip(u, backup_node_ip)
+    if lan_device is None:
+        raise utils.ValidationError('main_node_ip', 'no_device_with_static_ip_found')
+
+    u.set('dropbear', 'ha_link', 'dropbear')
+    u.set('dropbear', 'ha_link', 'Port', '65022')
+    u.set('dropbear', 'ha_link', 'RootPasswordAuth', '0')
+    u.set('dropbear', 'ha_link', 'PasswordAuth', '0')
+    u.commit('dropbear')
+    
+    u.set('keepalived', 'lan_address', 'ipaddress')
+    u.set('keepalived', 'lan_address', 'name', f'{lan_device}_ha')
+    u.set('keepalived', 'lan_address', 'address', virtual_ip)
+    u.set('keepalived', 'lan_address', 'device', lan_device)
+    u.set('keepalived', 'lan_address', 'label_suffix', 'ha')
+
+    u.set('keepalived', 'ha_sync', 'vrrp_script')
+    u.set('keepalived', 'ha_sync', 'name', 'ha_sync')
+    u.set('keepalived', 'ha_sync', 'script', '/usr/libexec/ns-rsync.sh')
+    u.set('keepalived', 'ha_sync', 'interval', '60')
+    u.set('keepalived', 'ha_sync', 'weight', '100')
+
+    u.set('keepalived', 'lan_track', 'track_interface')
+    u.set('keepalived', 'lan_track', 'name', f'{lan_device}_ha')
+    u.set('keepalived', 'lan_track', 'value', lan_device)
+    u.set('keepalived', 'lan_track', 'weight', '100')
+
+    if role == 'main':
+        u.set('keepalived', 'ha_sender', 'track_script')
+        u.set('keepalived', 'ha_sender', 'name', 'sender')
+        u.set('keepalived', 'ha_sender', 'value', 'ha_sync')
+        u.set('keepalived', 'ha_sender', 'weight', '100')
+
+        u.set('keepalived', 'ha_peer', 'peer')
+        u.set('keepalived', 'ha_peer', 'name', 'backup')
+        u.set('keepalived', 'ha_peer', 'address', backup_node_ip)
+        u.set('keepalived', 'ha_peer', 'sync', '1')
+        u.set('keepalived', 'ha_peer', 'sync_mode', 'send')
+        u.set('keepalived', 'ha_peer', 'sync_dir', '/usr/share/keepalived/rsync')
+        u.set('keepalived', 'ha_peer', 'ssh_port', '65022')
+        u.set('keepalived', 'ha_peer', 'ssh_key', '/etc/keepalived/keys/id_rsa')
+
+        u.set('keepalived', 'main', 'vrrp_instance')
+        u.set('keepalived', 'main', 'name', 'master')
+        u.set('keepalived', 'main', 'state', 'MASTER')
+        u.set('keepalived', 'main', 'interface', lan_device)
+        u.set('keepalived', 'main', 'virtual_router_id', '100')
+        u.set('keepalived', 'main', 'priority', '100')
+        u.set('keepalived', 'main', 'advert_int', '1')
+        u.set('keepalived', 'main', 'nopreempt', '0')
+        u.set('keepalived', 'main', 'virtual_ipaddress', [f'{lan_device}_ha'])
+        u.set('keepalived', 'main', 'unicast_src_ip', main_node_ip)
+        u.set('keepalived', 'main', 'unicast_peer', ['backup'])
+        u.set('keepalived', 'main', 'auth_type', 'PASS')
+
+        password = u.get('keepalived', 'vrrp_instance', 'auth_pass', default=None)
+        if not password:
+            # generate random password: SHA1 hash based on the current time
+            current_time = str(time.time()).encode('utf-8')
+            password = hashlib.sha1(current_time).hexdigest()[:8]
+
+        u.set('keepalived', 'main', 'auth_pass', password)
+        u.set('keepalived', 'main', 'track_interface', [f'{lan_device}_ha'])
+        u.set('keepalived', 'main', 'track_script', ['sender'])
+
+        # Generate the private key if it does not exist
+        private_key_path = '/etc/keepalived/keys/id_rsa'
+        if not os.path.isfile(private_key_path):
+            subprocess.run(['dropbearkey', '-t', 'rsa', '-f', private_key_path], capture_output=True)
+
+        # Setup conntrackd configuration
+        conntrack_template = Template(conntrack_ji_template)
+        conntrack_conf = conntrack_template.render(main_ip=main_node_ip, backup_ip=backup_node_ip, ha_interface=lan_device)
+        with open('/etc/conntrackd/conntrackd.conf', 'w') as file:
+            file.write(conntrack_conf)
+    else:
+        u.set('keepalived', 'ha_receiver', 'track_script')
+        u.set('keepalived', 'ha_receiver', 'name', 'receiver')
+        u.set('keepalived', 'ha_receiver', 'value', 'ha_sync')
+        u.set('keepalived', 'ha_receiver', 'weight', '100')
+
+        u.set('keepalived', 'ha_peer', 'peer')
+        u.set('keepalived', 'ha_peer', 'name', 'master')
+        u.set('keepalived', 'ha_peer', 'address', main_node_ip)
+        u.set('keepalived', 'ha_peer', 'sync', '1')
+        u.set('keepalived', 'ha_peer', 'sync_mode', 'receive')
+        u.set('keepalived', 'ha_peer', 'sync_dir', '/usr/share/keepalived/rsync')
+        u.set('keepalived', 'ha_peer', 'ssh_pubkey', pubkey)
+  
+        u.set('keepalived', 'backup', 'vrrp_instance')
+        u.set('keepalived', 'backup', 'name', 'backup')
+        u.set('keepalived', 'backup', 'state', 'BACKUP')
+        u.set('keepalived', 'backup', 'interface', lan_device)
+        u.set('keepalived', 'backup', 'virtual_router_id', '100')
+        u.set('keepalived', 'backup', 'priority', '50')
+        u.set('keepalived', 'backup', 'advert_int', '1')
+        u.set('keepalived', 'backup', 'nopreempt', '0')
+        u.set('keepalived', 'backup', 'virtual_ipaddress', [f'{lan_device}_ha'])
+        u.set('keepalived', 'backup', 'unicast_src_ip', backup_node_ip)
+        u.set('keepalived', 'backup', 'unicast_peer', ['master'])
+        u.set('keepalived', 'backup', 'auth_type', 'PASS')
+        u.set('keepalived', 'backup', 'auth_pass', password)
+        u.set('keepalived', 'backup', 'track_interface', [f'{lan_device}_ha'])
+        u.set('keepalived', 'backup', 'track_script', ['receiver'])
+
+        # Append publick key to root dropbear authorized_keys
+        with open('/etc/dropbear/authorized_keys', 'a') as file:
+            file.write(pubkey + '\n')
+
+        # Create the rsync directory if it doesn't exist
+        rsync_dir = '/usr/share/keepalived/rsync/etc/'
+        os.makedirs(rsync_dir, exist_ok=True)
+        # Change permissions of the rsync directory
+        os.chmod(rsync_dir, 0o2775)
+
+        # Setup conntrackd configuration
+        conntrack_template = Template(conntrack_ji_template)
+        conntrack_conf = conntrack_template.render(main_ip=backup_node_ip, backup_ip=main_node_ip, ha_interface=lan_device)
+        with open('/etc/conntrackd/conntrackd.conf', 'w') as file:
+            file.write(conntrack_conf)
+
+    u.commit('keepalived')
+
+    # Enable and start conntrackd
+    subprocess.run(['/etc/init.d/conntrackd', 'enable'], capture_output=True)
+    subprocess.run(['/etc/init.d/conntrackd', 'restart'], capture_output=True)
+
+    # Apply the changes
+    subprocess.run(["/sbin/reload_config"], capture_output=True)
+
+    return { "success": True }
+
+# This function assumes it's called on the main node
+def init_remote(ssh_password):
+    u = EUci()
+    # Check if it's running on the main node and the main node is already configured
+    try:
+        u.get('keepalived', 'main')
+    except:
+        raise utils.ValidationError('main_node_ip', 'no_main_keepalived_instance_found')
+
+    main_node_ip = u.get('keepalived', 'main', 'unicast_src_ip', default=None)
+    backup_node_ip = u.get('keepalived', 'ha_peer', 'address', default=None)
+    password = u.get('keepalived', 'main', 'auth_pass', default=None)
+
+    pubkey = None
+    private_key_path = '/etc/keepalived/keys/id_rsa'
+    if os.path.isfile(private_key_path):
+        result = subprocess.run(['dropbearkey', '-y', '-f', private_key_path], capture_output=True, text=True)
+        for line in result.stdout.splitlines():
+            if 'ssh-rsa' in line:
+                pubkey = line
+                break
+
+    if not all([main_node_ip, backup_node_ip, password, pubkey]):
+        raise utils.ValidationError('paramters', 'missing_required_configuration_values')
+
+    # Connect to the backup node using paramiko
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+        ssh.connect(backup_node_ip, port=22, username='root', password=ssh_password)
+    except paramiko.SSHException as e:
+        raise utils.ValidationError('ssh', "ssh_connection_failed")
+
+    # Prepare the init-local command
+    init_local_command = json.dumps({
+        "role": "backup",
+        "main_node_ip": main_node_ip,
+        "backup_node_ip": backup_node_ip,
+        "virtual_ip": u.get('keepalived', 'lan_address', 'address', default=None),
+        "pubkey": pubkey,
+        "password": password
+    })
+
+    # Execute the init-local command on the backup node
+    _, stdout, stderr = ssh.exec_command(f"echo '{init_local_command}' | /usr/libexec/rpcd/ns.ha call init-local")
+    output = stdout.read().decode()
+    error = stderr.read().decode()
+    ssh.close()
+    if error:
+        raise RuntimeError(f"Error executing init-local on backup node: {error}")
+
+    return json.loads(output)
+
+
+def status():
+    ret = {"role": "", "state": "unknown", "status": "only_main_node_configured", "last_sync_status": "", "last_sync_time": "", "virtual_ips": []}
+
+    u = EUci()
+    try:
+        u.get('keepalived', 'main')
+        ret["role"] = "main"
+        ret["status"] = "enabled"
+    except:
+        try:
+            u.get('keepalived', 'backup')
+            ret["role"] = "backup"
+            ret["status"] = "enabled"
+        except:
+            ret["status"] = "disabled"
+
+    if ret["status"] == "enabled":
+        subprocess.run("kill -USR2 $(/etc/init.d/keepalived info | jq -r .keepalived.instances.instance1.pid)", shell=True, capture_output=True, check=True)
+        if os.path.exists('/var/keepalived.stats'):
+            with open('/var/keepalived.stats') as f:
+                for line in f:
+                    if 'VRRP Instance' in line:
+                        ret["state"] = line.split()[2]
+                        break
+
+    # Using uci to query the state, with EUci(confdir="/var/state/"), the library can't read the data
+    ret["last_sync_status"] = subprocess.run(["uci", "-P", "/var/state/", "get", "keepalived.ha_peer.last_sync_status"], capture_output=True, text=True).stdout.strip()
+    ret["last_sync_time"] = subprocess.run(["uci", "-P", "/var/state/", "get", "keepalived.ha_peer.last_sync_time"], capture_output=True, text=True).stdout.strip()
+
+    # List all configured virtual IPs
+    try:
+        virtual_ips = utils.get_all_by_type(u, 'keepalived', 'ipaddress')
+        ret["virtual_ips"] = virtual_ips
+    except:
+        ret["virtual_ips"] = []
+
+    return ret
+
+def validate_requirements(role):
+    errors = []
+    errors = errors + validate_network()
+    if role == "main":
+        errors = errors + validate_dhcp()
+        errors = errors + validate_hotspot()
+        
+    return {"success": len(errors) == 0, "errors": errors}
+
+def check_remote(backup_node_ip, ssh_password):
+    # Accessible via SSH on port 22
+    # Same network devices: FIXME
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+        ssh.connect(backup_node_ip, port=22, username='root', password=ssh_password)
+    except paramiko.SSHException as e:
+        raise utils.ValidationError('ssh', 'ssh_connection_failed')
+
+    # Call validate-configuration on the remote node
+    validate_command = json.dumps({
+        "role": "backup"
+    })
+
+    _, stdout, _ = ssh.exec_command(f"echo '{validate_command}' | /usr/libexec/rpcd/ns.ha call validate-requirements")
+    output = stdout.read().decode()
+
+    try:
+        result = json.loads(output)
+    except json.JSONDecodeError:
+        ssh.close()
+        raise utils.ValidationError('ssh', 'invalid_json_response_from_remote_node')
+    
+    if result.get('error'):
+        raise utils.ValidationError('ssh', result['error'])
+
+    ssh.close()
+    return result
+
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({
+        "init-local": {
+            "role": "main",
+            "main_node_ip": "100.100.100.1",
+            "backup_node_ip": "100.100.100.2",
+            "virtual_ip": "192.168.1.1",
+            "pubkey": "ssh-rsa AAAAB....",
+            "password": "xxxxxxxx"
+        },
+        "init-remote": {
+            "ssh_password": "Nethesis,1234",
+        },
+        "check-remote": {
+            "backup_node_ip": "100.100.100.2",
+            "ssh_password": "Nethesis,1234",
+        },
+        "validate-requirements": { "role": "main" },
+        "add-interface": {  "role": "main", "interface": "wan", "virtual_ip": "1.2.3.4/24", "gateway": "1.2.3.5" },
+        "status": {}
+        }))
+else:
+    action = sys.argv[2]
+    if action == "status":
+        ret = status()
+    else:
+        # Paramaters:
+        args = json.loads(sys.stdin.read())
+        if action == "init-local":
+            ret = init_local(args.get('role'), args.get('main_node_ip'), args.get('backup_node_ip'), args.get('virtual_ip'), args.get('pubkey'), args.get('password'))
+        elif action == "init-remote":
+            ret = init_remote(args.get('ssh_password'))
+        elif action == "add-interface":
+            ret = add_interface(args.get('role'), args.get('interface'), args.get('virtual_ip'), args.get('gateway', ''))
+        elif action == "check-remote":
+            ret = check_remote(args.get('backup_node_ip'), args.get('ssh_password'))
+        elif action == "validate-requirements":
+            ret = validate_requirements(args.get('role'))
+
+    print(json.dumps(ret))
