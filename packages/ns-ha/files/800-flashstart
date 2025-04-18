@@ -12,17 +12,20 @@ add_sync_file /etc/config/flashstart
 
 if [ "$ACTION" == "NOTIFY_BACKUP" ]; then
     update_cron "disable" "flashstart-auth"
-    # make sure flashstart is disabled, so the firewall can resolve DNS
+    # make sure flashstart is disabled, so the firewall could eventually resolve DNS (if it has Internet access)
     if [ "$(uci -q get flashstart.global.enabled)" == "1" ] && [ "$(uci -q get dhcp.@dnsmasq[0].server)" == "127.0.0.1#5300" ]; then
         uci delete dhcp.@dnsmasq[0].server
         uci add_list dhcp.@dnsmasq[0].server="1.1.1.1"
         uci commit dhcp
     fi
 elif [ "$ACTION" == "NOTIFY_MASTER" ]; then
-    uci delete dhcp.@dnsmasq[0].server
-    uci add_list dhcp.@dnsmasq[0].server="127.0.0.1#5300"
-    /usr/sbin/flashstart-apply
-    update_cron "enable" "flashstart-auth"
+    if [ "$(uci -q get flashstart.global.enabled)" == "1" ]; then
+        uci delete dhcp.@dnsmasq[0].server
+        uci add_list dhcp.@dnsmasq[0].server="127.0.0.1#5300"
+        uci commit dhcp
+        /usr/sbin/flashstart-apply
+        update_cron "enable" "flashstart-auth"
+    fi
 fi
 
 keepalived_hotplug
