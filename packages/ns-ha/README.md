@@ -12,6 +12,7 @@ Limitations:
 
 - Aliases are not supported
 - IPv4 only
+- VLANs are supported only on physical interfaces
 - Extra packages such as NUT are not supported
 - rsyslog configuration is not synced: if you need to send logs to a remote server, you must use the controller
 - Hotspot is not supported since it requires a new registration when the main node goes down because the MAC address associated with the hotspot interface will be different
@@ -172,13 +173,12 @@ ns-ha-config add-interface <interface> <virtual_ip_address> <gateway>
 
 Make sure to:
 
-- the interface already exists on both nodes
 - enter the virtual IP address in CIDR notation
 - enter the gateway IP address of the WAN interface
 
 The script will:
 
-- check if the interface exists on both nodes
+- create the network interface and devices in the backup node
 - configure the interface on both nodes by using fake IP addresses from the fake network 169.254.0.0/16
 - configure the virtual IP address on both nodes
 
@@ -187,6 +187,16 @@ Example:
 ```
 ns-ha-config add-interface wan 192.168.122.49/24 192.168.122.1
 ```
+
+### Configure extra interfaces
+
+You can add extra interfaces using the same command:
+```
+ns-ha-config add-interface <interface> <virtual_ip_address> [<gateway>]
+```
+
+As the WAN interface, you must enter the virtual IP address in CIDR notation.
+Usually, on non-WAN interfaces, the gateway is not required.
 
 ### Check the status
 
@@ -214,7 +224,6 @@ Current State: master
 Last Sync Status: Up to Date
 Last Sync Time: Fri Apr 18 13:09:08 UTC 2025
 ```
-
 
 
 ## How it works
