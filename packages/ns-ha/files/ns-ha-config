@@ -19,6 +19,7 @@ help() {
   echo "  init-backup <MAIN_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP> <PASSWORD> <PUBKEY>"
   echo "  add-interface <INTERFACE> <VIRTUAL_IP> [GATEWAY]"
   echo "  add-alias <INTERFACE> <VIRTUAL_ALIAS_IP> [GATEWAY]"
+  echo "  remove-alias <INTERFACE> <VIRTUAL_ALIAS_IP>"
   echo "  check-main-node"
   echo "  check-backup-node"
   echo "  show-config"
@@ -254,6 +255,35 @@ add_alias() {
   success
 }
 
+remove_alias() {
+  INTERFACE="$1"
+  VIRTUAL_ALIAS_IP="$2"
+
+  if [[ -z "$INTERFACE" || -z "$VIRTUAL_ALIAS_IP" ]]; then
+    echo "Usage: $0 remove-alias <INTERFACE> <VIRTUAL_ALIAS_IP>"
+    exit 1
+  fi
+
+  echo -n "Removing alias configuration... "
+
+  ERROR_OUTPUT=$(echo '{"role": "main", "interface": "'"$INTERFACE"'", "virtual_ip": "'"$VIRTUAL_ALIAS_IP"'"}' | /usr/libexec/rpcd/ns.ha call remove-alias 2>&1)
+
+  if [[ $? -ne 0 ]]; then
+    error
+    ACTUAL_ERROR=$(echo "$ERROR_OUTPUT" | grep -oE "nethsec.utils.ValidationError: \('.*', '.*'\)" | awk -F", '" '{print $2}' | tr -d "')")
+    echo "Failed to remove the alias. Error: $ACTUAL_ERROR"
+    exit 1
+  fi
+
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to remove the alias."
+    exit 1
+  fi
+
+  success
+}
+
 status() {
   OUTPUT=$(/usr/libexec/rpcd/ns.ha call status)
   ROLE=$(echo "$OUTPUT" | jq -r '.role')
@@ -357,6 +387,10 @@ case "$ACTION" in
   add-alias)
     shift
     add_alias "$@"
+    ;;
+  remove-alias)
+    shift
+    remove_alias "$@"
     ;;
   check-main-node)
     check_main_node
