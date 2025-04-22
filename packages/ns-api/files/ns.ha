@@ -205,6 +205,8 @@ def import_network_config(configs):
                 uci.set('network', config['record_id'], k, v)
     uci.commit('network')
 
+    return { "success": True }
+
 
 def add_interface(role, interface, virtual_ip, gateway):
     # Add a new interface to the keepalived configuration:
@@ -679,13 +681,13 @@ def add_alias(role, interface, virtual_ip, gateway):
         u.set('keepalived', f'{record_prefix}_route', 'route')
         u.set('keepalived', f'{record_prefix}_route', 'table', 'main')
         u.set('keepalived', f'{record_prefix}_route', 'address', '0.0.0.0/0')
-        u.set('keepalived', f'{record_prefix}_route', 'name', f'{interface}_route')
+        u.set('keepalived', f'{record_prefix}_route', 'name', f'{record_prefix}_route')
         u.set('keepalived', f'{record_prefix}_route', 'device', device)
         u.set('keepalived', f'{record_prefix}_route', 'gateway', gateway)
         u.set('keepalived', f'{record_prefix}_route', 'src_addr', virtual_ip)
         u.set('keepalived', f'{record_prefix}_route', 'ns_link', f'network/{interface}')
         # Add the route to the list of virtual routes
-        u.set('keepalived', kinstance_name, 'virtual_routes', list(set(virtual_routes + [f'{interface}_route'])))
+        u.set('keepalived', kinstance_name, 'virtual_routes', list(set(virtual_routes + [f'{record_prefix}_route'])))
 
     u.commit('keepalived')
     u.commit('network')
@@ -703,6 +705,54 @@ def add_alias(role, interface, virtual_ip, gateway):
         output, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call add-alias")
         if error:
             return utils.generic_error("error_executing_add_alias_on_backup_node")
+
+        return json.loads(output)
+    else:
+        return { "success": True }
+    
+def remove_alias(role, interface, virtual_ip):
+    u = EUci()
+    # Retrive interfaces configured for HA
+    ha_configured_interfaces = [iface['name'] for iface in list_interfaces()['interfaces'] if iface['ha_configured']]
+    if interface not in ha_configured_interfaces:
+        raise utils.ValidationError('interface', 'interface_not_configured_for_ha')
+
+    if role == 'main':
+        kinstance_name = 'main'
+    else:
+        kinstance_name = 'backup'
+
+    record_prefix = f'{interface}_{virtual_ip.replace("/", "_").replace(".", "_")}'
+    try:
+        u.delete('keepalived', f'{record_prefix}_ipaddress')
+        u.delete('keepalived', f'{record_prefix}_route')
+    except:
+        pass
+
+    # Remove the virtual IP from the list of virtual IPs
+    virtual_ips = list(u.get_all('keepalived', kinstance_name, 'virtual_ipaddress'))
+    virtual_ips = [ip for ip in virtual_ips if ip != f'{record_prefix}_ha']
+    u.set('keepalived', kinstance_name, 'virtual_ipaddress', virtual_ips)
+
+    # Remove the virtual route from the list of virtual routes
+    virtual_routes = list(u.get_all('keepalived', kinstance_name, 'virtual_routes'))
+    virtual_routes = [route for route in virtual_routes if route != f'{record_prefix}_route']
+    u.set('keepalived', kinstance_name, 'virtual_routes', virtual_routes)
+    
+    u.commit('keepalived')
+    subprocess.run(["/sbin/reload_config"], capture_output=True)
+
+    if role == 'main':
+        # Execute the add-interface API on the backup node
+        command = json.dumps({
+            "role": "backup",
+            "interface": interface,
+            "virtual_ip": virtual_ip
+        })
+
+        output, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call remove-alias")
+        if error:
+            return utils.generic_error("error_executing_remove_alias_on_backup_node")
 
         return json.loads(output)
     else:
@@ -730,6 +780,7 @@ if cmd == 'list':
         "validate-requirements": { "role": "main" },
         "add-interface": {  "role": "main", "interface": "wan", "virtual_ip": "1.2.3.4/24", "gateway": "1.2.3.5" },
         "add-alias": { "role": "main", "interface": "wan", "virtual_ip": "1.2.3.5/24" },
+        "remove-alias": { "role": "main", "interface": "wan", "virtual_ip": "1.2.3.5/24" },
         "import-network-config": { [ { "type": "device", "id": "wan", "name": "wan", "device": "eth0.2", "proto": "static", "ipaddr": ""} ] },
         "status": {},
         "list-interfaces": {},
@@ -760,5 +811,7 @@ else:
             ret = import_network_config(args)
         elif action == "add-alias":
             ret = add_alias(args.get('role'), args.get('interface'), args.get('virtual_ip'), args.get('gateway', ''))
+        elif action == "remove-alias":
+            ret = remove_alias(args.get('role'), args.get('interface'), args.get('virtual_ip'))
 
     print(json.dumps(ret))
