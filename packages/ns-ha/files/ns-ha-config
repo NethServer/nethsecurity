@@ -18,8 +18,10 @@ help() {
   echo "  init-main <MAIN_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP>"
   echo "  init-backup <MAIN_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP> <PASSWORD> <PUBKEY>"
   echo "  add-interface <INTERFACE> <VIRTUAL_IP> [GATEWAY]"
+  echo "  add-alias <INTERFACE> <VIRTUAL_ALIAS_IP> [GATEWAY]"
   echo "  check-main-node"
   echo "  check-backup-node"
+  echo "  show-config"
   echo "  status (This is the only action that can be run on the backup node)"
 }
 
@@ -217,6 +219,41 @@ add_interface() {
   success
 }
 
+add_alias() {
+  INTERFACE="$1"
+  VIRTUAL_ALIAS_IP="$2"
+  GATEWAY="${3:-}"
+
+  if [[ -z "$INTERFACE" || -z "$VIRTUAL_ALIAS_IP" ]]; then
+    echo "Usage: $0 add-alias <INTERFACE> <VIRTUAL_ALIAS_IP> [GATEWAY]"
+    exit 1
+  fi
+
+  echo -n "Adding alias configuration... "
+
+  # Validate that the virtual IP is in CIDR format
+  if ! [[ "$VIRTUAL_ALIAS_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]]; then
+    error
+    echo "Invalid virtual IP format. It must be in CIDR format (e.g., 192.168.1.1/24)."
+    exit 1
+  fi
+
+  ERROR_OUTPUT=$(echo '{"role": "main", "interface": "'"$INTERFACE"'", "virtual_ip": "'"$VIRTUAL_ALIAS_IP"'", "gateway": "'"${GATEWAY}"'"}' | /usr/libexec/rpcd/ns.ha call add-alias 2>&1)
+
+  if [[ $? -ne 0 ]]; then
+    error
+    ACTUAL_ERROR=$(echo "$ERROR_OUTPUT" | grep -oE "nethsec.utils.ValidationError: \('.*', '.*'\)" | awk -F", '" '{print $2}' | tr -d "')")
+    echo "Failed to configure the alias. Error: $ACTUAL_ERROR"
+    exit 1
+  fi
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to configure the alias."
+    exit 1
+  fi
+  success
+}
+
 status() {
   OUTPUT=$(/usr/libexec/rpcd/ns.ha call status)
   ROLE=$(echo "$OUTPUT" | jq -r '.role')
@@ -246,21 +283,62 @@ status() {
         fi
         echo -e "Last Sync Time: \e[33m$(date -d @$LAST_SYNC_TIME)\e[0m"
       fi
-
     else
       echo -e "Current State: \e[97m$STATE\e[0m" # White for others
     fi
-
-    if [[ "$ROLE" == "main" ]]; then
-      # Extract and display virtual IPs
-      VIRTUAL_IPS=$(echo "$OUTPUT" | jq -r '.virtual_ips | to_entries[] | "  \(.value.name):   \(.value.address)   (\(.value.device))"')
-      echo -e "Virtual IPs:"
-      echo -e "$VIRTUAL_IPS"
-    fi
-
   fi
 }
-  
+
+show_config() {
+  # Fetch interfaces
+  OUTPUT_INTERFACES=$(/usr/libexec/rpcd/ns.ha call list-interfaces)
+  CONFIGURED_INTERFACES=$(echo "$OUTPUT_INTERFACES" | jq -r '.interfaces[] | select(.ha_configured == true) | "  Interface: \(.name), Device: \(.device), Virtual IP: \(.virtual_ip)"')
+  NOT_CONFIGURED_INTERFACES=$(echo "$OUTPUT_INTERFACES" | jq -r '.interfaces[] | select(.ha_configured == false) | "  Interface: \(.name), Device: \(.device) "')
+
+  echo
+  echo -e "\e[92mCurrent configuration\e[0m"
+  echo
+  echo "Interfaces:"
+  if [[ -n "$CONFIGURED_INTERFACES" ]]; then
+    echo "$CONFIGURED_INTERFACES"
+  else
+    echo "  None"
+  fi
+
+  echo
+  # Fetch aliases
+  OUTPUT_ALIASES=$(/usr/libexec/rpcd/ns.ha call list-aliases)
+  CONFIGURED_ALIASES=$(echo "$OUTPUT_ALIASES" | jq -r '.aliases[] | select(.ha_configured == true) | "  Interface: \(.interface), Virtual Alias IP: \(.ipaddr)"')
+  NOT_CONFIGURED_ALIASES=$(echo "$OUTPUT_ALIASES" | jq -r '.aliases[] | select(.ha_configured == false) | "  Interface: \(.interface), IP: \(.ipaddr)"')
+
+  echo "Aliases:"
+  if [[ -n "$CONFIGURED_ALIASES" ]]; then
+    echo "$CONFIGURED_ALIASES"
+  else
+    echo "  None"
+  fi
+
+  echo
+  echo "-----------------------------------------------------------------"
+  echo
+  echo -e "\e[97mNot configured\e[0m"
+  echo
+  echo "Interfaces:"
+  if [[ -n "$NOT_CONFIGURED_INTERFACES" ]]; then
+    echo "$NOT_CONFIGURED_INTERFACES"
+  else
+    echo "  None"
+  fi
+
+  echo
+  echo "Aliases:"
+  if [[ -n "$NOT_CONFIGURED_ALIASES" ]]; then
+    echo "$NOT_CONFIGURED_ALIASES"
+  else
+    echo "  None"
+  fi
+  echo
+}
 
 # Main logic to handle actions
 case "$ACTION" in
@@ -276,12 +354,19 @@ case "$ACTION" in
     shift
     add_interface "$@"
     ;;
+  add-alias)
+    shift
+    add_alias "$@"
+    ;;
   check-main-node)
     check_main_node
     ;;
   check-backup-node)
     shift
     check_backup_node "$@"
+    ;;
+  show-config)
+    show_config
     ;;
   status)
     status
