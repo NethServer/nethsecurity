@@ -156,7 +156,55 @@ def execute_remote_command(command):
     error = stderr.read().decode()
     return output, error
 
+def find_device_config(uci, device, config=None):
+    if config is None:
+        config = []
+    # Find the device configuration in UCI
+    for n in utils.get_all_by_type(uci, 'network', 'device'):
+        if uci.get('network', n, 'name', default=None) == device:
+            device_config = uci.get_all('network', n)
+            device_config['record_type'] = 'device'
+            device_config['record_id'] = n
+            
+            if device_config.get('type') == 'bridge':
+                # List all ports of the bridge
+                for port in device_config.get('ports', []):
+                    config = config + find_device_config(uci, port, config)
+            elif device_config.get('type', '').startswith('802'):
+                ifname = device_config.get('ifname')
+                if not ifname:
+                    continue
+                # Get the underlying device of the 802.1q interface
+                for underlying_device in utils.get_all_by_type(uci, 'network', 'device'):
+                    if uci.get('network', underlying_device, 'name', default=None) == ifname:
+                        config = config + find_device_config(uci, ifname, config)
+                        break
+            config.append(device_config)
+ 
+    return config
+
 ### API functions
+
+def import_network_config(configs):
+    # config is a dictionary with the network configuration
+    uci = EUci()
+
+    for config in configs:
+        subprocess.run(["logger", "-t", "ns-ha", f"Importing network configuration: {json.dumps(config)}"], check=True)
+
+    for config in configs:
+        if config.get('record_type') == 'device':
+            # Remove existing devices for the same name
+            for n in utils.get_all_by_type(uci, 'network', 'device'):
+                if uci.get('network', n, 'name', default=None) == config['name']:
+                    uci.delete('network', n)
+        # Create the configuration
+        uci.set('network', config['record_id'], config['record_type'])
+        for k, v in config.items():
+            if k not in ['record_id', 'record_type']:
+                uci.set('network', config['record_id'], k, v)
+    uci.commit('network')
+
 
 def add_interface(role, interface, virtual_ip, gateway):
     # Add a new interface to the keepalived configuration:
@@ -171,10 +219,38 @@ def add_interface(role, interface, virtual_ip, gateway):
         raise utils.ValidationError('interface', 'interface_not_found_on_main_node')
 
     if role == 'main':
-        _, error = execute_remote_command(f"uci get network.{interface}")
-        if error:
-            raise utils.ValidationError('interface', 'interface_not_found_on_backup_node')
+        # Before adding the interface, configure interface and device on the backup node:
+        # 1. get the device configuration from the main node and send it to the backup node
+        # 2. create the interface on the backup node
+        network_config = []
+        device = u.get('network', interface, 'device', default=None)
+        device_config = find_device_config(u, device)
+        # Please note that device_config could be emptry for a WAN on a clean machine
+        network_config = network_config + device_config
+        
+        interface_config = u.get_all('network', interface)
+        interface_config['record_type'] = 'interface'
+        interface_config['record_id'] = interface
+        # Check if the interface is a bonding interface
+        if interface_config.get('device').startswith('bond-'):
+            # List all the slaves of the bonding interface, strip the prefix 'bond-'
+            try:
+                bond_config = u.get_all('network', interface_config.get('device')[5:])
+                bond_config['record_type'] = 'interface'
+                bond_config['record_id'] = interface_config.get('device')[5:]
+                network_config = network_config + [bond_config]
+            except:
+                return utils.generic_error("bonding_interface_not_found")
+            # Send the slaves to the backup node
+            for slave in bond_config.get('slaves', []):
+                network_config = network_config + find_device_config(u, slave)
+        network_config = network_config + [interface_config]
 
+        # Send the interface configuration to the backup node
+        output, error = execute_remote_command(f"echo '{json.dumps(network_config)}' | /usr/libexec/rpcd/ns.ha call import-network-config")
+        if error:
+            return utils.generic_error("error_adding_interface_on_backup_node")
+            
     # Get the fake IP address
     main_ip, backup_ip = allocate_fake_ips(u)
 
@@ -208,7 +284,7 @@ def add_interface(role, interface, virtual_ip, gateway):
         u.set('keepalived', f'{interface}_route', 'gateway', gateway)
         u.set('keepalived', f'{interface}_route', 'src_addr', virtual_ip)
         # Add the route to the list of virtual routes
-        u.set('keepalived', kinstance_name, 'virtual_routes', virtual_routes + [f'{interface}_route'])
+        u.set('keepalived', kinstance_name, 'virtual_routes', list(set(virtual_routes + [f'{interface}_route'])))
 
     # Create the VIP address
     u.set('keepalived', f'{interface}_ipaddress', 'ipaddress')
@@ -217,7 +293,7 @@ def add_interface(role, interface, virtual_ip, gateway):
     u.set('keepalived', f'{interface}_ipaddress', 'device', device)
     u.set('keepalived', f'{interface}_ipaddress', 'label_suffix', 'ha')
     # Add the VIP to the list of virtual IPs
-    u.set('keepalived', kinstance_name, 'virtual_ipaddress', virtual_ips + [f'{interface}_ha'])
+    u.set('keepalived', kinstance_name, 'virtual_ipaddress', list(set(virtual_ips + [f'{interface}_ha'])))
 
     # Create the track interface
     u.set('keepalived', f'{interface}_track', 'track_interface')
@@ -225,7 +301,7 @@ def add_interface(role, interface, virtual_ip, gateway):
     u.set('keepalived', f'{interface}_track', 'value', device)
     u.set('keepalived', f'{interface}_track', 'weight', '100')
     # Add the track interface to the list of tracked interfaces
-    u.set('keepalived', kinstance_name, 'track_interface', track_interfaces + [f'{interface}_ha'])
+    u.set('keepalived', kinstance_name, 'track_interface', list(set(track_interfaces + [f'{interface}_ha'])))
 
     u.commit('keepalived')
     u.commit('network')
@@ -241,9 +317,6 @@ def add_interface(role, interface, virtual_ip, gateway):
         })
 
         output, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call add-interface")
-        print(output)
-        print(error)
-
         if error:
             return utils.generic_error("error_executing_add_interface_on_backup_node")
 
@@ -524,6 +597,16 @@ def check_remote(backup_node_ip, ssh_password):
     ssh.close()
     return result
 
+def list_interfaces():
+    u = EUci()
+    interfaces = []
+    for n in utils.get_all_by_type(u, 'network', 'interface'):
+        if n == 'loopback':
+            continue
+        device = u.get('network', n, 'device', default=None)
+        if device and not device.startswith('@'): # exclude aliases
+            interfaces.append(n)
+    return { "interfaces": interfaces }
 
 cmd = sys.argv[1]
 
@@ -546,12 +629,16 @@ if cmd == 'list':
         },
         "validate-requirements": { "role": "main" },
         "add-interface": {  "role": "main", "interface": "wan", "virtual_ip": "1.2.3.4/24", "gateway": "1.2.3.5" },
-        "status": {}
+        "import-network-config": { [ { "type": "device", "id": "wan", "name": "wan", "device": "eth0.2", "proto": "static", "ipaddr": ""} ] },
+        "status": {},
+        "list-interfaces": {}
         }))
 else:
     action = sys.argv[2]
     if action == "status":
         ret = status()
+    elif action == "list-interfaces":
+        ret = list_interfaces()
     else:
         # Paramaters:
         args = json.loads(sys.stdin.read())
@@ -565,5 +652,7 @@ else:
             ret = check_remote(args.get('backup_node_ip'), args.get('ssh_password'))
         elif action == "validate-requirements":
             ret = validate_requirements(args.get('role'))
+        elif action == "import-network-config":
+            ret = import_network_config(args)
 
     print(json.dumps(ret))
