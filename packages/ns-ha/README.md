@@ -10,7 +10,6 @@ Requirements:
 
 Limitations:
 
-- Aliases are not supported
 - IPv4 only
 - VLANs are supported only on physical interfaces
 - Extra packages such as NUT are not supported
@@ -197,6 +196,56 @@ ns-ha-config add-interface <interface> <virtual_ip_address> [<gateway>]
 
 As the WAN interface, you must enter the virtual IP address in CIDR notation.
 Usually, on non-WAN interfaces, the gateway is not required.
+
+## Configue an alias
+
+Aliases are special configurations that must explicitly set on the main node.
+To add an alias, use the following command:
+```
+ns-ha-config add-alias <interface> <alias> <ip_address> [<gateway>]
+```
+
+If the alias is for a WAN interface, you must enter also the gateway IP address.
+
+The script will:
+
+- check if the given interface is already configured as HA interface
+- add the alias to keepalived configuration
+
+Example:
+```
+ns-ha-config add-alias lan 192.168.100.66/24
+```
+
+**NOTE**: the alias will not appear in the network configuration of the backup node.
+
+### Show current configuration
+
+You can show the current configuration of the HA cluster:
+```
+ns-ha-config show-config
+```
+
+It will output something like this:
+```
+Current configuration
+
+Interfaces:
+  Interface: lan, Device: br-lan, Virtual IP: 192.168.100.240/24
+
+Aliases:
+  Interface: lan, Virtual Alias IP: 192.168.100.66/24
+
+-----------------------------------------------------------------
+
+Not configured
+
+Interfaces:
+  Interface: wan, Device: eth1 
+
+Aliases:
+  Interface: wan, IP: 192.168.122.66/24
+```
 
 ### Check the status
 
