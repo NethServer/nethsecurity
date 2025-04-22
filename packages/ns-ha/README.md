@@ -217,7 +217,28 @@ Example:
 ns-ha-config add-alias lan 192.168.100.66/24
 ```
 
+Example for WAN interface:
+```
+ns-ha-config add-alias wan 192.168.122.66/24 192.168.122.1
+```
+
 **NOTE**: the alias will not appear in the network configuration of the backup node.
+
+## Remove an alias
+
+To remove an alias, use the following command:
+```
+ns-ha-config remove-alias <interface> <alias>
+```
+
+The script will:
+- remove the alias from keepalived configuration
+- remove all virtual routes, if present
+
+Example:
+```
+ns-ha-config remove-alias wan 192.168.122.66/24
+```
 
 ### Show current configuration
 
