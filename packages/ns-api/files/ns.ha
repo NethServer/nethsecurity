@@ -289,7 +289,7 @@ def add_interface(role, interface, virtual_ip, gateway):
         u.set('keepalived', f'{interface}_route', 'name', f'{interface}_route')
         u.set('keepalived', f'{interface}_route', 'device', device)
         u.set('keepalived', f'{interface}_route', 'gateway', gateway)
-        u.set('keepalived', f'{interface}_route', 'src_addr', virtual_ip)
+        u.set('keepalived', f'{interface}_route', 'src_addr', virtual_ip.split('/')[0])
         u.set('keepalived', f'{interface}_route', 'ns_link', f'network/{interface}')
         # Add the route to the list of virtual routes
         u.set('keepalived', kinstance_name, 'virtual_routes', list(set(virtual_routes + [f'{interface}_route'])))
@@ -700,7 +700,7 @@ def add_alias(role, interface, virtual_ip, gateway):
         u.set('keepalived', f'{record_prefix}_route', 'name', f'{record_prefix}_route')
         u.set('keepalived', f'{record_prefix}_route', 'device', device)
         u.set('keepalived', f'{record_prefix}_route', 'gateway', gateway)
-        u.set('keepalived', f'{record_prefix}_route', 'src_addr', virtual_ip)
+        u.set('keepalived', f'{record_prefix}_route', 'src_addr', virtual_ip.split('/')[0])
         u.set('keepalived', f'{record_prefix}_route', 'ns_link', f'network/{interface}')
         # Add the route to the list of virtual routes
         u.set('keepalived', kinstance_name, 'virtual_routes', list(set(virtual_routes + [f'{record_prefix}_route'])))
