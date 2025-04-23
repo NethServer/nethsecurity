@@ -358,6 +358,22 @@ Proceed with the maintenance of the main node, then re-enable the HA cluster:
 The main node will take over the virtual IP address again.
 
 
+## Reset the configuration
+
+To reset the configuration, use the following command:
+```
+ns-ha-config reset
+```
+
+The script will:
+- stop and disable keepalived
+- stop and disable conntrackd
+- remove the configuration files
+- cleanup dropbear configuration including the SSH keys
+
+The script will not change the network configuration of the nodes.
+You can access them using the static LAN IP addresses configured at the beginning and manage them as standalone nodes.
+
 ## How it works
 
 The HA cluster consists of two nodes: one is the main and the other is the backup.
