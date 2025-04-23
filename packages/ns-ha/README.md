@@ -14,8 +14,8 @@ Limitations:
 - VLANs are supported only on physical interfaces
 - Extra packages such as NUT are not supported
 - rsyslog configuration is not synced: if you need to send logs to a remote server, you must use the controller
-- Hotspot is not supported since it requires a new registration when the main node goes down because the MAC address associated with the hotspot interface will be different
-- After the first synchronization, the backup node will have the same hostname as the main node
+- Hotspot is not supported since it requires a new registration when the primary node goes down because the MAC address associated with the hotspot interface will be different
+- After the first synchronization, the backup node will have the same hostname as the primary node
 
 The following features are supported:
 
@@ -48,7 +48,7 @@ The following features are supported:
 ## Configuration
 
 The setup process configures the following:
-- check if requirements are met both on the main and backup nodes
+- check if requirements are met both on the primary and backup nodes
 - configures HA traffic on lan interface
 - sets up keepalived with the virtual IP, a random password and a public key for the synchronization
 - configures dropbear to listen on port `65022`: this is used to sync data between the nodes using rsync, only
@@ -56,20 +56,20 @@ The setup process configures the following:
 - configures conntrackd to sync the connection tracking table
 
 In this example:
-- `main_node_ip` is the main node, with LAN IP `192.168.100.238`
+- `primary_node_ip` is the primary node, with LAN IP `192.168.100.238`
 - `backup_node_ip` is the backup node, with LAN IP `192.168.100.239`
 - the virtual IP is `192.168.100.240`
 
 Before starting, follow these steps:
 
 - power on the backup node, access the web interface and set a static LAN IP address, in this example `192.168.100.239`:
-- then, power on the main node, access the web interface and set a static LAN IP address, in this example `192.168.100.238`
+- then, power on the primary node, access the web interface and set a static LAN IP address, in this example `192.168.100.238`
 
 These IP addresses are used to access the nodes directly, even if the HA cluster is disabled.
 You can consider these IP addresses as management IP addresses.
 
 When the HA cluster is enabled, all the configuration will be automatically synchronized to the backup node, except for the network configuration.
-If you need to change the network configuration, do it on the main node then follow the instructions below to adapt the HA configuration to the new network configuration.
+If you need to change the network configuration, do it on the primary node then follow the instructions below to adapt the HA configuration to the new network configuration.
 
 The package provides a script to ease the configuration of the HA cluster, without accessing directly the APIs.
 The script is named `ns-ha-config`. Usage syntax is:
@@ -79,9 +79,9 @@ ns-ha-config <action> [<option1> <option2>]
 
 ### Check local requirements
 
-First, check the status of the main node:
+First, check the status of the primary node:
 ```
-ns-ha-config check-main-node
+ns-ha-config check-primary-node
 ```
 
 It will check the following:
@@ -130,11 +130,11 @@ Example with password on standard input:
 echo Nethesis,1234 | ns-ha-config check-backup-node 192.168.100.239
 ```
 
-### Initlialize the main node
+### Initlialize the primary node
 
-If the requirements are met, you can initialize the main node:
+If the requirements are met, you can initialize the primary node:
 ```
-ns-ha-config init-main-node <main_node_ip> <backup_node_ip> <virtual_ip>
+ns-ha-config init-primary-node <primary_node_ip> <backup_node_ip> <virtual_ip>
 ```
 
 The script will:
@@ -146,7 +146,7 @@ The script will:
 
 Example:
 ```
-ns-ha-config init-main-node 192.168.100.238 192.168.100.239 192.168.100.240/24
+ns-ha-config init-primary-node 192.168.100.238 192.168.100.239 192.168.100.240/24
 ```
 
 ### Initialize the backup node
@@ -167,7 +167,7 @@ Example with password on standard input:
 echo Nethesis,1234 | ns-ha-config init-backup-node
 ```
 
-At this point, the main node and the backup node are configured to talk to each other
+At this point, the primary node and the backup node are configured to talk to each other
 using the LAN interface.
 The virtual IP of the LAN will switch between the two nodes in case of failure.
 
@@ -229,7 +229,7 @@ Please note that the interface will not be removed from the network configuratio
 
 ### Configue an alias
 
-Aliases are special configurations that must explicitly set on the main node.
+Aliases are special configurations that must explicitly set on the primary node.
 To add an alias, use the following command:
 ```
 ns-ha-config add-alias <interface> <alias> <ip_address> [<gateway>]
@@ -309,7 +309,7 @@ ns-ha-config status
 Just after the initialization, the script will return something like this:
 ```
 Status: enabled
-Role: main
+Role: primary
 Current State: master
 Last Sync Status: SSH Connection Failed
 Last Sync Time: Fri Apr 18 13:07:08 UTC 2025
@@ -319,7 +319,7 @@ The first synchronization will take up to 10 minutes and will be done in the bac
 After few minutes, the status should be like this:
 ```
 Status: enabled
-Role: main
+Role: primary
 Current State: master
 Last Sync Status: Up to Date
 Last Sync Time: Fri Apr 18 13:09:08 UTC 2025
@@ -327,20 +327,20 @@ Last Sync Time: Fri Apr 18 13:09:08 UTC 2025
 
 ## Troubleshooting and logs
 
-Since the name of the backup host is replaced with the name of the main host, it's hard to distinguish between the two nodes
+Since the name of the backup host is replaced with the name of the primary host, it's hard to distinguish between the two nodes
 when connecting via SSH.
 To avoid confusion, when the HA cluster is enabled, the bash prompt will show the keepalived status using:
 - `P` for primary node
-- `S` for secondary node
+- `B` for backup node
 
-Prompt example for main node:
+Prompt example for primary node:
 ```
 root@NethSec [P]:~#
 ```
 
 Prompt example for backup node:
 ```
-root@NethSec [S]:~#
+root@NethSec [B]:~#
 ```
 
 A normal configuration synchronization will look like this on the backup node:
@@ -381,7 +381,7 @@ bash -x ns-ha-config <action> [<option1> <option2>]
 ### Maintenance
 
 The HA cluster can be disabled at any time.
-But be careful: if you disable the main node first, the backup node will take over the virtual IP address.
+But be careful: if you disable the primary node first, the backup node will take over the virtual IP address.
 
 The static LAN IPs configured at the beginning can be considered management IPs.
 These IPs are always accessible and can be used to manage the nodes directly, regardless of the HA cluster status.
@@ -393,25 +393,25 @@ To disable the HA cluster, use the following command on the **backup** node:
 /etc/init.d/keepalived stop
 ```
 
-Proceed with the maintenance of the backup node, then re-enable the HA cluster:
+Proceed with the primarytenance of the backup node, then re-enable the HA cluster:
 ```
 /etc/init.d/keepalived start
 ```
 
-#### Maintenance of the main node
+#### Maintenance of the primary node
 
-When the main node is disabled, the backup node will take over the virtual IP address.
-To disable the HA cluster, use the following command on the **main** node:
+When the primary node is disabled, the backup node will take over the virtual IP address.
+To disable the HA cluster, use the following command on the **primary** node:
 ```
 /etc/init.d/keepalived stop
 ```
 
-Proceed with the maintenance of the main node, then re-enable the HA cluster:
+Proceed with the primarytenance of the primary node, then re-enable the HA cluster:
 ```
 /etc/init.d/keepalived start
 ```
 
-The main node will take over the virtual IP address again.
+The primary node will take over the virtual IP address again.
 
 
 ## Reset the configuration
@@ -432,11 +432,11 @@ You can access them using the static LAN IP addresses configured at the beginnin
 
 ## How it works
 
-The HA cluster consists of two nodes: one is the main and the other is the backup.
-All configurations must be always done on the main node.
+The HA cluster consists of two nodes: one is the primary and the other is the backup.
+All configurations must be always done on the primary node.
 The configuration is then automatically synchronized to the backup node.
 
-Keepalived runs a specially crafted rsync script (`/etc/keepalived/scripts/ns-rsync.sh`) on the main node to:
+Keepalived runs a specially crafted rsync script (`/etc/keepalived/scripts/ns-rsync.sh`) on the primary node to:
 - export WireGuard interfaces, IPsec interfaces, and routes to `/etc/ha`
 - synchronize all files listed by `sysupgrade -l` and custom files added with the `add_sync_file` option from scripts inside `/etc/hotplug.d/keepalived` directory;
   files are synchronized to the backup node inside the directory `/usr/share/keepalived/rsync/`
@@ -449,16 +449,16 @@ The event is triggered with an `ACTION` parameter that can be:
   During this phase, all directories (like `/etc/openvpn` and `/etc/ha`) are synched to the original position.
   Also WireGuard interfaces, IPsec interfaces and routes are imported from the `/etc/ha` directory but in disabled state.
 
-- `NOTIFY_MASTER`: the script can be executed both on the main and on the backup node:
-   - on the main node, after keepalived is started: this is the normal startup state
+- `NOTIFY_MASTER`: the script can be executed both on the primary and on the backup node:
+   - on the primary node, after keepalived is started: this is the normal startup state
    - on the backup node, after a switchover has been done: this is the failover state; 
-     all WireGuard interfaces, IPsec interfaces and routes previously imported from the `/etc/ha` are enabled if they were enabled on the main node
+     all WireGuard interfaces, IPsec interfaces and routes previously imported from the `/etc/ha` are enabled if they were enabled on the primary node
 
-- `NOTIFY_BACKUP`: the script is executed on the backup node, after keepalived is started or if the main returns up after a downtime
+- `NOTIFY_BACKUP`: the script is executed on the backup node, after keepalived is started or if the primary returns up after a downtime
   All non-required services are disabled, including WireGuard interfaces, IPsec interfaces and routes.
 
-The backup node keeps the configuration in sync with the main node, but most services, including crontabs, are disabled.
-The following cronjobs are disabled on the backup node and enabled on the main node:
+The backup node keeps the configuration in sync with the primary node, but most services, including crontabs, are disabled.
+The following cronjobs are disabled on the backup node and enabled on the primary node:
 
 - subscription heartbeat
 - subscription inventory
@@ -470,7 +470,7 @@ The following cronjobs are disabled on the backup node and enabled on the main n
 
 Each network interface managed by the High Availability (HA) system must have a static IP address.
 If an interface is configured automatically, it will be assigned an IP address in the 169.254.0.0/24 range.
-For every interface, two IP addresses are allocated: one for the main node and one for the backup node.
+For every interface, two IP addresses are allocated: one for the primary node and one for the backup node.
 This imposes a theoretical limit of 127 network interfaces that can be managed by the HA system.
 The network interface will then be accessible using the Virtual IP address configured in the HA system.
 All clients must use the Virtual IP address to access the firewall services.
