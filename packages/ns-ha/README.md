@@ -197,6 +197,25 @@ ns-ha-config add-interface <interface> <virtual_ip_address> [<gateway>]
 As the WAN interface, you must enter the virtual IP address in CIDR notation.
 Usually, on non-WAN interfaces, the gateway is not required.
 
+## Remove an interface
+
+To remove an interface from the HA configuration, use the following command:
+```
+ns-ha-config remove-interface <interface>
+```
+
+Example:
+```
+ns-ha-config remove-interface wan
+```
+
+The script will:
+- check if the given interface is already configured as HA interface
+- remove the interface from keepalived configuration
+- remove all virtual routes, if present
+
+Please note that the interface will not be removed from the network configuration of the backup node.
+
 ## Configue an alias
 
 Aliases are special configurations that must explicitly set on the main node.
