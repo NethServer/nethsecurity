@@ -18,6 +18,7 @@ help() {
   echo "  init-main <MAIN_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP>"
   echo "  init-backup <MAIN_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP> <PASSWORD> <PUBKEY>"
   echo "  add-interface <INTERFACE> <VIRTUAL_IP> [GATEWAY]"
+  echo "  remove-interface <INTERFACE>"
   echo "  add-alias <INTERFACE> <VIRTUAL_ALIAS_IP> [GATEWAY]"
   echo "  remove-alias <INTERFACE> <VIRTUAL_ALIAS_IP>"
   echo "  check-main-node"
@@ -220,6 +221,34 @@ add_interface() {
   success
 }
 
+remove_interface() {
+  INTERFACE="$1"
+
+  if [[ -z "$INTERFACE" ]]; then
+    echo "Usage: $0 remove-interface <INTERFACE>"
+    exit 1
+  fi
+
+  echo -n "Removing interface configuration... "
+
+  ERROR_OUTPUT=$(echo '{"role": "main", "interface": "'"$INTERFACE"'"}' | /usr/libexec/rpcd/ns.ha call remove-interface 2>&1)
+
+  if [[ $? -ne 0 ]]; then
+    error
+    ACTUAL_ERROR=$(echo "$ERROR_OUTPUT" | grep -oE "nethsec.utils.ValidationError: \('.*', '.*'\)" | awk -F", '" '{print $2}' | tr -d "')")
+    echo "Failed to remove the interface. Error: $ACTUAL_ERROR"
+    exit 1
+  fi
+
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to remove the interface."
+    exit 1
+  fi
+
+  success
+}
+
 add_alias() {
   INTERFACE="$1"
   VIRTUAL_ALIAS_IP="$2"
@@ -383,6 +412,10 @@ case "$ACTION" in
   add-interface)
     shift
     add_interface "$@"
+    ;;
+  remove-interface)
+    shift
+    remove_interface "$@"
     ;;
   add-alias)
     shift
