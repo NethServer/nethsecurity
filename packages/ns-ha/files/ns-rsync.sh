@@ -103,15 +103,6 @@ ha_sync_receive() {
 	config_get ssh_pubkey "$cfg" ssh_pubkey
 	[ -z "$ssh_pubkey" ] && return 0
 
-	home_dir=$sync_dir
-	auth_file="$home_dir/.ssh/authorized_keys"
-
-	if ! grep -q "^$ssh_pubkey$" "$auth_file" 2> /dev/null; then
-		log_notice "public key not found. Updating"
-		echo "$ssh_pubkey" > "$auth_file"
-		chown "$RSYNC_USER":"$RSYNC_USER" "$auth_file"
-	fi
-
 	/etc/init.d/keepalived-inotify enabled || /etc/init.d/keepalived-inotify enable
 	/etc/init.d/keepalived-inotify running "$name" || /etc/init.d/keepalived-inotify start "$name"
 }
