@@ -365,11 +365,12 @@ The log will look like this:
 Apr 23 06:51:38 NethSec ns-ha: Importing network configuration: {"device": "eth1", "proto": "dhcp", "record_type": "interface", "record_id": "wan"}
 ```
 
-
 To see active keepalived configuration, execute:
 ```
 cat /tmp/keepalived.conf
 ```
+
+### Debugging
 
 The ns-ha configuration script is a shell script that can be debugged using the `-x` option.
 Example:
@@ -377,8 +378,17 @@ Example:
 bash -x ns-ha-config <action> [<option1> <option2>]
 ```
 
+It's also possible to enable debugging for the keepalived service.
+To enable it, execute on the primary node:
+```
+uci set keepalived.primary.debug=1
+uci commit keepalived
+reload_config
+```
 
-### Maintenance
+Then, search for `Keepalived_vrrp` in the `/var/log/messages` file.
+
+## Maintenance
 
 The HA cluster can be disabled at any time.
 But be careful: if you disable the primary node first, the backup node will take over the virtual IP address.
@@ -386,7 +396,7 @@ But be careful: if you disable the primary node first, the backup node will take
 The static LAN IPs configured at the beginning can be considered management IPs.
 These IPs are always accessible and can be used to manage the nodes directly, regardless of the HA cluster status.
 
-#### Maintance of the backup node
+### Maintance of the backup node
 
 To disable the HA cluster, use the following command on the **backup** node:
 ```
@@ -398,7 +408,7 @@ Proceed with the primarytenance of the backup node, then re-enable the HA cluste
 /etc/init.d/keepalived start
 ```
 
-#### Maintenance of the primary node
+### Maintenance of the primary node
 
 When the primary node is disabled, the backup node will take over the virtual IP address.
 To disable the HA cluster, use the following command on the **primary** node:
