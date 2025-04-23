@@ -314,6 +314,49 @@ Last Sync Status: Up to Date
 Last Sync Time: Fri Apr 18 13:09:08 UTC 2025
 ```
 
+### Debugging
+
+The ns-ha configuration script is a shell script that can be debugged using the `-x` option.
+Example:
+```
+bash -x ns-ha-config <action> [<option1> <option2>]
+```
+
+### Maintenance
+
+The HA cluster can be disabled at any time.
+But be careful: if you disable the main node first, the backup node will take over the virtual IP address.
+
+The static LAN IPs configured at the beginning can be considered management IPs.
+These IPs are always accessible and can be used to manage the nodes directly, regardless of the HA cluster status.
+
+#### Maintance of the backup node
+
+To disable the HA cluster, use the following command on the **backup** node:
+```
+/etc/init.d/keepalived stop
+```
+
+Proceed with the maintenance of the backup node, then re-enable the HA cluster:
+```
+/etc/init.d/keepalived start
+```
+
+#### Maintenance of the main node
+
+When the main node is disabled, the backup node will take over the virtual IP address.
+To disable the HA cluster, use the following command on the **main** node:
+```
+/etc/init.d/keepalived stop
+```
+
+Proceed with the maintenance of the main node, then re-enable the HA cluster:
+```
+/etc/init.d/keepalived start
+```
+
+The main node will take over the virtual IP address again.
+
 
 ## How it works
 
@@ -350,3 +393,17 @@ The following cronjobs are disabled on the backup node and enabled on the main n
 - phonehome
 - remote reports to the controller
 - remote backup
+
+### Network configuration fundamentals
+
+Each network interface managed by the High Availability (HA) system must have a static IP address.
+If an interface is configured automatically, it will be assigned an IP address in the 169.254.0.0/24 range.
+For every interface, two IP addresses are allocated: one for the main node and one for the backup node.
+This imposes a theoretical limit of 127 network interfaces that can be managed by the HA system.
+The network interface will then be accessible using the Virtual IP address configured in the HA system.
+All clients must use the Virtual IP address to access the firewall services.
+
+Note that the backup node does not have access to Internet so:
+- it will not be able to resolve DNS names
+- it will not be able to reach the Controller nor Nethesis portals
+- it will not receive updates
