@@ -327,6 +327,22 @@ Last Sync Time: Fri Apr 18 13:09:08 UTC 2025
 
 ## Troubleshooting and logs
 
+Since the name of the backup host is replaced with the name of the main host, it's hard to distinguish between the two nodes
+when connecting via SSH.
+To avoid confusion, when the HA cluster is enabled, the bash prompt will show the keepalived status using:
+- `P` for primary node
+- `S` for secondary node
+
+Prompt example for main node:
+```
+root@NethSec [P]:~#
+```
+
+Prompt example for backup node:
+```
+root@NethSec [S]:~#
+```
+
 A normal configuration synchronization will look like this on the backup node:
 ```
 Apr 23 09:48:49 NethSec dropbear[8098]: Child connection from 192.168.100.238:37350
