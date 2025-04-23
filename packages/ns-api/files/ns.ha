@@ -78,7 +78,9 @@ General {
 def get_device_from_ip(uci, ipaddr):
     for n in utils.get_all_by_type(uci, 'network', 'interface'):
         if uci.get('network', n, 'ipaddr', default=None) == ipaddr:
-            return uci.get('network', n, 'device', default=None)
+            # Return a tuple with the (interface, device)
+            return (n, uci.get('network', n, 'device', default=None))
+    return (None, None)
 
 def allocate_fake_ips(uci):
     reserved_ips = set()
@@ -338,9 +340,9 @@ def add_interface(role, interface, virtual_ip, gateway):
 def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, pubkey = "", password = ""):
     u = EUci()
     if role == "primary":
-        lan_device = get_device_from_ip(u, primary_node_ip)
+        (interface, lan_device) = get_device_from_ip(u, primary_node_ip)
     else:
-        lan_device = get_device_from_ip(u, backup_node_ip)
+        (interface, lan_device) = get_device_from_ip(u, backup_node_ip)
     if lan_device is None:
         raise utils.ValidationError('primary_node_ip', 'no_device_with_static_ip_found')
 
@@ -350,12 +352,12 @@ def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, pubkey = "", p
     u.set('dropbear', 'ha_link', 'PasswordAuth', '0')
     u.commit('dropbear')
     
-    u.set('keepalived', 'lan_ipaddress', 'ipaddress')
-    u.set('keepalived', 'lan_ipaddress', 'name', 'lan_ha')
-    u.set('keepalived', 'lan_ipaddress', 'address', virtual_ip)
-    u.set('keepalived', 'lan_ipaddress', 'device', lan_device)
-    u.set('keepalived', 'lan_ipaddress', 'label_suffix', 'ha')
-    u.set('keepalived', 'lan_ipaddress', 'ns_link', f'network/{lan_device}')
+    u.set('keepalived', f'{interface}_ipaddress', 'ipaddress')
+    u.set('keepalived', f'{interface}_ipaddress', 'name', 'lan_ha')
+    u.set('keepalived', f'{interface}_ipaddress', 'address', virtual_ip)
+    u.set('keepalived', f'{interface}_ipaddress', 'device', lan_device)
+    u.set('keepalived', f'{interface}_ipaddress', 'label_suffix', 'ha')
+    u.set('keepalived', f'{interface}_ipaddress', 'ns_link', f'network/{interface}')
 
     u.set('keepalived', 'ha_sync', 'vrrp_script')
     u.set('keepalived', 'ha_sync', 'name', 'ha_sync')
@@ -367,7 +369,7 @@ def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, pubkey = "", p
     u.set('keepalived', 'lan_track', 'name', 'lan_ha')
     u.set('keepalived', 'lan_track', 'value', lan_device)
     u.set('keepalived', 'lan_track', 'weight', '100')
-    u.set('keepalived', 'lan_track', 'ns_link', f'network/{lan_device}')
+    u.set('keepalived', 'lan_track', 'ns_link', f'network/{interface}')
 
     if role == 'primary':
         u.set('keepalived', 'ha_sender', 'track_script')
@@ -512,11 +514,19 @@ def init_remote(ssh_password):
         raise utils.ValidationError('ssh', "ssh_connection_failed")
 
     # Prepare the init-local command
+    virtual_ip_sections = utils.get_all_by_type(u, 'keepalived', 'ipaddress')
+    virtual_ip = None
+    for section, details in virtual_ip_sections.items():
+        if 'address' in details:
+            virtual_ip = details['address']
+            break
+    if not virtual_ip:
+        return utils.generic_error("no_virtual_ip_found")
     init_local_command = json.dumps({
         "role": "backup",
         "primary_node_ip": primary_node_ip,
         "backup_node_ip": backup_node_ip,
-        "virtual_ip": u.get('keepalived', 'lan_ipaddress', 'address', default=None),
+        "virtual_ip": virtual_ip,
         "pubkey": pubkey,
         "password": password
     })
