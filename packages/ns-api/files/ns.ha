@@ -32,7 +32,7 @@ Sync {
 
     UDP {
         # Dedicated link for connection replication
-        IPv4_address {{ main_ip }}
+        IPv4_address {{ primary_ip }}
         IPv4_Destination_Address {{ backup_ip }}
         Port 3780
         Interface {{ ha_interface }}
@@ -89,10 +89,10 @@ def allocate_fake_ips(uci):
 
     network_base = "169.254.0."
     for i in range(1, 255, 2):  # Increment by 2 to reserve pairs
-        main_ip = f"{network_base}{i}"
+        primary_ip = f"{network_base}{i}"
         backup_ip = f"{network_base}{i + 1}"
-        if main_ip not in reserved_ips and backup_ip not in reserved_ips:
-            return main_ip, backup_ip
+        if primary_ip not in reserved_ips and backup_ip not in reserved_ips:
+            return primary_ip, backup_ip
 
 def validate_network():
     errors = []
@@ -221,11 +221,11 @@ def add_interface(role, interface, virtual_ip, gateway):
 
     # Check if the interface exists
     if not u.get('network', interface, default=None):
-        raise utils.ValidationError('interface', 'interface_not_found_on_main_node')
+        raise utils.ValidationError('interface', 'interface_not_found_on_primary_node')
 
-    if role == 'main':
+    if role == 'primary':
         # Before adding the interface, configure interface and device on the backup node:
-        # 1. get the device configuration from the main node and send it to the backup node
+        # 1. get the device configuration from the primary node and send it to the backup node
         # 2. create the interface on the backup node
         network_config = []
         device = u.get('network', interface, 'device', default=None)
@@ -257,12 +257,12 @@ def add_interface(role, interface, virtual_ip, gateway):
             return utils.generic_error("error_adding_interface_on_backup_node")
             
     # Get the fake IP address
-    main_ip, backup_ip = allocate_fake_ips(u)
+    primary_ip, backup_ip = allocate_fake_ips(u)
 
     # Select keepalived instance and set the fake IP address
-    if role == 'main':
-        kinstance_name = 'main'
-        u.set('network', interface, 'ipaddr', main_ip)
+    if role == 'primary':
+        kinstance_name = 'primary'
+        u.set('network', interface, 'ipaddr', primary_ip)
     else:
         kinstance_name = 'backup'
         u.set('network', interface, 'ipaddr', backup_ip)
@@ -315,7 +315,7 @@ def add_interface(role, interface, virtual_ip, gateway):
     u.commit('network')
     subprocess.run(["/sbin/reload_config"], capture_output=True)
 
-    if role == 'main':
+    if role == 'primary':
         # Execute the add-interface API on the backup node
         command = json.dumps({
             "role": "backup",
@@ -334,15 +334,15 @@ def add_interface(role, interface, virtual_ip, gateway):
 
 
 # This function initializes the local node for high availability (HA) using Keepalived.
-# It is called locally on the main node and remotly using SSH on the backup node.
-def init_local(role, main_node_ip, backup_node_ip, virtual_ip, pubkey = "", password = ""):
+# It is called locally on the primary node and remotly using SSH on the backup node.
+def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, pubkey = "", password = ""):
     u = EUci()
-    if role == "main":
-        lan_device = get_device_from_ip(u, main_node_ip)
+    if role == "primary":
+        lan_device = get_device_from_ip(u, primary_node_ip)
     else:
         lan_device = get_device_from_ip(u, backup_node_ip)
     if lan_device is None:
-        raise utils.ValidationError('main_node_ip', 'no_device_with_static_ip_found')
+        raise utils.ValidationError('primary_node_ip', 'no_device_with_static_ip_found')
 
     u.set('dropbear', 'ha_link', 'dropbear')
     u.set('dropbear', 'ha_link', 'Port', '65022')
@@ -369,7 +369,7 @@ def init_local(role, main_node_ip, backup_node_ip, virtual_ip, pubkey = "", pass
     u.set('keepalived', 'lan_track', 'weight', '100')
     u.set('keepalived', 'lan_track', 'ns_link', f'network/{lan_device}')
 
-    if role == 'main':
+    if role == 'primary':
         u.set('keepalived', 'ha_sender', 'track_script')
         u.set('keepalived', 'ha_sender', 'name', 'sender')
         u.set('keepalived', 'ha_sender', 'value', 'ha_sync')
@@ -384,18 +384,18 @@ def init_local(role, main_node_ip, backup_node_ip, virtual_ip, pubkey = "", pass
         u.set('keepalived', 'ha_peer', 'ssh_port', '65022')
         u.set('keepalived', 'ha_peer', 'ssh_key', '/etc/keepalived/keys/id_rsa')
 
-        u.set('keepalived', 'main', 'vrrp_instance')
-        u.set('keepalived', 'main', 'name', 'master')
-        u.set('keepalived', 'main', 'state', 'MASTER')
-        u.set('keepalived', 'main', 'interface', lan_device)
-        u.set('keepalived', 'main', 'virtual_router_id', '100')
-        u.set('keepalived', 'main', 'priority', '100')
-        u.set('keepalived', 'main', 'advert_int', '1')
-        u.set('keepalived', 'main', 'nopreempt', '0')
-        u.set('keepalived', 'main', 'virtual_ipaddress', ['lan_ha'])
-        u.set('keepalived', 'main', 'unicast_src_ip', main_node_ip)
-        u.set('keepalived', 'main', 'unicast_peer', ['backup'])
-        u.set('keepalived', 'main', 'auth_type', 'PASS')
+        u.set('keepalived', 'primary', 'vrrp_instance')
+        u.set('keepalived', 'primary', 'name', 'master')
+        u.set('keepalived', 'primary', 'state', 'MASTER')
+        u.set('keepalived', 'primary', 'interface', lan_device)
+        u.set('keepalived', 'primary', 'virtual_router_id', '100')
+        u.set('keepalived', 'primary', 'priority', '100')
+        u.set('keepalived', 'primary', 'advert_int', '1')
+        u.set('keepalived', 'primary', 'nopreempt', '0')
+        u.set('keepalived', 'primary', 'virtual_ipaddress', ['lan_ha'])
+        u.set('keepalived', 'primary', 'unicast_src_ip', primary_node_ip)
+        u.set('keepalived', 'primary', 'unicast_peer', ['backup'])
+        u.set('keepalived', 'primary', 'auth_type', 'PASS')
 
         password = u.get('keepalived', 'vrrp_instance', 'auth_pass', default=None)
         if not password:
@@ -403,9 +403,9 @@ def init_local(role, main_node_ip, backup_node_ip, virtual_ip, pubkey = "", pass
             current_time = str(time.time()).encode('utf-8')
             password = hashlib.sha1(current_time).hexdigest()[:8]
 
-        u.set('keepalived', 'main', 'auth_pass', password)
-        u.set('keepalived', 'main', 'track_interface', ['lan_ha'])
-        u.set('keepalived', 'main', 'track_script', ['sender'])
+        u.set('keepalived', 'primary', 'auth_pass', password)
+        u.set('keepalived', 'primary', 'track_interface', ['lan_ha'])
+        u.set('keepalived', 'primary', 'track_script', ['sender'])
 
         # Generate the private key if it does not exist
         private_key_path = '/etc/keepalived/keys/id_rsa'
@@ -414,7 +414,7 @@ def init_local(role, main_node_ip, backup_node_ip, virtual_ip, pubkey = "", pass
 
         # Setup conntrackd configuration
         conntrack_template = Template(conntrack_ji_template)
-        conntrack_conf = conntrack_template.render(main_ip=main_node_ip, backup_ip=backup_node_ip, ha_interface=lan_device)
+        conntrack_conf = conntrack_template.render(primary_ip=primary_node_ip, backup_ip=backup_node_ip, ha_interface=lan_device)
         with open('/etc/conntrackd/conntrackd.conf', 'w') as file:
             file.write(conntrack_conf)
     else:
@@ -425,7 +425,7 @@ def init_local(role, main_node_ip, backup_node_ip, virtual_ip, pubkey = "", pass
 
         u.set('keepalived', 'ha_peer', 'peer')
         u.set('keepalived', 'ha_peer', 'name', 'master')
-        u.set('keepalived', 'ha_peer', 'address', main_node_ip)
+        u.set('keepalived', 'ha_peer', 'address', primary_node_ip)
         u.set('keepalived', 'ha_peer', 'sync', '1')
         u.set('keepalived', 'ha_peer', 'sync_mode', 'receive')
         u.set('keepalived', 'ha_peer', 'sync_dir', '/usr/share/keepalived/rsync')
@@ -459,7 +459,7 @@ def init_local(role, main_node_ip, backup_node_ip, virtual_ip, pubkey = "", pass
 
         # Setup conntrackd configuration
         conntrack_template = Template(conntrack_ji_template)
-        conntrack_conf = conntrack_template.render(main_ip=backup_node_ip, backup_ip=main_node_ip, ha_interface=lan_device)
+        conntrack_conf = conntrack_template.render(primary_ip=backup_node_ip, backup_ip=primary_node_ip, ha_interface=lan_device)
         with open('/etc/conntrackd/conntrackd.conf', 'w') as file:
             file.write(conntrack_conf)
 
@@ -477,18 +477,18 @@ def init_local(role, main_node_ip, backup_node_ip, virtual_ip, pubkey = "", pass
 
     return { "success": True }
 
-# This function assumes it's called on the main node
+# This function assumes it's called on the primary node
 def init_remote(ssh_password):
     u = EUci()
-    # Check if it's running on the main node and the main node is already configured
+    # Check if it's running on the primary node and the primary node is already configured
     try:
-        u.get('keepalived', 'main')
+        u.get('keepalived', 'primary')
     except:
-        raise utils.ValidationError('main_node_ip', 'no_main_keepalived_instance_found')
+        raise utils.ValidationError('primary_node_ip', 'no_primary_keepalived_instance_found')
 
-    main_node_ip = u.get('keepalived', 'main', 'unicast_src_ip', default=None)
+    primary_node_ip = u.get('keepalived', 'primary', 'unicast_src_ip', default=None)
     backup_node_ip = u.get('keepalived', 'ha_peer', 'address', default=None)
-    password = u.get('keepalived', 'main', 'auth_pass', default=None)
+    password = u.get('keepalived', 'primary', 'auth_pass', default=None)
 
     pubkey = None
     private_key_path = '/etc/keepalived/keys/id_rsa'
@@ -499,7 +499,7 @@ def init_remote(ssh_password):
                 pubkey = line
                 break
 
-    if not all([main_node_ip, backup_node_ip, password, pubkey]):
+    if not all([primary_node_ip, backup_node_ip, password, pubkey]):
         raise utils.ValidationError('paramters', 'missing_required_configuration_values')
 
     # Connect to the backup node using paramiko
@@ -514,7 +514,7 @@ def init_remote(ssh_password):
     # Prepare the init-local command
     init_local_command = json.dumps({
         "role": "backup",
-        "main_node_ip": main_node_ip,
+        "primary_node_ip": primary_node_ip,
         "backup_node_ip": backup_node_ip,
         "virtual_ip": u.get('keepalived', 'lan_ipaddress', 'address', default=None),
         "pubkey": pubkey,
@@ -533,12 +533,12 @@ def init_remote(ssh_password):
 
 
 def status():
-    ret = {"role": "", "state": "unknown", "status": "only_main_node_configured", "last_sync_status": "", "last_sync_time": "", "virtual_ips": []}
+    ret = {"role": "", "state": "unknown", "status": "only_primary_node_configured", "last_sync_status": "", "last_sync_time": "", "virtual_ips": []}
 
     u = EUci()
     try:
-        u.get('keepalived', 'main')
-        ret["role"] = "main"
+        u.get('keepalived', 'primary')
+        ret["role"] = "primary"
         ret["status"] = "enabled"
     except:
         try:
@@ -573,7 +573,7 @@ def status():
 def validate_requirements(role):
     errors = []
     errors = errors + validate_network()
-    if role == "main":
+    if role == "primary":
         errors = errors + validate_dhcp()
         errors = errors + validate_hotspot()
         
@@ -660,8 +660,8 @@ def add_alias(role, interface, virtual_ip, gateway):
         raise utils.ValidationError('interface', 'interface_not_configured_for_ha')
 
     device = u.get('network', interface, 'device', default=None)
-    if role == 'main':
-        kinstance_name = 'main'
+    if role == 'primary':
+        kinstance_name = 'primary'
     else:
         kinstance_name = 'backup'
 
@@ -699,7 +699,7 @@ def add_alias(role, interface, virtual_ip, gateway):
     u.commit('network')
     subprocess.run(["/sbin/reload_config"], capture_output=True)
 
-    if role == 'main':
+    if role == 'primary':
         # Execute the add-interface API on the backup node
         command = json.dumps({
             "role": "backup",
@@ -723,8 +723,8 @@ def remove_alias(role, interface, virtual_ip):
     if interface not in ha_configured_interfaces:
         raise utils.ValidationError('interface', 'interface_not_configured_for_ha')
 
-    if role == 'main':
-        kinstance_name = 'main'
+    if role == 'primary':
+        kinstance_name = 'primary'
     else:
         kinstance_name = 'backup'
 
@@ -754,7 +754,7 @@ def remove_alias(role, interface, virtual_ip):
     u.commit('keepalived')
     subprocess.run(["/sbin/reload_config"], capture_output=True)
 
-    if role == 'main':
+    if role == 'primary':
         # Execute the add-interface API on the backup node
         command = json.dumps({
             "role": "backup",
@@ -777,8 +777,8 @@ def remove_interface(role, interface):
     if interface not in ha_configured_interfaces:
         raise utils.ValidationError('interface', 'interface_not_configured_for_ha')
 
-    if role == 'main':
-        kinstance_name = 'main'
+    if role == 'primary':
+        kinstance_name = 'primary'
     else:
         kinstance_name = 'backup'
 
@@ -815,7 +815,7 @@ def remove_interface(role, interface):
     u.commit('keepalived')
     subprocess.run(["/sbin/reload_config"], capture_output=True)
 
-    if role == 'main':
+    if role == 'primary':
         # Execute the add-interface API on the backup node
         command = json.dumps({
             "role": "backup",
@@ -886,7 +886,7 @@ def reset(role, pubkey = None):
     # Reload the configuration to apply changes
     subprocess.run(["/sbin/reload_config"], capture_output=True)
 
-    if role == 'main':
+    if role == 'primary':
         # Execute the reset API on the backup node
         command = json.dumps({
             "role": "backup",
@@ -907,8 +907,8 @@ cmd = sys.argv[1]
 if cmd == 'list':
     print(json.dumps({
         "init-local": {
-            "role": "main",
-            "main_node_ip": "100.100.100.1",
+            "role": "primary",
+            "primary_node_ip": "100.100.100.1",
             "backup_node_ip": "100.100.100.2",
             "virtual_ip": "192.168.1.1",
             "pubkey": "ssh-rsa AAAAB....",
@@ -921,16 +921,16 @@ if cmd == 'list':
             "backup_node_ip": "100.100.100.2",
             "ssh_password": "Nethesis,1234",
         },
-        "validate-requirements": { "role": "main" },
-        "add-interface": {  "role": "main", "interface": "wan", "virtual_ip": "1.2.3.4/24", "gateway": "1.2.3.5" },
-        "remove-interface": { "role": "main", "interface": "wan" },
-        "add-alias": { "role": "main", "interface": "wan", "virtual_ip": "1.2.3.5/24" },
-        "remove-alias": { "role": "main", "interface": "wan", "virtual_ip": "1.2.3.5/24" },
+        "validate-requirements": { "role": "primary" },
+        "add-interface": {  "role": "primary", "interface": "wan", "virtual_ip": "1.2.3.4/24", "gateway": "1.2.3.5" },
+        "remove-interface": { "role": "primary", "interface": "wan" },
+        "add-alias": { "role": "primary", "interface": "wan", "virtual_ip": "1.2.3.5/24" },
+        "remove-alias": { "role": "primary", "interface": "wan", "virtual_ip": "1.2.3.5/24" },
         "import-network-config": { [ { "type": "device", "id": "wan", "name": "wan", "device": "eth0.2", "proto": "static", "ipaddr": ""} ] },
         "status": {},
         "list-interfaces": {},
         "list-aliases": {},
-        "reset": {"role": "main", "pubkey": "ssh-rsa AAAAB...."}
+        "reset": {"role": "primary", "pubkey": "ssh-rsa AAAAB...."}
         }))
 else:
     action = sys.argv[2]
@@ -944,7 +944,7 @@ else:
         # Paramaters:
         args = json.loads(sys.stdin.read())
         if action == "init-local":
-            ret = init_local(args.get('role'), args.get('main_node_ip'), args.get('backup_node_ip'), args.get('virtual_ip'), args.get('pubkey'), args.get('password'))
+            ret = init_local(args.get('role'), args.get('primary_node_ip'), args.get('backup_node_ip'), args.get('virtual_ip'), args.get('pubkey'), args.get('password'))
         elif action == "init-remote":
             ret = init_remote(args.get('ssh_password'))
         elif action == "add-interface":
