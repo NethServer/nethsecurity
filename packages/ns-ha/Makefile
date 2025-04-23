@@ -40,6 +40,7 @@ define Package/ns-ha/install
 	$(INSTALL_DIR) $(1)/lib/functions/keepalived
 	$(INSTALL_DIR) $(1)/usr/libexec
 	$(INSTALL_DIR) $(1)/etc/keepalived/scripts/
+	$(INSTALL_DIR) $(1)/etc/profile.d/
 	$(INSTALL_BIN) ./files/keepalived-config $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-ha-disable $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-ha-enable $(1)/usr/sbin
@@ -70,6 +71,7 @@ define Package/ns-ha/install
 	$(INSTALL_DATA) ./files/900-ddns $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/100-conntrackd $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/ns.sh $(1)/lib/functions/keepalived
+	$(INSTALL_DATA) ./files/99-ns-ha.sh $(1)/etc/profile.d
 	$(INSTALL_BIN) ./files/conntrackd.sh $(1)/usr/libexec/
 	$(INSTALL_BIN) ./files/ns-rsync.sh $(1)/usr/libexec/
 endef
