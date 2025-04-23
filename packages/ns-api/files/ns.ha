@@ -18,6 +18,7 @@ from nethsec import utils
 from jinja2 import Template
 import paramiko
 import io
+import shutil
 
 ### Utilities functions
 
@@ -135,13 +136,15 @@ def validate_hotspot():
         return ['hotspot_is_enabled']
     return []
 
-def execute_remote_command(command):
+def execute_remote_command(command, backup_node_ip=None, port=None):
     # Connect to the remote server using SSH
     uci = EUci()
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    port = uci.get('dropbear', 'ha_link', 'Port', default=None)
-    backup_node_ip = uci.get('keepalived', 'ha_peer', 'address', default=None)
+    if port is None:
+        port = uci.get('dropbear', 'ha_link', 'Port', default=None)
+    if backup_node_ip is None:
+        backup_node_ip = uci.get('keepalived', 'ha_peer', 'address', default=None)
     if not port or not backup_node_ip:
         raise utils.ValidationError('backup_node_ip', 'missing_backup_node_ip')
     # Convert the private key from Dropbear to OpenSSH format
@@ -824,6 +827,78 @@ def remove_interface(role, interface):
     else:
         return { "success": True }
 
+def reset(role, pubkey = None):
+    # Reset the HA configuration
+    uci = EUci()
+
+    # Load SSH configuration to be used later
+    port = uci.get('dropbear', 'ha_link', 'Port')
+    backup_node_ip = uci.get('keepalived', 'ha_peer', 'address')
+
+    if pubkey is None:
+        private_key_path = '/etc/keepalived/keys/id_rsa'
+        if os.path.isfile(private_key_path):
+            result = subprocess.run(['dropbearkey', '-y', '-f', private_key_path], capture_output=True, text=True)
+            for line in result.stdout.splitlines():
+                if 'ssh-rsa' in line:
+                    pubkey = line
+                    break
+
+    # Cleanup dropbear configuration
+    uci.delete('dropbear', 'ha_link')
+    uci.commit('dropbear')
+
+    # Stop and disable keepalived and conntrackd services
+    subprocess.run(['/etc/init.d/keepalived', 'stop'], capture_output=True)
+    subprocess.run(['/etc/init.d/keepalived', 'disable'], capture_output=True)
+    subprocess.run(['/etc/init.d/conntrackd', 'stop'], capture_output=True)
+    subprocess.run(['/etc/init.d/conntrackd', 'disable'], capture_output=True)
+
+    # Remove files and directories
+    try:
+        shutil.rmtree('/usr/share/keepalived/rsync')
+        os.remove('/etc/conntrackd/conntrackd.conf')
+        os.remove('/etc/keepalived/keys/id_rsa')
+    except:
+        pass
+
+    # Remove public key from root dropbear authorized_keys
+    if role == 'backup':
+        try:
+            # Read the authorized_keys file and remove the public key
+            with open('/etc/dropbear/authorized_keys', 'r') as file:
+                lines = file.readlines()
+            # Write back the lines that do not match the public key
+            with open('/etc/dropbear/authorized_keys', 'w') as file:
+                for line in lines:
+                    if line.strip() != pubkey.strip():
+                        file.write(line)
+        except:
+            pass
+
+    # Reset the keepalived configuration, create an empty configuration file /etc/confik/keepalive
+    with open('/etc/config/keepalived', 'w') as file:
+        file.write("config globals 'globals'\n")
+
+    # Reload the configuration to apply changes
+    subprocess.run(["/sbin/reload_config"], capture_output=True)
+
+    if role == 'main':
+        # Execute the reset API on the backup node
+        command = json.dumps({
+            "role": "backup",
+            "pubkey": pubkey
+        })
+
+        output, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call reset", backup_node_ip=backup_node_ip, port=port)
+        if error:
+            return utils.generic_error("error_executing_reset_on_backup_node")
+
+        return json.loads(output)
+    else:
+        return { "success": True }
+
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
@@ -852,6 +927,7 @@ if cmd == 'list':
         "status": {},
         "list-interfaces": {},
         "list-aliases": {},
+        "reset": {"role": "main", "pubkey": "ssh-rsa AAAAB...."}
         }))
 else:
     action = sys.argv[2]
@@ -882,5 +958,7 @@ else:
             ret = add_alias(args.get('role'), args.get('interface'), args.get('virtual_ip'), args.get('gateway', ''))
         elif action == "remove-alias":
             ret = remove_alias(args.get('role'), args.get('interface'), args.get('virtual_ip'))
+        elif action == "reset":
+            ret = reset(args.get('role'), args.get('pubkey'))
 
     print(json.dumps(ret))
