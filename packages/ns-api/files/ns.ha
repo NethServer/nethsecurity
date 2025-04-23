@@ -348,7 +348,7 @@ def init_local(role, main_node_ip, backup_node_ip, virtual_ip, pubkey = "", pass
     u.commit('dropbear')
     
     u.set('keepalived', 'lan_ipaddress', 'ipaddress')
-    u.set('keepalived', 'lan_ipaddress', 'name', f'{lan_device}_ha')
+    u.set('keepalived', 'lan_ipaddress', 'name', 'lan_ha')
     u.set('keepalived', 'lan_ipaddress', 'address', virtual_ip)
     u.set('keepalived', 'lan_ipaddress', 'device', lan_device)
     u.set('keepalived', 'lan_ipaddress', 'label_suffix', 'ha')
@@ -361,7 +361,7 @@ def init_local(role, main_node_ip, backup_node_ip, virtual_ip, pubkey = "", pass
     u.set('keepalived', 'ha_sync', 'weight', '100')
 
     u.set('keepalived', 'lan_track', 'track_interface')
-    u.set('keepalived', 'lan_track', 'name', f'{lan_device}_ha')
+    u.set('keepalived', 'lan_track', 'name', 'lan_ha')
     u.set('keepalived', 'lan_track', 'value', lan_device)
     u.set('keepalived', 'lan_track', 'weight', '100')
     u.set('keepalived', 'lan_track', 'ns_link', f'network/{lan_device}')
@@ -389,7 +389,7 @@ def init_local(role, main_node_ip, backup_node_ip, virtual_ip, pubkey = "", pass
         u.set('keepalived', 'main', 'priority', '100')
         u.set('keepalived', 'main', 'advert_int', '1')
         u.set('keepalived', 'main', 'nopreempt', '0')
-        u.set('keepalived', 'main', 'virtual_ipaddress', [f'{lan_device}_ha'])
+        u.set('keepalived', 'main', 'virtual_ipaddress', ['lan_ha'])
         u.set('keepalived', 'main', 'unicast_src_ip', main_node_ip)
         u.set('keepalived', 'main', 'unicast_peer', ['backup'])
         u.set('keepalived', 'main', 'auth_type', 'PASS')
@@ -401,7 +401,7 @@ def init_local(role, main_node_ip, backup_node_ip, virtual_ip, pubkey = "", pass
             password = hashlib.sha1(current_time).hexdigest()[:8]
 
         u.set('keepalived', 'main', 'auth_pass', password)
-        u.set('keepalived', 'main', 'track_interface', [f'{lan_device}_ha'])
+        u.set('keepalived', 'main', 'track_interface', ['lan_ha'])
         u.set('keepalived', 'main', 'track_script', ['sender'])
 
         # Generate the private key if it does not exist
@@ -436,12 +436,12 @@ def init_local(role, main_node_ip, backup_node_ip, virtual_ip, pubkey = "", pass
         u.set('keepalived', 'backup', 'priority', '50')
         u.set('keepalived', 'backup', 'advert_int', '1')
         u.set('keepalived', 'backup', 'nopreempt', '0')
-        u.set('keepalived', 'backup', 'virtual_ipaddress', [f'{lan_device}_ha'])
+        u.set('keepalived', 'backup', 'virtual_ipaddress', ['lan_ha'])
         u.set('keepalived', 'backup', 'unicast_src_ip', backup_node_ip)
         u.set('keepalived', 'backup', 'unicast_peer', ['master'])
         u.set('keepalived', 'backup', 'auth_type', 'PASS')
         u.set('keepalived', 'backup', 'auth_pass', password)
-        u.set('keepalived', 'backup', 'track_interface', [f'{lan_device}_ha'])
+        u.set('keepalived', 'backup', 'track_interface', ['lan_ha'])
         u.set('keepalived', 'backup', 'track_script', ['receiver'])
 
         # Append publick key to root dropbear authorized_keys
@@ -730,12 +730,18 @@ def remove_alias(role, interface, virtual_ip):
         pass
 
     # Remove the virtual IP from the list of virtual IPs
-    virtual_ips = list(u.get_all('keepalived', kinstance_name, 'virtual_ipaddress'))
+    try:
+        virtual_ips = list(u.get_all('keepalived', kinstance_name, 'virtual_ipaddress'))
+    except:
+        virtual_ips = []
     virtual_ips = [ip for ip in virtual_ips if ip != f'{record_prefix}_ha']
     u.set('keepalived', kinstance_name, 'virtual_ipaddress', virtual_ips)
 
     # Remove the virtual route from the list of virtual routes
-    virtual_routes = list(u.get_all('keepalived', kinstance_name, 'virtual_routes'))
+    try:
+        virtual_routes = list(u.get_all('keepalived', kinstance_name, 'virtual_routes'))
+    except:
+        virtual_routes = []
     virtual_routes = [route for route in virtual_routes if route != f'{record_prefix}_route']
     u.set('keepalived', kinstance_name, 'virtual_routes', virtual_routes)
     
@@ -753,6 +759,66 @@ def remove_alias(role, interface, virtual_ip):
         output, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call remove-alias")
         if error:
             return utils.generic_error("error_executing_remove_alias_on_backup_node")
+
+        return json.loads(output)
+    else:
+        return { "success": True }
+
+def remove_interface(role, interface):
+    u = EUci()
+    # Retrive interfaces configured for HA
+    ha_configured_interfaces = [iface['name'] for iface in list_interfaces()['interfaces'] if iface['ha_configured']]
+    if interface not in ha_configured_interfaces:
+        raise utils.ValidationError('interface', 'interface_not_configured_for_ha')
+
+    if role == 'main':
+        kinstance_name = 'main'
+    else:
+        kinstance_name = 'backup'
+
+    # Cleanup the keepalived configuration
+    for section in u.get_all('keepalived'):
+        if u.get('keepalived', section, 'ns_link', default=None) == f'network/{interface}':
+            # Remove the section from keepalived
+            u.delete('keepalived', section)
+
+    # Remove the virtual IP from the list of virtual IPs
+    try:
+        virtual_ips = list(u.get_all('keepalived', kinstance_name, 'virtual_ipaddress'))
+    except:
+        virtual_ips = []
+    virtual_ips = [ip for ip in virtual_ips if ip != f'{interface}_ha']
+    u.set('keepalived', kinstance_name, 'virtual_ipaddress', virtual_ips)
+
+    # Remove the virtual route from the list of virtual routes
+    try:
+        virtual_routes = list(u.get_all('keepalived', kinstance_name, 'virtual_routes'))
+    except:
+        virtual_routes = []
+    virtual_routes = [route for route in virtual_routes if route != f'{interface}_route']
+    u.set('keepalived', kinstance_name, 'virtual_routes', virtual_routes)
+
+    # Remove the track interface from the list of tracked interfaces
+    try:
+        track_interfaces = list(u.get_all('keepalived', kinstance_name, 'track_interface'))
+    except:
+        track_interfaces = []
+    track_interfaces = [iface for iface in track_interfaces if iface != f'{interface}_ha']
+    u.set('keepalived', kinstance_name, 'track_interface', track_interfaces)
+
+    u.commit('keepalived')
+    subprocess.run(["/sbin/reload_config"], capture_output=True)
+
+    if role == 'main':
+        # Execute the add-interface API on the backup node
+        command = json.dumps({
+            "role": "backup",
+            "interface": interface
+        })
+
+        output, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call remove-interface")
+        if error:
+            return utils.generic_error("error_executing_remove_interface_on_backup_node")
 
         return json.loads(output)
     else:
@@ -779,6 +845,7 @@ if cmd == 'list':
         },
         "validate-requirements": { "role": "main" },
         "add-interface": {  "role": "main", "interface": "wan", "virtual_ip": "1.2.3.4/24", "gateway": "1.2.3.5" },
+        "remove-interface": { "role": "main", "interface": "wan" },
         "add-alias": { "role": "main", "interface": "wan", "virtual_ip": "1.2.3.5/24" },
         "remove-alias": { "role": "main", "interface": "wan", "virtual_ip": "1.2.3.5/24" },
         "import-network-config": { [ { "type": "device", "id": "wan", "name": "wan", "device": "eth0.2", "proto": "static", "ipaddr": ""} ] },
@@ -803,6 +870,8 @@ else:
             ret = init_remote(args.get('ssh_password'))
         elif action == "add-interface":
             ret = add_interface(args.get('role'), args.get('interface'), args.get('virtual_ip'), args.get('gateway', ''))
+        elif action == "remove-interface":
+            ret = remove_interface(args.get('role'), args.get('interface'))
         elif action == "check-remote":
             ret = check_remote(args.get('backup_node_ip'), args.get('ssh_password'))
         elif action == "validate-requirements":
