@@ -15,6 +15,7 @@ Limitations:
 - Extra packages such as NUT are not supported
 - rsyslog configuration is not synced: if you need to send logs to a remote server, you must use the controller
 - Hotspot is not supported since it requires a new registration when the main node goes down because the MAC address associated with the hotspot interface will be different
+- After the first synchronization, the backup node will have the same hostname as the main node
 
 The following features are supported:
 
@@ -47,21 +48,31 @@ The following features are supported:
 ## Configuration
 
 The setup process configures the following:
-- Check if requirements are met both on the main and backup nodes
-- Configures HA traffic on lan interface
-- Sets up keepalived with the virtual IP, a random password and a public key for the synchronization
-- Configures dropbear to listen on port `65022`: this is used to sync data between the nodes using rsync, only
+- check if requirements are met both on the main and backup nodes
+- configures HA traffic on lan interface
+- sets up keepalived with the virtual IP, a random password and a public key for the synchronization
+- configures dropbear to listen on port `65022`: this is used to sync data between the nodes using rsync, only
   key-based authentication is allowed
-- Configures conntrackd to sync the connection tracking table
+- configures conntrackd to sync the connection tracking table
 
 In this example:
-- `main_node_ip` is the main node, with LAN IP `192.168.100.238` and HA IP `10.12.12.1`
-- `backup_node_ip` is the backup node, with LAN IP `192.168.100.239` and HA IP `10.12.12.2`
+- `main_node_ip` is the main node, with LAN IP `192.168.100.238`
+- `backup_node_ip` is the backup node, with LAN IP `192.168.100.239`
 - the virtual IP is `192.168.100.240`
 
-### Automatic configuration
+Before starting, follow these steps:
 
-The package provides a script to configure the HA cluster automatically:
+- power on the backup node, access the web interface and set a static LAN IP address, in this example `192.168.100.239`:
+- then, power on the main node, access the web interface and set a static LAN IP address, in this example `192.168.100.238`
+
+These IP addresses are used to access the nodes directly, even if the HA cluster is disabled.
+You can consider these IP addresses as management IP addresses.
+
+When the HA cluster is enabled, all the configuration will be automatically synchronized to the backup node, except for the network configuration.
+If you need to change the network configuration, do it on the main node then follow the instructions below to adapt the HA configuration to the new network configuration.
+
+The package provides a script to ease the configuration of the HA cluster, without accessing directly the APIs.
+The script is named `ns-ha-config`. Usage syntax is:
 ```
 ns-ha-config <action> [<option1> <option2>]
 ```
@@ -197,7 +208,7 @@ ns-ha-config add-interface <interface> <virtual_ip_address> [<gateway>]
 As the WAN interface, you must enter the virtual IP address in CIDR notation.
 Usually, on non-WAN interfaces, the gateway is not required.
 
-## Remove an interface
+### Remove an interface
 
 To remove an interface from the HA configuration, use the following command:
 ```
@@ -216,7 +227,7 @@ The script will:
 
 Please note that the interface will not be removed from the network configuration of the backup node.
 
-## Configue an alias
+### Configue an alias
 
 Aliases are special configurations that must explicitly set on the main node.
 To add an alias, use the following command:
@@ -243,7 +254,7 @@ ns-ha-config add-alias wan 192.168.122.66/24 192.168.122.1
 
 **NOTE**: the alias will not appear in the network configuration of the backup node.
 
-## Remove an alias
+### Remove an alias
 
 To remove an alias, use the following command:
 ```
@@ -259,7 +270,7 @@ Example:
 ns-ha-config remove-alias wan 192.168.122.66/24
 ```
 
-### Show current configuration
+## Show current configuration
 
 You can show the current configuration of the HA cluster:
 ```
@@ -287,7 +298,7 @@ Aliases:
   Interface: wan, IP: 192.168.122.66/24
 ```
 
-### Check the status
+## Check the status
 
 You can check the status of the HA cluster at any time.
 Just execute:
@@ -314,13 +325,42 @@ Last Sync Status: Up to Date
 Last Sync Time: Fri Apr 18 13:09:08 UTC 2025
 ```
 
-### Debugging
+## Troubleshooting and logs
+
+A normal configuration synchronization will look like this on the backup node:
+```
+Apr 23 09:48:49 NethSec dropbear[8098]: Child connection from 192.168.100.238:37350
+Apr 23 09:48:49 NethSec dropbear[8098]: Pubkey auth succeeded for 'root' with ssh-rsa key SHA256:LDIBFC6gFHmIAUqdEWVi62ca/EUxZI7/08m2d76/hcQ from 192.168.100.238:37350
+Apr 23 09:48:49 NethSec dropbear[8098]: Exit (root) from <192.168.100.238:37350>: Exited normally
+Apr 23 09:48:49 NethSec dropbear[8100]: Child connection from 192.168.100.238:37356
+Apr 23 09:48:49 NethSec dropbear[8100]: Pubkey auth succeeded for 'root' with ssh-rsa key SHA256:LDIBFC6gFHmIAUqdEWVi62ca/EUxZI7/08m2d76/hcQ from 192.168.100.238:37356
+Apr 23 09:48:49 NethSec sudo:     root : PWD=/root ; USER=root ; COMMAND=/usr/bin/rsync --server -nlogDtprRe.iLfxCIvu --log-format=X . /usr/share/keepalived/rsync
+Apr 23 09:48:49 NethSec dropbear[8100]: Exit (root) from <192.168.100.238:37356>: Exited normally
+```
+
+All sync events are logged in the `/var/log/messages` file, you can filter them using the following command:
+```
+grep ns-rsync.sh /var/log/messages
+```
+
+When a new interface has been added to the HA configuration, the backup node will log it inside `/var/log/messages` file.
+The log will look like this:
+```
+Apr 23 06:51:38 NethSec ns-ha: Importing network configuration: {"device": "eth1", "proto": "dhcp", "record_type": "interface", "record_id": "wan"}
+```
+
+
+To see active keepalived configuration, execute:
+```
+cat /tmp/keepalived.conf
+```
 
 The ns-ha configuration script is a shell script that can be debugged using the `-x` option.
 Example:
 ```
 bash -x ns-ha-config <action> [<option1> <option2>]
 ```
+
 
 ### Maintenance
 
