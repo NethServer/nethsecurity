@@ -590,35 +590,34 @@ def validate_requirements(role):
     return {"success": len(errors) == 0, "errors": errors}
 
 def check_remote(backup_node_ip, ssh_password):
+    errors = []
     # Accessible via SSH on port 22
-    # Same network devices: FIXME
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     try:
         ssh.connect(backup_node_ip, port=22, username='root', password=ssh_password)
-    except paramiko.SSHException as e:
-        raise utils.ValidationError('ssh', 'ssh_connection_failed')
+    except Exception as e:
+        errors.append('ssh_connection_failed: ' + str(e))
+        return {"success": False, "errors": errors}
 
     # Call validate-configuration on the remote node
     validate_command = json.dumps({
         "role": "backup"
     })
 
-    _, stdout, _ = ssh.exec_command(f"echo '{validate_command}' | /usr/libexec/rpcd/ns.ha call validate-requirements")
-    output = stdout.read().decode()
+    try:
+        _, stdout, _ = ssh.exec_command(f"echo '{validate_command}' | /usr/libexec/rpcd/ns.ha call validate-requirements")
+    except Exception as e:
+        errors.append(str(e))
 
     try:
-        result = json.loads(output)
-    except json.JSONDecodeError:
-        ssh.close()
-        raise utils.ValidationError('ssh', 'invalid_json_response_from_remote_node')
-    
-    if result.get('error'):
-        raise utils.ValidationError('ssh', result['error'])
-
-    ssh.close()
-    return result
+        if stdout:
+            json.loads(stdout.read().decode())
+    except:
+        errors.append('invalid_json_response_from_remote_node')
+       
+    return {"success": len(errors) == 0, "errors": errors}
 
 def list_interfaces():
     u = EUci()
