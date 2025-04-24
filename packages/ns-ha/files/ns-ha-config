@@ -146,7 +146,7 @@ check_primary_node() {
   else
     error
     echo "Main node validation failed. Errors:"
-    echo "$ERRORS" | jq -r '.[]'
+    echo "$OUTPUT" | jq -r '.errors | .[]' | sed 's/^/- /'
     exit 1
   fi
 }
@@ -154,6 +154,12 @@ check_primary_node() {
 # Function to check the backup node status
 check_backup_node() {
   BACKUP_NODE_IP="$1"
+
+  if [[ -z "$BACKUP_NODE_IP" ]]; then
+    error
+    echo "Backup node IP is required."
+    exit 1
+  fi
   read -s -p "Enter password for backup node: " PASSWORD
   if [[ $? -ne 0 ]]; then
     error
@@ -172,14 +178,13 @@ check_backup_node() {
   fi
 
   SUCCESS=$(echo "$OUTPUT" | jq -r '.success')
-  ERRORS=$(echo "$OUTPUT" | jq -r '.errors')
 
   if [[ "$SUCCESS" == "true" ]]; then
     success
   else
     error
     echo "Backup node status check failed. Errors:"
-    echo "$ERRORS" | jq -r '.[]'
+    echo "$OUTPUT" | jq -r '.errors | .[]' | sed 's/^/- /'
     exit 1
   fi
 }
