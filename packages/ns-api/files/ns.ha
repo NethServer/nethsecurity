@@ -119,16 +119,34 @@ def validate_network():
 def validate_dhcp():
     errors = []
     uci = EUci()
+    is_keeplived_configured = len(utils.get_all_by_type(uci, 'keepalived', 'vrrp_instance')) > 0
     for server in utils.get_all_by_type(uci, 'dhcp', 'dhcp'):
         if uci.get('dhcp', server, 'dhcpv4', default=None) == 'server' or uci.get('dhcp', server, 'dhcpv6', default=None) == 'server':
+            # 1. Make sure configured DHCP server has force option enabled
             if uci.get('dhcp', server, 'force', default="0") != "1":
                 errors.append('dhcp_force_not_enabled')
+
+            # 2. Make sure configured DHCP server has the router option
             try:
                 options = uci.get_all('dhcp', server, 'dhcp_option')
-                if not any("option:router" in option for option in options):
-                    errors.append('dhcp_router_option_not_found')
             except:
+                options = []
+            if not any("option:router" in option for option in options):
                 errors.append('dhcp_router_option_not_found')
+            else:
+                # 3. Make sure the router option matches the VIP address, if keepalived is configured
+                if is_keeplived_configured:
+                    interface = uci.get('dhcp', server, 'interface', default=None)
+                    vips = utils.get_all_by_type(uci, 'keepalived', 'ipaddress')
+                    for key in vips:
+                        vip = vips[key]
+                        if vip.get('name').split('_')[0] == interface:
+                            option_router = next((option for option in options if "option:router" in option), None)
+                            router_ip = option_router.split(",")[1]
+                            vip_address = vip.get('address').split('/')[0]
+                            if vip_address.strip() != router_ip.strip():
+                                errors.append(f'dhcp_router_option_does_not_match_vip: {interface}')
+                                break
     return errors
 
 def validate_hotspot():
