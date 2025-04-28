@@ -7,7 +7,6 @@
 
 import os
 import sys
-import base64
 import json
 import urllib
 import urllib.request
@@ -541,6 +540,48 @@ def dns_delete_bypass(e_uci, payload):
     e_uci.save('adblock')
     return {'message': 'success'}
 
+
+def __parse_blocklist(blocklist):
+    blocked_ips = []
+    if ("nftables" in blocklist
+            and len(blocklist["nftables"]) > 1
+            and "set" in blocklist["nftables"][1]
+            and "elem" in blocklist["nftables"][1]["set"]):
+        # filter blocks by list or temproary
+        for item in blocklist["nftables"][1]["set"]["elem"]:
+            if isinstance(item, str):
+                continue
+            blocked_ips.append({
+                "ip": item["elem"]["val"],
+                "timeout": item["elem"]["timeout"],
+                "expires": item["elem"]["expires"]
+            })
+
+    return blocked_ips
+
+
+def list_active_blocks():
+    try:
+        output_ipv4 = subprocess.run(["nft", "-j", "list", "set", "inet", "banIP", "blocklistv4"], check=True,
+                                    capture_output=True, text=True)
+        data = json.loads(output_ipv4.stdout)
+    except subprocess.CalledProcessError:
+        data = {}
+
+    response = __parse_blocklist(data)
+
+    try:
+        output_ipv6 = subprocess.run(["nft", "-j", "list", "set", "inet", "banIP", "blocklistv6"], check=True,
+                                    capture_output=True, text=True)
+        data = json.loads(output_ipv6.stdout)
+    except subprocess.CalledProcessError:
+        data = {}
+
+    response = response + __parse_blocklist(data)
+
+    return response
+
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
@@ -622,6 +663,8 @@ elif cmd == 'call':
         elif action == 'delete-blocked':
             payload = json.loads(sys.stdin.read())
             ret = delete_blocked(payload)
+        elif action == 'list-active-blocks':
+            ret = list_active_blocks()
 
         if action == 'dns-list-blocklist':
             ret = dns_list_blocklist(e_uci)
