@@ -27,6 +27,7 @@ endef
 
 define Package/ns-api/conffiles
 /etc/config/ns-api
+/etc/config/ns-wizard
 endef
  
 define Package/ns-api/description
@@ -159,6 +160,8 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.snort.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.nathelpers $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.nathelpers.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.wizard $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.wizard.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_CONF) files/msmtp.keep $(1)/lib/upgrade/keep.d/msmtp
 	$(INSTALL_CONF) files/nat-helpers.keep $(1)/lib/upgrade/keep.d/nat-helpers
@@ -166,7 +169,8 @@ define Package/ns-api/install
 	$(INSTALL_BIN) ./files/load-kernel-modules $(1)/usr/sbin/load-kernel-modules
 	$(INSTALL_BIN) ./files/firewall-apply-default-logging $(1)/usr/sbin/firewall-apply-default-logging
 	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_CONF) ./files/config $(1)/etc/config/ns-api
+	$(INSTALL_CONF) ./files/config/ns-api $(1)/etc/config/ns-api
+	$(INSTALL_CONF) ./files/config/ns-wizard $(1)/etc/config/ns-wizard
 	$(INSTALL_CONF) ./files/templates $(1)/etc/config/
 	$(INSTALL_BIN) ./files/post-commit/restart-netdata.py $(1)/usr/libexec/ns-api/post-commit/
 	$(INSTALL_BIN) ./files/pre-commit/fix-redirect-reflections.py $(1)/usr/libexec/ns-api/pre-commit
