@@ -644,6 +644,8 @@ if cmd == 'list':
         'add-blocked': {'address': '1.2.3.4', 'description': 'optional'},
         'edit-blocked': {'address': '1.2.3.4', 'description': 'optional'},
         'delete-blocked': {'address': '1.2.3.4'},
+        'list-active-blocks': {},
+        'remove-active-block': { 'ip': '' },
         'dns-list-blocklist': {},
         'dns-edit-blocklist': { "blocklist": "blocklist_name", "enabled": True },
         'dns-list-settings': {},
