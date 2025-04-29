@@ -11,8 +11,9 @@ import json
 import urllib
 import urllib.request
 import urllib.error
+import ipaddress
 from euci import EUci
-from nethsec.utils import ValidationError
+from nethsec.utils import ValidationError, validation_error, generic_error
 from nethsec import utils, firewall
 import base64
 import time
@@ -582,6 +583,39 @@ def list_active_blocks():
     return response
 
 
+def remove_active_block():
+    data = json.loads(sys.stdin.read())
+    if "ip" not in data:
+        return validation_error("ip", "required")
+    if data["ip"] == "":
+        return validation_error("ip", "required")
+
+    try:
+        ip = ipaddress.ip_address(data["ip"])
+    except ValueError:
+        return validation_error("ip", "invalid", data["ip"])
+
+    found = False
+    for block in list_active_blocks():
+        if block["ip"] == str(ip):
+            found = True
+            break
+    if not found:
+        return validation_error("ip", "invalid", str(ip))
+
+    if isinstance(ip, ipaddress.IPv4Address):
+        blocklist = "blocklistv4"
+    else:
+        blocklist = "blocklistv6"
+
+    try:
+        subprocess.run(["nft", "delete", "element", "inet", "banIP", blocklist, "{" + str(ip) + "}"], check=True)
+    except subprocess.CalledProcessError:
+        return generic_error("remove_active_block_failed")
+
+    return {'message': 'success'}
+
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
@@ -665,6 +699,8 @@ elif cmd == 'call':
             ret = delete_blocked(payload)
         elif action == 'list-active-blocks':
             ret = list_active_blocks()
+        elif action == 'remove-active-block':
+            ret = remove_active_block()
 
         if action == 'dns-list-blocklist':
             ret = dns_list_blocklist(e_uci)
