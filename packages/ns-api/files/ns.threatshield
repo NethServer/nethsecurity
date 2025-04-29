@@ -6,6 +6,7 @@
 #
 
 import os
+import re
 import sys
 import json
 import urllib
@@ -616,6 +617,27 @@ def remove_active_block():
     return {'message': 'success'}
 
 
+def is_ip_blocked():
+    data = json.loads(sys.stdin.read())
+    if "ip" not in data or data["ip"] == "":
+        return validation_error("ip", "required")
+    try:
+        result = subprocess.run(["/etc/init.d/banip", "search", data["ip"]], check=True, capture_output=True, text=True)
+        match = re.search(r"Set '([^']+)'", result.stdout)
+
+        if match is not None:
+            return {
+                'found': True,
+                'list': match.group(1)
+            }
+    except subprocess.CalledProcessError:
+        return validation_error("banip", "processing")
+
+    return {
+        'found': False
+    }
+
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
@@ -646,6 +668,7 @@ if cmd == 'list':
         'delete-blocked': {'address': '1.2.3.4'},
         'list-active-blocks': {},
         'remove-active-block': { 'ip': '' },
+        'is-ip-blocked': {'ip': ''},
         'dns-list-blocklist': {},
         'dns-edit-blocklist': { "blocklist": "blocklist_name", "enabled": True },
         'dns-list-settings': {},
@@ -703,6 +726,8 @@ elif cmd == 'call':
             ret = list_active_blocks()
         elif action == 'remove-active-block':
             ret = remove_active_block()
+        elif action == 'is-ip-blocked':
+            ret = is_ip_blocked()
 
         if action == 'dns-list-blocklist':
             ret = dns_list_blocklist(e_uci)
