@@ -41,6 +41,7 @@ elif cmd == "call":
                 if not isinstance(data["password_changed"], bool):
                     raise ValidationError("password_changed", "invalid")
                 e_uci.set("ns-wizard", "config", "password_changed", data["password_changed"])
+            e_uci.save("ns-wizard")
             json.dump({"message": "successful"}, sys.stdout)
         except ValidationError as ex:
             json.dump(utils.validation_error(ex.parameter, ex.message, ex.value), sys.stdout)
