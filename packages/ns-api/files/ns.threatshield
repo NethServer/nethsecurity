@@ -543,23 +543,52 @@ def dns_delete_bypass(e_uci, payload):
     return {'message': 'success'}
 
 
-def __parse_blocklist(blocklist):
+def __parse_expression(expression):
+    if isinstance(expression, str) or isinstance(expression, int):
+        return ipaddress.ip_address(expression)
+    if isinstance(expression, list):
+        return [__parse_expression(item) for item in expression]
+    if isinstance(expression, dict):
+        if "prefix" in expression:
+            return ipaddress.ip_network(expression["prefix"]["addr"] + "/" + str(expression["prefix"]["len"]))
+        elif "range" in expression:
+            return list(ipaddress.summarize_address_range(
+                __parse_expression(expression["range"][0]),
+                __parse_expression(expression["range"][1])
+            ))
+        elif "elem" in expression:
+            return {
+                "timeout": expression["elem"]["timeout"],
+                "expires": expression["elem"]["expires"],
+                "val": __parse_expression(expression["elem"]["val"]),
+            }
+
+    raise NotImplementedError('Unsupported expression type: {}'.format(type(expression)))
+
+
+def __parse_set(blocklist):
+    """
+    This function parses any set returned by nftables and returns a list of entries
+    """
     blocked_ips = []
     if ("nftables" in blocklist
             and len(blocklist["nftables"]) > 1
             and "set" in blocklist["nftables"][1]
             and "elem" in blocklist["nftables"][1]["set"]):
-        # filter blocks by list or temproary
-        for item in blocklist["nftables"][1]["set"]["elem"]:
-            if isinstance(item, str):
-                continue
-            blocked_ips.append({
-                "ip": item["elem"]["val"],
-                "timeout": item["elem"]["timeout"],
-                "expires": item["elem"]["expires"]
-            })
+        blocked_ips = __parse_expression(blocklist["nftables"][1]["set"]["elem"])
 
     return blocked_ips
+
+
+def __format_val(block):
+    if isinstance(block, ipaddress.IPv4Address) or isinstance(block, ipaddress.IPv6Address):
+        return str(block)
+    if isinstance(block, ipaddress.IPv4Network) or isinstance(block, ipaddress.IPv6Network):
+        return __format_val([addr for addr in block])
+    if isinstance(block, list):
+        return [__format_val(item) for item in block]
+
+    raise ValueError('Unsupported block type: {}'.format(type(block)))
 
 
 def list_active_blocks():
@@ -570,7 +599,7 @@ def list_active_blocks():
     except subprocess.CalledProcessError:
         data = {}
 
-    response = __parse_blocklist(data)
+    blocks = __parse_set(data)
 
     try:
         output_ipv6 = subprocess.run(["nft", "-j", "list", "set", "inet", "banIP", "blocklistv6"], check=True,
@@ -579,9 +608,12 @@ def list_active_blocks():
     except subprocess.CalledProcessError:
         data = {}
 
-    response = response + __parse_blocklist(data)
+    blocks = blocks + __parse_set(data)
 
-    return response
+    # Filter out any non-temporary blocks
+    blocks = [block for block in blocks if isinstance(block, dict)]
+
+    return blocks
 
 
 def remove_active_block():
