@@ -133,7 +133,7 @@ echo Nethesis,1234 | ns-ha-config check-backup-node 192.168.100.239
 
 ### Initlialize the primary node
 
-If the requirements are met, you can initialize the primary node, please note that all IPs must be written in CIDR notation.
+If the requirements are met, you can initialize the primary node, please note that the Virtual IP only must be written in CIDR notation.
 ```
 ns-ha-config init-primary-node <primary_node_ip> <backup_node_ip> <virtual_ip>
 ```
