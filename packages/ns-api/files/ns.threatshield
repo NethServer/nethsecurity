@@ -580,17 +580,6 @@ def __parse_set(blocklist):
     return blocked_ips
 
 
-def __format_val(block):
-    if isinstance(block, ipaddress.IPv4Address) or isinstance(block, ipaddress.IPv6Address):
-        return str(block)
-    if isinstance(block, ipaddress.IPv4Network) or isinstance(block, ipaddress.IPv6Network):
-        return __format_val([addr for addr in block])
-    if isinstance(block, list):
-        return [__format_val(item) for item in block]
-
-    raise ValueError('Unsupported block type: {}'.format(type(block)))
-
-
 def list_active_blocks():
     try:
         output_ipv4 = subprocess.run(["nft", "-j", "list", "set", "inet", "banIP", "blocklistv4"], check=True,
@@ -609,11 +598,29 @@ def list_active_blocks():
         data = {}
 
     blocks = blocks + __parse_set(data)
+    blocks = filter(lambda x: isinstance(x, dict) and "val" in x, blocks)
+    blocks = sorted(blocks, key=lambda x: x["timeout"] - x["expires"])
+    response = []
+    for block in blocks:
+        if not isinstance(block["val"], list):
+            block["val"] = [block["val"]]
+        for item in block["val"]:
+            if isinstance(item, ipaddress.IPv4Address) or isinstance(item, ipaddress.IPv6Address):
+                response.append({
+                    "ip": str(item),
+                    "timeout": block["timeout"],
+                    "expires": block["expires"],
+                })
+            if isinstance(item, ipaddress.IPv4Network) or isinstance(item, ipaddress.IPv6Network):
+                for addr in item:
+                    if isinstance(addr, ipaddress.IPv4Address) or isinstance(addr, ipaddress.IPv6Address):
+                        response.append({
+                            "ip": str(addr),
+                            "timeout": block["timeout"],
+                            "expires": block["expires"],
+                        })
 
-    # Filter out any non-temporary blocks
-    blocks = [block for block in blocks if isinstance(block, dict)]
-
-    return blocks
+    return response
 
 
 def remove_active_block():
@@ -629,10 +636,9 @@ def remove_active_block():
         return validation_error("ip", "invalid", data["ip"])
 
     found = False
-    for block in list_active_blocks():
-        if block["ip"] == str(ip):
-            found = True
-            break
+    blocks = filter(lambda x: x["ip"] == str(ip), list_active_blocks())
+    for _ in blocks:
+        found = True
     if not found:
         return validation_error("ip", "invalid", str(ip))
 
