@@ -102,7 +102,10 @@ def import_client(tunnel):
             (ip, prefix) = route.split("/")
             routes.append(f"{ip} {ovpn.to_netmask(prefix)}")
     u.set("openvpn", iname, "route", routes)
-    u.set("openvpn", iname, "remote", tunnel['RemoteHost'])
+    remote_hosts = []
+    for host in tunnel['RemoteHost'].split(","):
+        remote_hosts.append(host)
+    u.set("openvpn", iname, "remote", remote_hosts)
 
     if tunnel.get('Compression','disabled') != 'disabled':
         u.set("openvpn", iname, "compress", tunnel['Compression'])
@@ -246,7 +249,7 @@ def export_client(name):
         "status": "enabled",
         "Compression": u.get("openvpn", name, "compress", default=""),
         "RemotePort": u.get("openvpn", name, "lport", default=""),
-        "RemoteHost": u.get("openvpn", name, "ns_public_ip", list=True, dtype=str, default=[]),
+        "RemoteHost": ",".join(u.get("openvpn", name, "ns_public_ip", list=True, dtype=str, default=[])),
         "Digest": u.get("openvpn", name, "digest", default=""),
         "Cipher": u.get("openvpn", name, "cipher", default=""),
         "Topology": u.get("openvpn", name, "topology", default=""),
