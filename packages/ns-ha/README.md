@@ -10,6 +10,7 @@ Requirements:
 
 Limitations:
 
+- LAN name must be 'lan' in both firewalls
 - IPv4 only
 - VLANs are supported only on physical interfaces
 - Extra packages such as NUT are not supported
@@ -91,7 +92,7 @@ It will check the following:
 - the WAN interface is not configured as a PPPoE connection
 - if a DHCP server is running
   - the `Force DHCP server start` option must be enabled
-  - the option `router` must be set: remember to set it to the virtual IP of the interface
+  - the dhcp option `3: router` must be set and configured with the virtual IP address (e.g. `192.168.100.240`)
 - Hotspot must be disabled
 
 ### Check remote requirements
@@ -132,7 +133,7 @@ echo Nethesis,1234 | ns-ha-config check-backup-node 192.168.100.239
 
 ### Initlialize the primary node
 
-If the requirements are met, you can initialize the primary node:
+If the requirements are met, you can initialize the primary node, please note that all IPs must be written in CIDR notation.
 ```
 ns-ha-config init-primary-node <primary_node_ip> <backup_node_ip> <virtual_ip>
 ```
