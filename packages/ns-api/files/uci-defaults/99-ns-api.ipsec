@@ -1,0 +1,18 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# uci-default setting up ipsec infinite retry
+# Issue: https://github.com/NethServer/nethsecurity/issues/1179
+
+for config in $(uci show ipsec | grep -oP '^ipsec\.([^=]+)(?==remote$)')
+do
+  if ! uci -q get "$config.keyingtries";
+  then
+    uci set "$config.keyingtries=0"
+  fi
+done
+uci commit ipsec
