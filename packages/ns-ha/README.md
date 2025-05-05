@@ -10,6 +10,7 @@ Requirements:
 
 Limitations:
 
+- LAN name must be 'lan' in both firewalls
 - IPv4 only
 - VLANs are supported only on physical interfaces
 - Extra packages such as NUT are not supported
@@ -91,7 +92,7 @@ It will check the following:
 - the WAN interface is not configured as a PPPoE connection
 - if a DHCP server is running
   - the `Force DHCP server start` option must be enabled
-  - the option `router` must be set: remember to set it to the virtual IP of the interface
+  - the dhcp option `3: router` must be set and configured with the virtual IP address (e.g. `192.168.100.240`)
 - Hotspot must be disabled
 
 ### Check remote requirements
@@ -132,7 +133,7 @@ echo Nethesis,1234 | ns-ha-config check-backup-node 192.168.100.239
 
 ### Initlialize the primary node
 
-If the requirements are met, you can initialize the primary node:
+If the requirements are met, you can initialize the primary node, please note that the Virtual IP (only) must be written in CIDR notation.
 ```
 ns-ha-config init-primary-node <primary_node_ip> <backup_node_ip> <virtual_ip>
 ```
@@ -331,19 +332,19 @@ Since the name of the backup host is replaced with the name of the primary host,
 when connecting via SSH.
 To avoid confusion, when the HA cluster is enabled, the bash prompt will show the keepalived status using:
 - `P` for primary node
-- `B` for backup node
+- `S` for secondary (or backup) node
 
 Prompt example for primary node:
 ```
 root@NethSec [P]:~#
 ```
 
-Prompt example for backup node:
+Prompt example for secondary node:
 ```
-root@NethSec [B]:~#
+root@NethSec [S]:~#
 ```
 
-A normal configuration synchronization will look like this on the backup node:
+A normal configuration synchronization will look like this on the secondary node:
 ```
 Apr 23 09:48:49 NethSec dropbear[8098]: Child connection from 192.168.100.238:37350
 Apr 23 09:48:49 NethSec dropbear[8098]: Pubkey auth succeeded for 'root' with ssh-rsa key SHA256:LDIBFC6gFHmIAUqdEWVi62ca/EUxZI7/08m2d76/hcQ from 192.168.100.238:37350
