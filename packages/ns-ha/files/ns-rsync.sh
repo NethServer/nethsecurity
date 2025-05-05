@@ -87,7 +87,7 @@ ha_sync_send() {
 		update_last_sync_status "$cfg" "Rsync Transfer Failed"
 	}
 
-	log_info "keepalived sync is compeleted for $address"
+	log_info "keepalived sync is completed for $address"
 	update_last_sync_time "$cfg"
 	update_last_sync_status "$cfg" "Successful"
 }
