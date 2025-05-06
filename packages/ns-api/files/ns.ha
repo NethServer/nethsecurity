@@ -206,6 +206,25 @@ def find_device_config(uci, device, config=None):
  
     return config
 
+def parse_node_state():
+    state = None
+    # Check if keepalived is running
+    try:
+        proc = subprocess.run(["/etc/init.d/keepalived", "info"], check=True, capture_output=True, text=True)
+        status = json.loads(proc.stdout)
+        if not status['keepalived']['instances']['instance1']['running']:
+            return "stopped"
+    except:
+        return "stopped"
+
+    # Open the log file for reading
+    with open('/var/log/messages', 'r') as file:
+        for line in file:
+            # Check if the line is something like "Keepalived_vrrp[10271]: (master) Entering MASTER STATE"
+            if "Entering" in line and "STATE" in line:
+                state = line.split("Entering")[1].split("STATE")[0].strip().lower()
+    return state
+
 ### API functions
 
 def import_network_config(configs):
@@ -577,13 +596,7 @@ def status():
             ret["status"] = "disabled"
 
     if ret["status"] == "enabled":
-        subprocess.run("kill -USR2 $(/etc/init.d/keepalived info | jq -r .keepalived.instances.instance1.pid)", shell=True, capture_output=True, check=True)
-        if os.path.exists('/var/keepalived.stats'):
-            with open('/var/keepalived.stats') as f:
-                for line in f:
-                    if 'VRRP Instance' in line:
-                        ret["state"] = line.split()[2]
-                        break
+        ret["state"] = parse_node_state()
 
     # Using uci to query the state, with EUci(confdir="/var/state/"), the library can't read the data
     ret["last_sync_status"] = subprocess.run(["uci", "-P", "/var/state/", "get", "keepalived.ha_peer.last_sync_status"], capture_output=True, text=True).stdout.strip()
