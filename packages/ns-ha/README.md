@@ -92,7 +92,9 @@ It will check the following:
 - the WAN interface is not configured as a PPPoE connection
 - if a DHCP server is running
   - the `Force DHCP server start` option must be enabled
-  - the dhcp option `3: router` must be set and configured with the virtual IP address (e.g. `192.168.100.240`)
+  - the DHCP option `3: router` must be set and configured with the virtual IP address (e.g. `192.168.100.240`)
+  - the DHCP option `6: DNS server` must be set; you can set it to the virtual IP address or to the DNS server of your choice:
+    just make sure that the DNS server is reachable from the clients even if the primary node is down
 - Hotspot must be disabled
 
 ### Check remote requirements
