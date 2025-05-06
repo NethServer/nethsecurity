@@ -121,12 +121,13 @@ def validate_dhcp():
     uci = EUci()
     is_keeplived_configured = len(utils.get_all_by_type(uci, 'keepalived', 'vrrp_instance')) > 0
     for server in utils.get_all_by_type(uci, 'dhcp', 'dhcp'):
-        if uci.get('dhcp', server, 'dhcpv4', default=None) == 'server' or uci.get('dhcp', server, 'dhcpv6', default=None) == 'server':
+        # Check if IPv4 DHCP server is enabled
+        if uci.get('dhcp', server, 'dhcpv4', default=None) == 'server':
             # 1. Make sure configured DHCP server has force option enabled
             if uci.get('dhcp', server, 'force', default="0") != "1":
                 errors.append('dhcp_force_not_enabled')
 
-            # 2. Make sure configured DHCP server has the router option
+            # 2. Make sure configured DHCP server has the router and dns options
             try:
                 options = uci.get_all('dhcp', server, 'dhcp_option')
             except:
@@ -147,6 +148,8 @@ def validate_dhcp():
                             if vip_address.strip() != router_ip.strip():
                                 errors.append(f'dhcp_router_option_does_not_match_vip: {interface}')
                                 break
+            if not any("option:dns" in option for option in options):
+                errors.append('dhcp_dns_option_not_found')
     return errors
 
 def validate_hotspot():
