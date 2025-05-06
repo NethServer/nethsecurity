@@ -37,7 +37,7 @@ elif cmd == 'call':
             if not users.check_old_password(data.get('username'), data.get('old_password', '')):
                 raise utils.ValidationError('old_password', 'invalid_old_password')
             if users.check_old_password(data.get('username'), data.get('password', '')):
-                raise utils.ValidationError('password', 'cannot_reuse_old_password')
+                raise utils.ValidationError('new_password', 'cannot_reuse_old_password')
             # if user is not root, change rpcd config
             if data['username'] != 'root':
                 password_hash = users.shadow_password(data['password'])
