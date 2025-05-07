@@ -233,6 +233,9 @@ Please note that the interface will not be removed from the network configuratio
 ### Configue an alias
 
 Aliases are special configurations that must explicitly set on the primary node.
+First, add the alias to the network interface using the web interface.
+Then, you can add the alias to the HA configuration.
+
 To add an alias, use the following command:
 ```
 ns-ha-config add-alias <interface> <alias> <ip_address> [<gateway>]
