@@ -12,6 +12,7 @@ import json
 import urllib
 import urllib.request
 import urllib.error
+import logging
 import ipaddress
 from euci import EUci
 from nethsec.utils import ValidationError, validation_error, generic_error
@@ -563,7 +564,8 @@ def __parse_expression(expression):
                 "val": __parse_expression(expression["elem"]["val"]),
             }
 
-    raise NotImplementedError('Unsupported expression type: {}'.format(type(expression)))
+    logging.warning('Unsupported expression type: {}'.format(type(expression)))
+    return None
 
 
 def __parse_set(blocklist):
@@ -575,7 +577,7 @@ def __parse_set(blocklist):
             and len(blocklist["nftables"]) > 1
             and "set" in blocklist["nftables"][1]
             and "elem" in blocklist["nftables"][1]["set"]):
-        blocked_ips = __parse_expression(blocklist["nftables"][1]["set"]["elem"])
+        blocked_ips = [ip for ip in __parse_expression(blocklist["nftables"][1]["set"]["elem"]) if ip is not None]
 
     return blocked_ips
 
@@ -625,9 +627,7 @@ def list_active_blocks():
 
 def remove_active_block():
     data = json.loads(sys.stdin.read())
-    if "ip" not in data:
-        return validation_error("ip", "required")
-    if data["ip"] == "":
+    if data.get("ip", "") == "":
         return validation_error("ip", "required")
 
     try:
@@ -635,10 +635,8 @@ def remove_active_block():
     except ValueError:
         return validation_error("ip", "invalid", data["ip"])
 
-    found = False
     blocks = filter(lambda x: x["ip"] == str(ip), list_active_blocks())
-    for _ in blocks:
-        found = True
+    found = len(list(blocks)) > 0
     if not found:
         return validation_error("ip", "invalid", str(ip))
 
