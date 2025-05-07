@@ -661,12 +661,13 @@ def is_ip_blocked():
         return validation_error("ip", "required")
     try:
         result = subprocess.run(["/etc/init.d/banip", "search", data["ip"]], check=True, capture_output=True, text=True)
-        match = re.search(r"Set '([^']+)'", result.stdout)
+        matches = re.findall(r"Set '([^']+)'", result.stdout)
+        matches = [match for match in matches if not match.startswith("allow")]
 
-        if match is not None:
+        if len(matches) > 0:
             return {
                 'found': True,
-                'list': match.group(1)
+                'list': matches[0]
             }
     except subprocess.CalledProcessError:
         return validation_error("banip", "processing")
