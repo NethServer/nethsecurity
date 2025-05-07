@@ -33,4 +33,4 @@ payload='{"lk": "'$lk'", "alert_id": "'$alert_id'", "status": "'$status'"}'
 
 /usr/bin/curl -m 30 --retry 3 -L -s \
     --header "Authorization: token ${secret}"  --header "Content-Type: application/json" --header "Accept: application/json"  \
-    --data-raw "${payload}" ${url}
+    --data-raw "${payload}" ${url} > /dev/null
