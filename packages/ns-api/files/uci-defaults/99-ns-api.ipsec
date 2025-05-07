@@ -10,7 +10,7 @@
 
 for config in $(uci show ipsec | grep -oP '^ipsec\.([^=]+)(?==remote$)')
 do
-  if ! uci -q get "$config.keyingtries";
+  if ! uci -q get "$config.keyingtries" > /dev/null;
   then
     uci set "$config.keyingtries=0"
   fi
