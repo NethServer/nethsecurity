@@ -904,7 +904,6 @@ def reset(role, pubkey = None):
     try:
         shutil.rmtree('/usr/share/keepalived/rsync')
         os.remove('/etc/conntrackd/conntrackd.conf')
-        os.remove('/etc/keepalived/keys/id_rsa')
     except:
         pass
 
@@ -937,6 +936,13 @@ def reset(role, pubkey = None):
         })
 
         output, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call reset", backup_node_ip=backup_node_ip, port=port)
+
+        # Remove ssh key after using it inside the execute_remote_command
+        try:
+            os.remove('/etc/keepalived/keys/id_rsa')
+        except:
+            pass
+
         if error:
             return utils.generic_error("error_executing_reset_on_backup_node")
 
