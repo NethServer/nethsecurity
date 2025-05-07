@@ -175,6 +175,8 @@ define Package/ns-api/install
 	$(INSTALL_BIN) ./files/post-commit/reload-ipsets.py $(1)/usr/libexec/ns-api/post-commit
 	$(INSTALL_BIN) ./files/post-commit/restart-cron.py $(1)/usr/libexec/ns-api/post-commit
 	$(INSTALL_BIN) ./files/remove-pppoe-keepalive $(1)/usr/share/ns-api
+	$(INSTALL_DIR) $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/uci-defaults/99-ns-api.ipsec $(1)/etc/uci-defaults
 endef
  
 $(eval $(call BuildPackage,ns-api))
