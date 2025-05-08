@@ -8,6 +8,8 @@ assignees: ''
 
 ---
 
+// Before requesting a feature, please discuss it on [community.nethserver.org](https://community.nethserver.org).
+
 // REMOVE LINES WITH SLASHES, LIKE THIS
 
 // Write down a brief description here. In any case, even if your feature request is just 
