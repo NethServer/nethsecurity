@@ -6,7 +6,7 @@ if readlink "/sys/block/$diskdev" | grep -q "usb"; then
     exit 1
 else
     [ "$(uci -q get fstab.ns_data)" = "mount" ] && exit 0
-    jdev=$(/usr/libexec/ns-storage-setup-partition)
+    jdev=$(/usr/libexec/ns-storage-setup-partition) || exit 0
     part=$(echo "$jdev" | jsonfilter -e '@.device')
     /usr/sbin/add-storage $part
     exit 0
