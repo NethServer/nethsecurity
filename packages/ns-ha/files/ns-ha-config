@@ -25,6 +25,7 @@ help() {
   echo "  check-backup-node"
   echo "  show-config"
   echo "  ssh-remote"
+  echo "  upgrade-remote [<IMAGE>]"
   echo "  reset"
   echo "  status (This is the only action that can be run on the backup node)"
 }
@@ -430,6 +431,30 @@ ssh_remote() {
   exec ssh -o StrictHostKeyChecking=no -p "$backup_port" -i /etc/keepalived/keys/id_rsa root@"$backup_node_ip"
 }
 
+upgrade_remote() {
+  IMAGE="$1"
+  if [[ -z "$IMAGE" ]]; then
+    echo -n "Downloading latest image... "
+    IMAGE=$(ns-download -f -l)
+    if [[ $? -ne 0 ]]; then
+      error
+      echo "Failed to download the latest image."
+      exit 1
+    fi
+    success
+  fi
+
+  echo -n "Upgrading remote node... "
+  OUTPUT=$(echo '{"image": "'$IMAGE'"}' | /usr/libexec/rpcd/ns.ha call upgrade-remote | jq -r '.success')
+
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to upgrade the remote node."
+    exit 1
+  fi
+  success
+}
+
 # Main logic to handle actions
 case "$ACTION" in
   init-primary-node)
@@ -469,6 +494,10 @@ case "$ACTION" in
   ssh-remote)
     shift
     ssh_remote "$@"
+    ;;
+  upgrade-remote)
+    shift
+    upgrade_remote "$@"
     ;;
   reset)
     reset

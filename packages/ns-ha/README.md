@@ -385,6 +385,15 @@ ns-ha-config ssh-remote
 
 The scripts is meant to be used on the primary node when the HA cluster is already enabled.
 
+## Upgrading the backup node
+
+To upgrade the backup node, use the following command:
+```
+ns-ha-config upgrade-remote [<image>]
+```
+
+If `image` is not specified, the script will download the latest image and install it on the backup node.
+
 ### Debugging
 
 The ns-ha configuration script is a shell script that can be debugged using the `-x` option.
