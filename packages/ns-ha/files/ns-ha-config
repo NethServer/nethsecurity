@@ -24,6 +24,7 @@ help() {
   echo "  check-primary-node"
   echo "  check-backup-node"
   echo "  show-config"
+  echo "  ssh-remote"
   echo "  reset"
   echo "  status (This is the only action that can be run on the backup node)"
 }
@@ -423,6 +424,12 @@ show_config() {
   echo
 }
 
+ssh_remote() {
+  backup_node_ip=$(uci -q get keepalived.ha_peer.address)
+  backup_port=$(uci -q get keepalived.ha_peer.ssh_port)
+  exec ssh -o StrictHostKeyChecking=no -p "$backup_port" -i /etc/keepalived/keys/id_rsa root@"$backup_node_ip"
+}
+
 # Main logic to handle actions
 case "$ACTION" in
   init-primary-node)
@@ -458,6 +465,10 @@ case "$ACTION" in
     ;;
   show-config)
     show_config
+    ;;
+  ssh-remote)
+    shift
+    ssh_remote "$@"
     ;;
   reset)
     reset
