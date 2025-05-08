@@ -1,0 +1,86 @@
+#!/usr/bin/python3
+import json
+from http.client import HTTPException
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+from euci import EUci
+from requests import HTTPError
+from requests.auth import HTTPBasicAuth
+import hashlib
+import requests
+
+FLASHSTART_API_ENDPOINT = 'https://api.flashstart.com/1.0.0'
+
+DEFAULT_HEADERS = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+}
+
+
+class UnAuthenticatedError(Exception):
+    pass
+
+
+def __get_client(e_uci: EUci) -> requests.Session:
+    session = requests.Session()
+    session.headers.update(DEFAULT_HEADERS)
+    username = e_uci.get('flashstart', 'global', 'username', default='')
+    password = e_uci.get('flashstart', 'global', 'password', default='')
+    hashed_password = hashlib.md5(password.encode()).hexdigest()
+    session.auth = HTTPBasicAuth(username, hashed_password)
+    return session
+
+
+def check_credentials(username, password):
+    response = requests.post(f'{FLASHSTART_API_ENDPOINT}/auth/check/', auth=HTTPBasicAuth(username, password),
+                             data='{"who": "Device"}',
+                             headers=DEFAULT_HEADERS)
+    response.raise_for_status()
+
+
+def enable(e_uci: EUci):
+    client = __get_client(e_uci)
+    username = e_uci.get('flashstart', 'global', 'username', default='')
+    response = client.get(f'{FLASHSTART_API_ENDPOINT}/network/profiles/{username}')
+    response.raise_for_status()
+    data = response.json()
+    for profile in data:
+        print(profile)
+
+
+def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Nethesis Flashstart helper')
+    subparsers = parser.add_subparsers(dest='command')
+
+    check_credentials_parser = subparsers.add_parser('check-credentials', help='Util to check Flashstart credentials')
+    check_credentials_parser.add_argument('--username', required=True)
+    check_credentials_parser.add_argument('--password', required=True)
+
+    subparsers.add_parser('enable', help='Enable Flashstart')
+
+    args = parser.parse_args()
+    match args.command:
+        case 'check-credentials':
+            try:
+                check_credentials(args.username, hashlib.md5(args.password.encode()).hexdigest())
+                parser.exit(message='Credentials are valid')
+            except HTTPError as e:
+                parser.exit(1, message='Login failed: {}'.format(e))
+        case 'enable':
+            e_uci = EUci()
+            try:
+                enable(e_uci)
+                parser.exit(message='Flashstart enabled')
+            except HTTPError as e:
+                parser.exit(1, message='Login failed: {}'.format(e))
+        case _:
+            parser.print_help()
+
+if __name__ == '__main__':
+    main()

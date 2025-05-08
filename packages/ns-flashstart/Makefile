@@ -44,6 +44,7 @@ define Package/ns-flashstart/install
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface/
 	$(INSTALL_BIN) ./files/flashstart-apply $(1)/usr/sbin/flashstart-apply
+	$(INSTALL_BIN) ./files/ns-flashstart $(1)/usr/sbin/ns-flashstart
 	$(INSTALL_BIN) ./files/flashstart-auth $(1)/usr/share/ns-flashstart/flashstart-auth
 	$(INSTALL_BIN) ./files/flashstart-setup-firewall $(1)/usr/share/ns-flashstart/flashstart-setup-firewall
 	$(INSTALL_BIN) ./files/uci-default $(1)/etc/uci-defaults/99-flashstart
