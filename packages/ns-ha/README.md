@@ -376,6 +376,15 @@ To see active keepalived configuration, execute:
 cat /tmp/keepalived.conf
 ```
 
+## Connecting to the backup node
+
+To connect to the backup node, use the following command:
+```
+ns-ha-config ssh-remote
+```
+
+The scripts is meant to be used on the primary node when the HA cluster is already enabled.
+
 ### Debugging
 
 The ns-ha configuration script is a shell script that can be debugged using the `-x` option.
