@@ -7,6 +7,8 @@ assignees: ''
 
 ---
 
+// Before reporting a bug or opening a support request, please discuss it on [community.nethserver.org](https://community.nethserver.org).
+
 // REMOVE LINES WITH SLASHES, LIKE THIS
 
 **Steps to reproduce**
