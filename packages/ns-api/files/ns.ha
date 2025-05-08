@@ -182,6 +182,39 @@ def execute_remote_command(command, backup_node_ip=None, port=None):
     error = stderr.read().decode()
     return output, error
 
+def upload_remote_file(local_file_path, remote_file_path, backup_node_ip=None, port=None):
+    # Prepare the destination directory
+    destination_dir = os.path.dirname(remote_file_path)
+    execute_remote_command(f"mkdir -p {destination_dir}")
+
+    # Connect to the remote server using SSH
+    uci = EUci()
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    if port is None:
+        port = uci.get('dropbear', 'ha_link', 'Port', default=None)
+    if backup_node_ip is None:
+        backup_node_ip = uci.get('keepalived', 'ha_peer', 'address', default=None)
+    if not port or not backup_node_ip:
+        raise utils.ValidationError('backup_node_ip', 'missing_backup_node_ip')
+
+    # Convert the private key from Dropbear to OpenSSH format
+    private_key_path = '/etc/keepalived/keys/id_rsa'
+    proc = subprocess.run(['dropbearconvert', 'dropbear', 'openssh', private_key_path, "-"], check=True, capture_output=True, text=True)
+    private_key = paramiko.RSAKey.from_private_key(io.StringIO(proc.stdout))
+
+    try:
+        # Upload the file using SFTP
+        ssh.connect(backup_node_ip, port=port, username='root', pkey=private_key)
+        sftp = ssh.open_sftp()
+        sftp.put(local_file_path, remote_file_path)
+        sftp.close()
+        ssh.close()
+        return True
+    except Exception as e:
+        print(e)
+        return False
+
 def find_device_config(uci, device, config=None):
     if config is None:
         config = []
@@ -873,6 +906,20 @@ def remove_interface(role, interface):
     else:
         return { "success": True }
 
+def upgrade_remote(image):
+    # Upload the image to the backup node
+    if not upload_remote_file(image, "/var/run/ns-api-server/uploads/upgrade.img"):
+        return utils.generic_error("error_uploading_image_to_backup_node")
+
+    # Prepare the upgrade command
+    upgrade_command = json.dumps({
+        "image": "upgrade.img"
+    })
+
+    # Execute the upgrade command on the backup node
+    stdout, _ = execute_remote_command(f"echo '{upgrade_command}' | /usr/libexec/rpcd/ns.update call install-uploaded-image")
+    return {"result": "success"}
+
 def reset(role, pubkey = None):
     # Reset the HA configuration
     uci = EUci()
@@ -998,7 +1045,8 @@ if cmd == 'list':
         "status": {},
         "list-interfaces": {},
         "list-aliases": {},
-        "reset": {"role": "primary", "pubkey": "ssh-rsa AAAAB...."}
+        "reset": {"role": "primary", "pubkey": "ssh-rsa AAAAB...."},
+        "upgrade-remote": { "image": "/tmp/upgrade.img.gz" }
         }))
 else:
     action = sys.argv[2]
@@ -1031,5 +1079,7 @@ else:
             ret = remove_alias(args.get('role'), args.get('interface'), args.get('virtual_ip'))
         elif action == "reset":
             ret = reset(args.get('role'), args.get('pubkey'))
+        elif action == "upgrade-remote":
+            ret = upgrade_remote(args.get('image'))
 
     print(json.dumps(ret))
