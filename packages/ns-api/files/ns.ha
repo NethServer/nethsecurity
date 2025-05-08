@@ -928,6 +928,25 @@ def reset(role, pubkey = None):
     # Reload the configuration to apply changes
     subprocess.run(["/sbin/reload_config"], capture_output=True)
 
+    # Re-enable all cron jobs, then restart crond
+    if role == 'backup':
+        try:
+            with open('/etc/crontabs/root', 'r') as file:
+                crontab_content = file.read()
+
+            # Uncomment all commented lines (lines starting with #)
+            modified_crontab = '\n'.join([
+                line[1:] if line.strip().startswith('#') else line
+                for line in crontab_content.splitlines()
+            ])
+            # Write the modified content back
+            with open('/etc/crontabs/root', 'w') as file:
+                file.write(modified_crontab)
+            # Restart crond service
+            subprocess.run(['/etc/init.d/cron', 'restart'], capture_output=True)
+        except:
+            pass
+
     if role == 'primary':
         # Execute the reset API on the backup node
         command = json.dumps({
