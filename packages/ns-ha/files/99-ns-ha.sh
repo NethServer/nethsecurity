@@ -9,7 +9,7 @@ if [ "$state" == "MASTER" ]; then
     state="P"
 elif [ "$state" == "BACKUP" ]; then
     export PS1='\u@\h [S]:\w\$ '
-    state="B"
+    state="S"
 fi
 
 case "$TERM" in
