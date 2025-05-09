@@ -1,0 +1,17 @@
+#!/bin/sh
+
+. /lib/functions/keepalived/hotplug.sh
+
+set_service_name snort
+
+set_restart_if_master
+set_stop_if_backup
+
+add_sync_file /etc/config/snort
+
+if [ ! -f "/var/ns-snort/rules/snort.rules" ]; then
+    mkdir -p /var/ns-snort/rules/
+    /usr/bin/ns-snort-rules --download
+fi
+
+keepalived_hotplug

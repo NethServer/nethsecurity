@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# shellcheck source=/dev/null
+. /lib/functions/keepalived/hotplug.sh
+
+set_service_name nathelpers
+
+add_sync_file /etc/modules.d/ns-nathelpers
+
+if [ "$ACTION" == "NOTIFY_MASTER" ]; then
+    /usr/sbin/load-kernel-modules
+fi
+
+keepalived_hotplug
