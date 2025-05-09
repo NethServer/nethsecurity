@@ -357,7 +357,7 @@ def counter(service):
     if service == "hosts":
         ret = count_hosts()
     elif service == "threat_shield_ip":
-        ret = _run("grep -e \"$(date -d '-1 hour' +'%b %e %H:%M')\" -e \"$(date  +'%b %e %H:')\" /var/log/messages | grep kernel | grep banIP/ | wc -l")
+        ret = _run("grep -e \"$(date -d '-1 hour' +'%b %e %H:%M')\" -e \"$(date  +'%b %e %H:')\" /var/log/messages | grep -E 'banIP.+add IP|banIP.+drop' | wc -l")
     elif service == "openvpn_rw":
         ret = count_openvpn_rw()
 
