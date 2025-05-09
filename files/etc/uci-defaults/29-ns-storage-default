@@ -1,0 +1,13 @@
+. /lib/functions.sh
+. /lib/upgrade/common.sh
+
+export_bootdevice && export_partdevice diskdev 0
+if readlink "/sys/block/$diskdev" | grep -q "usb"; then
+    exit 1
+else
+    [ "$(uci -q get fstab.ns_data)" = "mount" ] && exit 0
+    jdev=$(/usr/libexec/ns-storage-setup-partition) || exit 0
+    part=$(echo "$jdev" | jsonfilter -e '@.device')
+    /usr/sbin/add-storage $part
+    exit 0
+fi
