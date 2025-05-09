@@ -6,6 +6,8 @@
 . /lib/functions.sh
 # shellcheck source=/dev/null
 . /lib/functions/keepalived/common.sh
+# shellcheck source=/dev/null
+. /lib/functions/keepalived/ns.sh
 
 RSYNC_USER="root"
 RSYNC_HOME=$(get_rsync_user_home)
@@ -23,6 +25,19 @@ update_last_sync_status() {
 	local cfg="$1"
 	shift
 	local status="$*"
+
+	# Raise alert if:
+	# - last_sync_time is empty
+	# - last sync time is older than 5 minutes
+	# - last_sync_status is different from the current status
+	config_get last_sync_status "$cfg" last_sync_status
+	if [ -z "$last_sync_status" ] || [ "$last_sync_status" != "$status" ]; then
+		if [[ "$status" != "Up to Date" && "$status" != "Successful" ]]; then
+			send_alert "ha:sync:failed" "FAILURE"
+		else
+			send_alert "ha:sync:failed" "OK"
+		fi
+	fi
 
 	uci_revert_state keepalived "$cfg" last_sync_status
 	uci_set_state keepalived "$cfg" last_sync_status "$status"

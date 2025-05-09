@@ -331,6 +331,18 @@ Last Sync Status: Up to Date
 Last Sync Time: Fri Apr 18 13:09:08 UTC 2025
 ```
 
+## Alerting
+
+The cluster sends alerts **only** if the machine has a valid subscription.
+
+Available alerts are:
+
+- `ha:sync:failed`: raised if the file synchronization fails; it usyally means that the backup node is not reachable.
+  This alerts is raised only on the primary node.
+- `ha:primary:failed`: raised if the primary node is down; it means that there was a switchover.
+  This alerts is raised with FAILURE state on the backup node when it takes over the virtual IP address; 
+  the alert is raised with OK state on the primary node when it comes back online.
+
 ## Connecting to the backup node
 
 Since the backup node does not have access to the Internet, you have 2 different ways to connect to it:
