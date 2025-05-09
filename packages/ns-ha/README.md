@@ -331,6 +331,33 @@ Last Sync Status: Up to Date
 Last Sync Time: Fri Apr 18 13:09:08 UTC 2025
 ```
 
+## Connecting to the backup node
+
+Since the backup node does not have access to the Internet, you have 2 different ways to connect to it:
+
+- directly using the static LAN IP address configured at the beginning
+- from the primary node using SSH
+
+To connect to the backup node from the primary, use the following command:
+```
+ns-ha-config ssh-remote
+```
+
+The scripts uses special SSH port 65022 and keepalived SSH private key: it is meant to be used on the primary node when the HA cluster
+is already configured.
+
+## Upgrading the backup node
+
+The backup node does not have access to the Internet, so you need to upgrade it manually using an image file.
+
+From the primary node, use the following command:
+```
+ns-ha-config upgrade-remote [<image>]
+```
+
+If `image` is not specified, the script will download the latest image and install it on the backup node.
+If `image` is specified, the script will use the given image file to upgrade the backup node.
+
 ## Troubleshooting and logs
 
 Since the name of the backup host is replaced with the name of the primary host, it's hard to distinguish between the two nodes
@@ -375,24 +402,6 @@ To see active keepalived configuration, execute:
 ```
 cat /tmp/keepalived.conf
 ```
-
-## Connecting to the backup node
-
-To connect to the backup node, use the following command:
-```
-ns-ha-config ssh-remote
-```
-
-The scripts is meant to be used on the primary node when the HA cluster is already enabled.
-
-## Upgrading the backup node
-
-To upgrade the backup node, use the following command:
-```
-ns-ha-config upgrade-remote [<image>]
-```
-
-If `image` is not specified, the script will download the latest image and install it on the backup node.
 
 ### Debugging
 
