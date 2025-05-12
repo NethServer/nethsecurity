@@ -1,6 +1,4 @@
 #!/usr/bin/python3
-import json
-import subprocess
 
 #
 # Copyright (C) 2025 Nethesis S.r.l.
@@ -13,6 +11,8 @@ from requests.auth import HTTPBasicAuth
 import hashlib
 import requests
 import nethsec.utils
+import json
+import subprocess
 
 FLASHSTART_API_ENDPOINT = 'https://api.flashstart.com/1.0.0'
 
@@ -43,31 +43,60 @@ def enable():
     # check if the cron entry already exists
     result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
     cron_jobs = result.stdout.splitlines()
+
+    flashstart_sync = False
+    flashstart_auth = False
     for job in cron_jobs:
         if 'ns-flashstart sync' in job:
-            print('Service already enabled, skipping.')
-            return
+            flashstart_sync = True
+        if 'flashstart-auth' in job:
+            flashstart_auth = True
 
-    # add the cron job
-    subprocess.run(['bash', '-c',
-                    '(crontab -l 2>/dev/null; echo "* * * * * /usr/sbin/ns-flashstart sync") | crontab -'],
-                   check=True)
-    print('Service enabled.')
+    if flashstart_sync:
+        print('Flashstart sync already enabled, skipping.')
+    else:
+        # add the cron job
+        subprocess.run(['bash', '-c',
+                        '(crontab -l 2>/dev/null; echo \'* * * * * sleep $(( RANDOM % 30 )); /usr/sbin/ns-flashstart sync\') | crontab -'],
+                       check=True)
+        print('Flashstart sync enabled.')
+
+    if flashstart_auth:
+        print('Flashstart auth already enabled, skipping.')
+    else:
+        # add the cron job
+        subprocess.run(['bash', '-c',
+                        '(crontab -l 2>/dev/null; echo \'*/30 * * * * sleep $(( RANDOM % 60 )); /usr/share/ns-flashstart/flashstart-auth\') | crontab -'],
+                       check=True)
+        print('Flashstart auth enabled.')
 
 
 def disable():
     # check if the cron entry already exists
     result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
     cron_jobs = result.stdout.splitlines()
+    flashstart_sync = False
+    flashstart_auth = False
+
     for job in cron_jobs:
         if 'ns-flashstart sync' in job:
-            # remove the cron job
-            subprocess.run(['bash', '-c', f'(crontab -l 2>/dev/null | grep -v "{job}") | crontab -'], check=True)
-            print('Service disabled.')
-            return
+            flashstart_sync = True
+        if 'flashstart-auth' in job:
+            flashstart_auth = True
 
-    print('Service not enabled, skipping.')
+    if flashstart_sync:
+        # remove the cron job
+        subprocess.run(['bash', '-c', '(crontab -l 2>/dev/null | grep -v \'ns-flashstart sync\') | crontab -'], check=True)
+        print('Flashstart sync disabled.')
+    else:
+        print('Flashstart sync already disabled, skipping.')
 
+    if flashstart_auth:
+        # remove the cron job
+        subprocess.run(['bash', '-c', '(crontab -l 2>/dev/null | grep -v \'flashstart-auth\') | crontab -'], check=True)
+        print('Flashstart auth disabled.')
+    else:
+        print('Flashstart auth already disabled, skipping.')
 
 
 def sync(e_uci: EUci):
