@@ -1,4 +1,6 @@
 #!/usr/bin/python3
+import json
+import subprocess
 
 #
 # Copyright (C) 2025 Nethesis S.r.l.
@@ -38,6 +40,7 @@ def check_credentials(username, password):
 
 
 def sync(e_uci: EUci):
+    changed = False
     # generate the list of dnsmasq instances managed by flashstart
     local_instances = []
     for dns in e_uci.get('dhcp', list=True, dtype=str, default=[]):
@@ -63,8 +66,11 @@ def sync(e_uci: EUci):
             e_uci.set('dhcp', profile_id, 'dnsmasq')
             e_uci.set('dhcp', profile_id, 'ns_flashstart', True)
             e_uci.set('dhcp', profile_id, 'ns_flashstart_profile', profile['name'])
+            changed = True
         # set the port, incrementing it for each profile
-        e_uci.set('dhcp', profile_id, 'port', port_start)
+        if port_start != e_uci.get('dhcp', profile_id, 'port', default=None, dtype=int):
+            e_uci.set('dhcp', profile_id, 'port', port_start)
+            changed = True
         port_start = port_start + 1
 
         # since list assignment always replaces the list, we need to check if the lists are the same first
@@ -79,6 +85,7 @@ def sync(e_uci: EUci):
                 profile['dns']['ipv4']['primary_dns'],
                 profile['dns']['ipv4']['secondary_dns']
             ])
+            changed = True
         # save the id of the instance in the remote_ids list
         remote_instances.append(profile_id)
 
@@ -87,8 +94,21 @@ def sync(e_uci: EUci):
         if local_instance not in remote_instances:
             print(f'Profile {local_instance} not present in flashstart, deleting instance')
             e_uci.delete('dhcp', local_instance)
+            changed = True
 
-    e_uci.save('dhcp')
+    if changed:
+        # checking if any changes to dhcp have already been saved
+        result = subprocess.run(['ubus', 'call', 'uci', 'changes', json.dumps({'config': 'dhcp'})], check=True,
+                                capture_output=True, text=True)
+        changes = json.loads(result.stdout)
+        # saving the changes to uci
+        e_uci.save('dhcp')
+        # if there were changes to dhcp, we cannot commit
+        if 'changes' in changes and len(changes['changes']) > 0:
+            print('Some changes are pending to dhcp configuration, skipping commit.')
+        else:
+            # commit the changes to uci, this will trigger the dnsmasq reload
+            subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': 'dhcp'})], check=True)
 
 
 def main():
