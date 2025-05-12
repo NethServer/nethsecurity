@@ -39,6 +39,37 @@ def check_credentials(username, password):
     response.raise_for_status()
 
 
+def enable():
+    # check if the cron entry already exists
+    result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
+    cron_jobs = result.stdout.splitlines()
+    for job in cron_jobs:
+        if 'ns-flashstart sync' in job:
+            print('Service already enabled, skipping.')
+            return
+
+    # add the cron job
+    subprocess.run(['bash', '-c',
+                    '(crontab -l 2>/dev/null; echo "* * * * * /usr/sbin/ns-flashstart sync") | crontab -'],
+                   check=True)
+    print('Service enabled.')
+
+
+def disable():
+    # check if the cron entry already exists
+    result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
+    cron_jobs = result.stdout.splitlines()
+    for job in cron_jobs:
+        if 'ns-flashstart sync' in job:
+            # remove the cron job
+            subprocess.run(['bash', '-c', f'(crontab -l 2>/dev/null | grep -v "{job}") | crontab -'], check=True)
+            print('Service disabled.')
+            return
+
+    print('Service not enabled, skipping.')
+
+
+
 def sync(e_uci: EUci):
     changed = False
     # generate the list of dnsmasq instances managed by flashstart
@@ -61,7 +92,7 @@ def sync(e_uci: EUci):
         # generate reproducible instance id
         profile_id = nethsec.utils.get_id(hashlib.sha256(profile['name'].encode()).hexdigest()[:10])
         if e_uci.get('dhcp', profile_id, default=None) is None:
-            print(f'New profile found {profile["name"]}, creating instance {profile_id}')
+            print(f'New profile found {profile["name"]}, creating instance {profile_id}.')
             # create the instance if it doesn't exist
             e_uci.set('dhcp', profile_id, 'dnsmasq')
             e_uci.set('dhcp', profile_id, 'ns_flashstart', True)
@@ -92,7 +123,7 @@ def sync(e_uci: EUci):
     # if the local instance is not present in the remote list, delete it
     for local_instance in local_instances:
         if local_instance not in remote_instances:
-            print(f'Profile {local_instance} not present in flashstart, deleting instance')
+            print(f'Profile {local_instance} not present in flashstart, deleting instance...')
             e_uci.delete('dhcp', local_instance)
             changed = True
 
@@ -122,16 +153,18 @@ def main():
     check_credentials_parser.add_argument('--password', required=True)
 
     subparsers.add_parser('sync', help='Sync Flashstart profiles')
+    subparsers.add_parser('enable', help='Enable the cron job for flashstart sync')
+    subparsers.add_parser('disable', help='Disable the cron job for flashstart sync')
 
     args = parser.parse_args()
     match args.command:
         case 'check-credentials':
             try:
                 check_credentials(args.username, hashlib.md5(args.password.encode()).hexdigest())
-                parser.exit(message='Credentials are valid')
+                parser.exit(message='Credentials are valid.')
             except HTTPError as e:
                 if e.response.status_code == 401:
-                    parser.exit(1, message='Invalid credentials')
+                    parser.exit(1, message='Invalid credentials.')
                 else:
                     parser.exit(1, message=f'Error checking credentials: {e}')
         case 'sync':
@@ -140,6 +173,12 @@ def main():
                 sync(e_uci)
             except HTTPError as e:
                 parser.exit(1, message=f'Sync failed: {e}')
+            except Exception as e:
+                parser.exit(1, message=f'Unexpected error: {e}')
+        case 'enable':
+            enable()
+        case 'disable':
+            disable()
         case _:
             parser.print_help()
 
