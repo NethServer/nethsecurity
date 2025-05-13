@@ -101,89 +101,127 @@ def disable():
         print('Flashstart auth already disabled, skipping.')
 
 
-def sync(e_uci: EUci):
-    changed = False
+def sync_pro_plus(e_uci: EUci):
+    # check if changes to DHCP are pending
+    dhcp_pending_changes = __are_pending_dhcp_changes()
     # generate the list of dnsmasq instances managed by flashstart
-    local_instances = []
-    for dns in e_uci.get('dhcp', list=True, dtype=str, default=[]):
-        if e_uci.get('dhcp', dns, 'ns_flashstart', default=None) is not None:
-            local_instances.append(dns)
-
-    # fetch info from flashstart
-    client = __get_client(e_uci)
-    username = e_uci.get('flashstart', 'global', 'username', default='')
-    response = client.get(f'{FLASHSTART_API_ENDPOINT}/network/profiles/{username}')
-    response.raise_for_status()
-    data = response.json()
+    local_instances = __fetch_local_instances(e_uci)
+    # fetch info from flashstart, and use just the first
+    profiles = __get_profiles(e_uci)
     # defaults
-    port_start = 5353
+    port_start = CONST_PORT_START
     remote_instances = []
     # iterate over the profiles fetched from flashstart, deleting locally the instances not present in the list
-    for profile in data:
+    for profile in profiles:
         # generate reproducible instance id
-        profile_id = nethsec.utils.get_id(hashlib.sha256(profile['name'].encode()).hexdigest()[:10])
-        if e_uci.get('dhcp', profile_id, default=None) is None:
-            print(f'New profile found {profile["name"]}, creating instance {profile_id}.')
-            # create the instance if it doesn't exist
-            e_uci.set('dhcp', profile_id, 'dnsmasq')
-            e_uci.set('dhcp', profile_id, 'ns_flashstart', True)
-            e_uci.set('dhcp', profile_id, 'ns_flashstart_profile', profile['name'])
-            changed = True
-        # set the port, incrementing it for each profile
-        if port_start != e_uci.get('dhcp', profile_id, 'port', default=None, dtype=int):
-            e_uci.set('dhcp', profile_id, 'port', port_start)
-            changed = True
+        remote_instances.append(__add_profile(e_uci, port_start, profile))
         port_start = port_start + 1
-
-        # since list assignment always replaces the list, we need to check if the lists are the same first
-        # only replacing them if they are different
-        dns_servers = [
-            profile['dns']['ipv4']['primary_dns'],
-            profile['dns']['ipv4']['secondary_dns']
-        ]
-        if list(e_uci.get('dhcp', profile_id, 'server', list=True, dtype=str, default=[])) != dns_servers:
-            # set the dns servers
-            e_uci.set('dhcp', profile_id, 'server', [
-                profile['dns']['ipv4']['primary_dns'],
-                profile['dns']['ipv4']['secondary_dns']
-            ])
-            changed = True
-        # save the id of the instance in the remote_ids list
-        remote_instances.append(profile_id)
 
     # if the local instance is not present in the remote list, delete it
     for local_instance in local_instances:
         if local_instance not in remote_instances:
             print(f'Profile {local_instance} not present in flashstart, deleting instance...')
             e_uci.delete('dhcp', local_instance)
-            changed = True
 
-    if changed:
-        # checking if any changes to dhcp have already been saved
-        result = subprocess.run(['ubus', 'call', 'uci', 'changes', json.dumps({'config': 'dhcp'})], check=True,
-                                capture_output=True, text=True)
-        changes = json.loads(result.stdout)
-        # saving the changes to uci
-        e_uci.save('dhcp')
-        # if there were changes to dhcp, we cannot commit
-        if 'changes' in changes and len(changes['changes']) > 0:
-            print('Some changes are pending to dhcp configuration, skipping commit.')
-        else:
-            # commit the changes to uci, this will trigger the dnsmasq reload
-            subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': 'dhcp'})], check=True)
+    __save(e_uci, dhcp_pending_changes)
+
+
+def __fetch_local_instances(e_uci: EUci):
+    # generate the list of dnsmasq instances managed by flashstart
+    local_instances = []
+    for dns in e_uci.get('dhcp', list=True, dtype=str, default=[]):
+        if e_uci.get('dhcp', dns, 'ns_flashstart', default=None) is not None:
+            local_instances.append(dns)
+    return local_instances
+
+
+def __get_profiles(e_uci: EUci):
+    client = __get_client(e_uci)
+    username = e_uci.get('flashstart', 'global', 'username', default='')
+    response = client.get(f'{FLASHSTART_API_ENDPOINT}/network/profiles/{username}')
+    response.raise_for_status()
+    return response.json()
+
+
+CONST_PORT_START = 5353
+
+
+def __are_pending_dhcp_changes():
+    result = subprocess.run(['ubus', 'call', 'uci', 'changes', json.dumps({'config': 'dhcp'})], check=True,
+                            capture_output=True, text=True)
+    changes = json.loads(result.stdout)
+    return 'changes' in changes and len(changes['changes']) > 0
+
+
+def __add_profile(e_uci: EUci, port: int, profile):
+    profile_id = nethsec.utils.get_id(hashlib.sha256(profile['name'].encode()).hexdigest()[:10])
+    if e_uci.get('dhcp', profile_id, default=None) is None:
+        print(f'New profile found {profile["name"]}, creating instance {profile_id}.')
+        # create the instance if it doesn't exist
+        e_uci.set('dhcp', profile_id, 'dnsmasq')
+        e_uci.set('dhcp', profile_id, 'ns_flashstart', True)
+        e_uci.set('dhcp', profile_id, 'ns_flashstart_profile', profile['name'])
+    # set the port, incrementing it for each profile
+    if port != e_uci.get('dhcp', profile_id, 'port', default=None, dtype=int):
+        e_uci.set('dhcp', profile_id, 'port', port)
+    # since list assignment always replaces the list, we need to check if the lists are the same first
+    # only replacing them if they are different
+    dns_servers = [
+        profile['dns']['ipv4']['primary_dns'],
+        profile['dns']['ipv4']['secondary_dns']
+    ]
+    if list(e_uci.get('dhcp', profile_id, 'server', list=True, dtype=str, default=[])) != dns_servers:
+        # set the dns servers
+        e_uci.set('dhcp', profile_id, 'server', [
+            profile['dns']['ipv4']['primary_dns'],
+            profile['dns']['ipv4']['secondary_dns']
+        ])
+    return profile_id
+
+
+def __save(e_uci: EUci, pending_changes: bool):
+    e_uci.save('dhcp')
+    changed = __are_pending_dhcp_changes()
+    if pending_changes:
+        # don't commit if there are pending changes
+        print('Some changes are pending to dhcp configuration, skipping commit.')
+    elif changed:
+        # commit the changes to uci, this will trigger the dnsmasq reload
+        print('Committing changes to dhcp configuration.')
+        subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': 'dhcp'})], check=True)
+
+
+def sync_pro(e_uci: EUci):
+    # check if changes to DHCP are pending
+    dhcp_pending_changes = __are_pending_dhcp_changes()
+    # generate the list of dnsmasq instances managed by flashstart
+    local_instances = __fetch_local_instances(e_uci)
+    # fetch info from flashstart, and use just the first
+    profiles = __get_profiles(e_uci)
+    profile = profiles[0]
+    # add profile
+    profile_id = __add_profile(e_uci, CONST_PORT_START, profile)
+    # we're syncing a pro profile, delete every other entry
+    for local_instance in local_instances:
+        if local_instance != profile_id:
+            e_uci.delete('dhcp', local_instance)
+
+    __save(e_uci, dhcp_pending_changes)
 
 
 def main():
     import argparse
 
     parser = argparse.ArgumentParser(description='Nethesis Flashstart helper')
+    parser.add_argument('--log-level', default='INFO', help='Set the log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
     subparsers = parser.add_subparsers(dest='command')
 
     check_credentials_parser = subparsers.add_parser('check-credentials', help='Util to check Flashstart credentials')
     check_credentials_parser.add_argument('--username', required=True)
     check_credentials_parser.add_argument('--password', required=True)
 
-    subparsers.add_parser('sync', help='Sync Flashstart profiles')
+    sync_parser = subparsers.add_parser('sync', help='Sync Flashstart')
+    sync_parser.add_argument('--pro-plus', action='store_true', help='Sync Flashstart PRO+ profiles')
     subparsers.add_parser('enable', help='Enable the cron job for flashstart sync')
     subparsers.add_parser('disable', help='Disable the cron job for flashstart sync')
 
@@ -201,7 +239,10 @@ def main():
         case 'sync':
             e_uci = EUci()
             try:
-                sync(e_uci)
+                if args.pro_plus:
+                    sync_pro_plus(e_uci)
+                else:
+                    sync_pro(e_uci)
             except HTTPError as e:
                 parser.exit(1, message=f'Sync failed: {e}')
             except Exception as e:
