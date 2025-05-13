@@ -59,6 +59,7 @@ def enable():
         subprocess.run(['bash', '-c',
                         '(crontab -l 2>/dev/null; echo \'* * * * * sleep $(( RANDOM % 30 )); /usr/sbin/ns-flashstart sync\') | crontab -'],
                        check=True)
+        subprocess.run(['/usr/sbin/ns-flashstart', 'sync'], check=True)
         print('Flashstart sync enabled.')
 
     if flashstart_auth:
@@ -68,6 +69,7 @@ def enable():
         subprocess.run(['bash', '-c',
                         '(crontab -l 2>/dev/null; echo \'*/30 * * * * sleep $(( RANDOM % 60 )); /usr/share/ns-flashstart/flashstart-auth\') | crontab -'],
                        check=True)
+        subprocess.run(['/usr/share/ns-flashstart/flashstart-auth'], check=True)
         print('Flashstart auth enabled.')
 
 
