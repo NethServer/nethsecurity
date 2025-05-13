@@ -103,7 +103,7 @@ def disable():
 
 def sync_pro_plus(e_uci: EUci):
     # check if changes to DHCP are pending
-    dhcp_pending_changes = __are_pending_dhcp_changes()
+    dhcp_pending_changes = __check_pending_changes('dhcp')
     # generate the list of dnsmasq instances managed by flashstart
     local_instances = __fetch_local_instances(e_uci)
     # fetch info from flashstart, and use just the first
@@ -146,8 +146,8 @@ def __get_profiles(e_uci: EUci):
 CONST_PORT_START = 5353
 
 
-def __are_pending_dhcp_changes():
-    result = subprocess.run(['ubus', 'call', 'uci', 'changes', json.dumps({'config': 'dhcp'})], check=True,
+def __check_pending_changes(config: str):
+    result = subprocess.run(['ubus', 'call', 'uci', 'changes', json.dumps({'config': config})], check=True,
                             capture_output=True, text=True)
     changes = json.loads(result.stdout)
     return 'changes' in changes and len(changes['changes']) > 0
@@ -181,7 +181,7 @@ def __add_profile(e_uci: EUci, port: int, profile):
 
 def __save(e_uci: EUci, pending_changes: bool):
     e_uci.save('dhcp')
-    changed = __are_pending_dhcp_changes()
+    changed = __check_pending_changes('dhcp')
     if pending_changes:
         # don't commit if there are pending changes
         print('Some changes are pending to dhcp configuration, skipping commit.')
@@ -193,7 +193,7 @@ def __save(e_uci: EUci, pending_changes: bool):
 
 def sync_pro(e_uci: EUci):
     # check if changes to DHCP are pending
-    dhcp_pending_changes = __are_pending_dhcp_changes()
+    dhcp_pending_changes = __check_pending_changes('dhcp')
     # generate the list of dnsmasq instances managed by flashstart
     local_instances = __fetch_local_instances(e_uci)
     # fetch info from flashstart, and use just the first
