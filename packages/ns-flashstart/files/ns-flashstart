@@ -13,6 +13,8 @@ import requests
 import nethsec.utils
 import json
 import subprocess
+import logging
+from logging.handlers import SysLogHandler
 
 FLASHSTART_API_ENDPOINT = 'https://api.flashstart.com/1.0.0'
 
@@ -24,6 +26,8 @@ DEFAULT_HEADERS = {
 CONST_PORT_START = 5300
 
 e_uci = EUci()
+logger = logging.getLogger('ns-flashstart')
+logger.setLevel(logging.INFO)
 
 
 def __get_client() -> requests.Session:
@@ -76,8 +80,6 @@ def enable():
         subprocess.run(['/usr/share/ns-flashstart/flashstart-auth'], check=True)
         print('Flashstart auth enabled.')
 
-    setup_interceptors()
-
 
 def disable():
     # check if the cron entry already exists
@@ -95,21 +97,21 @@ def disable():
     if flashstart_sync:
         # remove the cron job
         subprocess.run(['bash', '-c', '(crontab -l 2>/dev/null | grep -v \'ns-flashstart sync\') | crontab -'], check=True)
-        print('Flashstart sync disabled.')
+        logger.info('Flashstart sync disabled.')
     else:
-        print('Flashstart sync already disabled, skipping.')
+        logger.info('Flashstart sync already disabled, skipping.')
 
     if flashstart_auth:
         # remove the cron job
         subprocess.run(['bash', '-c', '(crontab -l 2>/dev/null | grep -v \'flashstart-auth\') | crontab -'], check=True)
-        print('Flashstart auth disabled.')
+        logger.info('Flashstart auth disabled.')
     else:
-        print('Flashstart auth already disabled, skipping.')
+        logger.info('Flashstart auth already disabled, skipping.')
 
     __redirect_teardown()
 
 
-def sync_pro_plus():
+def sync_pro_plus_profiles():
     # check if changes to DHCP are pending
     dhcp_pending_changes = __check_pending_changes('dhcp')
     # generate the list of dnsmasq instances managed by flashstart
@@ -128,7 +130,7 @@ def sync_pro_plus():
     # if the local instance is not present in the remote list, delete it
     for local_instance in local_instances:
         if local_instance not in remote_instances:
-            print(f'Profile {local_instance} not present in flashstart, deleting instance...')
+            logger.info(f'Profile {local_instance} not present in flashstart, deleting instance...')
             e_uci.delete('dhcp', local_instance)
 
     __save(dhcp_pending_changes, 'dhcp')
@@ -156,6 +158,22 @@ def __check_pending_changes(config: str):
                             capture_output=True, text=True)
     changes = json.loads(result.stdout)
     return 'changes' in changes and len(changes['changes']) > 0
+
+
+def sync_host_sets():
+    data = []
+    for host_set in e_uci.get('objects', list=True, dtype=str, default=[]):
+        if e_uci.get('objects', host_set) != 'host':
+            continue
+        data.append({
+            'username': host_set,
+            'name': e_uci.get('objects', host_set, 'name', default=''),
+            'surname': ';'.join(e_uci.get('objects', host_set, 'ipaddr', default=[], dtype=str, list=True)),
+        })
+    client = __get_client()
+    username = e_uci.get('flashstart', 'global', 'username', default='')
+    response = client.post(f'{FLASHSTART_API_ENDPOINT}/sync/objects/{username}/1', json.dumps(data))
+    response.raise_for_status()
 
 
 def __add_profile(port: int, profile):
@@ -196,7 +214,7 @@ def __save(pending_changes: bool, config: str):
         subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': config})], check=True)
 
 
-def sync_pro():
+def sync_pro_profiles():
     # check if changes to DHCP are pending
     dhcp_pending_changes = __check_pending_changes('dhcp')
     # generate the list of dnsmasq instances managed by flashstart
@@ -253,18 +271,20 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description='Nethesis Flashstart helper')
+    parser.add_argument('--syslog', action='store_true', help='Print to syslog')
     subparsers = parser.add_subparsers(dest='command')
 
     check_credentials_parser = subparsers.add_parser('check-credentials', help='Util to check Flashstart credentials')
     check_credentials_parser.add_argument('--username', required=True)
     check_credentials_parser.add_argument('--password', required=True)
 
-    sync_parser = subparsers.add_parser('sync', help='Sync Flashstart')
-    sync_parser.add_argument('--pro-plus', action='store_true', help='Sync Flashstart PRO+ profiles')
+    subparsers.add_parser('sync', help='Sync Flashstart')
     subparsers.add_parser('enable', help='Enable the cron job for flashstart sync')
     subparsers.add_parser('disable', help='Disable the cron job for flashstart sync')
 
     args = parser.parse_args()
+    if args.syslog:
+        logger.addHandler(SysLogHandler())
     match args.command:
         case 'check-credentials':
             try:
@@ -276,11 +296,13 @@ def main():
                 else:
                     parser.exit(1, message=f'Error checking credentials: {e}')
         case 'sync':
+            pro_plus = e_uci.get('flashstart', 'global', 'proplus', default=False, dtype=bool)
             try:
-                if args.pro_plus:
-                    sync_pro_plus()
+                sync_host_sets()
+                if pro_plus:
+                    sync_pro_plus_profiles()
                 else:
-                    sync_pro()
+                    sync_pro_profiles()
             except HTTPError as e:
                 parser.exit(1, message=f'Sync failed: {e}')
             except Exception as e:
