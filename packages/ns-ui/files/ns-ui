@@ -48,7 +48,7 @@ server {
 	# enable NS UI
 	location / {
 		gzip on;
-		gzip_types text/html text/css application/javascript image/svg+xml;
+		gzip_types text/css application/javascript image/svg+xml;
 		root /www-ns;
 		try_files \$uri \$uri/ /index.html;
 	}

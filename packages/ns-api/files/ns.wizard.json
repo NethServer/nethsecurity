@@ -1,0 +1,13 @@
+{
+  "wizard": {
+    "description": "Wizard status and configuration",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.wizard": [
+          "*"
+        ]
+      }
+    }
+  }
+}
