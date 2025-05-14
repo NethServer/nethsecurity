@@ -26,9 +26,6 @@ DEFAULT_HEADERS = {
 CONST_PORT_START = 5300
 
 e_uci = EUci()
-logger = logging.getLogger('ns-flashstart')
-logger.setLevel(logging.INFO)
-
 
 def __get_client() -> requests.Session:
     session = requests.Session()
@@ -55,30 +52,30 @@ def enable():
     flashstart_sync = False
     flashstart_auth = False
     for job in cron_jobs:
-        if 'ns-flashstart sync' in job:
+        if 'ns-flashstart' in job:
             flashstart_sync = True
         if 'flashstart-auth' in job:
             flashstart_auth = True
 
     if flashstart_sync:
-        print('Flashstart sync already enabled, skipping.')
+        logging.debug('Flashstart sync already enabled, skipping.')
     else:
         # add the cron job
         subprocess.run(['bash', '-c',
-                        '(crontab -l 2>/dev/null; echo \'* * * * * sleep $(( RANDOM % 30 )); /usr/sbin/ns-flashstart sync\') | crontab -'],
+                        '(crontab -l 2>/dev/null; echo \'* * * * * sleep $(( RANDOM % 30 )); /usr/sbin/ns-flashstart --syslog sync\') | crontab -'],
                        check=True)
         subprocess.run(['/usr/sbin/ns-flashstart', 'sync'], check=True)
-        print('Flashstart sync enabled.')
+        logging.info('Flashstart sync enabled.')
 
     if flashstart_auth:
-        print('Flashstart auth already enabled, skipping.')
+        logging.debug('Flashstart auth already enabled, skipping.')
     else:
         # add the cron job
         subprocess.run(['bash', '-c',
                         '(crontab -l 2>/dev/null; echo \'*/30 * * * * sleep $(( RANDOM % 60 )); /usr/share/ns-flashstart/flashstart-auth\') | crontab -'],
                        check=True)
         subprocess.run(['/usr/share/ns-flashstart/flashstart-auth'], check=True)
-        print('Flashstart auth enabled.')
+        logging.info('Flashstart auth enabled.')
 
 
 def disable():
@@ -89,24 +86,24 @@ def disable():
     flashstart_auth = False
 
     for job in cron_jobs:
-        if 'ns-flashstart sync' in job:
+        if 'ns-flashstart' in job:
             flashstart_sync = True
         if 'flashstart-auth' in job:
             flashstart_auth = True
 
     if flashstart_sync:
         # remove the cron job
-        subprocess.run(['bash', '-c', '(crontab -l 2>/dev/null | grep -v \'ns-flashstart sync\') | crontab -'], check=True)
-        logger.info('Flashstart sync disabled.')
+        subprocess.run(['bash', '-c', '(crontab -l 2>/dev/null | grep -v \'ns-flashstart\') | crontab -'], check=True)
+        logging.info('Flashstart sync disabled.')
     else:
-        logger.info('Flashstart sync already disabled, skipping.')
+        logging.debug('Flashstart sync already disabled, skipping.')
 
     if flashstart_auth:
         # remove the cron job
         subprocess.run(['bash', '-c', '(crontab -l 2>/dev/null | grep -v \'flashstart-auth\') | crontab -'], check=True)
-        logger.info('Flashstart auth disabled.')
+        logging.info('Flashstart auth disabled.')
     else:
-        logger.info('Flashstart auth already disabled, skipping.')
+        logging.debug('Flashstart auth already disabled, skipping.')
 
     __redirect_teardown()
 
@@ -130,7 +127,7 @@ def sync_pro_plus_profiles():
     # if the local instance is not present in the remote list, delete it
     for local_instance in local_instances:
         if local_instance not in remote_instances:
-            logger.info(f'Profile {local_instance} not present in flashstart, deleting instance...')
+            logging.info(f'Profile {local_instance} not present in flashstart, deleting instance...')
             e_uci.delete('dhcp', local_instance)
 
     __save(dhcp_pending_changes, 'dhcp')
@@ -174,12 +171,13 @@ def sync_host_sets():
     username = e_uci.get('flashstart', 'global', 'username', default='')
     response = client.post(f'{FLASHSTART_API_ENDPOINT}/sync/objects/{username}/1', json.dumps(data))
     response.raise_for_status()
+    logging.info(f'Successfully synced {len(data)} host sets to flashstart.')
 
 
 def __add_profile(port: int, profile):
     profile_id = nethsec.utils.get_id(hashlib.sha256(profile['name'].encode()).hexdigest()[:10])
     if e_uci.get('dhcp', profile_id, default=None) is None:
-        print(f'New profile found {profile["name"]}, creating instance {profile_id}.')
+        logging.info(f'New profile found {profile["name"]}, creating instance {profile_id}.')
         # create the instance if it doesn't exist
         e_uci.set('dhcp', profile_id, 'dnsmasq')
         e_uci.set('dhcp', profile_id, 'ns_flashstart', True)
@@ -207,11 +205,13 @@ def __save(pending_changes: bool, config: str):
     changed = __check_pending_changes(config)
     if pending_changes:
         # don't commit if there are pending changes
-        print(f'Some changes are pending to {config} configuration, skipping commit.')
+        logging.warning(f'Some changes are pending to {config} configuration, skipping commit.')
     elif changed:
         # commit the changes to uci, this will trigger the dnsmasq reload
-        print(f'Committing changes to {config} configuration.')
+        logging.info(f'Committing changes to {config} configuration.')
         subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': config})], check=True)
+    else:
+        logging.debug(f'No changes to {config} configuration.')
 
 
 def sync_pro_profiles():
@@ -271,7 +271,9 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description='Nethesis Flashstart helper')
-    parser.add_argument('--syslog', action='store_true', help='Print to syslog')
+    parser.add_argument('--log-level', default='info', choices=['debug', 'info', 'warning', 'error'],
+                        help='Set the log level (default: info)')
+    parser.add_argument('--syslog', action='store_true', help='Send logs to syslog')
     subparsers = parser.add_subparsers(dest='command')
 
     check_credentials_parser = subparsers.add_parser('check-credentials', help='Util to check Flashstart credentials')
@@ -283,8 +285,15 @@ def main():
     subparsers.add_parser('disable', help='Disable the cron job for flashstart sync')
 
     args = parser.parse_args()
+    logger = logging.getLogger()
+    logger.setLevel(getattr(logging, args.log_level.upper()))
     if args.syslog:
-        logger.addHandler(SysLogHandler())
+        handler = logging.handlers.SysLogHandler(facility=SysLogHandler.LOG_DAEMON, address='/dev/log')
+        handler.setFormatter(logging.Formatter('ns-flashstart[%(process)d]: %(levelname)s - %(message)s'))
+        logger.addHandler(handler)
+    else:
+        handler = logging.StreamHandler()
+        logger.addHandler(handler)
     match args.command:
         case 'check-credentials':
             try:
@@ -304,9 +313,11 @@ def main():
                 else:
                     sync_pro_profiles()
             except HTTPError as e:
-                parser.exit(1, message=f'Sync failed: {e}')
+                logging.error(f'Error syncing profiles: {e}')
+                parser.exit(1)
             except Exception as e:
-                parser.exit(1, message=f'Unexpected error: {e}')
+                logging.error(f'Unexpected error: {e}')
+                parser.exit(1)
         case 'enable':
             enable()
         case 'disable':
