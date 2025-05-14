@@ -19,6 +19,10 @@ import subprocess
 from euci import EUci
 from nethsec import users
 
+def debug(msg):
+    if os.environ.get("debug", False):
+        print(f'[DEBUG] {msg}', file=sys.stderr)
+
 username = os.environ.get("username")
 otp = os.environ.get("password")
 config_path = os.environ.get("config")
@@ -32,6 +36,8 @@ except:
     # user db not set
     sys.exit(5)
 
+debug(f"Username: {username}")
+debug(f"Database: {db}")
 user = users.get_user_by_name(uci, username, db)
 if user is None:
     # user not found
@@ -44,6 +50,68 @@ if not "openvpn_enabled" in user or user["openvpn_enabled"] != "1":
 if "openvpn_2fa" not in user:
     # 2fa secret not set
     sys.exit(2)
+
+# If user DB is remote, check the existence of the user
+# in the LDAP server
+if uci.get("users", db) == "ldap":
+    debug("User is remote")
+    ldap = uci.get_all("users", db)
+    uri = ldap.get("uri", "")
+
+    base_dn = ldap.get("base_dn", "")
+    # default for user_dn is the base_dn
+    user_dn = ldap.get("user_dn", base_dn)
+    user_attr = ldap.get("user_attr", "uid")
+    tls_reqcert = ldap.get("tls_reqcert", "never")
+    starttls = int(ldap.get("start_tls", 0))
+    bind_dn = ldap.get("bind_dn")
+    bind_password = ldap.get("bind_password")
+
+    if not uri or not base_dn:
+        # no info to connect ldap db
+        debug(f"Error: invalid LDAP URI or base DN")
+        sys.exit(5)
+
+    ldapsearch_command = [
+        "/usr/bin/ldapsearch",
+        "-LLL",
+        "-H", uri,
+        "-b", base_dn,
+    ]
+
+    if bind_dn:
+        ldapsearch_command.append("-D")
+        ldapsearch_command.append(bind_dn)
+        ldapsearch_command.append("-w")
+        ldapsearch_command.append(bind_password)
+    else:
+        ldapsearch_command.append("-x")
+
+    if starttls:
+        ldapsearch_command.append("-Z")
+
+    # static filter to limit the number of returned attributes and entries
+    ldapsearch_command.append(f"{user_attr}={username}")
+
+    env = os.environ.copy()
+    env['LDAPTLS_REQCERT'] = tls_reqcert
+    debug(f"Command: LDAPTLS_REQCERT={tls_reqcert} " + " ".join(ldapsearch_command))
+
+    try:
+        proc = subprocess.run(ldapsearch_command, env=env, check=True, capture_output=True, text=True)
+        if f"{user_attr}={username}".lower() in proc.stdout.lower():
+            debug("User found in LDAP")
+        else:
+            debug("User not found in LDAP")
+            sys.exit(6)
+        # continue to check the OTP
+    except Exception as e:
+        debug("Remote bind: failed")
+        print(e, file=sys.stderr)
+        sys.exit(7)
+else:
+    debug("User is local")
+
 
 try:
     if pyotp.totp.TOTP(user.get("openvpn_2fa")).verify(otp):
