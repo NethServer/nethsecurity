@@ -105,35 +105,17 @@ def disable():
     else:
         logging.debug('Flashstart auth already disabled, skipping.')
 
-    __redirect_teardown()
+    for config in ['dhcp', 'firewall']:
+        for entry in e_uci.get(config, list=True, dtype=str, default=[]):
+            if e_uci.get(config, entry, 'ns_flashstart', default=False, dtype=bool):
+                # delete the entry
+                logging.debug(f'Deleting {config} entry {entry}')
+                e_uci.delete(config, entry)
+        e_uci.save(config)
+        subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': config})], check=True)
 
 
-def sync_pro_plus_profiles():
-    # check if changes to DHCP are pending
-    dhcp_pending_changes = __check_pending_changes('dhcp')
-    # generate the list of dnsmasq instances managed by flashstart
-    local_instances = __fetch_local_instances()
-    # fetch info from flashstart, and use just the first
-    profiles = __get_profiles()
-    # defaults
-    port_start = CONST_PORT_START
-    remote_instances = []
-    # iterate over the profiles fetched from flashstart, deleting locally the instances not present in the list
-    for profile in profiles:
-        # generate reproducible instance id
-        remote_instances.append(__add_profile(port_start, profile))
-        port_start = port_start + 1
-
-    # if the local instance is not present in the remote list, delete it
-    for local_instance in local_instances:
-        if local_instance not in remote_instances:
-            logging.info(f'Profile {local_instance} not present in flashstart, deleting instance...')
-            e_uci.delete('dhcp', local_instance)
-
-    __save(dhcp_pending_changes, 'dhcp')
-
-
-def __fetch_local_instances():
+def __fetch_local_dhcp_instances():
     # generate the list of dnsmasq instances managed by flashstart
     local_instances = []
     for dns in e_uci.get('dhcp', list=True, dtype=str, default=[]):
@@ -142,12 +124,15 @@ def __fetch_local_instances():
     return local_instances
 
 
-def __get_profiles():
-    client = __get_client()
-    username = e_uci.get('flashstart', 'global', 'username', default='')
-    response = client.get(f'{FLASHSTART_API_ENDPOINT}/network/profiles/{username}')
-    response.raise_for_status()
-    return response.json()
+def __fetch_local_redirect_instances():
+    # generate the list of dns redirect for flashstart
+    local_redirects = []
+    for redirect in e_uci.get('firewall', list=True, dtype=str, default=[]):
+        if e_uci.get('firewall', redirect) == 'redirect' and e_uci.get('firewall', redirect, 'ns_flashstart',
+                                                                       default=False, dtype=bool):
+            local_redirects.append(redirect)
+
+    return local_redirects
 
 
 def __check_pending_changes(config: str):
@@ -157,7 +142,7 @@ def __check_pending_changes(config: str):
     return 'changes' in changes and len(changes['changes']) > 0
 
 
-def sync_host_sets():
+def __sync_host_sets():
     data = []
     for host_set in e_uci.get('objects', list=True, dtype=str, default=[]):
         if e_uci.get('objects', host_set) != 'host':
@@ -174,33 +159,7 @@ def sync_host_sets():
     logging.info(f'Successfully synced {len(data)} host sets to flashstart.')
 
 
-def __add_profile(port: int, profile):
-    profile_id = nethsec.utils.get_id(hashlib.sha256(profile['name'].encode()).hexdigest()[:10])
-    if e_uci.get('dhcp', profile_id, default=None) is None:
-        logging.info(f'New profile found {profile["name"]}, creating instance {profile_id}.')
-        # create the instance if it doesn't exist
-        e_uci.set('dhcp', profile_id, 'dnsmasq')
-        e_uci.set('dhcp', profile_id, 'ns_flashstart', True)
-        e_uci.set('dhcp', profile_id, 'ns_flashstart_profile', profile['name'])
-    # set the port, incrementing it for each profile
-    if port != e_uci.get('dhcp', profile_id, 'port', default=None, dtype=int):
-        e_uci.set('dhcp', profile_id, 'port', port)
-    # since list assignment always replaces the list, we need to check if the lists are the same first
-    # only replacing them if they are different
-    dns_servers = [
-        profile['dns']['ipv4']['primary_dns'],
-        profile['dns']['ipv4']['secondary_dns']
-    ]
-    if list(e_uci.get('dhcp', profile_id, 'server', list=True, dtype=str, default=[])) != dns_servers:
-        # set the dns servers
-        e_uci.set('dhcp', profile_id, 'server', [
-            profile['dns']['ipv4']['primary_dns'],
-            profile['dns']['ipv4']['secondary_dns']
-        ])
-    return profile_id
-
-
-def __save(pending_changes: bool, config: str):
+def __save(pending_changes: bool, config: str) -> bool:
     e_uci.save(config)
     changed = __check_pending_changes(config)
     if pending_changes:
@@ -210,61 +169,131 @@ def __save(pending_changes: bool, config: str):
         # commit the changes to uci, this will trigger the dnsmasq reload
         logging.info(f'Committing changes to {config} configuration.')
         subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': config})], check=True)
+        return True
     else:
         logging.debug(f'No changes to {config} configuration.')
 
+    return False
 
-def sync_pro_profiles():
-    # check if changes to DHCP are pending
-    dhcp_pending_changes = __check_pending_changes('dhcp')
-    # generate the list of dnsmasq instances managed by flashstart
-    local_instances = __fetch_local_instances()
-    # fetch info from flashstart, and use just the first
-    profiles = __get_profiles()
-    profile = profiles[0]
-    # add profile
-    profile_id = __add_profile(CONST_PORT_START, profile)
-    # we're syncing a pro profile, delete every other entry
+
+def __sync_pro_profiles():
+    # check if some changes are pending
+    pending_changes = __check_pending_changes('dhcp') or __check_pending_changes('firewall')
+
+    # get already existing dnsmasq instances managed by flashstart
+    local_instances = __fetch_local_dhcp_instances()
+
+    # fetch config
+    config = __fetch_config()
+
+    # use just the first, since we don't support multiple profiles in pro setup
+    first_server = config['dhcp'][0]
+    if e_uci.get('dhcp', first_server['id'], default=None) is None:
+        logging.info(f'New profile found {first_server["name"]}, creating instance {first_server["id"]}.')
+        e_uci.set('dhcp', first_server['id'], 'dnsmasq')
+        e_uci.set('dhcp', first_server['id'], 'ns_flashstart', True)
+        e_uci.set('dhcp', first_server['id'], 'ns_flashstart_profile', first_server["name"])
+    e_uci.set('dhcp', first_server['id'], 'port', CONST_PORT_START)
+    # sets always get replaced, checking before replacing
+    if list(e_uci.get('dhcp', first_server['id'], 'server', list=True, dtype=str, default=[])) != first_server[
+        'servers']:
+        logging.debug(f'Replacing dns servers for {first_server["id"]} with {first_server["servers"]}')
+        e_uci.set('dhcp', first_server['id'], 'server', first_server['servers'])
+    # remove every other profile other than the first
     for local_instance in local_instances:
-        if local_instance != profile_id:
+        if local_instance != first_server['id']:
+            logging.info(f'Profile {local_instance} not present in flashstart, deleting instance...')
             e_uci.delete('dhcp', local_instance)
 
-    __save(dhcp_pending_changes, 'dhcp')
+    # generate bypass firewall set
+    if e_uci.get('firewall', 'ns_flashstart_bypass', default=None) is None:
+        logging.debug(f'Creating bypass set for flashstart')
+        # create the bypass set
+        e_uci.set('firewall', 'ns_flashstart_bypass', 'ipset')
+        e_uci.set('firewall', 'ns_flashstart_bypass', 'name', 'flashstart-bypass')
+        e_uci.set('firewall', 'ns_flashstart_bypass', 'enabled', 1)
+        e_uci.set('firewall', 'ns_flashstart_bypass', 'match', 'net')
+        e_uci.set('firewall', 'ns_flashstart_bypass', 'family', 'inet')
+        e_uci.set('firewall', 'ns_flashstart_bypass', 'ns_flashstart', True)
+    # fetch the bypass list from flashstart
+    bypass_list = [entry for entry in e_uci.get('flashstart', 'global', 'bypass', list=True, dtype=str, default=[])
+                   if entry != '']
+    # check if ipset entries are the same
+    if list(e_uci.get('firewall', 'ns_flashstart_bypass', 'entry', list=True, dtype=str, default=[])) != bypass_list:
+        e_uci.set('firewall', 'ns_flashstart_bypass', 'entry', bypass_list)
 
-
-def __redirect_teardown():
-    for redirect_id in e_uci.get('firewall'):
-        if e_uci.get('firewall', redirect_id) == 'redirect' and e_uci.get('firewall', redirect_id, 'ns_flashstart',
-                                                                          default=False, dtype=bool):
-            # delete the old interceptor
-            # info(f'Deleting old interceptor {redirect}')
-            e_uci.delete('firewall', redirect_id)
-
-
-def setup_interceptors():
-    firewall_pending_changes = __check_pending_changes('firewall')
-    # prune old interceptors
-    __redirect_teardown()
-    # check if changes to firewall are pending
-    if e_uci.get('flashstart', 'global', 'proplus', default=False, dtype=bool):
-        raise NotImplementedError
-    else:
-        # debug('Enabling interceptors for PRO')
-        for zone in e_uci.get('flashstart', 'global', 'zones', default=[], list=True):
-            # if config is empty, skip, since we don't want to create an empty entry
-            if zone == '':
-                continue
-            redirect_id = f'ns_flashstart_{zone}'
+    # setup catch all DNAT rule for each zone
+    local_redirects = __fetch_local_redirect_instances()
+    applied_zones = []
+    for zone in e_uci.get('flashstart', 'global', 'zones', default=[], list=True, dtype=str):
+        redirect_id = f'ns_flashstart_{zone}'
+        if e_uci.get('firewall', redirect_id, default=None) is None:
+            # create the redirect if not present
+            logging.debug(f'Creating new redirect {redirect_id}')
             e_uci.set('firewall', redirect_id, 'redirect')
             e_uci.set('firewall', redirect_id, 'name', f'Flashstart-intercept-DNS-from-{zone}')
             e_uci.set('firewall', redirect_id, 'src', zone)
             e_uci.set('firewall', redirect_id, 'src_dport', 53)
-            e_uci.set('firewall', redirect_id, 'dest_port', CONST_PORT_START)
             e_uci.set('firewall', redirect_id, 'proto', "tcp udp")
             e_uci.set('firewall', redirect_id, 'target', 'DNAT')
+            e_uci.set('firewall', redirect_id, 'ipset', f'!flashstart-bypass')
             e_uci.set('firewall', redirect_id, 'ns_flashstart', True)
+        e_uci.set('firewall', redirect_id, 'dest_port', CONST_PORT_START)
+        applied_zones.append(redirect_id)
+    # remove every other redirect other than the ones in the list
+    for local_redirect in local_redirects:
+        if local_redirect not in applied_zones:
+            logging.info(f'Redirect {local_redirect} not present in flashstart, deleting instance...')
+            e_uci.delete('firewall', local_redirect)
 
-    __save(firewall_pending_changes, 'firewall')
+    e_uci.save('dhcp')
+    e_uci.save('firewall')
+    if pending_changes:
+        # don't commit if there are pending changes
+        logging.warning('Some changes are pending to dhcp/firewall configuration, skipping commit.')
+    elif __check_pending_changes('dhcp') or __check_pending_changes('firewall'):
+        # commit the changes to uci, this will trigger all reloads
+        logging.info(f'Applying changes to dhcp/firewall configuration.')
+        subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': 'dhcp'})], check=True)
+        subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': 'firewall'})], check=True)
+        # workaround for the fact that ipset doesn't reload the sets on deletion
+        subprocess.run(['fw4', 'reload-sets'])
+
+
+def sync():
+    __sync_host_sets()
+    __sync_pro_profiles()
+
+
+def __fetch_config():
+    client = __get_client()
+    username = e_uci.get('flashstart', 'global', 'username', default='')
+    profiles = client.get(f'{FLASHSTART_API_ENDPOINT}/network/profiles/{username}')
+    profiles.raise_for_status()
+    data = {'dhcp': [], 'sessions': []}
+    for profile in profiles.json():
+        data['dhcp'].append({
+            'id': nethsec.utils.get_id(hashlib.sha256(profile['name'].encode()).hexdigest()[:10]),
+            'name': profile['name'],
+            'catch-all': profile['is_catch-all'],
+            'dns_code': profile['dns_code'],
+            'servers': [
+                profile['dns']['ipv4']['primary_dns'],
+                profile['dns']['ipv4']['secondary_dns']
+            ]
+        })
+    sessions = client.get(f'{FLASHSTART_API_ENDPOINT}/sessions/list/{username}')
+    sessions.raise_for_status()
+    for session in sessions.json():
+        # if session.get('ip') is None:
+        #     continue
+        data['sessions'].append({
+            'username': session['username'],
+            'ip': session['ip'],
+            'dns_code': session['dns_code']
+        })
+
+    return data
 
 
 def main():
@@ -305,13 +334,8 @@ def main():
                 else:
                     parser.exit(1, message=f'Error checking credentials: {e}')
         case 'sync':
-            pro_plus = e_uci.get('flashstart', 'global', 'proplus', default=False, dtype=bool)
             try:
-                sync_host_sets()
-                if pro_plus:
-                    sync_pro_plus_profiles()
-                else:
-                    sync_pro_profiles()
+                sync()
             except HTTPError as e:
                 logging.error(f'Error syncing profiles: {e}')
                 parser.exit(1)
@@ -320,6 +344,7 @@ def main():
                 parser.exit(1)
         case 'enable':
             enable()
+            sync()
         case 'disable':
             disable()
         case _:
