@@ -29,7 +29,7 @@ Each release in the distribution feed is associated with two repositories:
 
 2. Rolling Repository:
     - Used by the running images.
-    - Contains all updates compatible within the same major OpenWRT release.
+    - Contains all updates compatible within the same major OpenWrt release.
 
 ### Examples
 
@@ -85,12 +85,12 @@ opkg update
 /bin/opkg list-upgradable | /usr/bin/cut -f 1 -d ' ' | /usr/bin/xargs -r opkg upgrade && echo "Update successful!"
 ```
 
-The customfeed.confg file takes precedence over distfeed.conf, so you can safely
+The customfeed.conf file takes precedence over distfeed.conf, so you can safely
 ignore errors like `opkg_conf_parse_file: Duplicate src declaration`.
 
-At the end, retstore the original `customfeeds.conf`:
+At the end, restore the original `customfeeds.conf`:
 ```
-mv /etc/opkg/customfeeds.conf /etc/opkg/customfeeds.conf
+mv /etc/opkg/customfeeds.conf.ori /etc/opkg/customfeeds.conf
 opkg update
 ```
 
