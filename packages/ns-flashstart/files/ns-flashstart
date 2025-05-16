@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+from time import sleep
 
 #
 # Copyright (C) 2025 Nethesis S.r.l.
@@ -171,7 +172,7 @@ def __sync_host_sets():
     logging.debug(f'Successfully synced {len(data)} host sets to flashstart.')
 
 
-def __save(pending_changes: bool) -> bool:
+def __save(pending_changes: bool):
     e_uci.save('dhcp')
     e_uci.save('firewall')
     if pending_changes:
@@ -182,8 +183,11 @@ def __save(pending_changes: bool) -> bool:
         logging.info(f'Applying changes to dhcp/firewall configuration.')
         subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': 'dhcp'})], check=True)
         subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': 'firewall'})], check=True)
-        return True
-    return False
+        # reload the firewall
+        # by sleeping for 2 seconds we ensure that the firewall reloads the sets correctly after the commit
+        # this 100% needs to be fixed upstream.
+        sleep(2)
+        subprocess.run(['fw4', 'restart'])
 
 
 def __add_bypass_ipset():
@@ -197,10 +201,11 @@ def __add_bypass_ipset():
     e_uci.set('firewall', 'ns_flashstart_bypass', 'family', 'inet')
     e_uci.set('firewall', 'ns_flashstart_bypass', 'ns_flashstart', True)
     # fetch the bypass list from flashstart
-    bypass_list = [entry for entry in e_uci.get('flashstart', 'global', 'bypass', list=True, dtype=str, default=[])
-                   if entry != '']
+    bypass_list = sorted([entry for entry in e_uci.get('flashstart', 'global', 'bypass', list=True, dtype=str, default=[])
+                   if entry != ''])
     # check if ipset entries are the same
-    if list(e_uci.get('firewall', 'ns_flashstart_bypass', 'entry', list=True, dtype=str, default=[])) != bypass_list:
+    stored_entries = sorted(list(e_uci.get('firewall', 'ns_flashstart_bypass', 'entry', list=True, dtype=str, default=[])))
+    if stored_entries != bypass_list:
         e_uci.set('firewall', 'ns_flashstart_bypass', 'entry', bypass_list)
 
 
@@ -249,8 +254,8 @@ def __sync_pro_profiles():
         if local_redirect not in applied_zones:
             logging.info(f'Redirect {local_redirect} not present in flashstart, deleting instance...')
             e_uci.delete('firewall', local_redirect)
-    if __save(pending_changes):
-        subprocess.run(['fw4', 'reload-sets'])
+
+    __save(pending_changes)
 
 
 def __add_profile(port, profile):
@@ -262,8 +267,8 @@ def __add_profile(port, profile):
     e_uci.set('dhcp', profile['id'], 'ns_flashstart_dns_code', profile["dns_code"])
     e_uci.set('dhcp', profile['id'], 'port', port)
     # sets always get replaced, checking before replacing
-    if list(e_uci.get('dhcp', profile['id'], 'server', list=True, dtype=str, default=[])) != profile[
-        'servers']:
+    stored_entries = sorted(list(e_uci.get('dhcp', profile['id'], 'server', list=True, dtype=str, default=[])))
+    if stored_entries != sorted(profile['servers']):
         logging.debug(f'Replacing dns servers for {profile["id"]} with {profile["servers"]}')
         e_uci.set('dhcp', profile['id'], 'server', profile['servers'])
 
@@ -355,13 +360,16 @@ def __sync_pro_plus_profiles():
         active_sessions[session['dns_code']].extend(entries)
 
     for ip_set in __fetch_instanced_services('firewall', 'ipset'):
+        if ip_set == 'ns_flashstart_bypass':
+            continue
         ipset_dns_code = e_uci.get('firewall', ip_set, 'ns_flashstart_dns_code', default='')
         if ipset_dns_code in active_sessions:
-            upstream_entries = active_sessions.get(ipset_dns_code)
+            upstream_entries = sorted(list(set(active_sessions.get(ipset_dns_code))))
         else:
             upstream_entries = []
         # check if ipset entries are the same
-        if list(e_uci.get('firewall', ip_set, 'entry', list=True, dtype=str, default=[])) != upstream_entries:
+        stored_entries = sorted(list(e_uci.get('firewall', ip_set, 'entry', list=True, dtype=str, default=[])))
+        if stored_entries != upstream_entries:
             logging.debug(f'Updating ipset {ip_set} with entries {upstream_entries}')
             e_uci.set('firewall', ip_set, 'entry', upstream_entries)
 
@@ -378,8 +386,8 @@ def __sync_pro_plus_profiles():
         if instance not in added_redirects:
             logging.info(f'Redirect {instance} not present in flashstart, deleting instance...')
             e_uci.delete('firewall', instance)
-    if __save(pending_changes):
-        subprocess.run(['fw4', 'reload-sets'])
+
+    __save(pending_changes)
 
 
 def sync():
