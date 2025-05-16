@@ -1,0 +1,487 @@
+#!/usr/bin/python3
+from time import sleep
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+from euci import EUci
+from requests import HTTPError
+from requests.auth import HTTPBasicAuth
+import hashlib
+import requests
+import nethsec.utils
+import nethsec.objects
+import json
+import subprocess
+import logging
+from logging.handlers import SysLogHandler
+
+FLASHSTART_API_ENDPOINT = 'https://api.flashstart.com/1.0.0'
+
+DEFAULT_HEADERS = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+}
+
+CONST_PORT_START = 5300
+
+e_uci = EUci()
+
+def __get_client() -> requests.Session:
+    session = requests.Session()
+    session.headers.update(DEFAULT_HEADERS)
+    username = e_uci.get('flashstart', 'global', 'username', default='')
+    password = e_uci.get('flashstart', 'global', 'password', default='')
+    hashed_password = hashlib.md5(password.encode()).hexdigest()
+    session.auth = HTTPBasicAuth(username, hashed_password)
+    return session
+
+
+def check_credentials(username, password):
+    response = requests.post(f'{FLASHSTART_API_ENDPOINT}/auth/check/', auth=HTTPBasicAuth(username, password),
+                             data='{"who": "Device"}',
+                             headers=DEFAULT_HEADERS)
+    response.raise_for_status()
+
+
+def enable():
+    # check if the cron entry already exists
+    result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
+    cron_jobs = result.stdout.splitlines()
+
+    flashstart_sync = False
+    flashstart_auth = False
+    for job in cron_jobs:
+        if 'ns-flashstart' in job:
+            flashstart_sync = True
+        if 'flashstart-auth' in job:
+            flashstart_auth = True
+
+    if flashstart_sync:
+        logging.debug('Flashstart sync already enabled, skipping.')
+    else:
+        # add the cron job
+        subprocess.run(['bash', '-c',
+                        '(crontab -l 2>/dev/null; echo \'* * * * * sleep $(( RANDOM % 30 )); /usr/sbin/ns-flashstart --syslog sync\') | crontab -'],
+                       check=True)
+        sync()
+        logging.info('Flashstart sync enabled.')
+
+    if flashstart_auth:
+        logging.debug('Flashstart auth already enabled, skipping.')
+    else:
+        # add the cron job
+        subprocess.run(['bash', '-c',
+                        '(crontab -l 2>/dev/null; echo \'*/30 * * * * sleep $(( RANDOM % 60 )); /usr/share/ns-flashstart/flashstart-auth\') | crontab -'],
+                       check=True)
+        subprocess.run(['/usr/share/ns-flashstart/flashstart-auth'], check=True)
+        logging.info('Flashstart auth enabled.')
+
+
+def disable():
+    # check if the cron entry already exists
+    result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
+    cron_jobs = result.stdout.splitlines()
+    flashstart_sync = False
+    flashstart_auth = False
+
+    for job in cron_jobs:
+        if 'ns-flashstart' in job:
+            flashstart_sync = True
+        if 'flashstart-auth' in job:
+            flashstart_auth = True
+
+    if flashstart_sync:
+        # remove the cron job
+        subprocess.run(['bash', '-c', '(crontab -l 2>/dev/null | grep -v \'ns-flashstart\') | crontab -'], check=True)
+        logging.info('Flashstart sync disabled.')
+    else:
+        logging.debug('Flashstart sync already disabled, skipping.')
+
+    if flashstart_auth:
+        # remove the cron job
+        subprocess.run(['bash', '-c', '(crontab -l 2>/dev/null | grep -v \'flashstart-auth\') | crontab -'], check=True)
+        logging.info('Flashstart auth disabled.')
+    else:
+        logging.debug('Flashstart auth already disabled, skipping.')
+
+    for config in ['dhcp', 'firewall']:
+        for entry in e_uci.get(config, list=True, dtype=str, default=[]):
+            if e_uci.get(config, entry, 'ns_flashstart', default=False, dtype=bool):
+                # delete the entry
+                logging.debug(f'Deleting {config} entry {entry}')
+                e_uci.delete(config, entry)
+        e_uci.save(config)
+        subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': config})], check=True)
+
+
+def __fetch_instanced_services(config, kind):
+    local_instances = []
+    for instance in e_uci.get(config, list=True, dtype=str, default=[]):
+        if e_uci.get(config, instance) == kind and e_uci.get(config, instance, 'ns_flashstart', default=False,
+                                                             dtype=bool):
+            local_instances.append(instance)
+    return local_instances
+
+
+def __fetch_local_dhcp_instances():
+    # generate the list of dnsmasq instances managed by flashstart
+    local_instances = []
+    for dns in e_uci.get('dhcp', list=True, dtype=str, default=[]):
+        if e_uci.get('dhcp', dns, 'ns_flashstart', default=None) is not None:
+            local_instances.append(dns)
+    return local_instances
+
+
+def __fetch_local_redirect_instances():
+    # generate the list of dns redirect for flashstart
+    local_redirects = []
+    for redirect in e_uci.get('firewall', list=True, dtype=str, default=[]):
+        if e_uci.get('firewall', redirect) == 'redirect' and e_uci.get('firewall', redirect, 'ns_flashstart',
+                                                                       default=False, dtype=bool):
+            local_redirects.append(redirect)
+
+    return local_redirects
+
+
+def __check_pending_changes(config: str):
+    result = subprocess.run(['ubus', 'call', 'uci', 'changes', json.dumps({'config': config})], check=True,
+                            capture_output=True, text=True)
+    changes = json.loads(result.stdout)
+    return 'changes' in changes and len(changes['changes']) > 0
+
+
+def __sync_host_sets():
+    data = []
+    for host_set in e_uci.get('objects', list=True, dtype=str, default=[]):
+        if e_uci.get('objects', host_set) != 'host':
+            continue
+        entries = ';'.join(nethsec.objects.get_object_ips(e_uci, f'objects/{host_set}'))
+        logging.debug(f'Syncing host set {host_set} with entries {entries}')
+        data.append({
+            'username': host_set,
+            'name': e_uci.get('objects', host_set, 'name', default=''),
+            'surname': entries,
+        })
+    client = __get_client()
+    username = e_uci.get('flashstart', 'global', 'username', default='')
+    response = client.post(f'{FLASHSTART_API_ENDPOINT}/sync/objects/{username}/1', json.dumps(data))
+    response.raise_for_status()
+    logging.debug(f'Successfully synced {len(data)} host sets to flashstart.')
+
+
+def __save(pending_changes: bool):
+    e_uci.save('dhcp')
+    e_uci.save('firewall')
+    if pending_changes:
+        # don't commit if there are pending changes
+        logging.warning('Some changes are pending to dhcp/firewall configuration, skipping commit.')
+    elif __check_pending_changes('dhcp') or __check_pending_changes('firewall'):
+        # commit the changes to uci, this will trigger all reloads
+        logging.info(f'Applying changes to dhcp/firewall configuration.')
+        subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': 'dhcp'})], check=True)
+        subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': 'firewall'})], check=True)
+        # reload the firewall
+        # by sleeping for 2 seconds we ensure that the firewall reloads the sets correctly after the commit
+        # this 100% needs to be fixed upstream.
+        sleep(2)
+        subprocess.run(['fw4', 'restart'])
+
+
+def __add_bypass_ipset():
+    if e_uci.get('firewall', 'ns_flashstart_bypass', default=None) is None:
+        logging.debug(f'Creating bypass set for flashstart')
+        # create the bypass set
+        e_uci.set('firewall', 'ns_flashstart_bypass', 'ipset')
+    e_uci.set('firewall', 'ns_flashstart_bypass', 'name', 'flashstart-bypass')
+    e_uci.set('firewall', 'ns_flashstart_bypass', 'enabled', 1)
+    e_uci.set('firewall', 'ns_flashstart_bypass', 'match', 'net')
+    e_uci.set('firewall', 'ns_flashstart_bypass', 'family', 'inet')
+    e_uci.set('firewall', 'ns_flashstart_bypass', 'ns_flashstart', True)
+    # fetch the bypass list from flashstart
+    bypass_list = sorted([entry for entry in e_uci.get('flashstart', 'global', 'bypass', list=True, dtype=str, default=[])
+                   if entry != ''])
+    # check if ipset entries are the same
+    stored_entries = sorted(list(e_uci.get('firewall', 'ns_flashstart_bypass', 'entry', list=True, dtype=str, default=[])))
+    if stored_entries != bypass_list:
+        e_uci.set('firewall', 'ns_flashstart_bypass', 'entry', bypass_list)
+
+
+def __sync_pro_profiles():
+    # check if some changes are pending
+    pending_changes = __check_pending_changes('dhcp') or __check_pending_changes('firewall')
+
+    # get already existing dnsmasq instances managed by flashstart
+    local_instances = __fetch_local_dhcp_instances()
+
+    # fetch config
+    config = __fetch_config()
+
+    # use just the first, since we don't support multiple profiles in pro setup
+    first_server = config['dhcp'][0]
+    __add_profile(CONST_PORT_START, first_server)
+    # remove every other profile other than the first
+    for local_instance in local_instances:
+        if local_instance != first_server['id']:
+            logging.info(f'Profile {local_instance} not present in flashstart, deleting instance...')
+            e_uci.delete('dhcp', local_instance)
+
+    # generate bypass firewall set
+    __add_bypass_ipset()
+
+    # setup catch all DNAT rule for each zone
+    local_redirects = __fetch_local_redirect_instances()
+    applied_zones = []
+    for zone in e_uci.get('flashstart', 'global', 'zones', default=[], list=True, dtype=str):
+        redirect_id = f'ns_flashstart_{zone}'
+        if e_uci.get('firewall', redirect_id, default=None) is None:
+            # create the redirect if not present
+            logging.debug(f'Creating new redirect {redirect_id}')
+            e_uci.set('firewall', redirect_id, 'redirect')
+        e_uci.set('firewall', redirect_id, 'name', f'Flashstart-intercept-DNS-from-{zone}')
+        e_uci.set('firewall', redirect_id, 'src', zone)
+        e_uci.set('firewall', redirect_id, 'src_dport', 53)
+        e_uci.set('firewall', redirect_id, 'proto', "tcp udp")
+        e_uci.set('firewall', redirect_id, 'target', 'DNAT')
+        e_uci.set('firewall', redirect_id, 'ipset', f'!flashstart-bypass')
+        e_uci.set('firewall', redirect_id, 'ns_flashstart', True)
+        e_uci.set('firewall', redirect_id, 'dest_port', CONST_PORT_START)
+        applied_zones.append(redirect_id)
+    # remove every other redirect other than the ones in the list
+    for local_redirect in local_redirects:
+        if local_redirect not in applied_zones:
+            logging.info(f'Redirect {local_redirect} not present in flashstart, deleting instance...')
+            e_uci.delete('firewall', local_redirect)
+
+    __save(pending_changes)
+
+
+def __add_profile(port, profile):
+    if e_uci.get('dhcp', profile['id'], default=None) is None:
+        logging.info(f'New profile found {profile["name"]}, creating instance {profile["id"]}.')
+        e_uci.set('dhcp', profile['id'], 'dnsmasq')
+    e_uci.set('dhcp', profile['id'], 'ns_flashstart', True)
+    e_uci.set('dhcp', profile['id'], 'ns_flashstart_profile', profile["name"])
+    e_uci.set('dhcp', profile['id'], 'ns_flashstart_dns_code', profile["dns_code"])
+    e_uci.set('dhcp', profile['id'], 'port', port)
+    # sets always get replaced, checking before replacing
+    stored_entries = sorted(list(e_uci.get('dhcp', profile['id'], 'server', list=True, dtype=str, default=[])))
+    if stored_entries != sorted(profile['servers']):
+        logging.debug(f'Replacing dns servers for {profile["id"]} with {profile["servers"]}')
+        e_uci.set('dhcp', profile['id'], 'server', profile['servers'])
+
+
+def __sync_pro_plus_profiles():
+    # check if some changes are pending
+    pending_changes = __check_pending_changes('dhcp') or __check_pending_changes('firewall')
+    # get already existing dnsmasq instances managed by flashstart
+    dhcp_instances = __fetch_local_dhcp_instances()
+    ip_set_instances = __fetch_instanced_services('firewall', 'ipset')
+    redirect_instances = __fetch_instanced_services('firewall', 'redirect')
+
+    added_redirects = []
+    # for each zone, generate bypass redirect rule
+    for zone in e_uci.get('flashstart', 'global', 'zones', default=[], list=True, dtype=str):
+        redirect_id = f'ns_flashstart_bypass_{zone}'
+        if e_uci.get('firewall', redirect_id, default=None) is None:
+            logging.debug(f'Creating new redirect {redirect_id}')
+            e_uci.set('firewall', redirect_id, 'redirect')
+        e_uci.set('firewall', redirect_id, 'name', f'Flashstart-bypass-DNS-from-{zone}')
+        e_uci.set('firewall', redirect_id, 'src', zone)
+        e_uci.set('firewall', redirect_id, 'src_dport', 53)
+        e_uci.set('firewall', redirect_id, 'dest_port', 53)
+        e_uci.set('firewall', redirect_id, 'proto', "tcp udp")
+        e_uci.set('firewall', redirect_id, 'target', 'DNAT')
+        e_uci.set('firewall', redirect_id, 'ipset', f'flashstart-bypass')
+        e_uci.set('firewall', redirect_id, 'ns_flashstart', True)
+        added_redirects.append(redirect_id)
+
+    # fetch config
+    config = __fetch_config()
+    remote_ids = [profile['id'] for profile in config['dhcp']]
+    starting_port = CONST_PORT_START
+
+    # generate bypass firewall set
+    __add_bypass_ipset()
+    added_ip_sets = ['ns_flashstart_bypass']
+    # sort the profiles by catch-all, so that the catch-all profile is always the last one
+    dhcp_entries = sorted(config['dhcp'], key=lambda entry: entry['catch-all'])
+    for profile in dhcp_entries:
+        __add_profile(starting_port, profile)
+        # generate IPSet for each profile
+        if not profile['catch-all']:
+            ip_set_id = f'ns_flashstart_ipset_{profile["id"]}'
+            if e_uci.get('firewall', ip_set_id, default=None) is None:
+                logging.debug(f'Creating ipset for profile {profile["id"]}')
+                e_uci.set('firewall', ip_set_id, 'ipset')
+            e_uci.set('firewall', ip_set_id, 'name', f'flashstart-ipset-{profile["id"]}')
+            e_uci.set('firewall', ip_set_id, 'enabled', 1)
+            e_uci.set('firewall', ip_set_id, 'match', 'net')
+            e_uci.set('firewall', ip_set_id, 'family', 'inet')
+            e_uci.set('firewall', ip_set_id, 'ns_flashstart', True)
+            e_uci.set('firewall', ip_set_id, 'ns_flashstart_dns_code', profile['dns_code'])
+            # remote event handling is really in bad shape, this value is just a reference for easier retrieval
+            e_uci.set('firewall', ip_set_id, 'ns_flashstart_dns', ','.join(profile['servers']))
+            added_ip_sets.append(ip_set_id)
+        # generate redirect rule for each profile and zone
+        for zone in e_uci.get('flashstart', 'global', 'zones', default=[], list=True, dtype=str):
+            redirect_id = f'ns_flashstart_{zone}_{profile["id"]}'
+            if e_uci.get('firewall', redirect_id, default=None) is None:
+                logging.debug(f'Creating new redirect {redirect_id}')
+                e_uci.set('firewall', redirect_id, 'redirect')
+            e_uci.set('firewall', redirect_id, 'src', zone)
+            e_uci.set('firewall', redirect_id, 'src_dport', 53)
+            e_uci.set('firewall', redirect_id, 'dest_port', starting_port)
+            e_uci.set('firewall', redirect_id, 'proto', "tcp udp")
+            e_uci.set('firewall', redirect_id, 'target', 'DNAT')
+            e_uci.set('firewall', redirect_id, 'ns_flashstart', True)
+            if profile['catch-all']:
+                e_uci.set('firewall', redirect_id, 'name', f'Flashstart-catch-all-{zone}-{profile["id"]}')
+            else:
+                e_uci.set('firewall', redirect_id, 'name', f'Flashstart-intercept-DNS-from-{zone}-{profile["id"]}')
+                e_uci.set('firewall', redirect_id, 'ipset', f'flashstart-ipset-{profile["id"]}')
+            added_redirects.append(redirect_id)
+        starting_port += 1
+
+    active_sessions = dict()
+    for session in config['sessions']:
+        entries = []
+        if session['ip'] is None:
+            # syncing an object
+            entries += (nethsec.objects.get_object_ips(e_uci, f'objects/{session["username"]}'))
+        else:
+            # syncing a user login
+            entries.append(session['ip'])
+
+        if session['dns_code'] not in active_sessions:
+            active_sessions[session['dns_code']] = []
+        active_sessions[session['dns_code']].extend(entries)
+
+    for ip_set in __fetch_instanced_services('firewall', 'ipset'):
+        if ip_set == 'ns_flashstart_bypass':
+            continue
+        ipset_dns_code = e_uci.get('firewall', ip_set, 'ns_flashstart_dns_code', default='')
+        if ipset_dns_code in active_sessions:
+            upstream_entries = sorted(list(set(active_sessions.get(ipset_dns_code))))
+        else:
+            upstream_entries = []
+        # check if ipset entries are the same
+        stored_entries = sorted(list(e_uci.get('firewall', ip_set, 'entry', list=True, dtype=str, default=[])))
+        if stored_entries != upstream_entries:
+            logging.debug(f'Updating ipset {ip_set} with entries {upstream_entries}')
+            e_uci.set('firewall', ip_set, 'entry', upstream_entries)
+
+    # remove every other profile other than the ones in the list
+    for instance in dhcp_instances:
+        if instance not in remote_ids:
+            logging.info(f'Profile {instance} not present in flashstart, deleting instance...')
+            e_uci.delete('dhcp', instance)
+    for instance in ip_set_instances:
+        if instance not in added_ip_sets:
+            logging.info(f'IPSet {instance} not present in flashstart, deleting instance...')
+            e_uci.delete('firewall', instance)
+    for instance in redirect_instances:
+        if instance not in added_redirects:
+            logging.info(f'Redirect {instance} not present in flashstart, deleting instance...')
+            e_uci.delete('firewall', instance)
+
+    __save(pending_changes)
+
+
+def sync():
+    __sync_host_sets()
+    if e_uci.get('flashstart', 'global', 'proplus', default=False, dtype=bool):
+        logging.debug('Syncing pro+ profiles')
+        __sync_pro_plus_profiles()
+    else:
+        logging.debug('Syncing pro profiles')
+        __sync_pro_profiles()
+
+
+def __fetch_config():
+    client = __get_client()
+    username = e_uci.get('flashstart', 'global', 'username', default='')
+    profiles = client.get(f'{FLASHSTART_API_ENDPOINT}/network/profiles/{username}')
+    profiles.raise_for_status()
+    data = {'dhcp': [], 'sessions': []}
+    for profile in profiles.json():
+        data['dhcp'].append({
+            'id': nethsec.utils.get_id(hashlib.sha256(profile['name'].encode()).hexdigest()[:10]),
+            'name': profile['name'],
+            'catch-all': profile['is_catch-all'],
+            'dns_code': profile['dns_code'],
+            'servers': [
+                profile['dns']['ipv4']['primary_dns'],
+                profile['dns']['ipv4']['secondary_dns']
+            ]
+        })
+    sessions = client.get(f'{FLASHSTART_API_ENDPOINT}/sessions/list/{username}')
+    sessions.raise_for_status()
+    for session in sessions.json():
+        data['sessions'].append({
+            'username': session['username'],
+            'ip': session['ip'],
+            'dns_code': session['dns_code'],
+            'dns': ','.join([session['dns']['primary_dns'], session['dns']['secondary_dns']]),
+        })
+
+    return data
+
+
+def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Nethesis Flashstart helper')
+    parser.add_argument('--log-level', default='info', choices=['debug', 'info', 'warning', 'error'],
+                        help='Set the log level (default: info)')
+    parser.add_argument('--syslog', action='store_true', help='Send logs to syslog')
+    subparsers = parser.add_subparsers(dest='command')
+
+    check_credentials_parser = subparsers.add_parser('check-credentials', help='Util to check Flashstart credentials')
+    check_credentials_parser.add_argument('--username', required=True)
+    check_credentials_parser.add_argument('--password', required=True)
+
+    subparsers.add_parser('sync', help='Sync Flashstart')
+    subparsers.add_parser('enable', help='Enable the cron job for flashstart sync')
+    subparsers.add_parser('disable', help='Disable the cron job for flashstart sync')
+
+    args = parser.parse_args()
+    logger = logging.getLogger()
+    logger.setLevel(getattr(logging, args.log_level.upper()))
+    if args.syslog:
+        handler = logging.handlers.SysLogHandler(facility=SysLogHandler.LOG_DAEMON, address='/dev/log')
+        handler.setFormatter(logging.Formatter('ns-flashstart[%(process)d]: %(levelname)s - %(message)s'))
+        logger.addHandler(handler)
+    else:
+        handler = logging.StreamHandler()
+        logger.addHandler(handler)
+    match args.command:
+        case 'check-credentials':
+            try:
+                check_credentials(args.username, hashlib.md5(args.password.encode()).hexdigest())
+                parser.exit(message='Credentials are valid.')
+            except HTTPError as e:
+                if e.response.status_code == 401:
+                    parser.exit(1, message='Invalid credentials.')
+                else:
+                    parser.exit(1, message=f'Error checking credentials: {e}')
+        case 'sync':
+            try:
+                sync()
+            except HTTPError as e:
+                logging.error(f'Error syncing profiles: {e}')
+                parser.exit(1)
+            except Exception as e:
+                logging.error(f'Unexpected error: {e}')
+                parser.exit(1)
+        case 'enable':
+            enable()
+        case 'disable':
+            disable()
+        case _:
+            parser.print_help()
+
+if __name__ == '__main__':
+    main()
