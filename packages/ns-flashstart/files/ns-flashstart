@@ -11,6 +11,7 @@ from requests.auth import HTTPBasicAuth
 import hashlib
 import requests
 import nethsec.utils
+import nethsec.objects
 import json
 import subprocess
 import logging
@@ -64,7 +65,7 @@ def enable():
         subprocess.run(['bash', '-c',
                         '(crontab -l 2>/dev/null; echo \'* * * * * sleep $(( RANDOM % 30 )); /usr/sbin/ns-flashstart --syslog sync\') | crontab -'],
                        check=True)
-        subprocess.run(['/usr/sbin/ns-flashstart', 'sync'], check=True)
+        sync()
         logging.info('Flashstart sync enabled.')
 
     if flashstart_auth:
@@ -156,10 +157,12 @@ def __sync_host_sets():
     for host_set in e_uci.get('objects', list=True, dtype=str, default=[]):
         if e_uci.get('objects', host_set) != 'host':
             continue
+        entries = ';'.join(nethsec.objects.get_object_ips(e_uci, f'objects/{host_set}'))
+        logging.debug(f'Syncing host set {host_set} with entries {entries}')
         data.append({
             'username': host_set,
             'name': e_uci.get('objects', host_set, 'name', default=''),
-            'surname': ';'.join(e_uci.get('objects', host_set, 'ipaddr', default=[], dtype=str, list=True)),
+            'surname': entries,
         })
     client = __get_client()
     username = e_uci.get('flashstart', 'global', 'username', default='')
@@ -188,11 +191,11 @@ def __add_bypass_ipset():
         logging.debug(f'Creating bypass set for flashstart')
         # create the bypass set
         e_uci.set('firewall', 'ns_flashstart_bypass', 'ipset')
-        e_uci.set('firewall', 'ns_flashstart_bypass', 'name', 'flashstart-bypass')
-        e_uci.set('firewall', 'ns_flashstart_bypass', 'enabled', 1)
-        e_uci.set('firewall', 'ns_flashstart_bypass', 'match', 'net')
-        e_uci.set('firewall', 'ns_flashstart_bypass', 'family', 'inet')
-        e_uci.set('firewall', 'ns_flashstart_bypass', 'ns_flashstart', True)
+    e_uci.set('firewall', 'ns_flashstart_bypass', 'name', 'flashstart-bypass')
+    e_uci.set('firewall', 'ns_flashstart_bypass', 'enabled', 1)
+    e_uci.set('firewall', 'ns_flashstart_bypass', 'match', 'net')
+    e_uci.set('firewall', 'ns_flashstart_bypass', 'family', 'inet')
+    e_uci.set('firewall', 'ns_flashstart_bypass', 'ns_flashstart', True)
     # fetch the bypass list from flashstart
     bypass_list = [entry for entry in e_uci.get('flashstart', 'global', 'bypass', list=True, dtype=str, default=[])
                    if entry != '']
@@ -232,13 +235,13 @@ def __sync_pro_profiles():
             # create the redirect if not present
             logging.debug(f'Creating new redirect {redirect_id}')
             e_uci.set('firewall', redirect_id, 'redirect')
-            e_uci.set('firewall', redirect_id, 'name', f'Flashstart-intercept-DNS-from-{zone}')
-            e_uci.set('firewall', redirect_id, 'src', zone)
-            e_uci.set('firewall', redirect_id, 'src_dport', 53)
-            e_uci.set('firewall', redirect_id, 'proto', "tcp udp")
-            e_uci.set('firewall', redirect_id, 'target', 'DNAT')
-            e_uci.set('firewall', redirect_id, 'ipset', f'!flashstart-bypass')
-            e_uci.set('firewall', redirect_id, 'ns_flashstart', True)
+        e_uci.set('firewall', redirect_id, 'name', f'Flashstart-intercept-DNS-from-{zone}')
+        e_uci.set('firewall', redirect_id, 'src', zone)
+        e_uci.set('firewall', redirect_id, 'src_dport', 53)
+        e_uci.set('firewall', redirect_id, 'proto', "tcp udp")
+        e_uci.set('firewall', redirect_id, 'target', 'DNAT')
+        e_uci.set('firewall', redirect_id, 'ipset', f'!flashstart-bypass')
+        e_uci.set('firewall', redirect_id, 'ns_flashstart', True)
         e_uci.set('firewall', redirect_id, 'dest_port', CONST_PORT_START)
         applied_zones.append(redirect_id)
     # remove every other redirect other than the ones in the list
@@ -254,8 +257,9 @@ def __add_profile(port, profile):
     if e_uci.get('dhcp', profile['id'], default=None) is None:
         logging.info(f'New profile found {profile["name"]}, creating instance {profile["id"]}.')
         e_uci.set('dhcp', profile['id'], 'dnsmasq')
-        e_uci.set('dhcp', profile['id'], 'ns_flashstart', True)
-        e_uci.set('dhcp', profile['id'], 'ns_flashstart_profile', profile["name"])
+    e_uci.set('dhcp', profile['id'], 'ns_flashstart', True)
+    e_uci.set('dhcp', profile['id'], 'ns_flashstart_profile', profile["name"])
+    e_uci.set('dhcp', profile['id'], 'ns_flashstart_dns_code', profile["dns_code"])
     e_uci.set('dhcp', profile['id'], 'port', port)
     # sets always get replaced, checking before replacing
     if list(e_uci.get('dhcp', profile['id'], 'server', list=True, dtype=str, default=[])) != profile[
@@ -279,50 +283,87 @@ def __sync_pro_plus_profiles():
         if e_uci.get('firewall', redirect_id, default=None) is None:
             logging.debug(f'Creating new redirect {redirect_id}')
             e_uci.set('firewall', redirect_id, 'redirect')
-            e_uci.set('firewall', redirect_id, 'name', f'Flashstart-bypass-DNS-from-{zone}')
-            e_uci.set('firewall', redirect_id, 'src', zone)
-            e_uci.set('firewall', redirect_id, 'src_dport', 53)
-            e_uci.set('firewall', redirect_id, 'dest_port', 53)
-            e_uci.set('firewall', redirect_id, 'proto', "tcp udp")
-            e_uci.set('firewall', redirect_id, 'target', 'DNAT')
-            e_uci.set('firewall', redirect_id, 'ipset', f'flashstart-bypass')
-            e_uci.set('firewall', redirect_id, 'ns_flashstart', True)
+        e_uci.set('firewall', redirect_id, 'name', f'Flashstart-bypass-DNS-from-{zone}')
+        e_uci.set('firewall', redirect_id, 'src', zone)
+        e_uci.set('firewall', redirect_id, 'src_dport', 53)
+        e_uci.set('firewall', redirect_id, 'dest_port', 53)
+        e_uci.set('firewall', redirect_id, 'proto', "tcp udp")
+        e_uci.set('firewall', redirect_id, 'target', 'DNAT')
+        e_uci.set('firewall', redirect_id, 'ipset', f'flashstart-bypass')
+        e_uci.set('firewall', redirect_id, 'ns_flashstart', True)
         added_redirects.append(redirect_id)
 
     # fetch config
     config = __fetch_config()
     remote_ids = [profile['id'] for profile in config['dhcp']]
     starting_port = CONST_PORT_START
-    added_ip_sets = []
-    for profile in config['dhcp']:
+
+    # generate bypass firewall set
+    __add_bypass_ipset()
+    added_ip_sets = ['ns_flashstart_bypass']
+    # sort the profiles by catch-all, so that the catch-all profile is always the last one
+    dhcp_entries = sorted(config['dhcp'], key=lambda entry: entry['catch-all'])
+    for profile in dhcp_entries:
         __add_profile(starting_port, profile)
         # generate IPSet for each profile
-        ip_set_id = f'ns_flashstart_ipset_{profile["id"]}'
-        if e_uci.get('firewall', ip_set_id, default=None) is None:
-            logging.debug(f'Creating ipset for profile {profile["id"]}')
-            e_uci.set('firewall', ip_set_id, 'ipset')
-            e_uci.set('firewall', ip_set_id, 'name', f'flashstart-{profile["id"]}')
+        if not profile['catch-all']:
+            ip_set_id = f'ns_flashstart_ipset_{profile["id"]}'
+            if e_uci.get('firewall', ip_set_id, default=None) is None:
+                logging.debug(f'Creating ipset for profile {profile["id"]}')
+                e_uci.set('firewall', ip_set_id, 'ipset')
+            e_uci.set('firewall', ip_set_id, 'name', f'flashstart-ipset-{profile["id"]}')
             e_uci.set('firewall', ip_set_id, 'enabled', 1)
             e_uci.set('firewall', ip_set_id, 'match', 'net')
             e_uci.set('firewall', ip_set_id, 'family', 'inet')
             e_uci.set('firewall', ip_set_id, 'ns_flashstart', True)
-        added_ip_sets.append(ip_set_id)
-        # generate redirect rule for each profile
-        redirect_id = f'ns_flashstart_{profile["id"]}'
-        if e_uci.get('firewall', redirect_id, default=None) is None:
-            logging.debug(f'Creating new redirect {redirect_id}')
-            e_uci.set('firewall', redirect_id, 'redirect')
-            e_uci.set('firewall', redirect_id, 'name', f'Flashstart-intercept-DNS-from-{profile["id"]}')
-            e_uci.set('firewall', redirect_id, 'src', profile['id'])
+            e_uci.set('firewall', ip_set_id, 'ns_flashstart_dns_code', profile['dns_code'])
+            # remote event handling is really in bad shape, this value is just a reference for easier retrieval
+            e_uci.set('firewall', ip_set_id, 'ns_flashstart_dns', ','.join(profile['servers']))
+            added_ip_sets.append(ip_set_id)
+        # generate redirect rule for each profile and zone
+        for zone in e_uci.get('flashstart', 'global', 'zones', default=[], list=True, dtype=str):
+            redirect_id = f'ns_flashstart_{zone}_{profile["id"]}'
+            if e_uci.get('firewall', redirect_id, default=None) is None:
+                logging.debug(f'Creating new redirect {redirect_id}')
+                e_uci.set('firewall', redirect_id, 'redirect')
+            e_uci.set('firewall', redirect_id, 'src', zone)
             e_uci.set('firewall', redirect_id, 'src_dport', 53)
             e_uci.set('firewall', redirect_id, 'dest_port', starting_port)
             e_uci.set('firewall', redirect_id, 'proto', "tcp udp")
             e_uci.set('firewall', redirect_id, 'target', 'DNAT')
-            e_uci.set('firewall', redirect_id, 'ipset', f'!flashstart-bypass')
             e_uci.set('firewall', redirect_id, 'ns_flashstart', True)
-            # if profile is default, omit ipset 
-        added_redirects.append(redirect_id)
+            if profile['catch-all']:
+                e_uci.set('firewall', redirect_id, 'name', f'Flashstart-catch-all-{zone}-{profile["id"]}')
+            else:
+                e_uci.set('firewall', redirect_id, 'name', f'Flashstart-intercept-DNS-from-{zone}-{profile["id"]}')
+                e_uci.set('firewall', redirect_id, 'ipset', f'flashstart-ipset-{profile["id"]}')
+            added_redirects.append(redirect_id)
         starting_port += 1
+
+    active_sessions = dict()
+    for session in config['sessions']:
+        entries = []
+        if session['ip'] is None:
+            # syncing an object
+            entries += (nethsec.objects.get_object_ips(e_uci, f'objects/{session["username"]}'))
+        else:
+            # syncing a user login
+            entries.append(session['ip'])
+
+        if session['dns_code'] not in active_sessions:
+            active_sessions[session['dns_code']] = []
+        active_sessions[session['dns_code']].extend(entries)
+
+    for ip_set in __fetch_instanced_services('firewall', 'ipset'):
+        ipset_dns_code = e_uci.get('firewall', ip_set, 'ns_flashstart_dns_code', default='')
+        if ipset_dns_code in active_sessions:
+            upstream_entries = active_sessions.get(ipset_dns_code)
+        else:
+            upstream_entries = []
+        # check if ipset entries are the same
+        if list(e_uci.get('firewall', ip_set, 'entry', list=True, dtype=str, default=[])) != upstream_entries:
+            logging.debug(f'Updating ipset {ip_set} with entries {upstream_entries}')
+            e_uci.set('firewall', ip_set, 'entry', upstream_entries)
 
     # remove every other profile other than the ones in the list
     for instance in dhcp_instances:
@@ -371,12 +412,11 @@ def __fetch_config():
     sessions = client.get(f'{FLASHSTART_API_ENDPOINT}/sessions/list/{username}')
     sessions.raise_for_status()
     for session in sessions.json():
-        # if session.get('ip') is None:
-        #     continue
         data['sessions'].append({
             'username': session['username'],
             'ip': session['ip'],
-            'dns_code': session['dns_code']
+            'dns_code': session['dns_code'],
+            'dns': ','.join([session['dns']['primary_dns'], session['dns']['secondary_dns']]),
         })
 
     return data
@@ -430,7 +470,6 @@ def main():
                 parser.exit(1)
         case 'enable':
             enable()
-            sync()
         case 'disable':
             disable()
         case _:
