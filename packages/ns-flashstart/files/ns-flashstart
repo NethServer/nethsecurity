@@ -428,6 +428,9 @@ def __fetch_config():
             'dns_code': session['dns_code'],
             'dns': ','.join([session['dns']['primary_dns'], session['dns']['secondary_dns']]),
         })
+    # jobs will be appended into a list, since it has a different format we won't use it for now
+    # however still needs to be fetched to reset the pending job counter
+    client.post(f'{FLASHSTART_API_ENDPOINT}/jobs/{username}')
 
     return data
 
