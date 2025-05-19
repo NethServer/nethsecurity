@@ -267,10 +267,12 @@ def __add_profile(port, profile):
     e_uci.set('dhcp', profile['id'], 'ns_flashstart_dns_code', profile["dns_code"])
     e_uci.set('dhcp', profile['id'], 'port', port)
     # sets always get replaced, checking before replacing
+    custom_servers = list(e_uci.get('flashstart', 'global', 'custom_servers', list=True, dtype=str, default=[]))
+    servers = sorted(custom_servers + profile['servers'])
     stored_entries = sorted(list(e_uci.get('dhcp', profile['id'], 'server', list=True, dtype=str, default=[])))
-    if stored_entries != sorted(profile['servers']):
-        logging.debug(f'Replacing dns servers for {profile["id"]} with {profile["servers"]}')
-        e_uci.set('dhcp', profile['id'], 'server', profile['servers'])
+    if stored_entries != servers:
+        logging.debug(f'Replacing dns servers for {profile["id"]} with {servers}')
+        e_uci.set('dhcp', profile['id'], 'server', servers)
 
 
 def __sync_pro_plus_profiles():

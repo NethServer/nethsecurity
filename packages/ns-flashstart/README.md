@@ -2,11 +2,10 @@
 
 ns-flashstart is the client configuration for [FlashStart](https://flashstart.com) DNS filter.
 
-The client is composed by 3 main parts:
+The client is composed in three main parts:
 
-- `/usr/sbin/flashstart-apply`: script to enable and disable flashstart
+- `/usr/sbin/ns-flashstart`: script manage flashstart
 - `/usr/share/ns-flashstart/flashtart-auth`: authentication script called by apply and crontab
-- `/usr/share/ns-flashstart/flashtart-setup-firewall`: create firewall rules
 - `/etc/config/flashstart`: UCI configuration file
 
 ## Configuration
@@ -15,44 +14,37 @@ The `ns-flashstart` service needs the `username` and `password` options which ca
 only after a signup to Flashstart service.
 
 Below example will register the client, start dsndist with Flashstart forwarders and setup DNS redirection on `lan`:
+
 ```
 uci set flashstart.global.username="myuser@nethserver.org"
 uci set flashstart.global.password="mypassword"
 uci set flashstart.global.enabled="1"
 uci add_list flashstart.global.zones="lan"
 uci commit flashstart
-flashstart-apply
+reload_config
 ```
 
-Then, set dnsdist as forwarder for dnsmasq:
-```
-uci add_list dhcp.@dnsmasq[0].server='127.0.0.1#5300'
-uci commit dhcp
-/etc/init.d/dhcp restart
-```
+If some source IPs should not be redirected to the filter, just add them to the `bypass` list:
 
-If some source IPs should not be redirect to the filter, just add them
-to the `bypass` list:
 ```
 uci add_list flashstart.bypass="1.2.3.4"
 uci commit flashstart
-flashstart-apply
+reload_config
 ```
 
-## Disabling the service
+If you need a specific domain to be resolved through a specific DNS server, you can add it to the `custom_servers`:
 
-To disable Flashstart:
+```
+uci add_list flashstart.custom_servers="/example.com/1.1.1.1"
+uci commit flashstart
+reload_config
+```
 
-1. Remove dnsdist configuration and firewall rules
-   ```
-   uci set flashstart.global.enabled=0
-   uci commit flashstart
-   flashstart-apply
-   ```
+## CLI utility
 
-2. Remove the forwarder from dnsmasq
-   ```
-   uci del_list dhcp.@dnsmasq[0].server='127.0.0.1#5300'
-   uci commit dhcp
-   /etc/init.d/dnsmasq restart
-   ```
+The script `/usr/sbin/ns-flashstart` can be used to manage the client from command line. To see the
+available options, run:
+
+```
+ns-flashstart --help
+```

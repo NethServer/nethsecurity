@@ -31,6 +31,9 @@ fi
 # Issue: https://github.com/NethServer/nethsecurity/issues/1162
 if [ -z "$(uci -q get flashstart.global.proplus)" ]
 then
+  # remove dnsdist
+  rm -f /etc/dnsdist.conf.d/flashstart.conf
+  rm -f /etc/config/dnsdist
   uci -q set flashstart.global.proplus=0
   uci commit flashstart
 fi
