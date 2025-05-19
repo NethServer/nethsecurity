@@ -175,19 +175,23 @@ def __sync_host_sets():
 def __save(pending_changes: bool):
     e_uci.save('dhcp')
     e_uci.save('firewall')
+    pending_dhcp = __check_pending_changes('dhcp')
+    pending_firewall = __check_pending_changes('firewall')
     if pending_changes:
         # don't commit if there are pending changes
         logging.warning('Some changes are pending to dhcp/firewall configuration, skipping commit.')
-    elif __check_pending_changes('dhcp') or __check_pending_changes('firewall'):
+    elif pending_dhcp or pending_firewall:
         # commit the changes to uci, this will trigger all reloads
         logging.info(f'Applying changes to dhcp/firewall configuration.')
-        subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': 'dhcp'})], check=True)
-        subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': 'firewall'})], check=True)
-        # reload the firewall
-        # by sleeping for 2 seconds we ensure that the firewall reloads the sets correctly after the commit
-        # this 100% needs to be fixed upstream.
-        sleep(2)
-        subprocess.run(['fw4', 'restart'])
+        if pending_dhcp:
+            subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': 'dhcp'})], check=True)
+        if pending_firewall:
+            subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': 'firewall'})], check=True)
+            # reload the firewall
+            # by sleeping for 2 seconds we ensure that the firewall reloads the sets correctly after the commit
+            # this 100% needs to be fixed upstream.
+            sleep(2)
+            subprocess.run(['fw4', 'restart'])
 
 
 def __add_bypass_ipset():
