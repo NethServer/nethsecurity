@@ -318,6 +318,19 @@ def __sync_pro_plus_profiles():
             added_redirects.append(redirect_id)
         starting_port += 1
 
+    # sort redirects, moving catch all to the end and bypass to the start, added_redirects is already sorted
+    # FIXME: this fails UCI knows the hell why
+    subprocess.run([
+        'ubus',
+        'call',
+        'uci',
+        'order',
+        json.dumps({
+            'config': 'firewall',
+            'sections': added_redirects,
+        })
+    ])
+
     active_sessions = dict()
     for session in config['sessions']:
         entries = []
@@ -454,8 +467,6 @@ def main():
                 event_handler.set()
             event_handler = Event()
             signal.signal(signal.SIGTERM, shutoff)
-            signal.signal(signal.SIGINT, shutoff)
-            signal.signal(signal.SIGHUP, shutoff)
 
             # enable auth cronjob
             __enable()
