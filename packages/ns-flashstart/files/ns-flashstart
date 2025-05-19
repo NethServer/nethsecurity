@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-from time import sleep
 
 #
 # Copyright (C) 2025 Nethesis S.r.l.
@@ -16,7 +15,9 @@ import nethsec.objects
 import json
 import subprocess
 import logging
-from logging.handlers import SysLogHandler
+import random
+import signal
+from threading import Event
 
 FLASHSTART_API_ENDPOINT = 'https://api.flashstart.com/1.0.0'
 
@@ -46,33 +47,17 @@ def check_credentials(username, password):
     response.raise_for_status()
 
 
-def enable():
+def __enable():
     # check if the cron entry already exists
     result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
     cron_jobs = result.stdout.splitlines()
 
-    flashstart_sync = False
     flashstart_auth = False
     for job in cron_jobs:
-        if 'ns-flashstart' in job:
-            flashstart_sync = True
         if 'flashstart-auth' in job:
             flashstart_auth = True
 
-    if flashstart_sync:
-        logging.debug('Flashstart sync already enabled, skipping.')
-    else:
-        # add the cron job
-        subprocess.run(['bash', '-c',
-                        '(crontab -l 2>/dev/null; echo \'* * * * * sleep $(( RANDOM % 30 )); /usr/sbin/ns-flashstart --syslog sync\') | crontab -'],
-                       check=True)
-        sync()
-        logging.info('Flashstart sync enabled.')
-
-    if flashstart_auth:
-        logging.debug('Flashstart auth already enabled, skipping.')
-    else:
-        # add the cron job
+    if not flashstart_auth:
         subprocess.run(['bash', '-c',
                         '(crontab -l 2>/dev/null; echo \'*/30 * * * * sleep $(( RANDOM % 60 )); /usr/share/ns-flashstart/flashstart-auth\') | crontab -'],
                        check=True)
@@ -80,32 +65,16 @@ def enable():
         logging.info('Flashstart auth enabled.')
 
 
-def disable():
+def __disable():
     # check if the cron entry already exists
     result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
     cron_jobs = result.stdout.splitlines()
-    flashstart_sync = False
-    flashstart_auth = False
 
     for job in cron_jobs:
-        if 'ns-flashstart' in job:
-            flashstart_sync = True
         if 'flashstart-auth' in job:
-            flashstart_auth = True
-
-    if flashstart_sync:
-        # remove the cron job
-        subprocess.run(['bash', '-c', '(crontab -l 2>/dev/null | grep -v \'ns-flashstart\') | crontab -'], check=True)
-        logging.info('Flashstart sync disabled.')
-    else:
-        logging.debug('Flashstart sync already disabled, skipping.')
-
-    if flashstart_auth:
-        # remove the cron job
-        subprocess.run(['bash', '-c', '(crontab -l 2>/dev/null | grep -v \'flashstart-auth\') | crontab -'], check=True)
-        logging.info('Flashstart auth disabled.')
-    else:
-        logging.debug('Flashstart auth already disabled, skipping.')
+            subprocess.run(['bash', '-c', '(crontab -l 2>/dev/null | grep -v \'flashstart-auth\') | crontab -'],
+                           check=True)
+            logging.info('Flashstart auth disabled.')
 
     for config in ['dhcp', 'firewall']:
         for entry in e_uci.get(config, list=True, dtype=str, default=[]):
@@ -113,8 +82,8 @@ def disable():
                 # delete the entry
                 logging.debug(f'Deleting {config} entry {entry}')
                 e_uci.delete(config, entry)
-        e_uci.save(config)
-        subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': config})], check=True)
+
+    __save(False)
 
 
 def __fetch_instanced_services(config, kind):
@@ -186,12 +155,10 @@ def __save(pending_changes: bool):
         if pending_dhcp:
             subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': 'dhcp'})], check=True)
         if pending_firewall:
-            subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': 'firewall'})], check=True)
-            # reload the firewall
-            # by sleeping for 2 seconds we ensure that the firewall reloads the sets correctly after the commit
-            # this 100% needs to be fixed upstream.
-            sleep(2)
-            subprocess.run(['fw4', 'restart'])
+            # reload the firewall if changes are there, this is done cause sets are not reloaded correctly after the
+            # commit this 100% needs to be fixed upstream.
+            e_uci.commit('firewall')
+            subprocess.run(['fw4', 'restart'], capture_output=True)
 
 
 def __add_bypass_ipset():
@@ -453,19 +420,13 @@ def main():
     check_credentials_parser.add_argument('--password', required=True)
 
     subparsers.add_parser('sync', help='Sync Flashstart')
-    subparsers.add_parser('enable', help='Enable the cron job for flashstart sync')
-    subparsers.add_parser('disable', help='Disable the cron job for flashstart sync')
+    subparsers.add_parser('daemon', help='Run the sync command foreground')
 
     args = parser.parse_args()
     logger = logging.getLogger()
     logger.setLevel(getattr(logging, args.log_level.upper()))
-    if args.syslog:
-        handler = logging.handlers.SysLogHandler(facility=SysLogHandler.LOG_DAEMON, address='/dev/log')
-        handler.setFormatter(logging.Formatter('ns-flashstart[%(process)d]: %(levelname)s - %(message)s'))
-        logger.addHandler(handler)
-    else:
-        handler = logging.StreamHandler()
-        logger.addHandler(handler)
+    handler = logging.StreamHandler()
+    logger.addHandler(handler)
     match args.command:
         case 'check-credentials':
             try:
@@ -485,10 +446,32 @@ def main():
             except Exception as e:
                 logging.error(f'Unexpected error: {e}')
                 parser.exit(1)
-        case 'enable':
-            enable()
-        case 'disable':
-            disable()
+        case 'daemon':
+            # launch a process with the sync command once every 30 seconds, with a random delay of max 5 seconds
+            # shutoff event handling in case of SIGTERM, SIGINT or SIGHUP
+            def shutoff(_, _frame):
+                logging.info('Shutting down flashstart sync daemon')
+                event_handler.set()
+            event_handler = Event()
+            signal.signal(signal.SIGTERM, shutoff)
+            signal.signal(signal.SIGINT, shutoff)
+            signal.signal(signal.SIGHUP, shutoff)
+
+            # enable auth cronjob
+            __enable()
+            # run the sync command every 30 +/- random(0, 5) seconds
+            wait_time = random.randint(25, 35)
+            logging.info('Starting flashstart sync daemon')
+            while not event_handler.is_set():
+                try:
+                    sync()
+                except HTTPError as e:
+                    logging.error(f'Error syncing profiles: {e}')
+                except Exception as e:
+                    logging.error(f'Unexpected error: {e}')
+                event_handler.wait(wait_time)
+            # remove the cron job and config
+            __disable()
         case _:
             parser.print_help()
 

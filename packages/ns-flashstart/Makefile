@@ -37,6 +37,14 @@ endef
 define Build/Compile
 endef
 
+define Package/ns-flashstart/postinst
+#!/bin/sh
+if [ -z "$${IPKG_INSTROOT}" ]; then
+  /etc/init.d/ns-flashstart restart
+fi
+exit 0
+endef
+
 define Package/ns-flashstart/install
 	$(INSTALL_DIR) $(1)/usr/share/ns-flashstart
 	$(INSTALL_BIN) ./files/flashstart-auth $(1)/usr/share/ns-flashstart/flashstart-auth
