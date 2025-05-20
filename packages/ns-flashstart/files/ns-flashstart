@@ -66,6 +66,7 @@ def __enable():
 
 
 def __disable():
+    pending_changes = __check_pending_changes('dhcp') or __check_pending_changes('firewall')
     # check if the cron entry already exists
     result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
     cron_jobs = result.stdout.splitlines()
@@ -83,7 +84,7 @@ def __disable():
                 logging.debug(f'Deleting {config} entry {entry}')
                 e_uci.delete(config, entry)
 
-    __save(False)
+    __save(pending_changes)
 
 
 def __fetch_instanced_services(config, kind):
@@ -146,19 +147,20 @@ def __save(pending_changes: bool):
     e_uci.save('firewall')
     pending_dhcp = __check_pending_changes('dhcp')
     pending_firewall = __check_pending_changes('firewall')
-    if pending_changes:
-        # don't commit if there are pending changes
-        logging.warning('Some changes are pending to dhcp/firewall configuration, skipping commit.')
-    elif pending_dhcp or pending_firewall:
-        # commit the changes to uci, this will trigger all reloads
-        logging.info(f'Applying changes to dhcp/firewall configuration.')
-        if pending_dhcp:
-            subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': 'dhcp'})], check=True)
-        if pending_firewall:
-            # reload the firewall if changes are there, this is done cause sets are not reloaded correctly after the
-            # commit this 100% needs to be fixed upstream.
-            e_uci.commit('firewall')
-            subprocess.run(['fw4', 'restart'], capture_output=True)
+    if pending_dhcp or pending_firewall:
+        if pending_changes:
+            # don't commit if there are pending changes
+            logging.warning('Some changes are pending to dhcp/firewall configuration, skipping commit.')
+        else:
+            # commit the changes to uci, this will trigger all reloads
+            logging.info(f'Applying changes to dhcp/firewall configuration.')
+            if pending_dhcp:
+                subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': 'dhcp'})], check=True)
+            if pending_firewall:
+                # reload the firewall if changes are there, this is done cause sets are not reloaded correctly after the
+                # commit this 100% needs to be fixed upstream.
+                e_uci.commit('firewall')
+                subprocess.run(['fw4', 'restart'], capture_output=True)
 
 
 def __add_bypass_ipset():
@@ -319,17 +321,11 @@ def __sync_pro_plus_profiles():
         starting_port += 1
 
     # sort redirects, moving catch all to the end and bypass to the start, added_redirects is already sorted
-    # FIXME: this fails UCI knows the hell why
-    subprocess.run([
-        'ubus',
-        'call',
-        'uci',
-        'order',
-        json.dumps({
-            'config': 'firewall',
-            'sections': added_redirects,
-        })
-    ])
+    e_uci.save('firewall')
+    index = 0
+    for redirect in added_redirects:
+        subprocess.run(["uci", "reorder", f"firewall.{redirect}={index}"], capture_output=True)
+        index += 1
 
     active_sessions = dict()
     for session in config['sessions']:

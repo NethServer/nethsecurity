@@ -12,6 +12,26 @@ import sys
 import nethsec.firewall
 from euci import EUci
 from nethsec.utils import ValidationError, validation_error
+import ipaddress
+
+
+def __validate_server(item: str) -> bool:
+    entries = item.split('/')
+    if len(entries) != 3:
+        return False
+    destination = entries[2].split('#')
+    try:
+        ipaddress.ip_address(destination[0])
+    except ValueError:
+        return False
+    if len(destination) > 1:
+        try:
+            port = int(destination[1])
+            if port < 1 or port > 65535:
+                return False
+        except ValueError:
+            return False
+    return True
 
 
 def __fetch_data():
@@ -23,7 +43,9 @@ def __fetch_data():
         'zones': [zone for zone in e_uci.get('flashstart', 'global', 'zones', list=True, default=[])
                   if zone != ''],
         'bypass': [bypass for bypass in e_uci.get('flashstart', 'global', 'bypass', list=True, default=[])
-                   if bypass != '']
+                   if bypass != ''],
+        'custom_servers': [item for item in e_uci.get('flashstart', 'global', 'custom_servers', list=True, default=[])
+                           if item != '']
     }
 
 
@@ -39,13 +61,10 @@ if cmd == 'list':
             'username': 'str',
             'password': 'str',
             'zones': 'str',
-            'bypass': 'str'
+            'bypass': 'str',
+            'custom_servers': 'str',
         },
         'get-config': {},
-        'check-credentials': {
-            'username': 'str',
-            'password': 'str'
-        }
     }))
 elif cmd == 'call':
     action = sys.argv[2]
@@ -74,6 +93,19 @@ elif cmd == 'call':
                     raise ValidationError('bypass', 'required')
                 if not isinstance(data['bypass'], list):
                     raise ValidationError('bypass', 'invalid')
+                if 'custom_servers' not in data:
+                    raise ValidationError('custom_servers', 'required')
+                if not isinstance(data['custom_servers'], list):
+                    raise ValidationError('custom_servers', 'invalid')
+                for server in data['custom_servers']:
+                    if not isinstance(server, str) or not __validate_server(server):
+                        raise ValidationError('custom_servers', 'invalid', server)
+
+            # check for credentials
+            result = subprocess.run(['ns-flashstart', 'check-credentials', '--username', data['username'], '--password',
+                                     data['password']], capture_output=True)
+            if result.returncode != 0:
+                raise ValidationError('username', 'invalid_credentials')
 
             e_uci.set('flashstart', 'global', 'enabled', data['enabled'])
             if data['enabled']:
@@ -82,6 +114,7 @@ elif cmd == 'call':
                 e_uci.set('flashstart', 'global', 'password', data['password'])
                 e_uci.set('flashstart', 'global', 'zones', data['zones'])
                 e_uci.set('flashstart', 'global', 'bypass', data['bypass'])
+                e_uci.set('flashstart', 'global', 'custom_servers', data['custom_servers'])
 
             e_uci.save('flashstart')
             print(json.dumps({"message": "success"}))
@@ -97,19 +130,3 @@ elif cmd == 'call':
                        for zone_id, zone in nethsec.firewall.list_zones(e_uci).items()
                        if zone['name'] != 'wan']
         }))
-    elif action == 'check-credentials':
-        data = json.load(sys.stdin)
-        try:
-            if 'username' not in data or data['username'] == '':
-                raise ValidationError('username', 'required')
-            if 'password' not in data or data['password'] == '':
-                raise ValidationError('password', 'required')
-
-            result = subprocess.run(['ns-flashstart', 'check-credentials', '--username', data['username'], '--password',
-                            data['password']])
-            if result.returncode == 0:
-                print(json.dumps({"valid": True}))
-            else:
-                print(json.dumps({"valid": False}))
-        except ValidationError as e:
-            print(json.dumps(validation_error(e.parameter, e.message, e.value)))
