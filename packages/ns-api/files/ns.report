@@ -16,6 +16,7 @@ from datetime import datetime
 from collections import defaultdict
 from nethsec import utils
 import urllib.request
+from euci import EUci
 
 ## Utility functions
 
@@ -355,7 +356,13 @@ def latency_and_quality_report():
 
 
 def get_ip_addresses(device: str):
+    uci = EUci()
     devices = utils.get_all_device_ips()
+    interface = utils.get_interface_from_device(uci, device)
+    if interface:
+        proto = uci.get('network', interface, 'proto', default='')
+        if proto == 'pppoe':
+            device = f'pppoe-{interface}'
     for item in devices:
         if item == device:
             if len(devices[item]) > 0:
