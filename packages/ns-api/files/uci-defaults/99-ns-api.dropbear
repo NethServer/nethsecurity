@@ -1,0 +1,14 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# uci-default replacing unnamed config with named one 'main'
+# Issue: https://github.com/NethServer/nethsecurity/issues/1222
+
+if ! uci -q get dropbear.main > /dev/null; then
+  uci rename dropbear.@dropbear[0]=main
+  uci commit dropbear
+fi
