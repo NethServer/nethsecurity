@@ -588,7 +588,26 @@ def list_users(ovpninstance):
         used, matches = objects.is_used_object(u, f'users/{user["id"]}')
         user['used'] = used
         user['matches'] = matches
+        user['valid'] = True
         ret.append(user)
+    for configured_user in utils.get_all_by_option(u, 'users', 'database', db):
+        if u.get('users', configured_user, 'openvpn_enabled', default='0') != '1':
+            continue
+        username = u.get('users', configured_user, 'name')
+        # Search for the user inside the ret array
+        found = any(user['name'] == username for user in ret)
+        used, matches = objects.is_used_object(u, f'users/{configured_user}')
+        if not found:
+            ret.append( {
+                "id": configured_user,
+                "name": username,
+                "expiration": 0,
+                "expired": False,
+                "used": used,
+                "matches": matches,
+                "connected": False,
+                "valid": False
+            })
     return {"users": sorted(ret, key=lambda u: u['name'])}
 
 def disconnect_user(ovpninstance, username):
