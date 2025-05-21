@@ -182,6 +182,7 @@ define Package/ns-api/install
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/uci-defaults/99-ns-api.ipsec $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/uci-defaults/99-ns-api.dropbear $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/uci-defaults/19-ns-api.wizard $(1)/etc/uci-defaults
 endef
  
 $(eval $(call BuildPackage,ns-api))
