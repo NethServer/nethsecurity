@@ -6,14 +6,16 @@
 #
 
 import os
+import re
 import sys
-import base64
 import json
 import urllib
 import urllib.request
 import urllib.error
+import logging
+import ipaddress
 from euci import EUci
-from nethsec.utils import ValidationError
+from nethsec.utils import ValidationError, validation_error, generic_error
 from nethsec import utils, firewall
 import base64
 import time
@@ -541,6 +543,138 @@ def dns_delete_bypass(e_uci, payload):
     e_uci.save('adblock')
     return {'message': 'success'}
 
+
+def __parse_expression(expression):
+    if isinstance(expression, str) or isinstance(expression, int):
+        return ipaddress.ip_address(expression)
+    if isinstance(expression, list):
+        return [__parse_expression(item) for item in expression]
+    if isinstance(expression, dict):
+        if "prefix" in expression:
+            return ipaddress.ip_network(expression["prefix"]["addr"] + "/" + str(expression["prefix"]["len"]))
+        elif "range" in expression:
+            return list(ipaddress.summarize_address_range(
+                __parse_expression(expression["range"][0]),
+                __parse_expression(expression["range"][1])
+            ))
+        elif "elem" in expression:
+            return {
+                "timeout": expression["elem"]["timeout"],
+                "expires": expression["elem"]["expires"],
+                "val": __parse_expression(expression["elem"]["val"]),
+            }
+
+    logging.warning('Unsupported expression type: {}'.format(type(expression)))
+    return None
+
+
+def __parse_set(blocklist):
+    """
+    This function parses any set returned by nftables and returns a list of entries
+    """
+    blocked_ips = []
+    if ("nftables" in blocklist
+            and len(blocklist["nftables"]) > 1
+            and "set" in blocklist["nftables"][1]
+            and "elem" in blocklist["nftables"][1]["set"]):
+        blocked_ips = [ip for ip in __parse_expression(blocklist["nftables"][1]["set"]["elem"]) if ip is not None]
+
+    return blocked_ips
+
+
+def list_active_blocks():
+    try:
+        output_ipv4 = subprocess.run(["nft", "-j", "list", "set", "inet", "banIP", "blocklistv4"], check=True,
+                                    capture_output=True, text=True)
+        data = json.loads(output_ipv4.stdout)
+    except subprocess.CalledProcessError:
+        data = {}
+
+    blocks = __parse_set(data)
+
+    try:
+        output_ipv6 = subprocess.run(["nft", "-j", "list", "set", "inet", "banIP", "blocklistv6"], check=True,
+                                    capture_output=True, text=True)
+        data = json.loads(output_ipv6.stdout)
+    except subprocess.CalledProcessError:
+        data = {}
+
+    blocks = blocks + __parse_set(data)
+    blocks = filter(lambda x: isinstance(x, dict) and "val" in x, blocks)
+    blocks = sorted(blocks, key=lambda x: x["timeout"] - x["expires"])
+    response = []
+    for block in blocks:
+        if not isinstance(block["val"], list):
+            block["val"] = [block["val"]]
+        for item in block["val"]:
+            if isinstance(item, ipaddress.IPv4Address) or isinstance(item, ipaddress.IPv6Address):
+                response.append({
+                    "ip": str(item),
+                    "timeout": block["timeout"],
+                    "expires": block["expires"],
+                })
+            if isinstance(item, ipaddress.IPv4Network) or isinstance(item, ipaddress.IPv6Network):
+                for addr in item:
+                    if isinstance(addr, ipaddress.IPv4Address) or isinstance(addr, ipaddress.IPv6Address):
+                        response.append({
+                            "ip": str(addr),
+                            "timeout": block["timeout"],
+                            "expires": block["expires"],
+                        })
+
+    return response
+
+
+def remove_active_block():
+    data = json.loads(sys.stdin.read())
+    if data.get("ip", "") == "":
+        return validation_error("ip", "required")
+
+    try:
+        ip = ipaddress.ip_address(data["ip"])
+    except ValueError:
+        return validation_error("ip", "invalid", data["ip"])
+
+    blocks = filter(lambda x: x["ip"] == str(ip), list_active_blocks())
+    found = len(list(blocks)) > 0
+    if not found:
+        return validation_error("ip", "invalid", str(ip))
+
+    if isinstance(ip, ipaddress.IPv4Address):
+        blocklist = "blocklistv4"
+    else:
+        blocklist = "blocklistv6"
+
+    try:
+        subprocess.run(["nft", "delete", "element", "inet", "banIP", blocklist, "{" + str(ip) + "}"], check=True)
+    except subprocess.CalledProcessError:
+        return generic_error("remove_active_block_failed")
+
+    return {'message': 'success'}
+
+
+def is_ip_blocked():
+    data = json.loads(sys.stdin.read())
+    if "ip" not in data or data["ip"] == "":
+        return validation_error("ip", "required")
+    try:
+        result = subprocess.run(["/etc/init.d/banip", "search", data["ip"]], check=True, capture_output=True, text=True)
+        matches = re.findall(r"Set '([^']+)'", result.stdout)
+        matches = [match for match in matches if not match.startswith("allow")]
+
+        if len(matches) > 0:
+            return {
+                'found': True,
+                'list': matches[0]
+            }
+    except subprocess.CalledProcessError:
+        return validation_error("banip", "processing")
+
+    return {
+        'found': False
+    }
+
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
@@ -569,6 +703,9 @@ if cmd == 'list':
         'add-blocked': {'address': '1.2.3.4', 'description': 'optional'},
         'edit-blocked': {'address': '1.2.3.4', 'description': 'optional'},
         'delete-blocked': {'address': '1.2.3.4'},
+        'list-active-blocks': {},
+        'remove-active-block': { 'ip': '' },
+        'is-ip-blocked': {'ip': ''},
         'dns-list-blocklist': {},
         'dns-edit-blocklist': { "blocklist": "blocklist_name", "enabled": True },
         'dns-list-settings': {},
@@ -622,6 +759,12 @@ elif cmd == 'call':
         elif action == 'delete-blocked':
             payload = json.loads(sys.stdin.read())
             ret = delete_blocked(payload)
+        elif action == 'list-active-blocks':
+            ret = list_active_blocks()
+        elif action == 'remove-active-block':
+            ret = remove_active_block()
+        elif action == 'is-ip-blocked':
+            ret = is_ip_blocked()
 
         if action == 'dns-list-blocklist':
             ret = dns_list_blocklist(e_uci)
