@@ -46,8 +46,6 @@ exit 0
 endef
 
 define Package/ns-flashstart/install
-	$(INSTALL_DIR) $(1)/usr/share/ns-flashstart
-	$(INSTALL_BIN) ./files/flashstart-auth $(1)/usr/share/ns-flashstart/flashstart-auth
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-flashstart $(1)/usr/sbin/ns-flashstart
 	$(INSTALL_DIR) $(1)/etc/config
