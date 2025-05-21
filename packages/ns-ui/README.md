@@ -20,7 +20,7 @@ uci set ns-ui.config.nsui_extra_port=9090
 uci set ns-ui.config.nsui_enable=0
 uci set ns-ui.config.luci_enable=0
 uci commit ns-ui
-ns-ui
+reload_config
 ```
 
 ## Configuration
@@ -51,6 +51,7 @@ Usually, a delay of one second during boot is enough. To set it, execute:
 ```
 uci set ns-ui.config.api_server_delay=1
 uci commit ns-ui
+reload_config
 ```
 
 To test it, reboot the machine.

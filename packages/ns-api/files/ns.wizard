@@ -1,0 +1,47 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import json
+import sys
+
+from euci import EUci
+from nethsec import utils
+from nethsec.utils import ValidationError
+
+cmd = sys.argv[1]
+
+if cmd == "list":
+    json.dump({
+        "get": {},
+        "set": {
+            "complete": False,
+            "password_changed": False,
+        }
+    }, sys.stdout)
+elif cmd == "call":
+    action = sys.argv[2]
+    e_uci = EUci()
+    if action == "get":
+        json.dump({
+            "complete": e_uci.get("ns-wizard", "config", "complete", dtype=bool, default=False),
+            "password_changed": e_uci.get("ns-wizard", "config", "password_changed", dtype=bool, default=False),
+        }, sys.stdout)
+    elif action == "set":
+        try:
+            data = json.loads(sys.stdin.read())
+            if "complete" in data:
+                if not isinstance(data["complete"], bool):
+                    raise ValidationError("complete", "invalid")
+                e_uci.set("ns-wizard", "config", "complete", data["complete"])
+            if "password_changed" in data:
+                if not isinstance(data["password_changed"], bool):
+                    raise ValidationError("password_changed", "invalid")
+                e_uci.set("ns-wizard", "config", "password_changed", data["password_changed"])
+            e_uci.save("ns-wizard")
+            json.dump({"message": "successful"}, sys.stdout)
+        except ValidationError as ex:
+            json.dump(utils.validation_error(ex.parameter, ex.message, ex.value), sys.stdout)

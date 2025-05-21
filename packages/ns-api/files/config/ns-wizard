@@ -1,0 +1,4 @@
+
+config config 'config'
+	option complete '0'
+	option password_changed '0'
