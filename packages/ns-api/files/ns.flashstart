@@ -77,26 +77,19 @@ elif cmd == 'call':
             if not isinstance(data['enabled'], bool):
                 raise ValidationError('enabled', 'invalid')
             if data['enabled']:
-                if 'proplus' not in data:
-                    raise ValidationError('proplus', 'required')
-                if not isinstance(data['proplus'], bool):
-                    raise ValidationError('proplus', 'invalid')
-                if 'username' not in data or data['username'] == '':
-                    raise ValidationError('username', 'required')
-                if 'password' not in data or data['password'] == '':
-                    raise ValidationError('password', 'required')
-                if 'zones' not in data:
-                    raise ValidationError('zones', 'required')
-                if not isinstance(data['zones'], list):
-                    raise ValidationError('zones', 'invalid')
-                if 'bypass' not in data:
-                    raise ValidationError('bypass', 'required')
-                if not isinstance(data['bypass'], list):
-                    raise ValidationError('bypass', 'invalid')
-                if 'custom_servers' not in data:
-                    raise ValidationError('custom_servers', 'required')
-                if not isinstance(data['custom_servers'], list):
-                    raise ValidationError('custom_servers', 'invalid')
+                validation = {
+                    'proplus': bool,
+                    'username': str,
+                    'password': str,
+                    'zones': list,
+                    'bypass': list,
+                    'custom_servers': list,
+                }
+                for key, value in validation.items():
+                    if key not in data or data[key] == '':
+                        raise ValidationError(key, 'required')
+                    if not isinstance(data[key], value):
+                        raise ValidationError(key, 'invalid', data[key])
                 for server in data['custom_servers']:
                     if not isinstance(server, str) or not __validate_server(server):
                         raise ValidationError('custom_servers', 'invalid', server)
