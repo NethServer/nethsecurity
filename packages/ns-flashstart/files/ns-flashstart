@@ -47,35 +47,8 @@ def check_credentials(username, password):
     response.raise_for_status()
 
 
-def __enable():
-    # check if the cron entry already exists
-    result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
-    cron_jobs = result.stdout.splitlines()
-
-    flashstart_auth = False
-    for job in cron_jobs:
-        if 'flashstart-auth' in job:
-            flashstart_auth = True
-
-    if not flashstart_auth:
-        subprocess.run(['bash', '-c',
-                        '(crontab -l 2>/dev/null; echo \'*/30 * * * * sleep $(( RANDOM % 60 )); /usr/share/ns-flashstart/flashstart-auth\') | crontab -'],
-                       check=True)
-        subprocess.run(['/usr/share/ns-flashstart/flashstart-auth'], check=True)
-        logging.info('Flashstart auth enabled.')
-
-
-def __disable():
+def disable():
     pending_changes = __check_pending_changes('dhcp') or __check_pending_changes('firewall')
-    # check if the cron entry already exists
-    result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
-    cron_jobs = result.stdout.splitlines()
-
-    for job in cron_jobs:
-        if 'flashstart-auth' in job:
-            subprocess.run(['bash', '-c', '(crontab -l 2>/dev/null | grep -v \'flashstart-auth\') | crontab -'],
-                           check=True)
-            logging.info('Flashstart auth disabled.')
 
     for config in ['dhcp', 'firewall']:
         for entry in e_uci.get(config, list=True, dtype=str, default=[]):
@@ -421,6 +394,28 @@ def __fetch_config():
     return data
 
 
+def ping():
+    wan_devices = set()
+    res = subprocess.run(["/sbin/fw4", "zone", "wan"], capture_output=True, text=True)
+    if res.returncode != 0:
+        raise Exception(f'Failed to get WAN devices with error: {res.stdout}')
+    wan_devices.update([line.strip() for line in res.stdout.splitlines() if line.strip()])
+    user = e_uci.get('flashstart', 'global', 'username', default='')
+    password = e_uci.get('flashstart', 'global', 'password', default='')
+    counter = 0
+    for wan in sorted(wan_devices):
+        if counter > 0:
+            wan_id = f"{user}-{counter}"
+        else:
+            wan_id = user
+        url = f"https://ddns.flashstart.com/nic/update?hostname=&myip=&wildcard=NOCHG&username={wan_id}&password={password}"
+        cmd = ["curl", "-s", "--connect-timeout", "10", "--interface", wan, url]
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        if res.returncode != 0:
+            raise Exception(f'Failed to update IP for WAN {wan} -> {wan_id} with error: {res.stdout}')
+        counter = counter + 1
+
+
 def main():
     import argparse
 
@@ -436,6 +431,8 @@ def main():
 
     subparsers.add_parser('sync', help='Sync Flashstart')
     subparsers.add_parser('daemon', help='Run the sync command foreground')
+    subparsers.add_parser('disable', help='Remove generated configuration')
+    subparsers.add_parser('ping', help='Ping flashstart server with all WANs')
 
     args = parser.parse_args()
     logger = logging.getLogger()
@@ -461,6 +458,9 @@ def main():
             except Exception as e:
                 logging.error(f'Unexpected error: {e}')
                 parser.exit(1)
+        case 'disable':
+            # remove config
+            disable()
         case 'daemon':
             # launch a process with the sync command once every 30 seconds, with a random delay of max 5 seconds
             # shutoff event handling in case of SIGTERM, SIGINT or SIGHUP
@@ -470,21 +470,27 @@ def main():
             event_handler = Event()
             signal.signal(signal.SIGTERM, shutoff)
 
-            # enable auth cronjob
-            __enable()
             # run the sync command every 30 +/- random(0, 5) seconds
             wait_time = random.randint(25, 35)
             logging.info('Starting flashstart sync daemon')
+            ping_timer = 0
             while not event_handler.is_set():
                 try:
+                    if ping_timer >= 9:
+                        ping()
+                        ping_timer = 0
+                    else:
+                        ping_timer += 1
                     sync()
                 except HTTPError as e:
                     logging.error(f'Error syncing profiles: {e}')
                 except Exception as e:
                     logging.error(f'Unexpected error: {e}')
                 event_handler.wait(wait_time)
-            # remove the cron job and config
-            __disable()
+            # remove the config
+            disable()
+        case 'ping':
+            ping()
         case _:
             parser.print_help()
 

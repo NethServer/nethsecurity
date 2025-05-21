@@ -34,6 +34,9 @@ then
   rm -rf /etc/dnsdist.conf.d/
   rm -f /etc/dnsdist.conf
   rm -f /etc/config/dnsdist
+  # remove crontab entry for flashstart-auth if there
+  crontab -l | grep -v "flashstart-auth" | crontab -
+  # set default
   uci -q set flashstart.global.proplus=0
   uci commit flashstart
 fi
