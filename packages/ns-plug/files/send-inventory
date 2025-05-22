@@ -57,7 +57,7 @@ try:
     if subscription_type == 'enterprise':
         # Update registration date
         request_session.post(
-             'https://my.nethesis.it/nb b 5t6api/systems/info',
+             'https://my.nethesis.it/api/systems/info',
             json={'secret': system_secret},
             timeout=180
         ).raise_for_status()
