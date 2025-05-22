@@ -74,6 +74,13 @@ def inventory_status():
         return {"status": "not attempted"}
 
 
+def send_inventory():
+    # there are no ways to know if the operation has been resolved successfully not
+    # the resolution can be retrieved through the inventory-status command
+    subprocess.run(["/usr/sbin/send-inventory"], capture_output=True)
+    return {"status": "success"}
+
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
@@ -89,5 +96,7 @@ elif cmd == 'call':
         ret = info()
     elif action == "inventory-status":
         ret = inventory_status()
+    elif action == "send-inventory":
+        ret = send_inventory()
 
     print(json.dumps(ret))
