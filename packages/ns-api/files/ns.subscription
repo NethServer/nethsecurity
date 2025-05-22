@@ -84,7 +84,13 @@ def send_inventory():
 cmd = sys.argv[1]
 
 if cmd == 'list':
-    print(json.dumps({"register": {"secret": "xxxx"}, "unregister": {}, "info": {}, "inventory-status": {}}))
+    print(json.dumps({
+        "register": {"secret": "xxxx"},
+        "unregister": {},
+        "info": {},
+        "inventory-status": {},
+        "send-inventory": {}
+    }))
 elif cmd == 'call':
     action = sys.argv[2]
     if action == "register":
