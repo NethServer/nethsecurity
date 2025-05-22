@@ -78,6 +78,7 @@ define Package/ns-plug/install
 	$(INSTALL_BIN) ./files/send-backup $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/send-heartbeat $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/send-inventory $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/send-inventory.init $(1)/etc/init.d/send-inventory
 	$(INSTALL_BIN) ./files/register $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/unregister $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/subscription-info $(1)/usr/sbin

@@ -8,7 +8,7 @@
 import subprocess
 import json
 from euci import EUci
-from requests import Session, HTTPError
+from requests import Session
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 import datetime
@@ -41,7 +41,7 @@ request_session.headers.update({
     'Content-Type': 'application/json',
     'Accept': 'application/json',
 })
-request_session.mount('http', HTTPAdapter(max_retries=Retry(total=3)))
+request_session.mount('http', HTTPAdapter(max_retries=Retry(total=5, backoff_factor=0.5)))
 
 attempted_sync_time = datetime.datetime.now().astimezone().isoformat(timespec='seconds')
 try:
