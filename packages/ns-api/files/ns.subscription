@@ -63,10 +63,21 @@ def info():
     ret = {"server_id": data["id"], "systemd_id": data["uuid"], "plan": data["subscription"]["subscription_plan"]["name"], "expiration": expiration, "active": active, "type": type}
     return ret
 
+
+def inventory_status():
+    try:
+        # edit this path also in send-inventory
+        with open('/tmp/inventory-sent.json', 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        # sync not attempted yet, return default values
+        return {"status": "not attempted"}
+
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
-    print(json.dumps({"register": {"secret": "xxxx"}, "unregister": {}, "info": {}}))
+    print(json.dumps({"register": {"secret": "xxxx"}, "unregister": {}, "info": {}, "inventory-status": {}}))
 elif cmd == 'call':
     action = sys.argv[2]
     if action == "register":
@@ -76,5 +87,7 @@ elif cmd == 'call':
         ret = unregister()
     elif action == "info":
         ret = info()
+    elif action == "inventory-status":
+        ret = inventory_status()
 
     print(json.dumps(ret))
