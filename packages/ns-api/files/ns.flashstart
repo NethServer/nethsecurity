@@ -11,21 +11,45 @@ import sys
 
 import nethsec.firewall
 from euci import EUci
-from nethsec.utils import ValidationError, validation_error, generic_error
+from nethsec.utils import ValidationError, validation_error
+import ipaddress
 
 
-def __fetch_data(e_uci):
+def __validate_server(item: str) -> bool:
+    entries = item.split('/')
+    if len(entries) != 3:
+        return False
+    destination = entries[2].split('#')
+    try:
+        ipaddress.ip_address(destination[0])
+    except ValueError:
+        return False
+    if len(destination) > 1:
+        try:
+            port = int(destination[1])
+            if port < 1 or port > 65535:
+                return False
+        except ValueError:
+            return False
+    return True
+
+
+def __fetch_data():
     return {
         'enabled': e_uci.get('flashstart', 'global', 'enabled', dtype=bool, default=False),
+        'proplus': e_uci.get('flashstart', 'global', 'proplus', dtype=bool, default=False),
         'username': e_uci.get('flashstart', 'global', 'username', default=''),
         'password': e_uci.get('flashstart', 'global', 'password', default=''),
         'zones': [zone for zone in e_uci.get('flashstart', 'global', 'zones', list=True, default=[])
                   if zone != ''],
         'bypass': [bypass for bypass in e_uci.get('flashstart', 'global', 'bypass', list=True, default=[])
-                   if bypass != '']
+                   if bypass != ''],
+        'custom_servers': [item for item in e_uci.get('flashstart', 'global', 'custom_servers', list=True, default=[])
+                           if item != '']
     }
 
 
+e_uci = EUci()
 cmd = sys.argv[1]
 
 if cmd == 'list':
@@ -33,44 +57,65 @@ if cmd == 'list':
         'list-zones': {},
         'set-config': {
             'enabled': False,
+            'proplus': False,
             'username': 'str',
             'password': 'str',
             'zones': 'str',
-            'bypass': 'str'
+            'bypass': 'str',
+            'custom_servers': 'str',
         },
-        'get-config': {}
+        'get-config': {},
     }))
 elif cmd == 'call':
     action = sys.argv[2]
-    e_uci = EUci()
     if action == 'set-config':
         try:
-            # decode data
-            data = json.JSONDecoder().decode(sys.stdin.read())
+            data = json.load(sys.stdin)
 
-            # save data
-            e_uci.set('flashstart', 'global', 'enabled', bool(data['enabled']))
-            e_uci.set('flashstart', 'global', 'username', data['username'])
-            e_uci.set('flashstart', 'global', 'password', data['password'])
-            e_uci.set('flashstart', 'global', 'zones', data['zones'])
-            e_uci.set('flashstart', 'global', 'bypass', data['bypass'])
+            if 'enabled' not in data:
+                raise ValidationError('enabled', 'required')
+            if not isinstance(data['enabled'], bool):
+                raise ValidationError('enabled', 'invalid')
+            if data['enabled']:
+                validation = {
+                    'proplus': bool,
+                    'username': str,
+                    'password': str,
+                    'zones': list,
+                    'bypass': list,
+                    'custom_servers': list,
+                }
+                for key, value in validation.items():
+                    if key not in data or data[key] == '':
+                        raise ValidationError(key, 'required')
+                    if not isinstance(data[key], value):
+                        raise ValidationError(key, 'invalid', data[key])
+                for server in data['custom_servers']:
+                    if not isinstance(server, str) or not __validate_server(server):
+                        raise ValidationError('custom_servers', 'invalid', server)
 
-            e_uci.commit('dhcp')
-            e_uci.commit('flashstart')
-            subprocess.run(['flashstart-apply'], check=True)
-            subprocess.run(['/etc/init.d/dnsmasq', 'restart'], check=True, capture_output=True)
+            # check for credentials
+            result = subprocess.run(['ns-flashstart', 'check-credentials', '--username', data['username'], '--password',
+                                     data['password']], capture_output=True)
+            if result.returncode != 0:
+                raise ValidationError('username', 'invalid_credentials')
 
+            e_uci.set('flashstart', 'global', 'enabled', data['enabled'])
+            if data['enabled']:
+                e_uci.set('flashstart', 'global', 'proplus', data['proplus'])
+                e_uci.set('flashstart', 'global', 'username', data['username'])
+                e_uci.set('flashstart', 'global', 'password', data['password'])
+                e_uci.set('flashstart', 'global', 'zones', data['zones'])
+                e_uci.set('flashstart', 'global', 'bypass', data['bypass'])
+                e_uci.set('flashstart', 'global', 'custom_servers', data['custom_servers'])
+
+            e_uci.save('flashstart')
             print(json.dumps({"message": "success"}))
-
-        except KeyError as e:
-            print(json.dumps(validation_error(e.args[0], 'required')))
         except ValidationError as e:
             print(json.dumps(validation_error(e.parameter, e.message, e.value)))
-        except subprocess.CalledProcessError:
-            print(json.dumps(generic_error('flashstart-apply failed')))
     elif action == 'get-config':
         print(json.dumps({
-            'values': __fetch_data(e_uci)
+            'values': __fetch_data()
         }))
     elif action == 'list-zones':
         print(json.dumps({

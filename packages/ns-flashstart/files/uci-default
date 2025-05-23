@@ -7,7 +7,6 @@
 
 # This uci-default script is used to migrate the old configuration to the new one
 # Issue: https://github.com/NethServer/nethsecurity/issues/1125
-
 if [ "$(uci -q get flashstart.global.enabled)" = "1" ] && uci -q get flashstart.ns_old_conf
 then
   # restore old DNS configuration
@@ -26,4 +25,18 @@ then
   uci commit firewall
   uci commit flashstart
   uci commit dhcp
+fi
+
+# Issue: https://github.com/NethServer/nethsecurity/issues/1162
+if [ -z "$(uci -q get flashstart.global.proplus)" ]
+then
+  # remove dnsdist
+  rm -rf /etc/dnsdist.conf.d/
+  rm -f /etc/dnsdist.conf
+  rm -f /etc/config/dnsdist
+  # remove crontab entry for flashstart-auth if there
+  crontab -l | grep -v "flashstart-auth" | crontab -
+  # set default
+  uci -q set flashstart.global.proplus=0
+  uci commit flashstart
 fi
