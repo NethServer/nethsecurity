@@ -18,13 +18,21 @@ if [ -z "$SYSTEM_ID" ] || [ -z "$SYSTEM_SECRET" ]; then
 fi
 
 echo "{\"data\": {\"lk\": \"$SYSTEM_ID\", \"data\": $(/usr/sbin/inventory) }}" | \
-/usr/bin/curl -m 180 --retry 3 -L -s \
+/usr/bin/curl -m 180 --retry 5 -L -s \
    --header "Authorization: token $SYSTEM_SECRET"  --header "Content-Type: application/json" --header "Accept: application/json"  \
    --data-binary @- "$URL" > /dev/null
 
+if [ $? -ne 0 ]; then
+    status="error"
+else
+    status="success"
+fi
+
+echo '{"status": "'$status'", "last_attempt": "'$(date --iso-8601=seconds)'"}' > /tmp/inventory-sent.json
+
 if [ "$TYPE" = "enterprise" ]; then
     # Update registration date
-    /usr/bin/curl -m 180 --retry 3 -L -s \
+    /usr/bin/curl -m 180 --retry 5 -L -s \
         --header "Content-Type: application/json" --header "Accept: application/json"  \
         -d '{"secret":"'$SYSTEM_SECRET'"}' https://my.nethesis.it/api/systems/info >/dev/null
 fi
