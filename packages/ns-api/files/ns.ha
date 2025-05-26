@@ -98,10 +98,11 @@ def allocate_fake_ips(uci):
 
 def validate_network():
     errors = []
-    uci = EUci()
+    uci = EUci()  
     try:
         proto = uci.get('network', 'lan', 'proto')
     except:
+        proto = ""
         errors.append('lan_network_not_found')
 
     if proto != 'static':
@@ -110,6 +111,7 @@ def validate_network():
     try:
         proto = uci.get('network', 'wan', 'proto')
     except:
+        proto = ""
         errors.append('wan_network_not_found')
     if proto == 'pppoe':
         errors.append('wan_network_is_pppoe')
@@ -680,7 +682,9 @@ def check_remote(backup_node_ip, ssh_password):
 
     try:
         if stdout:
-            json.loads(stdout.read().decode())
+            result = json.loads(stdout.read().decode())
+            if not result.get("success"):
+                errors.extend(result.get("errors", []))
     except:
         errors.append('invalid_json_response_from_remote_node')
        
