@@ -15,19 +15,19 @@ ACTION="$1"
 help() {
   echo "Usage: $0 <action> [parameters]"
   echo "Actions:"
-  echo "  init-primary <PRIMARY_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP>"
+  echo "  init-primary <PRIMARY_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP> [LAN_INTERFACE] [WAN_INTERFACE]"
   echo "  init-backup <PRIMARY_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP> <PASSWORD> <PUBKEY>"
   echo "  add-interface <INTERFACE> <VIRTUAL_IP> [GATEWAY]"
   echo "  remove-interface <INTERFACE>"
   echo "  add-alias <INTERFACE> <VIRTUAL_ALIAS_IP> [GATEWAY]"
   echo "  remove-alias <INTERFACE> <VIRTUAL_ALIAS_IP>"
-  echo "  check-primary-node"
-  echo "  check-backup-node"
+  echo "  check-primary-node [LAN_INTERFACE] [WAN_INTERFACE]"
+  echo "  check-backup-node [LAN_INTERFACE]"
   echo "  show-config"
   echo "  ssh-remote"
   echo "  upgrade-remote [<IMAGE>]"
   echo "  reset"
-  echo "  status (This is the only action that can be run on the backup node)"
+  echo "  status (This is the only action that can be run on both nodes)"
 }
 
 if [[ -z "$ACTION" ]]; then
@@ -50,14 +50,16 @@ init_primary_node() {
   PRIMARY_NODE_IP="$1"
   BACKUP_NODE_IP="$2"
   VIRTUAL_IP="$3"
+  LAN_INTERFACE="${4:-lan}"
+  WAN_INTERFACE="${5:-wan}"
 
   if [[ -z "$PRIMARY_NODE_IP" || -z "$BACKUP_NODE_IP" || -z "$VIRTUAL_IP" ]]; then
-    echo "Usage: $0 init-primary-node <PRIMARY_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP>"
+    echo "Usage: $0 init-primary-node <PRIMARY_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP> [LAN_INTERFACE] [WAN_INTERFACE]"
     exit 1
   fi
 
   # Make sure local requirements are met
-  check_primary_node
+  check_primary_node "$LAN_INTERFACE" "$WAN_INTERFACE"
 
   echo -n "Setting up primary node... "
 
@@ -98,8 +100,6 @@ init_backup_node() {
     exit 1
   fi
   
-  echo $PASSWORD | check_backup_node "$backup_node_ip"
-
   if [[ $? -ne 0 ]]; then
     error
     echo "Failed to check the backup node status."
@@ -132,8 +132,11 @@ init_backup_node() {
 
 # Function to check the primary node status
 check_primary_node() {
+  LAN_INTERFACE="${1:-lan}"
+  WAN_INTERFACE="${2:-wan}"
+
   echo -n "Checking primary node status... "
-  OUTPUT=$(echo '{"role": "primary"}' | /usr/libexec/rpcd/ns.ha call validate-requirements)
+  OUTPUT=$(echo '{"role": "primary", "lan_interface": "'$LAN_INTERFACE'", "wan_interface": "'$WAN_INTERFACE'"}' | /usr/libexec/rpcd/ns.ha call validate-requirements)
 
   if [[ $? -ne 0 ]]; then
     error
@@ -156,6 +159,8 @@ check_primary_node() {
 # Function to check the backup node status
 check_backup_node() {
   BACKUP_NODE_IP="$1"
+  LAN_INTERFACE="${2:-lan}"
+  WAN_INTERFACE="${3:-wan}"
 
   if [[ -z "$BACKUP_NODE_IP" ]]; then
     error
@@ -171,7 +176,7 @@ check_backup_node() {
   echo
   echo -n "Checking backup node status... "
 
-  OUTPUT=$(echo '{"backup_node_ip": "'${BACKUP_NODE_IP}'", "ssh_password": "'${PASSWORD}'"}' | /usr/libexec/rpcd/ns.ha call check-remote)
+  OUTPUT=$(echo '{"backup_node_ip": "'${BACKUP_NODE_IP}'", "ssh_password": "'${PASSWORD}'", "lan_interface": "'${LAN_INTERFACE}'", "wan_interface": "'${WAN_INTERFACE}'"}' | /usr/libexec/rpcd/ns.ha call check-remote)
 
   if [[ $? -ne 0 ]]; then
     error
@@ -482,7 +487,8 @@ case "$ACTION" in
     remove_alias "$@"
     ;;
   check-primary-node)
-    check_primary_node
+    shift
+    check_primary_node "$@"
     ;;
   check-backup-node)
     shift
