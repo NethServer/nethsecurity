@@ -185,15 +185,8 @@ def check_openvpn_rw():
 def check_flashstart():
     u = EUci()
     fs_enabled = u.get("flashstart", "global", "enabled", default="0") == "1"
-    if not fs_enabled:
-        return "disabled"
+    return "ok" if fs_enabled else "disabled"
 
-    try:
-        pa = subprocess.run(["service", "dnsdist", "running"], check=False, capture_output=True)
-        if fs_enabled and pa.returncode == 0:
-            return "ok"
-    except:
-        return "error"
 
 def check_mwan():
     errored = 0
