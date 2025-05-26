@@ -82,8 +82,12 @@ ns-ha-config <action> [<option1> <option2>]
 
 First, check the status of the primary node:
 ```
-ns-ha-config check-primary-node
+ns-ha-config check-primary-node [lan_interface] [wan_interface]
 ```
+
+If the `lan_interface` and `wan_interface` are not specified, the script will use the default values:
+- `lan` for the LAN interface
+- `wan` for the first WAN interface
 
 It will check the following:
 
@@ -101,7 +105,7 @@ It will check the following:
 
 Then, check the status of the backup node:
 ```
-ns-ha-config check-backup-node <backup_node_ip>
+ns-ha-config check-backup-node <backup_node_ip> [lan_interface]
 ```
 
 It will check the following:
@@ -109,7 +113,11 @@ It will check the following:
 - the backup node must be reachable via SSH on port 22 with root user
 - the LAN interface must be configured with a static IP address
 - there is at least one WAN interface
-- the WAN interface is not configured as a PPPoE connection
+
+Note the WAN interface is not checked on the backup node.
+In case of a switchover, the backup node will take over the WAN interface of the primary node but
+if there is no WAN interface configured on the backup node with the same name, the UI will
+show an unknown device.
 
 Execute:
 ```
@@ -137,7 +145,7 @@ echo Nethesis,1234 | ns-ha-config check-backup-node 192.168.100.239
 
 If the requirements are met, you can initialize the primary node, please note that the Virtual IP (only) must be written in CIDR notation.
 ```
-ns-ha-config init-primary-node <primary_node_ip> <backup_node_ip> <virtual_ip>
+ns-ha-config init-primary-node <primary_node_ip> <backup_node_ip> <virtual_ip> [lan_interface] [wan_interface]
 ```
 
 The script will:
@@ -194,7 +202,6 @@ The script will:
 - create the network interface and devices in the backup node
 - configure the interface on both nodes by using fake IP addresses from the fake network 169.254.0.0/16
 - configure the virtual IP address on both nodes
-
 
 Example:
 ```

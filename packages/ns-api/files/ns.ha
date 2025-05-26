@@ -96,11 +96,11 @@ def allocate_fake_ips(uci):
         if primary_ip not in reserved_ips and backup_ip not in reserved_ips:
             return primary_ip, backup_ip
 
-def validate_network():
+def validate_network(role, lan_interface, wan_interface):
     errors = []
-    uci = EUci()  
+    uci = EUci()
     try:
-        proto = uci.get('network', 'lan', 'proto')
+        proto = uci.get('network', lan_interface, 'proto')
     except:
         proto = ""
         errors.append('lan_network_not_found')
@@ -108,13 +108,14 @@ def validate_network():
     if proto != 'static':
         errors.append('lan_network_not_static')
 
-    try:
-        proto = uci.get('network', 'wan', 'proto')
-    except:
-        proto = ""
-        errors.append('wan_network_not_found')
-    if proto == 'pppoe':
-        errors.append('wan_network_is_pppoe')
+    if role == 'primary':
+        try:
+            proto = uci.get('network', wan_interface, 'proto')
+        except:
+            proto = ""
+            errors.append('wan_network_not_found')
+        if proto == 'pppoe':
+            errors.append('wan_network_is_pppoe')
 
     return errors
 
@@ -649,17 +650,18 @@ def status():
 
     return ret
 
-def validate_requirements(role):
+def validate_requirements(role, lan_interface, wan_interface):
     errors = []
-    errors = errors + validate_network()
+    errors = errors + validate_network(role, lan_interface, wan_interface)
     if role == "primary":
         errors = errors + validate_dhcp()
         errors = errors + validate_hotspot()
         
     return {"success": len(errors) == 0, "errors": errors}
 
-def check_remote(backup_node_ip, ssh_password):
+def check_remote(backup_node_ip, ssh_password, lan_interface, wan_interface):
     errors = []
+
     # Accessible via SSH on port 22
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -672,7 +674,9 @@ def check_remote(backup_node_ip, ssh_password):
 
     # Call validate-configuration on the remote node
     validate_command = json.dumps({
-        "role": "backup"
+        "role": "backup",
+        "lan_interface": lan_interface,
+        "wan_interface": wan_interface
     })
 
     try:
@@ -1039,8 +1043,10 @@ if cmd == 'list':
         "check-remote": {
             "backup_node_ip": "100.100.100.2",
             "ssh_password": "Nethesis,1234",
+            "lan_interface": "lan",
+            "wan_interface": "wan"
         },
-        "validate-requirements": { "role": "primary" },
+        "validate-requirements": { "role": "primary", "lan_interface": "lan", "wan_interface": "wan" },
         "add-interface": {  "role": "primary", "interface": "wan", "virtual_ip": "1.2.3.4/24", "gateway": "1.2.3.5" },
         "remove-interface": { "role": "primary", "interface": "wan" },
         "add-alias": { "role": "primary", "interface": "wan", "virtual_ip": "1.2.3.5/24" },
@@ -1072,9 +1078,9 @@ else:
         elif action == "remove-interface":
             ret = remove_interface(args.get('role'), args.get('interface'))
         elif action == "check-remote":
-            ret = check_remote(args.get('backup_node_ip'), args.get('ssh_password'))
+            ret = check_remote(args.get('backup_node_ip'), args.get('ssh_password'), args.get('lan_interface'), args.get('wan_interface'))
         elif action == "validate-requirements":
-            ret = validate_requirements(args.get('role'))
+            ret = validate_requirements(args.get('role'), args.get('lan_interface'), args.get('wan_interface'))
         elif action == "import-network-config":
             ret = import_network_config(args)
         elif action == "add-alias":
