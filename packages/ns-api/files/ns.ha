@@ -119,13 +119,16 @@ def validate_network(role, lan_interface, wan_interface):
 
     return errors
 
-def validate_dhcp():
+def validate_dhcp(lan_interface):
     errors = []
     uci = EUci()
     is_keeplived_configured = len(utils.get_all_by_type(uci, 'keepalived', 'vrrp_instance')) > 0
     for server in utils.get_all_by_type(uci, 'dhcp', 'dhcp'):
         # Check if IPv4 DHCP server is enabled
         if uci.get('dhcp', server, 'dhcpv4', default=None) == 'server':
+            if uci.get('dhcp', server, 'interface', default=None) != lan_interface:
+                continue  # Skip if the DHCP server is not on the given lan interface
+
             # 1. Make sure configured DHCP server has force option enabled
             if uci.get('dhcp', server, 'force', default="0") != "1":
                 errors.append('dhcp_force_not_enabled')
@@ -654,7 +657,7 @@ def validate_requirements(role, lan_interface, wan_interface):
     errors = []
     errors = errors + validate_network(role, lan_interface, wan_interface)
     if role == "primary":
-        errors = errors + validate_dhcp()
+        errors = errors + validate_dhcp(lan_interface)
         errors = errors + validate_hotspot()
         
     return {"success": len(errors) == 0, "errors": errors}
