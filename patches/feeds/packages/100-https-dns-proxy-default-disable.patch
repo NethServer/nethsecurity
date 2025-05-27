@@ -1,0 +1,15 @@
+diff --git i/net/https-dns-proxy/files/etc/config/https-dns-proxy w/net/https-dns-proxy/files/etc/config/https-dns-proxy
+index 08660e871..fc9848e94 100644
+--- i/net/https-dns-proxy/files/etc/config/https-dns-proxy
++++ w/net/https-dns-proxy/files/etc/config/https-dns-proxy
+@@ -1,8 +1,8 @@
+ config main 'config'
+ 	option canary_domains_icloud '1'
+ 	option canary_domains_mozilla '1'
+-	option dnsmasq_config_update '*'
+-	option force_dns '1'
++	option dnsmasq_config_update '-'
++	option force_dns '0'
+ 	list force_dns_port '53'
+ 	list force_dns_port '853'
+ # ports listed below are used by some
