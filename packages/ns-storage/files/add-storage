@@ -28,10 +28,10 @@ mkdir -p "$mdir"
 mount "$device" "$mdir"
 
 # find uuid and create automount config
-eval $(block info | grep "$device" | awk '{print $2}')
+eval $(block info | grep "$device" | awk '{print $3}')
 uci set fstab.ns_data=mount
 uci set fstab.ns_data.target="$mdir"
-uci set fstab.ns_data.uuid="$UUID"
+uci set fstab.ns_data.label="$LABEL"
 uci set fstab.ns_data.enabled=1
 uci commit fstab
 

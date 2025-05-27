@@ -83,7 +83,7 @@ def get_configuration():
         for device in data["blockdevices"]:
             if 'children' in device:
                 for child in device['children']:
-                    if child['uuid'] == info["uuid"]:
+                    if child['label'] == info["label"]:
                         #print(f'{os_device} vs {child["path"]}')
                         if os_device == device['path']:
                             cur = child
