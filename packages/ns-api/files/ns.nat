@@ -18,6 +18,7 @@ cmd = sys.argv[1]
 if cmd == 'list':
     print(json.dumps({
         'list-rules': {},
+        'list-interfaces': {},
         'add-rule': {
             "name": "r1",
             "src": "lan",
@@ -43,6 +44,17 @@ elif cmd == 'call':
         e_uci = EUci()
         if action == 'list-rules':
             print(json.dumps({'rules': firewall.list_nat_rules(e_uci)}))
+        elif action == 'list-interfaces':
+            devices = []
+            for zone in firewall.list_zones(e_uci).values():
+                for device in utils.get_all_devices_by_zone(e_uci, zone.get('name')):
+                    devices.append({
+                        'id': device,
+                        'label': utils.get_interface_from_device(e_uci, device)
+                    })
+            json.dump({
+                'devices': devices,
+            }, sys.stdout)
         elif action == "add-rule":
             data = json.JSONDecoder().decode(sys.stdin.read())
             ret = firewall.add_nat_rule(
@@ -52,7 +64,8 @@ elif cmd == 'call':
                     data['src'],
                     data['src_ip'],
                     data['dest_ip'],
-                    data['snat_ip']
+                    data['snat_ip'],
+                    data['device'],
             )
             print(json.dumps({"id": ret}))
         elif action == "edit-rule":
@@ -65,7 +78,8 @@ elif cmd == 'call':
                     data['src'],
                     data['src_ip'],
                     data['dest_ip'],
-                    data['snat_ip']
+                    data['snat_ip'],
+                    data['device'],
             )
             print(json.dumps({"id": ret}))
         elif action == "delete-rule":
