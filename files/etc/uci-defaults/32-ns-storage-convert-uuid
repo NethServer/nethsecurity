@@ -1,0 +1,20 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# If UUID is missing, exit, it's already configured or storage is not configured
+storage_uuid="$(uci -q get fstab.ns_data.uuid)"
+[ -z "$storage_uuid" ] && exit 0
+
+# set the label to the device
+tune2fs -L ns_data UUID="$storage_uuid" >/dev/null
+
+# update the fstab entry, removing the uuid
+uci set fstab.ns_data.label=ns_data
+uci delete fstab.ns_data.uuid
+
+# commit the changes
+uci commit fstab
