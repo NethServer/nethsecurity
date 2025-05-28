@@ -18,7 +18,7 @@ cmd = sys.argv[1]
 if cmd == 'list':
     print(json.dumps({
         'list-rules': {},
-        'list-interfaces': {},
+        'list-devices': {},
         'add-rule': {
             "name": "r1",
             "src": "lan",
@@ -44,7 +44,7 @@ elif cmd == 'call':
         e_uci = EUci()
         if action == 'list-rules':
             print(json.dumps({'rules': firewall.list_nat_rules(e_uci)}))
-        elif action == 'list-interfaces':
+        elif action == 'list-devices':
             devices = []
             for zone in firewall.list_zones(e_uci).values():
                 for device in utils.get_all_devices_by_zone(e_uci, zone.get('name')):
