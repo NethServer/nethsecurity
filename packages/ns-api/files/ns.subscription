@@ -78,6 +78,7 @@ def send_inventory():
     # there are no ways to know if the operation has been resolved successfully not
     # the resolution can be retrieved through the inventory-status command
     subprocess.run(["/usr/sbin/send-inventory"], capture_output=True)
+    subprocess.run(["/usr/sbin/send-heartbeat"], capture_output=True)
     return {"status": "success"}
 
 
