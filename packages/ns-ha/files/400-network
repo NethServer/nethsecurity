@@ -5,7 +5,7 @@
 set_service_name network_files
 
 if [ "$ACTION" == "NOTIFY_MASTER" ]; then
-    if [ "$(/usr/libexec/rpcd/ns.ha call status | jq .role)" == "backup" ]; then
+    if [ "$(/usr/libexec/rpcd/ns.ha call status | jq -r .role)" == "backup" ]; then
         /usr/sbin/ns-ha-enable
     fi
 elif [ "$ACTION" == "NOTIFY_SYNC" ]; then
