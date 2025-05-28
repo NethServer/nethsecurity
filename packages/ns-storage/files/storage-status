@@ -1,0 +1,30 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Check the status of the storage configured, and return a JSON object with the status
+
+# check if storage is configured
+if uci -q get fstab.ns_data >/dev/null
+then
+  # compatibility with old storage configuration, check if uci has the fstab.ns_data.label or fstab.ns_data.uuid
+  # then check if the block device is mounted with the correct label or uuid using block info
+  label=$(uci -q get fstab.ns_data.label)
+  uuid=$(uci -q get fstab.ns_data.uuid)
+  target=$(uci -q get fstab.ns_data.target)
+
+  if [ -n "$label" ] && block info | grep -q "LABEL=\"$label\".*MOUNT=\"$target\"" ; then
+    status=ok
+  elif [ -n "$uuid" ] && block info | grep -q "UUID=\"$uuid\".*MOUNT=\"$target\"" ; then
+    status=ok
+  else
+    status=error
+  fi
+else
+  status=not_configured
+fi
+
+echo "{\"status\": \"$status\"}"

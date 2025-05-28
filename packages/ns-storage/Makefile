@@ -67,6 +67,7 @@ define Package/ns-storage/install
 	$(INSTALL_BIN) ./files/openvpn $(1)/usr/libexec/sync-data
 	$(INSTALL_CONF) ./files/30_ns-storage $(1)/etc/uci-defaults
 	$(INSTALL_CONF) ./files/data.conf $(1)/etc/logrotate.d
+	$(INSTALL_BIN) ./files/storage-status $(1)/usr/sbin
 endef
  
 $(eval $(call BuildPackage,ns-storage))
