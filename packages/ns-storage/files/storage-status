@@ -5,7 +5,10 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-# Check the status of the storage configured, and return a JSON object with the status
+# Check the status of the storage configured, and return one of the following:
+# - ok: storage is configured and mounted
+# - error: storage is configured but not mounted
+# - not_configured: storage is not configured
 
 # check if storage is configured
 if uci -q get fstab.ns_data >/dev/null; then
@@ -19,4 +22,4 @@ else
   status=not_configured
 fi
 
-echo "{\"status\": \"$status\"}"
+echo $status
