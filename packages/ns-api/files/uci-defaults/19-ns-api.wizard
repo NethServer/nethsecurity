@@ -7,7 +7,7 @@
 
 # This sets the wizard as completed if the system has been already configured, this can happen if the file
 # /etc/config/dpi does not exist, to do so, this script must run before the 20_dpi uci-default
-if [ ! -f /etc/config/dpi ]
+if [ -f /etc/config/dpi ]
 then
   # system is already configured
   uci set ns-wizard.config.complete=1
