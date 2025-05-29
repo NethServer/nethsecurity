@@ -66,6 +66,15 @@ do
     fi
 done
 
+echo >> "$log"
+# Save versions to log for troubleshooting
+if [ -f "$tmp_dir/export/version.json" ]; then
+    version=$(cat $tmp_dir/export/version.json | jq -r .version)
+    echo "nethserver-firewall-migration version: $version" >> "$log"
+fi
+source /etc/os-release
+echo "NethSecurity version: $OPENWRT_RELEASE" >> "$log"
+
 rm -rf $tmp_dir
 
 # Commit everything
