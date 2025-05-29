@@ -64,7 +64,7 @@ def export_wireguard_peers():
 if __name__ == '__main__':
     os.makedirs(out_dir, exist_ok=True)
     u = EUci()
-    proc = subprocess.run(["/usr/libexec/rpcd/ns.ha call status"], capture_output=True, text=True)
+    proc = subprocess.run(["/usr/libexec/rpcd/ns.ha", "call", "status"], capture_output=True, text=True)
     status = json.loads(proc.stdout)
     if status.get("role") == "backup":
         # Do not export anything on backup node
