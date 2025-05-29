@@ -57,6 +57,7 @@ define Package/ns-storage/install
 	$(INSTALL_DIR) $(1)/etc/logrotate.d
 	$(INSTALL_DIR) $(1)/usr/libexec
 	$(INSTALL_DIR) $(1)/usr/libexec/sync-data
+	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/add-storage $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-storage-setup-partition $(1)/usr/libexec
 	$(INSTALL_BIN) ./files/ns-storage-setup-disk $(1)/usr/libexec
@@ -68,6 +69,8 @@ define Package/ns-storage/install
 	$(INSTALL_CONF) ./files/30_ns-storage $(1)/etc/uci-defaults
 	$(INSTALL_CONF) ./files/data.conf $(1)/etc/logrotate.d
 	$(INSTALL_BIN) ./files/storage-status $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/storage-alarm $(1)/usr/libexec
+	$(INSTALL_BIN) ./files/ns-storage-check.init $(1)/etc/init.d/ns-storage-check
 endef
  
 $(eval $(call BuildPackage,ns-storage))
