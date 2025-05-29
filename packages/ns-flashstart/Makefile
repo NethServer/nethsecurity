@@ -54,6 +54,8 @@ define Package/ns-flashstart/install
 	$(INSTALL_BIN) ./files/uci-default $(1)/etc/uci-defaults/99-flashstart
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface/
 	$(INSTALL_DATA) ./files/hotplug $(1)/etc/hotplug.d/iface/90-flashstart
+	$(INSTALL_DIR) $(1)/etc/init.d
+	$(INSTALL_BIN) ./files/ns-flashstart.init $(1)/etc/init.d/ns-flashstart
 endef
  
 $(eval $(call BuildPackage,ns-flashstart))
