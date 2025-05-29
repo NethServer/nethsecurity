@@ -90,6 +90,14 @@ elif cmd == 'call':
                         raise ValidationError(key, 'required')
                     if not isinstance(data[key], value):
                         raise ValidationError(key, 'invalid', data[key])
+                if len(data['zones']) <= 0:
+                    raise ValidationError('zones', 'required')
+                for bypass in data['bypass']:
+                    try:
+                        ipaddress.ip_address(bypass)
+                        ipaddress.ip_network(bypass)
+                    except ValueError:
+                        raise ValidationError('bypass', 'invalid', bypass)
                 for server in data['custom_servers']:
                     if not isinstance(server, str) or not __validate_server(server):
                         raise ValidationError('custom_servers', 'invalid', server)
