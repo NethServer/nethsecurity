@@ -70,6 +70,7 @@ define Package/ns-storage/install
 	$(INSTALL_CONF) ./files/data.conf $(1)/etc/logrotate.d
 	$(INSTALL_BIN) ./files/storage-status $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/storage-alarm $(1)/usr/libexec
+	$(INSTALL_BIN) ./files/ns-storage-alert.init $(1)/etc/init.d/ns-storage-alert
 	$(INSTALL_BIN) ./files/ns-storage-check.init $(1)/etc/init.d/ns-storage-check
 endef
  
