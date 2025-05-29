@@ -66,8 +66,8 @@ if __name__ == '__main__':
     u = EUci()
     proc = subprocess.run(["/usr/libexec/rpcd/ns.ha", "call", "status"], capture_output=True, text=True)
     status = json.loads(proc.stdout)
-    if status.get("role") == "backup":
-        # Do not export anything on backup node
+    if status.get("role") != "primary" or status.get("state") != "master":
+        # Do not export anything on backup node or on primary node in bad state
         sys.exit(0)
 
     export_routes()
