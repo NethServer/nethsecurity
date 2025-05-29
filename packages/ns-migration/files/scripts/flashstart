@@ -7,7 +7,6 @@
 
 import sys
 import nsmigration
-import subprocess
 
 (u, data, nmap) = nsmigration.init("flashstart.json")
 
@@ -24,14 +23,3 @@ for o in data['config']:
 
 # Save configuration
 u.commit("flashstart")
-
-if data['config']['enabled'] == '1':
-    nsmigration.vprint(f'Enabling Flashstart')
-    subprocess.run(["/usr/sbin/flashstart-apply"])
-
-    for section in u.get('dhcp'):
-        if u.get('dhcp', section) == 'dnsmasq':
-            u.delete('dhcp', section, 'server')
-            u.set('dhcp', section, 'server', ['127.0.0.1#5300'])
-            u.commit('dhcp')
-            break
