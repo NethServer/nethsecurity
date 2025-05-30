@@ -8,7 +8,9 @@
 # Import the network configuration exported by the master node but in a disabled state
 
 import os
+import sys
 import json
+import subprocess
 from euci import EUci
 
 out_dir = "/etc/ha"
@@ -47,6 +49,11 @@ def import_routes():
     u.commit('network')
 
 if __name__ == "__main__":
+    proc = subprocess.run(["/usr/libexec/rpcd/ns.ha", "call", "status"], capture_output=True, text=True)
+    status = json.loads(proc.stdout)
+    if status.get("role") != "backup":
+        # Execute only on backup node
+        sys.exit(0)
     import_interfaces('wg_interfaces')
     import_wireguard_peers()
     import_interfaces('ipsec_interfaces')
