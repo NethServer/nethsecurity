@@ -16,4 +16,4 @@ if [ "${INTERFACE}" != "${NET_IF}" ] && [ "${INTERFACE}" != "${NET_IF6}" ]; then
     exit 0
 fi
 
-/usr/share/ns-flashstart/flashstart-auth
+/usr/sbin/ns-flashstart ping
