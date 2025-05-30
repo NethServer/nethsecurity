@@ -40,6 +40,11 @@ then
   fi
   # remove crontab entry for flashstart-auth if there
   crontab -l | grep -v "flashstart-auth" | crontab -
+  # remove the old config
+  for config in $(uci show firewall | grep -oP '^firewall\.ns_flashstart([^=]+)(?==ipset|=redirect$)')
+  do
+    uci -q delete "$config"
+  done
   # set default
   uci -q set flashstart.global.proplus=0
   uci commit flashstart
