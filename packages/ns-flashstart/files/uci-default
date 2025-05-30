@@ -34,6 +34,10 @@ then
   rm -rf /etc/dnsdist.conf.d/
   rm -f /etc/dnsdist.conf
   rm -f /etc/config/dnsdist
+  if [ -f /etc/init.d/dnsdist ]; then
+    /etc/init.d/dnsdist stop
+    /etc/init.d/dnsdist disable
+  fi
   # remove crontab entry for flashstart-auth if there
   crontab -l | grep -v "flashstart-auth" | crontab -
   # set default
