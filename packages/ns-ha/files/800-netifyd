@@ -8,6 +8,8 @@ set_restart_if_master
 set_stop_if_backup
 
 add_sync_file /etc/netifyd.conf
+add_sync_file /etc/config/dpi
+add_sync_file /etc/config/netifyd
 
 if [ "$ACTION" == "NOTIFY_SYNC" ]; then
     home=$(get_rsync_user_home)
