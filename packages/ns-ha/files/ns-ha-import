@@ -12,6 +12,7 @@ import sys
 import json
 import subprocess
 from euci import EUci
+from nethsec import utils
 
 out_dir = "/etc/ha"
 
@@ -21,6 +22,7 @@ def import_interfaces(file):
         interfaces = json.load(f)
     for interface, options in interfaces.items():
         u.set('network', interface, 'interface')
+        u.set('network', interface, 'ns_tag', ['ha'])
         for opt in options:
             u.set('network', interface, opt, options[opt])
         u.set('network', interface, 'disabled', '1')
@@ -33,6 +35,7 @@ def import_wireguard_peers():
     for section, options in peers.items():
         stype = "wireguard_"+section.split("_")[0]
         u.set('network', section, stype)
+        u.set('network', section, 'ns_tag', ['ha'])
         for opt in options:
             u.set('network', section, opt, options[opt])
     u.commit('network')
@@ -43,9 +46,57 @@ def import_routes():
         routes = json.load(f)
     for section, options in routes.items():
         u.set('network', section, 'route')
+        u.set('network', section, 'ns_tag', ['ha'])
         for opt in options:
             u.set('network', section, opt, options[opt])
         u.set('network', section, 'disabled', '1')
+    u.commit('network')
+
+def import_hotspot_mac():
+    u = EUci()
+    with open(os.path.join(out_dir, 'hotspot'), 'r') as f:
+        config = json.load(f)
+    target_device = ""
+    if config.get('device') is not None and config.get('mac_address') is not None:
+        devices = utils.get_all_by_type(u, 'network', 'device')
+        for d in devices:
+            device = devices[d]
+            if '.' in config.get('device'):
+                # Handle VLAN device, the mac address is set on the parent device
+                device_name = config.get('device').split('.')[0]
+            else:
+                device_name = config.get('device')
+            if device.get('name') == device_name:
+                target_device = d
+                break
+
+    if not target_device:
+        # Create a new device with the mac address
+        id = utils.get_random_id()
+        u.set('network', id, 'device')
+        u.set('network', id, 'name', device_name)
+        target_device = id
+
+    # Set the mac address on the device
+    u.set('network', target_device, 'macaddr', config.get('mac_address'))
+    u.set('network', target_device, 'ns_tag', ['ha'])
+    u.commit('network')
+
+
+def cleanup_import():
+    # Make sure to cleanup all supported configurations to avoid dangling configurations
+    u = EUci()
+    for section in u.get_all('network'):
+        tags = u.get('network', section, 'ns_tag', default=[])
+        if 'ha' in tags:
+            if u.get('network', section) == 'device':
+                # hotspot device, cleanup mac address
+                try:
+                    u.delete('network', section, 'macaddr')
+                except:
+                    pass
+            else:
+                u.delete('network', section)
     u.commit('network')
 
 if __name__ == "__main__":
@@ -54,7 +105,9 @@ if __name__ == "__main__":
     if status.get("role") != "backup":
         # Execute only on backup node
         sys.exit(0)
+    cleanup_import()
     import_interfaces('wg_interfaces')
     import_wireguard_peers()
     import_interfaces('ipsec_interfaces')
     import_routes()
+    import_hotspot_mac()

@@ -15,7 +15,6 @@ Limitations:
 - VLANs are supported only on physical interfaces
 - Extra packages such as NUT are not supported
 - rsyslog configuration is not synced: if you need to send logs to a remote server, you must use the controller
-- Hotspot is not supported since it requires a new registration when the primary node goes down because the MAC address associated with the hotspot interface will be different
 - After the first synchronization, the backup node will have the same hostname as the primary node
 
 The following features are supported:
@@ -45,6 +44,7 @@ The following features are supported:
 - Backup encryption password
 - Controller connection and subscription (ns-plug)
 - Active connections tracking (conntrackd)
+- Dedalo hotspot
 
 ## Configuration
 
@@ -99,7 +99,15 @@ It will check the following:
   - the DHCP option `3: router` must be set and configured with the virtual IP address (e.g. `192.168.100.240`)
   - the DHCP option `6: DNS server` must be set; you can set it to the virtual IP address or to the DNS server of your choice:
     just make sure that the DNS server is reachable from the clients even if the primary node is down
-- Hotspot must be disabled
+
+Hotspot is supported, but with the following requirements:
+- the backup node must have the exact same network devices as the primary node
+  As an example, if the primary node has a VLAN interface named `vlan10`, the backup node must have the same VLAN interface with the same name.
+  Otherwise, the hotspot will not work after a switchover.
+- the hostspot can run only on a physical interface or on a VLAN interface
+
+To ensure hotspot functionality, the MAC address of the interface on the master node where the hotspot is configured will be copied to the corresponding
+interface on the backup node during failover.
 
 ### Check remote requirements
 

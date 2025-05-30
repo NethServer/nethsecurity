@@ -10,6 +10,7 @@ import sys
 import json
 import subprocess
 from euci import EUci
+from nethsec import utils
 
 out_dir = "/etc/ha"
 
@@ -31,6 +32,16 @@ def enable_routes():
             u.set('network', route, 'disabled', '0')
     u.commit('network')
 
+def enable_hotspot_mac():
+    u = EUci()
+    devices = utils.get_all_by_type(u, 'network', 'device')
+    for d in devices:
+        device = devices[d]
+        tags = device.get('ns_tag', [])
+        if 'ha' in tags and device.get('macaddr'):
+            # Force mac address on the device, OpenWrt seems to ignore it
+            subprocess.run(["ip", "link", "set", "dev", device.get('name'), "address", device.get('macaddr')], check=True)
+
 if __name__ == "__main__":
     proc = subprocess.run(["/usr/libexec/rpcd/ns.ha", "call", "status"], capture_output=True, text=True)
     status = json.loads(proc.stdout)
@@ -40,4 +51,5 @@ if __name__ == "__main__":
     enable_interfaces('wg_interfaces')
     enable_interfaces('ipsec_interfaces')
     enable_routes()
+    enable_hotspot_mac()
     subprocess.run(["/sbin/reload_config"], capture_output=True)

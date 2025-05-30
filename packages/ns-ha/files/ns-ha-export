@@ -15,6 +15,7 @@
 import os
 import sys
 import json
+import shutil
 import subprocess
 from euci import EUci
 from nethsec import utils
@@ -60,16 +61,36 @@ def export_wireguard_peers():
     with open(os.path.join(out_dir, 'wg_peers'), 'w') as f:
         json.dump(wireguard_peers, f)
 
+def export_hotspot_mac():
+    mac_address = ""
+    u = EUci()
+    if u.get('dedalo', 'config', 'disabled', default='1') == '0':
+        device = u.get('dedalo', 'config', 'interface')
+        try:
+            with open(f"/sys/class/net/{device}/address", "r") as f:
+                mac_address = f.read().strip()
+        except FileNotFoundError:
+            # If the device file does not exist, we can skip this part
+            pass
+
+        if mac_address:
+            with open(os.path.join(out_dir, 'hotspot'), 'w') as f:
+                json.dump({"device": device, "mac_address": mac_address}, f)
 
 if __name__ == '__main__':
-    os.makedirs(out_dir, exist_ok=True)
     proc = subprocess.run(["/usr/libexec/rpcd/ns.ha", "call", "status"], capture_output=True, text=True)
     status = json.loads(proc.stdout)
     if status.get("role") != "primary":
         # Export must be executed only on primary node
         sys.exit(0)
 
+    # Cleanup the directory if it exists
+    if os.path.exists(out_dir):
+        shutil.rmtree(out_dir)
+
+    os.makedirs(out_dir, exist_ok=True)
     export_routes()
     export_ipsec_interfaces()
     export_wireguard_interfaces()
     export_wireguard_peers()
+    export_hotspot_mac()

@@ -158,13 +158,6 @@ def validate_dhcp(lan_interface):
                 errors.append('dhcp_dns_option_not_found')
     return errors
 
-def validate_hotspot():
-    uci = EUci()
-    disabled = uci.get('dedalo', 'config', 'disabled', default=None)
-    if disabled != '1':
-        return ['hotspot_is_enabled']
-    return []
-
 def execute_remote_command(command, backup_node_ip=None, port=None):
     # Connect to the remote server using SSH
     uci = EUci()
@@ -658,7 +651,6 @@ def validate_requirements(role, lan_interface, wan_interface):
     errors = errors + validate_network(role, lan_interface, wan_interface)
     if role == "primary":
         errors = errors + validate_dhcp(lan_interface)
-        errors = errors + validate_hotspot()
         
     return {"success": len(errors) == 0, "errors": errors}
 
