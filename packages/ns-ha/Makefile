@@ -64,6 +64,7 @@ define Package/ns-ha/install
 	$(INSTALL_DATA) ./files/800-netifyd $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/800-flashstart $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/800-ui $(1)/etc/hotplug.d/keepalived
+	$(INSTALL_DATA) ./files/800-dedalo $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/900-ns-plug $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/900-phonehome $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/900-msmtp $(1)/etc/hotplug.d/keepalived
