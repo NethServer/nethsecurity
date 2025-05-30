@@ -6,6 +6,7 @@
 #
 
 import os
+import sys
 import json
 import subprocess
 from euci import EUci
@@ -29,6 +30,11 @@ def disable_routes():
     u.commit('network')
 
 if __name__ == "__main__":
+    proc = subprocess.run(["/usr/libexec/rpcd/ns.ha", "call", "status"], capture_output=True, text=True)
+    status = json.loads(proc.stdout)
+    if status.get("role") != "backup":
+        # Execute only on backup node
+        sys.exit(0)
     disable_interfaces('wg_interfaces')
     disable_interfaces('ipsec_interfaces')
     disable_routes()

@@ -63,11 +63,10 @@ def export_wireguard_peers():
 
 if __name__ == '__main__':
     os.makedirs(out_dir, exist_ok=True)
-    u = EUci()
     proc = subprocess.run(["/usr/libexec/rpcd/ns.ha", "call", "status"], capture_output=True, text=True)
     status = json.loads(proc.stdout)
-    if status.get("role") != "primary" or status.get("state") != "master":
-        # Do not export anything on backup node or on primary node in bad state
+    if status.get("role") != "primary":
+        # Export must be executed only on primary node
         sys.exit(0)
 
     export_routes()
