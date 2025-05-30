@@ -5,9 +5,7 @@
 set_service_name network_files
 
 if [ "$ACTION" == "NOTIFY_MASTER" ]; then
-    if [ "$(/usr/libexec/rpcd/ns.ha call status | jq -r .role)" == "backup" ]; then
-        /usr/sbin/ns-ha-enable
-    fi
+    /usr/sbin/ns-ha-enable
 elif [ "$ACTION" == "NOTIFY_SYNC" ]; then
     home=$(get_rsync_user_home)
     rsync -avr $home/etc/ha/ /etc/ha/

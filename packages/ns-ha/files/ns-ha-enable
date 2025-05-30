@@ -6,6 +6,7 @@
 #
 
 import os
+import sys
 import json
 import subprocess
 from euci import EUci
@@ -31,6 +32,11 @@ def enable_routes():
     u.commit('network')
 
 if __name__ == "__main__":
+    proc = subprocess.run(["/usr/libexec/rpcd/ns.ha", "call", "status"], capture_output=True, text=True)
+    status = json.loads(proc.stdout)
+    if status.get("state") != "master":
+        # Execute only on master node, no matter the role
+        sys.exit(0)
     enable_interfaces('wg_interfaces')
     enable_interfaces('ipsec_interfaces')
     enable_routes()
