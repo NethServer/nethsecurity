@@ -11,6 +11,7 @@ storage_uuid="$(uci -q get fstab.ns_data.uuid)"
 
 # set the label to the device
 tune2fs -L ns_data UUID="$storage_uuid" >/dev/null
+tune2fs -O has_journal UUID="$storage_uuid" >/dev/null
 
 # update the fstab entry, removing the uuid
 uci set fstab.ns_data.label=ns_data
