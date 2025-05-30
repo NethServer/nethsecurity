@@ -104,8 +104,8 @@ def __sync_host_sets():
         entries = ';'.join(nethsec.objects.get_object_ips(e_uci, f'objects/{host_set}'))
         logging.debug(f'Syncing host set {host_set} with entries {entries}')
         data.append({
-            'username': host_set,
-            'name': e_uci.get('objects', host_set, 'name', default=''),
+            'name': host_set,
+            'username': e_uci.get('objects', host_set, 'name', default=''),
             'surname': entries,
         })
     client = __get_client()
@@ -311,7 +311,14 @@ def __sync_pro_plus_profiles():
         entries = []
         if session['ip'] is None:
             # syncing an object
-            entries += (nethsec.objects.get_object_ips(e_uci, f'objects/{session["username"]}'))
+            object_id = None
+            for entry in nethsec.objects.list_objects(e_uci, False):
+                if entry['name'] == session['username']:
+                    object_id = entry['id']
+            if object_id is None:
+                logging.warning(f'Object {session["username"]} not found, skipping session sync.')
+                continue
+            entries += (nethsec.objects.get_object_ips(e_uci, object_id))
         else:
             # syncing a user login
             entries.append(session['ip'])
@@ -473,7 +480,8 @@ def main():
             # run the sync command every 30 +/- random(0, 5) seconds
             wait_time = random.randint(25, 35)
             logging.info('Starting flashstart sync daemon')
-            ping_timer = 0
+            # this is 9 to trigger the first ping immediately
+            ping_timer = 9
             while not event_handler.is_set():
                 try:
                     if ping_timer >= 9:
