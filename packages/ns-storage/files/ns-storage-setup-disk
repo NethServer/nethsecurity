@@ -28,5 +28,5 @@ mount | grep -q "$device" && eerror "Device '$device' is already mounted"
 dd if=/dev/zero of="$device" bs=512 count=1 conv=notrunc 2>/dev/null
 # create a single ext4 partition
 parted -s -a optimal "$device" mklabel gpt -- mkpart primary  1 -1 >/dev/null
-mkfs.ext4 -q -O ^has_journal -F -L ns_data "$device"1 >/dev/null
+mkfs.ext4 -q -F -L ns_data "$device"1 >/dev/null
 echo '{"device": "'${device}1'"}'
