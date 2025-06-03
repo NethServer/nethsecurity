@@ -66,9 +66,9 @@ define Package/ns-storage/install
 	$(INSTALL_BIN) ./files/rotate-messages $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/sync-data $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/openvpn $(1)/usr/libexec/sync-data
-	$(INSTALL_CONF) ./files/30_ns-storage $(1)/etc/uci-defaults
-	$(INSTALL_CONF) ./files/31-ns-storage-default.uci-default $(1)/etc/uci-defaults/31-ns-storage-default
-	$(INSTALL_CONF) ./files/32-ns-storage-convert-uuid.uci-default $(1)/etc/uci-defaults/32-ns-storage-convert-uuid
+	$(INSTALL_BIN) ./files/30_ns-storage $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/31-ns-storage-default.uci-default $(1)/etc/uci-defaults/31-ns-storage-default
+	$(INSTALL_BIN) ./files/32-ns-storage-convert-uuid.uci-default $(1)/etc/uci-defaults/32-ns-storage-convert-uuid
 	$(INSTALL_CONF) ./files/data.conf $(1)/etc/logrotate.d
 	$(INSTALL_BIN) ./files/storage-status $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/storage-alarm $(1)/usr/libexec
