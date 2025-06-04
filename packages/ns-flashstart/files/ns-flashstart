@@ -28,7 +28,13 @@ DEFAULT_HEADERS = {
 
 CONST_PORT_START = 5300
 
+# this wrapper is more hideous than it looks. UCI config gets read ONLY ONCE WHEN INSTANTIATED, beware of that.
 e_uci = EUci()
+
+def __refresh_uci():
+    global e_uci
+    e_uci = EUci()
+
 
 def __get_client() -> requests.Session:
     session = requests.Session()
@@ -359,9 +365,9 @@ def __sync_pro_plus_profiles():
 
 
 def sync():
-    __sync_host_sets()
     if e_uci.get('flashstart', 'global', 'proplus', default=False, dtype=bool):
         logging.debug('Syncing pro+ profiles')
+        __sync_host_sets()
         __sync_pro_plus_profiles()
     else:
         logging.debug('Syncing pro profiles')
@@ -495,6 +501,8 @@ def main():
                 except Exception as e:
                     logging.error(f'Unexpected error: {e}')
                 event_handler.wait(wait_time)
+                # re-init the UCI object to avoid issues with the config being changed
+                __refresh_uci()
             # remove the config
             disable()
         case 'ping':
