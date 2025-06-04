@@ -10,6 +10,7 @@
 import sys
 import json
 import subprocess
+from subprocess import CalledProcessError
 from nethsec import utils
 from euci import EUci
 
@@ -83,7 +84,7 @@ def get_configuration():
         for device in data["blockdevices"]:
             if 'children' in device:
                 for child in device['children']:
-                    if child['uuid'] == info["uuid"]:
+                    if child['label'] == info["label"]:
                         #print(f'{os_device} vs {child["path"]}')
                         if os_device == device['path']:
                             cur = child
@@ -134,10 +135,27 @@ def add_storage(device, dtype):
         return utils.generic_error("failed_to_add_storage")
     return {"result": "success"}
 
+
+def storage_health_check():
+    try:
+        response = subprocess.run('/usr/sbin/storage-status', check=True, capture_output=True, text=True)
+        return {
+            "status": response.stdout.strip()
+        }
+    except CalledProcessError:
+        return utils.generic_error('process_failed_to_run')
+
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
-    print(json.dumps({"list-devices": {}, "add-storage": {"device": "/dev/sdb", "type": "disk"}, "remove-storage": {}, "get-configuration": {}}))
+    print(json.dumps({
+        "list-devices": {},
+        "add-storage": {"device": "/dev/sdb", "type": "disk"},
+        "remove-storage": {},
+        "get-configuration": {},
+        "health-check": {}
+    }))
 elif cmd == 'call':
     action = sys.argv[2]
     if action == "list-devices":
@@ -149,4 +167,6 @@ elif cmd == 'call':
         ret = run("/usr/sbin/remove-storage")
     elif action == "get-configuration":
         ret = get_configuration()
+    elif action == "health-check":
+        ret = storage_health_check()
     print(json.dumps(ret))

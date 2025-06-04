@@ -3892,6 +3892,27 @@ If the storage is configured, the response will be like:
 }
 ```
 
+
+## health-check
+
+Check the health of the disk.
+```bash
+api-cli ns.storage health-check
+```
+
+Example response:
+```json
+{
+  "status": "up"
+}
+```
+
+Possible states are:
+- ok: if disk is configured and mounted
+- not_configured: if disk is not configured
+- error: if disk is configured but not mounted 
+
+
 ## ns.log
 
 Show and filter logs.

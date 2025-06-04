@@ -1,0 +1,42 @@
+#!/bin/sh /etc/rc.common
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+START=11
+
+# This script is used to disable the storage in case of a disk failure.
+# Must be ran after the fstab init.d script, which is started at 11 and it's name is S11fstab, so this script will be
+# named inside the /etc/rc.d as S11ns-storage-check.
+
+storage_check()
+{
+  if [ "$(storage-status)" = "error" ]; then
+    echo "Storage is in error state, disabling write to disk."
+    uci -q delete rsyslog.ns_data
+    uci commit
+    crontab -l | grep -v "/usr/sbin/sync-data" | sort | uniq | crontab -
+  elif [ "$(storage-status)" = "ok" ] && [ -z "$(uci -q get rsyslog.ns_data)" ]; then
+    echo "Storage is in ok state, enabling write to disk if not enabled."
+    crontab -l | grep -q '/usr/sbin/sync-data' || echo '40 1 * * * /usr/sbin/sync-data' >> /etc/crontabs/root
+    uci set rsyslog.ns_data=selector
+    uci set rsyslog.ns_data.source='*.*'
+    uci set rsyslog.ns_data.destination="/mnt/data/log/messages"
+    uci commit rsyslog
+  fi
+}
+
+boot()
+{
+  storage_check
+}
+
+start() {
+  storage_check
+}
+
+restart() {
+  return 0
+}

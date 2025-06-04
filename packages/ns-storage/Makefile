@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-storage
-PKG_VERSION:=0.0.7
+PKG_VERSION:=1.0.0
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-storage-$(PKG_VERSION)
@@ -21,7 +21,7 @@ define Package/ns-storage
 	CATEGORY:=NethSecurity
 	TITLE:=NethSecurity storage manager
 	URL:=https://github.com/NethServer/nethsecurity/
-	DEPENDS:=+parted +block-mount +logrotate +rsync
+	DEPENDS:=+parted +block-mount +logrotate +rsync +tune2fs
 	PKGARCH:=all
 endef
  
@@ -57,6 +57,7 @@ define Package/ns-storage/install
 	$(INSTALL_DIR) $(1)/etc/logrotate.d
 	$(INSTALL_DIR) $(1)/usr/libexec
 	$(INSTALL_DIR) $(1)/usr/libexec/sync-data
+	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/add-storage $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-storage-setup-partition $(1)/usr/libexec
 	$(INSTALL_BIN) ./files/ns-storage-setup-disk $(1)/usr/libexec
@@ -65,8 +66,14 @@ define Package/ns-storage/install
 	$(INSTALL_BIN) ./files/rotate-messages $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/sync-data $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/openvpn $(1)/usr/libexec/sync-data
-	$(INSTALL_CONF) ./files/30_ns-storage $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/30_ns-storage $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/31-ns-storage-default.uci-default $(1)/etc/uci-defaults/31-ns-storage-default
+	$(INSTALL_BIN) ./files/32-ns-storage-convert-uuid.uci-default $(1)/etc/uci-defaults/32-ns-storage-convert-uuid
 	$(INSTALL_CONF) ./files/data.conf $(1)/etc/logrotate.d
+	$(INSTALL_BIN) ./files/storage-status $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/storage-alarm $(1)/usr/libexec
+	$(INSTALL_BIN) ./files/ns-storage-alert.init $(1)/etc/init.d/ns-storage-alert
+	$(INSTALL_BIN) ./files/ns-storage-check.init $(1)/etc/init.d/ns-storage-check
 endef
  
 $(eval $(call BuildPackage,ns-storage))

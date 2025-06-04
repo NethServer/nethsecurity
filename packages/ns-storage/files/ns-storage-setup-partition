@@ -38,5 +38,5 @@ else
 fi
 
 parted -s --fix -a optimal ${dev} unit MiB mkpart ext4 ${start_new}MiB 100% &>/dev/null
-mkfs.ext4 -q -O ^has_journal -F "${part}" &>/dev/null
+mkfs.ext4 -q -F -L ns_data "${part}" &>/dev/null
 echo '{"device": "'${part}'"}'
