@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-storage
-PKG_VERSION:=0.0.7
+PKG_VERSION:=1.0.0
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-storage-$(PKG_VERSION)
