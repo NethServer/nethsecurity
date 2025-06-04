@@ -40,6 +40,22 @@ uci commit flashstart
 reload_config
 ```
 
+## Debug mode
+
+The daemon can be run in various logging levels, to set the levels you can:
+
+```
+uci set flashstart.global.log_level="debug"
+uci commit flashstart
+reload_config
+```
+
+To check for the logging levels available, please refer to the CLI utility help:
+
+```
+ns-flashstart --help
+```
+
 ## CLI utility
 
 The script `/usr/sbin/ns-flashstart` can be used to manage the client from command line. To see the

@@ -47,5 +47,6 @@ then
   done
   # set default
   uci -q set flashstart.global.proplus=0
+  uci -q set flashstart.global.log_level=warning
   uci commit flashstart
 fi
