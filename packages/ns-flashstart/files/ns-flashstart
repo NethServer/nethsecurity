@@ -428,7 +428,7 @@ def ping():
         cmd = ["curl", "-s", "--connect-timeout", "10", "--interface", wan, url]
         res = subprocess.run(cmd, capture_output=True, text=True)
         if res.returncode != 0:
-            raise Exception(f'Failed to update IP for WAN {wan} -> {wan_id} with error: {res.stdout}')
+            logging.warning(f'Failed to update IP for WAN {wan} -> {wan_id} with error: {res.stdout}')
         counter = counter + 1
 
 
