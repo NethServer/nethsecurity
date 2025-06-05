@@ -220,7 +220,6 @@ add_lan_interface() {
 
   ERROR_OUTPUT=$(echo '{"role": "primary", "primary_node_ip": "'"$PRIMARY_NODE_IP"'", "backup_node_ip": "'"$BACKUP_NODE_IP"'", "virtual_ip": "'"$VIRTUAL_IP"'"}' | /usr/libexec/rpcd/ns.ha call add-lan-interface 2>&1)
 
-  echo $ERROR_OUTPUT
   if [[ $? -ne 0 ]]; then
     error
     ACTUAL_ERROR=$(echo "$ERROR_OUTPUT" | grep -oE "nethsec.utils.ValidationError: \('.*', '.*'\)" | awk -F", '" '{print $2}' | tr -d "')")
