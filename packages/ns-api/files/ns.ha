@@ -83,18 +83,17 @@ def get_device_from_ip(uci, ipaddr):
     return (None, None)
 
 def allocate_fake_ips(uci):
-    reserved_ips = set()
+    wan_counter = 0
     for n in utils.get_all_by_type(uci, 'network', 'interface'):
         ipaddr = uci.get('network', n, 'ipaddr', default=None)
-        if ipaddr:
-            reserved_ips.add(ipaddr)
-
-    network_base = "169.254.0."
-    for i in range(1, 255, 2):  # Increment by 2 to reserve pairs
-        primary_ip = f"{network_base}{i}"
-        backup_ip = f"{network_base}{i + 1}"
-        if primary_ip not in reserved_ips and backup_ip not in reserved_ips:
-            return primary_ip, backup_ip
+        if ipaddr and ipaddr.startswith('169.254.'):
+            wan_counter += 1
+    # Each WAN interface gets 2 fake IP addresses:
+    # 169.254.<wan_counter>.1 and 169.254.<wan_counter>.2
+    next_wan = wan_counter + 1
+    primary_ip = f"169.254.{next_wan}.1"
+    backup_ip = f"169.254.{next_wan}.2"
+    return primary_ip, backup_ip
 
 def validate_network(role, lan_interface, wan_interface):
     errors = []
@@ -285,17 +284,20 @@ def import_network_config(configs):
     return { "success": True }
 
 
-def add_interface(role, interface, virtual_ip, gateway):
-    # Add a new interface to the keepalived configuration:
+def add_wan_interface(role, interface, virtual_ip, gateway):
+    # Add a new WAN interface to the keepalived configuration:
     # 1. find a fake unused address inside the fake network 169.254.0.0/16 (reserved for documentation by RFC)
     # 2. set the fake address to the interface, remove the gateway
-    # 3. create keepalived configuration: ipaddress, track_interface, route (only if wan)
-
+    # 3. create keepalived configuration: ipaddress, track_interface, route
     u = EUci()
 
     # Check if the interface exists
     if not u.get('network', interface, default=None):
-        raise utils.ValidationError('interface', 'interface_not_found_on_primary_node')
+        raise utils.ValidationError('interface', 'interface_not_found')
+
+    # Gateway is mandatory for WAN interfaces
+    if not gateway:
+        raise utils.ValidationError('gateway', 'gateway_must_be_set')
 
     if role == 'primary':
         # Before adding the interface, configure interface and device on the backup node:
@@ -352,19 +354,18 @@ def add_interface(role, interface, virtual_ip, gateway):
     device = u.get('network', interface, 'device', default=None)
 
     # Set the fake IP address to the interface and remove the gateway
-    if gateway:
-        u.delete('network', interface, 'gateway')
-        # If there is a gateway, a virtual route is needed
-        u.set('keepalived', f'{interface}_route', 'route')
-        u.set('keepalived', f'{interface}_route', 'table', 'main')
-        u.set('keepalived', f'{interface}_route', 'address', '0.0.0.0/0')
-        u.set('keepalived', f'{interface}_route', 'name', f'{interface}_route')
-        u.set('keepalived', f'{interface}_route', 'device', device)
-        u.set('keepalived', f'{interface}_route', 'gateway', gateway)
-        u.set('keepalived', f'{interface}_route', 'src_addr', virtual_ip.split('/')[0])
-        u.set('keepalived', f'{interface}_route', 'ns_link', f'network/{interface}')
-        # Add the route to the list of virtual routes
-        u.set('keepalived', kinstance_name, 'virtual_routes', list(set(virtual_routes + [f'{interface}_route'])))
+    u.delete('network', interface, 'gateway')
+    # Create a virtual route is needed
+    u.set('keepalived', f'{interface}_route', 'route')
+    u.set('keepalived', f'{interface}_route', 'table', 'main')
+    u.set('keepalived', f'{interface}_route', 'address', '0.0.0.0/0')
+    u.set('keepalived', f'{interface}_route', 'name', f'{interface}_route')
+    u.set('keepalived', f'{interface}_route', 'device', device)
+    u.set('keepalived', f'{interface}_route', 'gateway', gateway)
+    u.set('keepalived', f'{interface}_route', 'src_addr', virtual_ip.split('/')[0])
+    u.set('keepalived', f'{interface}_route', 'ns_link', f'network/{interface}')
+    # Add the route to the list of virtual routes
+    u.set('keepalived', kinstance_name, 'virtual_routes', list(set(virtual_routes + [f'{interface}_route'])))
 
     # Create the VIP address
     u.set('keepalived', f'{interface}_ipaddress', 'ipaddress')
@@ -398,14 +399,77 @@ def add_interface(role, interface, virtual_ip, gateway):
             "gateway": gateway
         })
 
-        output, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call add-interface")
+        output, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call add-wan-interface")
         if error:
-            return utils.generic_error("error_executing_add_interface_on_backup_node")
+            return utils.generic_error("error_executing_add_wan_interface_on_backup_node")
 
         return json.loads(output)
     else:
         return { "success": True }
 
+
+def add_lan_interface(role, primary_node_ip, backup_node_ip, virtual_ip):
+    # The inteface must already exists in the primary and backup nodes.
+    # This function just adds the keepalived configuration for the interface.
+    # This function should be used to add all non-WAN interfaces, this is a requirement
+    # for interfaces that handle a DHCP server: dnsmasq requires the interface has a static IP
+    # address in the same network of the DHCP range.
+
+    u = EUci()
+    if role == "primary":
+        kinstance_name = 'primary'
+        (interface, device) = get_device_from_ip(u, primary_node_ip)
+    else:
+        kinstance_name = 'backup'
+        (interface, device) = get_device_from_ip(u, backup_node_ip)
+    if device is None:
+        raise utils.ValidationError(f'{role}_node_ip', 'no_device_with_static_ip_found')
+
+    dhcp_errors = validate_dhcp(interface)
+    if len(dhcp_errors) > 0:
+        return utils.generic_error("dhcp_configuration_errors", dhcp_errors[0])
+
+    virtual_ips = list(u.get_all('keepalived', kinstance_name, 'virtual_ipaddress'))
+    track_interfaces = list(u.get_all('keepalived', kinstance_name, 'track_interface'))
+
+    # Create the VIP address
+    u.set('keepalived', f'{interface}_ipaddress', 'ipaddress')
+    u.set('keepalived', f'{interface}_ipaddress', 'name', f'{interface}_ha')
+    u.set('keepalived', f'{interface}_ipaddress', 'address', virtual_ip)
+    u.set('keepalived', f'{interface}_ipaddress', 'device', device)
+    u.set('keepalived', f'{interface}_ipaddress', 'label_suffix', 'ha')
+    u.set('keepalived', f'{interface}_ipaddress', 'ns_link', f'network/{interface}')
+    # Add the VIP to the list of virtual IPs
+    u.set('keepalived', kinstance_name, 'virtual_ipaddress', list(set(virtual_ips + [f'{interface}_ha'])))
+
+    # Create the track interface
+    u.set('keepalived', f'{interface}_track', 'track_interface')
+    u.set('keepalived', f'{interface}_track', 'name', f'{interface}_ha')
+    u.set('keepalived', f'{interface}_track', 'value', device)
+    u.set('keepalived', f'{interface}_track', 'weight', '100')
+    u.set('keepalived', f'{interface}_track', 'ns_link', f'network/{interface}')
+    # Add the track interface to the list of tracked interfaces
+    u.set('keepalived', kinstance_name, 'track_interface', list(set(track_interfaces + [f'{interface}_ha'])))
+
+    u.commit('keepalived')
+    subprocess.run(["/sbin/reload_config"], capture_output=True)
+
+    if role == 'primary':
+        # Execute the add-interface API on the backup node
+        command = json.dumps({
+            "role": "backup",
+            "primary_node_ip": primary_node_ip,
+            "backup_node_ip": backup_node_ip,
+            "virtual_ip": virtual_ip
+        })
+
+        output, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call add-lan-interface")
+        if error:
+            return utils.generic_error("error_executing_add_lan_interface_on_backup_node")
+
+        return json.loads(output)
+    else:
+        return { "success": True }
 
 # This function initializes the local node for high availability (HA) using Keepalived.
 # It is called locally on the primary node and remotly using SSH on the backup node.
@@ -1028,7 +1092,7 @@ if cmd == 'list':
             "role": "primary",
             "primary_node_ip": "100.100.100.1",
             "backup_node_ip": "100.100.100.2",
-            "virtual_ip": "192.168.1.1",
+            "virtual_ip": "192.168.100.253",
             "pubkey": "ssh-rsa AAAAB....",
             "password": "xxxxxxxx"
         },
@@ -1042,7 +1106,13 @@ if cmd == 'list':
             "wan_interface": "wan"
         },
         "validate-requirements": { "role": "primary", "lan_interface": "lan", "wan_interface": "wan" },
-        "add-interface": {  "role": "primary", "interface": "wan", "virtual_ip": "1.2.3.4/24", "gateway": "1.2.3.5" },
+        "add-wan-interface": {  "role": "primary", "interface": "wan", "virtual_ip": "1.2.3.4/24", "gateway": "1.2.3.5" },
+        "add-lan-interface": {
+            "role": "primary",
+            "primary_node_ip": "100.100.200.1",
+            "backup_node_ip": "100.100.200.2",
+            "virtual_ip": "192.168.200.250/24"
+        },
         "remove-interface": { "role": "primary", "interface": "wan" },
         "add-alias": { "role": "primary", "interface": "wan", "virtual_ip": "1.2.3.5/24" },
         "remove-alias": { "role": "primary", "interface": "wan", "virtual_ip": "1.2.3.5/24" },
@@ -1068,8 +1138,10 @@ else:
             ret = init_local(args.get('role'), args.get('primary_node_ip'), args.get('backup_node_ip'), args.get('virtual_ip'), args.get('pubkey'), args.get('password'))
         elif action == "init-remote":
             ret = init_remote(args.get('ssh_password'))
-        elif action == "add-interface":
-            ret = add_interface(args.get('role'), args.get('interface'), args.get('virtual_ip'), args.get('gateway', ''))
+        elif action == "add-wan-interface":
+            ret = add_wan_interface(args.get('role'), args.get('interface'), args.get('virtual_ip'), args.get('gateway', ''))
+        elif action == "add-lan-interface":
+            ret = add_lan_interface(args.get('role'), args.get('primary_node_ip'), args.get('backup_node_ip'), args.get('virtual_ip'))
         elif action == "remove-interface":
             ret = remove_interface(args.get('role'), args.get('interface'))
         elif action == "check-remote":

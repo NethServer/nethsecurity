@@ -17,7 +17,8 @@ help() {
   echo "Actions:"
   echo "  init-primary <PRIMARY_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP> [LAN_INTERFACE] [WAN_INTERFACE]"
   echo "  init-backup <PRIMARY_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP> <PASSWORD> <PUBKEY>"
-  echo "  add-interface <INTERFACE> <VIRTUAL_IP> [GATEWAY]"
+  echo "  add-lan-interface <PRIMARY_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP>"
+  echo "  add-wan-interface <INTERFACE> <VIRTUAL_IP> <GATEWAY>"
   echo "  remove-interface <INTERFACE>"
   echo "  add-alias <INTERFACE> <VIRTUAL_ALIAS_IP> [GATEWAY]"
   echo "  remove-alias <INTERFACE> <VIRTUAL_ALIAS_IP>"
@@ -196,14 +197,15 @@ check_backup_node() {
   fi
 }
 
-# Function to add an interface
-add_interface() {
-  INTERFACE="$1"
-  VIRTUAL_IP="$2"
-  GATEWAY="${3:-}"
+# Function to add a non-WAN interface
+add_lan_interface() {
+  PRIMARY_NODE_IP="$1"
+  BACKUP_NODE_IP="$2"
+  VIRTUAL_IP="$3"
 
-  if [[ -z "$INTERFACE" || -z "$VIRTUAL_IP" ]]; then
-    echo "Usage: $0 add-interface <INTERFACE> <VIRTUAL_IP> [GATEWAY]"
+  if [[ -z "$PRIMARY_NODE_IP" || -z "$BACKUP_NODE_IP" || -z "$VIRTUAL_IP" ]]; then
+    echo "Primary Node IP, Backup Node IP, and Virtual IP are required."
+    help
     exit 1
   fi
 
@@ -216,7 +218,47 @@ add_interface() {
     exit 1
   fi
 
-  ERROR_OUTPUT=$(echo '{"role": "primary", "interface": "'"$INTERFACE"'", "virtual_ip": "'"$VIRTUAL_IP"'", "gateway": "'"${GATEWAY}"'"}' | /usr/libexec/rpcd/ns.ha call add-interface 2>&1)
+  ERROR_OUTPUT=$(echo '{"role": "primary", "primary_node_ip": "'"$PRIMARY_NODE_IP"'", "backup_node_ip": "'"$BACKUP_NODE_IP"'", "virtual_ip": "'"$VIRTUAL_IP"'"}' | /usr/libexec/rpcd/ns.ha call add-lan-interface 2>&1)
+
+  echo $ERROR_OUTPUT
+  if [[ $? -ne 0 ]]; then
+    error
+    ACTUAL_ERROR=$(echo "$ERROR_OUTPUT" | grep -oE "nethsec.utils.ValidationError: \('.*', '.*'\)" | awk -F", '" '{print $2}' | tr -d "')")
+    echo "Failed to configure the interface. Error: $ACTUAL_ERROR"
+    exit 1
+  fi
+
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to configure the interface."
+    exit 1
+  fi
+
+  success
+}
+
+# Function to add a WAN interface
+add_wan_interface() {
+  INTERFACE="$1"
+  VIRTUAL_IP="$2"
+  GATEWAY="${3:-}"
+
+  if [[ -z "$INTERFACE" || -z "$VIRTUAL_IP" || -z "$GATEWAY" ]]; then
+    echo "Interface, Virtual IP, and Gateway are required."
+    help
+    exit 1
+  fi
+
+  echo -n "Adding interface configuration... "
+
+  # Validate that the virtual IP is in CIDR format
+  if ! [[ "$VIRTUAL_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]]; then
+    error
+    echo "Invalid virtual IP format. It must be in CIDR format (e.g., 192.168.1.1/24)."
+    exit 1
+  fi
+
+  ERROR_OUTPUT=$(echo '{"role": "primary", "interface": "'"$INTERFACE"'", "virtual_ip": "'"$VIRTUAL_IP"'", "gateway": "'"${GATEWAY}"'"}' | /usr/libexec/rpcd/ns.ha call add-wan-interface 2>&1)
 
   if [[ $? -ne 0 ]]; then
     error
@@ -238,7 +280,8 @@ remove_interface() {
   INTERFACE="$1"
 
   if [[ -z "$INTERFACE" ]]; then
-    echo "Usage: $0 remove-interface <INTERFACE>"
+    echo "Interface is required."
+    help
     exit 1
   fi
 
@@ -268,7 +311,8 @@ add_alias() {
   GATEWAY="${3:-}"
 
   if [[ -z "$INTERFACE" || -z "$VIRTUAL_ALIAS_IP" ]]; then
-    echo "Usage: $0 add-alias <INTERFACE> <VIRTUAL_ALIAS_IP> [GATEWAY]"
+    echo "Interface and Virtual Alias IP are required."
+    help
     exit 1
   fi
 
@@ -302,7 +346,8 @@ remove_alias() {
   VIRTUAL_ALIAS_IP="$2"
 
   if [[ -z "$INTERFACE" || -z "$VIRTUAL_ALIAS_IP" ]]; then
-    echo "Usage: $0 remove-alias <INTERFACE> <VIRTUAL_ALIAS_IP>"
+    echo "Interface and Virtual Alias IP are required."
+    help
     exit 1
   fi
 
@@ -470,9 +515,13 @@ case "$ACTION" in
     shift
     init_backup_node "$@"
     ;;
-  add-interface)
+  add-lan-interface)
     shift
-    add_interface "$@"
+    add_lan_interface "$@"
+    ;;
+  add-wan-interface)
+    shift
+    add_wan_interface "$@"
     ;;
   remove-interface)
     shift
