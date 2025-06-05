@@ -259,8 +259,8 @@ The script will:
 - check if the given interface is already configured as HA interface
 - remove the interface from keepalived configuration
 - remove all virtual routes, if present
-
-Please note that the interface will not be removed from the network configuration of the backup node.
+- remove the interface from the backup node
+- move the virtual IP address to the original interface
 
 ### Configue an alias
 

@@ -427,7 +427,7 @@ def add_lan_interface(role, primary_node_ip, backup_node_ip, virtual_ip):
 
     dhcp_errors = validate_dhcp(interface)
     if len(dhcp_errors) > 0:
-        return utils.generic_error("dhcp_configuration_errors", dhcp_errors[0])
+        raise utils.ValidationError("dhcp_configuration_errors", dhcp_errors[0])
 
     virtual_ips = list(u.get_all('keepalived', kinstance_name, 'virtual_ipaddress'))
     track_interfaces = list(u.get_all('keepalived', kinstance_name, 'track_interface'))
@@ -925,8 +925,11 @@ def remove_interface(role, interface):
     else:
         kinstance_name = 'backup'
 
+    original_address = ""
     # Cleanup the keepalived configuration
     for section in u.get_all('keepalived'):
+        if u.get('keepalived', section,) == "ipaddress" and u.get('keepalived', section, 'name', default=None) == f'{interface}_ha':
+            original_address = u.get('keepalived', section, 'address', default='')
         if u.get('keepalived', section, 'ns_link', default=None) == f'network/{interface}':
             # Remove the section from keepalived
             u.delete('keepalived', section)
@@ -955,6 +958,21 @@ def remove_interface(role, interface):
     track_interfaces = [iface for iface in track_interfaces if iface != f'{interface}_ha']
     u.set('keepalived', kinstance_name, 'track_interface', track_interfaces)
 
+    # Restore the original address of the interface on the primary node
+    if role == 'primary' and original_address:
+        if '/' in original_address:
+            # If the address is a CIDR, split it to get the IP address
+            original_address = original_address.split('/')[0]
+        u.set('network', interface, 'ipaddr', original_address)
+
+    # Delete the interface from the backup node
+    if role == 'backup':
+        try:
+            u.delete('network', interface)
+        except:
+            pass
+
+    u.commit('network')
     u.commit('keepalived')
     subprocess.run(["/sbin/reload_config"], capture_output=True)
 
