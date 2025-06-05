@@ -108,6 +108,7 @@ Hotspot is supported, but with the following requirements:
 
 To ensure hotspot functionality, the MAC address of the interface on the master node where the hotspot is configured will be copied to the corresponding
 interface on the backup node during failover.
+Also note that active sessions, which are saved in RAM, will be lost during a switchover, so the clients will need to re-authenticate if auto-login is disabled.
 
 ### Check remote requirements
 
@@ -197,7 +198,7 @@ It's now time to configure additional interfaces, starting at least with the WAN
 The WAN interface must be configured on both nodes.
 Use the following command to add a WAN interface:
 ```
-ns-ha-config add-interface <interface> <virtual_ip_address> <gateway>
+ns-ha-config add-wan-interface <interface> <virtual_ip_address> <gateway>
 ```
 
 Make sure to:
@@ -208,23 +209,39 @@ Make sure to:
 The script will:
 
 - create the network interface and devices in the backup node
-- configure the interface on both nodes by using fake IP addresses from the fake network 169.254.0.0/16
+- configure the interface on both nodes by using fake IP addresses from the fake network `169.254.X.0/16`
 - configure the virtual IP address on both nodes
 
 Example:
 ```
-ns-ha-config add-interface wan 192.168.122.49/24 192.168.122.1
+ns-ha-config add-wan-interface wan 192.168.122.49/24 192.168.122.1
 ```
 
-### Configure extra interfaces
+### Configure LAN interfaces
+
+Extra LAN interfaces can be added to the HA configuration
+only if they are already configured both on the primary and backup nodes with static IP addresses.
+Just like the main LAN interface.
+
+Use this command also to add other local interfaces, such as guest ot DMZ interfaces.
 
 You can add extra interfaces using the same command:
 ```
-ns-ha-config add-interface <interface> <virtual_ip_address> [<gateway>]
+ns-ha-config add-lan-interface <primary_node_ip> <backup_node_ip> <virtual_ip_address>
 ```
 
-As the WAN interface, you must enter the virtual IP address in CIDR notation.
-Usually, on non-WAN interfaces, the gateway is not required.
+When adding a LAN interface, the following requirements must be met:
+- the LAN interface must be configured with a static IP address on both nodes
+- if a DHCP server is running
+  - the `Force DHCP server start` option must be enabled
+  - the DHCP option `3: router` must be set and configured with the virtual IP address (e.g. `192.168.100.240`)
+  - the DHCP option `6: DNS server` must be set; you can set it to the virtual IP address or to the DNS server of your choice:
+    just make sure that the DNS server is reachable from the clients even if the primary node is down
+
+Example:
+```
+ns-ha-config add-lan-interface 192.168.200.185 192.168.200.186 192.168.200.190/24
+```
 
 ### Remove an interface
 
@@ -507,7 +524,7 @@ All configurations must be always done on the primary node.
 The configuration is then automatically synchronized to the backup node.
 
 Keepalived runs a specially crafted rsync script (`/etc/keepalived/scripts/ns-rsync.sh`) on the primary node to:
-- export WireGuard interfaces, IPsec interfaces, and routes to `/etc/ha`
+- export WireGuard interfaces, IPsec interfaces, routes and hotspot mac address to `/etc/ha`
 - synchronize all files listed by `sysupgrade -l` and custom files added with the `add_sync_file` option from scripts inside `/etc/hotplug.d/keepalived` directory;
   files are synchronized to the backup node inside the directory `/usr/share/keepalived/rsync/`
 
@@ -539,11 +556,18 @@ The following cronjobs are disabled on the backup node and enabled on the primar
 ### Network configuration fundamentals
 
 Each network interface managed by the High Availability (HA) system must have a static IP address.
-If an interface is configured automatically, it will be assigned an IP address in the 169.254.0.0/24 range.
-For every interface, two IP addresses are allocated: one for the primary node and one for the backup node.
-This imposes a theoretical limit of 127 network interfaces that can be managed by the HA system.
-The network interface will then be accessible using the Virtual IP address configured in the HA system.
-All clients must use the Virtual IP address to access the firewall services.
+WAN interfaces and LAN interfacres are configured in different ways:
+- a WAN interface is configured automatically, it will be assigned an IP address in the `169.254.X.0/24` range.
+  For every WAN interface, a new `169.254.X.0` network will be allocated.
+  The primary node will get the IP address `169.254.X.1` and the backup node will get the IP address `169.254.X.2`.
+  This imposes a theoretical limit of 254 WAN interfaces that can be managed by the HA system.
+- a LAN interfaces do not use the 169.254.X.0/24 network. It must be configured manually with a static IP address on both nodes,
+  then it will be assigned a Virtual IP address.
+  The virtual IP must be in the same subnet as the LAN interface IP address.
+  The static configuration is required to ensure that dnsmasq can start correctly: it requires a static IP address on the interface in the
+  range of DHCP range, this is a limitation of OpenWrt implementation.
+  The network interface will then be accessible using the Virtual IP address configured in the HA system.
+  All clients must use the Virtual IP address to access the firewall services.
 
 Note that the backup node does not have access to Internet so:
 - it will not be able to resolve DNS names
