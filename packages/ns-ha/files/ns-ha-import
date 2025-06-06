@@ -78,7 +78,7 @@ def import_hotspot_mac():
         target_device = id
 
     # Set the mac address on the device
-    u.set('network', target_device, 'macaddr', config.get('mac_address'))
+    u.set('network', target_device, 'ns_macaddr', config.get('mac_address'))
     u.set('network', target_device, 'ns_tag', ['ha'])
     u.commit('network')
 
@@ -92,7 +92,7 @@ def cleanup_import():
             if u.get('network', section) == 'device':
                 # hotspot device, cleanup mac address
                 try:
-                    u.delete('network', section, 'macaddr')
+                    u.delete('network', section, 'ns_macaddr')
                 except:
                     pass
             else:

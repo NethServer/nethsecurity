@@ -38,9 +38,9 @@ def enable_hotspot_mac():
     for d in devices:
         device = devices[d]
         tags = device.get('ns_tag', [])
-        if 'ha' in tags and device.get('macaddr'):
+        if 'ha' in tags and device.get('ns_macaddr'):
             # Force mac address on the device, OpenWrt seems to ignore it
-            subprocess.run(["ip", "link", "set", "dev", device.get('name'), "address", device.get('macaddr')], check=True)
+            subprocess.run(["ip", "link", "set", "dev", device.get('name'), "address", device.get('ns_macaddr')], check=True)
 
 if __name__ == "__main__":
     proc = subprocess.run(["/usr/libexec/rpcd/ns.ha", "call", "status"], capture_output=True, text=True)
