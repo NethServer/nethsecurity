@@ -5,7 +5,6 @@
 
 include $(TOPDIR)/rules.mk
 
-# renovate: openwrt
 PKG_NAME:=adblock
 PKG_VERSION:=4.1.5
 PKG_RELEASE:=8

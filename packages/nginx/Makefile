@@ -7,7 +7,6 @@
 
 include $(TOPDIR)/rules.mk
 
-# renovate: openwrt
 PKG_NAME:=nginx
 PKG_VERSION:=1.25.2
 PKG_RELEASE:=2

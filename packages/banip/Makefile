@@ -4,7 +4,6 @@
 
 include $(TOPDIR)/rules.mk
 
-# renovate: openwrt
 PKG_NAME:=banip
 PKG_VERSION:=1.0.1
 PKG_RELEASE:=3
