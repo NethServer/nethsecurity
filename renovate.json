@@ -3,7 +3,7 @@
   "extends": [
     "config:recommended",
     "customManagers:makefileVersions",
-    "disableDependencyDashboard",
+    ":disableDependencyDashboard",
     ":disableRateLimiting"
   ],
   "packageRules": [
