@@ -1,0 +1,582 @@
+#!/bin/bash
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# This script is used to manage high availability (HA) configuration
+# between a primary node and a backup node in a network environment.
+# It assumes it is run on the primary node and communicates with the backup node
+
+# Validate input parameters
+ACTION="$1"
+
+help() {
+  echo "Usage: $0 <action> [parameters]"
+  echo "Actions:"
+  echo "  init-primary <PRIMARY_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP> [LAN_INTERFACE] [WAN_INTERFACE]"
+  echo "  init-backup <PRIMARY_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP> <PASSWORD> <PUBKEY>"
+  echo "  add-lan-interface <PRIMARY_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP>"
+  echo "  add-wan-interface <INTERFACE> <VIRTUAL_IP> <GATEWAY>"
+  echo "  remove-interface <INTERFACE>"
+  echo "  add-alias <INTERFACE> <VIRTUAL_ALIAS_IP> [GATEWAY]"
+  echo "  remove-alias <INTERFACE> <VIRTUAL_ALIAS_IP>"
+  echo "  check-primary-node [LAN_INTERFACE] [WAN_INTERFACE]"
+  echo "  check-backup-node [LAN_INTERFACE]"
+  echo "  show-config"
+  echo "  ssh-remote"
+  echo "  upgrade-remote [<IMAGE>]"
+  echo "  reset"
+  echo "  status (This is the only action that can be run on both nodes)"
+}
+
+if [[ -z "$ACTION" ]]; then
+  help
+  exit 1
+fi
+
+# Function to print success messages in green
+success() {
+  echo -e "\e[32mSUCCESS\e[0m"
+}
+
+# Function to print error messages in red
+error() {
+  echo -e "\e[31mERROR\e[0m"
+}
+
+# Function to initialize HA configuration on the primary node
+init_primary_node() {
+  PRIMARY_NODE_IP="$1"
+  BACKUP_NODE_IP="$2"
+  VIRTUAL_IP="$3"
+  LAN_INTERFACE="${4:-lan}"
+  WAN_INTERFACE="${5:-wan}"
+
+  if [[ -z "$PRIMARY_NODE_IP" || -z "$BACKUP_NODE_IP" || -z "$VIRTUAL_IP" ]]; then
+    echo "Usage: $0 init-primary-node <PRIMARY_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP> [LAN_INTERFACE] [WAN_INTERFACE]"
+    exit 1
+  fi
+
+  # Make sure local requirements are met
+  check_primary_node "$LAN_INTERFACE" "$WAN_INTERFACE"
+
+  echo -n "Setting up primary node... "
+
+  # Validate that the virtual IP is in CIDR format
+  if ! [[ "$VIRTUAL_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]]; then
+    error
+    echo "Invalid virtual IP format. It must be in CIDR format (e.g., 192.168.1.1/24)."
+    exit 1
+  fi
+
+  OUTPUT=$(echo '{"role": "primary", "primary_node_ip": "'"$PRIMARY_NODE_IP"'", "backup_node_ip": "'"$BACKUP_NODE_IP"'", "virtual_ip": "'"$VIRTUAL_IP"'"}' | /usr/libexec/rpcd/ns.ha call init-local)
+
+  if [[ $? -eq 0 ]]; then
+    uci commit && reload_config
+  else
+    error
+    echo "Failed to execute the setup command on the primary node."
+    exit 1
+  fi
+
+  success
+}
+
+# Function to initialize HA configuration on the backup node
+init_backup_node() {
+  read -s -p "Enter password for backup node: " PASSWORD
+  echo
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to read password."
+    exit 1
+  fi
+
+  backup_node_ip=$(uci -q get keepalived.ha_peer.address)
+  if [[ -z "$backup_node_ip" ]]; then
+    error
+    echo "Backup node IP not found in configuration."
+    exit 1
+  fi
+  
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to check the backup node status."
+    exit 1
+  fi
+
+  echo -n "Initializing remote backup node... "
+  OUTPUT=$(echo '{"ssh_password": "'"$PASSWORD"'"}' | /usr/libexec/rpcd/ns.ha call init-remote)
+
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to initialize the remote backup node."
+    exit 1
+  fi
+
+  SUCCESS=$(echo "$OUTPUT" | jq -r '.success')
+  ERRORS=$(echo "$OUTPUT" | jq -r '.errors')
+
+  if [[ "$SUCCESS" == "true" ]]; then
+    success
+  else
+    error
+    echo "Remote initialization failed. Errors:"
+    echo "$ERRORS" | jq -r '.[]'
+    exit 1
+  fi
+
+  echo "Backup node setup completed."
+}
+
+# Function to check the primary node status
+check_primary_node() {
+  LAN_INTERFACE="${1:-lan}"
+  WAN_INTERFACE="${2:-wan}"
+
+  echo -n "Checking primary node status... "
+  OUTPUT=$(echo '{"role": "primary", "lan_interface": "'$LAN_INTERFACE'", "wan_interface": "'$WAN_INTERFACE'"}' | /usr/libexec/rpcd/ns.ha call validate-requirements)
+
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to validate requirements on the primary node."
+    exit 1
+  fi
+
+  SUCCESS=$(echo "$OUTPUT" | jq -r '.success')
+
+  if [[ "$SUCCESS" == "true" ]]; then
+    success
+  else
+    error
+    echo "Main node validation failed. Errors:"
+    echo "$OUTPUT" | jq -r '.errors | .[]' | sed 's/^/- /'
+    exit 1
+  fi
+}
+
+# Function to check the backup node status
+check_backup_node() {
+  BACKUP_NODE_IP="$1"
+  LAN_INTERFACE="${2:-lan}"
+  WAN_INTERFACE="${3:-wan}"
+
+  if [[ -z "$BACKUP_NODE_IP" ]]; then
+    error
+    echo "Backup node IP is required."
+    exit 1
+  fi
+  read -s -p "Enter password for backup node: " PASSWORD
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to read password."
+    exit 1
+  fi
+  echo
+  echo -n "Checking backup node status... "
+
+  OUTPUT=$(echo '{"backup_node_ip": "'${BACKUP_NODE_IP}'", "ssh_password": "'${PASSWORD}'", "lan_interface": "'${LAN_INTERFACE}'", "wan_interface": "'${WAN_INTERFACE}'"}' | /usr/libexec/rpcd/ns.ha call check-remote)
+
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to check the backup node status."
+    exit 1
+  fi
+
+  SUCCESS=$(echo "$OUTPUT" | jq -r '.success')
+
+  if [[ "$SUCCESS" == "true" ]]; then
+    success
+  else
+    error
+    echo "Backup node status check failed. Errors:"
+    echo "$OUTPUT" | jq -r '.errors | .[]' | sed 's/^/- /'
+    exit 1
+  fi
+}
+
+# Function to add a non-WAN interface
+add_lan_interface() {
+  PRIMARY_NODE_IP="$1"
+  BACKUP_NODE_IP="$2"
+  VIRTUAL_IP="$3"
+
+  if [[ -z "$PRIMARY_NODE_IP" || -z "$BACKUP_NODE_IP" || -z "$VIRTUAL_IP" ]]; then
+    echo "Primary Node IP, Backup Node IP, and Virtual IP are required."
+    help
+    exit 1
+  fi
+
+  echo -n "Adding interface configuration... "
+
+  # Validate that the virtual IP is in CIDR format
+  if ! [[ "$VIRTUAL_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]]; then
+    error
+    echo "Invalid virtual IP format. It must be in CIDR format (e.g., 192.168.1.1/24)."
+    exit 1
+  fi
+
+  ERROR_OUTPUT=$(echo '{"role": "primary", "primary_node_ip": "'"$PRIMARY_NODE_IP"'", "backup_node_ip": "'"$BACKUP_NODE_IP"'", "virtual_ip": "'"$VIRTUAL_IP"'"}' | /usr/libexec/rpcd/ns.ha call add-lan-interface 2>&1)
+
+  if [[ $? -ne 0 ]]; then
+    error
+    ACTUAL_ERROR=$(echo "$ERROR_OUTPUT" | grep -oE "nethsec.utils.ValidationError: \('.*', '.*'\)" | awk -F", '" '{print $2}' | tr -d "')")
+    echo "Failed to configure the interface. Error: $ACTUAL_ERROR"
+    exit 1
+  fi
+
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to configure the interface."
+    exit 1
+  fi
+
+  success
+}
+
+# Function to add a WAN interface
+add_wan_interface() {
+  INTERFACE="$1"
+  VIRTUAL_IP="$2"
+  GATEWAY="${3:-}"
+
+  if [[ -z "$INTERFACE" || -z "$VIRTUAL_IP" || -z "$GATEWAY" ]]; then
+    echo "Interface, Virtual IP, and Gateway are required."
+    help
+    exit 1
+  fi
+
+  echo -n "Adding interface configuration... "
+
+  # Validate that the virtual IP is in CIDR format
+  if ! [[ "$VIRTUAL_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]]; then
+    error
+    echo "Invalid virtual IP format. It must be in CIDR format (e.g., 192.168.1.1/24)."
+    exit 1
+  fi
+
+  ERROR_OUTPUT=$(echo '{"role": "primary", "interface": "'"$INTERFACE"'", "virtual_ip": "'"$VIRTUAL_IP"'", "gateway": "'"${GATEWAY}"'"}' | /usr/libexec/rpcd/ns.ha call add-wan-interface 2>&1)
+
+  if [[ $? -ne 0 ]]; then
+    error
+    ACTUAL_ERROR=$(echo "$ERROR_OUTPUT" | grep -oE "nethsec.utils.ValidationError: \('.*', '.*'\)" | awk -F", '" '{print $2}' | tr -d "')")
+    echo "Failed to configure the interface. Error: $ACTUAL_ERROR"
+    exit 1
+  fi
+
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to configure the interface."
+    exit 1
+  fi
+
+  success
+}
+
+remove_interface() {
+  INTERFACE="$1"
+
+  if [[ -z "$INTERFACE" ]]; then
+    echo "Interface is required."
+    help
+    exit 1
+  fi
+
+  echo -n "Removing interface configuration... "
+
+  ERROR_OUTPUT=$(echo '{"role": "primary", "interface": "'"$INTERFACE"'"}' | /usr/libexec/rpcd/ns.ha call remove-interface 2>&1)
+
+  if [[ $? -ne 0 ]]; then
+    error
+    ACTUAL_ERROR=$(echo "$ERROR_OUTPUT" | grep -oE "nethsec.utils.ValidationError: \('.*', '.*'\)" | awk -F", '" '{print $2}' | tr -d "')")
+    echo "Failed to remove the interface. Error: $ACTUAL_ERROR"
+    exit 1
+  fi
+
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to remove the interface."
+    exit 1
+  fi
+
+  success
+}
+
+add_alias() {
+  INTERFACE="$1"
+  VIRTUAL_ALIAS_IP="$2"
+  GATEWAY="${3:-}"
+
+  if [[ -z "$INTERFACE" || -z "$VIRTUAL_ALIAS_IP" ]]; then
+    echo "Interface and Virtual Alias IP are required."
+    help
+    exit 1
+  fi
+
+  echo -n "Adding alias configuration... "
+
+  # Validate that the virtual IP is in CIDR format
+  if ! [[ "$VIRTUAL_ALIAS_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]]; then
+    error
+    echo "Invalid virtual IP format. It must be in CIDR format (e.g., 192.168.1.1/24)."
+    exit 1
+  fi
+
+  ERROR_OUTPUT=$(echo '{"role": "primary", "interface": "'"$INTERFACE"'", "virtual_ip": "'"$VIRTUAL_ALIAS_IP"'", "gateway": "'"${GATEWAY}"'"}' | /usr/libexec/rpcd/ns.ha call add-alias 2>&1)
+
+  if [[ $? -ne 0 ]]; then
+    error
+    ACTUAL_ERROR=$(echo "$ERROR_OUTPUT" | grep -oE "nethsec.utils.ValidationError: \('.*', '.*'\)" | awk -F", '" '{print $2}' | tr -d "')")
+    echo "Failed to configure the alias. Error: $ACTUAL_ERROR"
+    exit 1
+  fi
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to configure the alias."
+    exit 1
+  fi
+  success
+}
+
+remove_alias() {
+  INTERFACE="$1"
+  VIRTUAL_ALIAS_IP="$2"
+
+  if [[ -z "$INTERFACE" || -z "$VIRTUAL_ALIAS_IP" ]]; then
+    echo "Interface and Virtual Alias IP are required."
+    help
+    exit 1
+  fi
+
+  echo -n "Removing alias configuration... "
+
+  ERROR_OUTPUT=$(echo '{"role": "primary", "interface": "'"$INTERFACE"'", "virtual_ip": "'"$VIRTUAL_ALIAS_IP"'"}' | /usr/libexec/rpcd/ns.ha call remove-alias 2>&1)
+
+  if [[ $? -ne 0 ]]; then
+    error
+    ACTUAL_ERROR=$(echo "$ERROR_OUTPUT" | grep -oE "nethsec.utils.ValidationError: \('.*', '.*'\)" | awk -F", '" '{print $2}' | tr -d "')")
+    echo "Failed to remove the alias. Error: $ACTUAL_ERROR"
+    exit 1
+  fi
+
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to remove the alias."
+    exit 1
+  fi
+
+  success
+}
+
+reset() {
+  read -p "Are you sure you want to reset the HA configuration? This action cannot be undone. (yes/no): " CONFIRMATION
+  if [[ "$CONFIRMATION" != "yes" ]]; then
+    echo "Reset operation canceled."
+    exit 0
+  fi
+  echo -n "Resetting HA configuration... "
+  OUTPUT=$(echo '{"role": "primary"}' | /usr/libexec/rpcd/ns.ha call reset)
+
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to reset the HA configuration."
+    exit 1
+  fi
+
+  success
+}
+
+status() {
+  OUTPUT=$(/usr/libexec/rpcd/ns.ha call status)
+  ROLE=$(echo "$OUTPUT" | jq -r '.role')
+  STATUS=$(echo "$OUTPUT" | jq -r '.status')
+  STATE=$(echo "$OUTPUT" | jq -r '.state')
+  LAST_SYNC_STATUS=$(echo "$OUTPUT" | jq -r '.last_sync_status')
+  LAST_SYNC_TIME=$(echo "$OUTPUT" | jq -r '.last_sync_time')
+
+  if [[ "$STATUS" == "enabled" ]]; then
+    echo -e "Status: \e[32m$STATUS\e[0m" # Green for enabled
+  elif [[ "$STATUS" == "disabled" ]]; then
+    echo -e "Status: \e[37m$STATUS\e[0m" # Gray for disabled
+  else
+    echo -e "Status: \e[31m$STATUS\e[0m" # Red for other statuses
+  fi
+
+  if [[ "$STATUS" == "enabled" ]]; then
+    echo -e "Role: \e[34m$ROLE\e[0m"
+    if [[ "$STATE" == "master" ]]; then
+      echo -e "Current State: \e[94m$STATE\e[0m" # Light blue for master
+
+      if [[ "$ROLE" == "primary" ]]; then
+        if [[ "$LAST_SYNC_STATUS" =~ [Ff]ailed ]]; then
+          echo -e "Last Sync Status: \e[31m$LAST_SYNC_STATUS\e[0m"
+        else
+          echo -e "Last Sync Status: \e[32m$LAST_SYNC_STATUS\e[0m"
+        fi
+        echo -e "Last Sync Time: \e[33m$(date -d @$LAST_SYNC_TIME)\e[0m"
+      fi
+    else
+      echo -e "Current State: \e[97m$STATE\e[0m" # White for others
+    fi
+
+    # Display virtual IPs
+    echo
+    echo -e "\e[96mVirtual IPs:\e[0m"
+    echo "$OUTPUT" | jq -r '.virtual_ips | to_entries[] | "  \(.key): \(.value.address) (\(.value.device))"'
+
+    # Display keepalived statistics
+    echo
+    echo -e "\e[96mKeepalived Statistics:\e[0m"
+    KEEPALIVED_STATS=$(echo "$OUTPUT" | jq -r '.keepalived_stats')
+    if [[ "$KEEPALIVED_STATS" != "null" ]]; then
+      echo "$KEEPALIVED_STATS" | jq -r 'paths(scalars) as $p | "  \($p | join(".")): \(. as $v | getpath($p))"'
+    else
+      echo "No keepalived statistics available."
+    fi
+    fi
+}
+
+show_config() {
+  # Fetch interfaces
+  OUTPUT_INTERFACES=$(/usr/libexec/rpcd/ns.ha call list-interfaces)
+  CONFIGURED_INTERFACES=$(echo "$OUTPUT_INTERFACES" | jq -r '.interfaces[] | select(.ha_configured == true) | "  Interface: \(.name), Device: \(.device), Virtual IP: \(.virtual_ip)"')
+  NOT_CONFIGURED_INTERFACES=$(echo "$OUTPUT_INTERFACES" | jq -r '.interfaces[] | select(.ha_configured == false) | "  Interface: \(.name), Device: \(.device) "')
+
+  echo
+  echo -e "\e[92mCurrent configuration\e[0m"
+  echo
+  echo "Interfaces:"
+  if [[ -n "$CONFIGURED_INTERFACES" ]]; then
+    echo "$CONFIGURED_INTERFACES"
+  else
+    echo "  None"
+  fi
+
+  echo
+  # Fetch aliases
+  OUTPUT_ALIASES=$(/usr/libexec/rpcd/ns.ha call list-aliases)
+  CONFIGURED_ALIASES=$(echo "$OUTPUT_ALIASES" | jq -r '.aliases[] | select(.ha_configured == true) | "  Interface: \(.interface), Virtual Alias IP: \(.ipaddr)"')
+  NOT_CONFIGURED_ALIASES=$(echo "$OUTPUT_ALIASES" | jq -r '.aliases[] | select(.ha_configured == false) | "  Interface: \(.interface), IP: \(.ipaddr)"')
+
+  echo "Aliases:"
+  if [[ -n "$CONFIGURED_ALIASES" ]]; then
+    echo "$CONFIGURED_ALIASES"
+  else
+    echo "  None"
+  fi
+
+  echo
+  echo "-----------------------------------------------------------------"
+  echo
+  echo -e "\e[97mNot configured\e[0m"
+  echo
+  echo "Interfaces:"
+  if [[ -n "$NOT_CONFIGURED_INTERFACES" ]]; then
+    echo "$NOT_CONFIGURED_INTERFACES"
+  else
+    echo "  None"
+  fi
+
+  echo
+  echo "Aliases:"
+  if [[ -n "$NOT_CONFIGURED_ALIASES" ]]; then
+    echo "$NOT_CONFIGURED_ALIASES"
+  else
+    echo "  None"
+  fi
+  echo
+}
+
+ssh_remote() {
+  backup_node_ip=$(uci -q get keepalived.ha_peer.address)
+  backup_port=$(uci -q get keepalived.ha_peer.ssh_port)
+  exec ssh -o StrictHostKeyChecking=no -p "$backup_port" -i /etc/keepalived/keys/id_rsa root@"$backup_node_ip"
+}
+
+upgrade_remote() {
+  IMAGE="$1"
+  if [[ -z "$IMAGE" ]]; then
+    echo -n "Downloading latest image... "
+    IMAGE=$(ns-download -f -l)
+    if [[ $? -ne 0 ]]; then
+      error
+      echo "Failed to download the latest image."
+      exit 1
+    fi
+    success
+  fi
+
+  echo -n "Upgrading remote node... "
+  OUTPUT=$(echo '{"image": "'$IMAGE'"}' | /usr/libexec/rpcd/ns.ha call upgrade-remote | jq -r '.success')
+
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to upgrade the remote node."
+    exit 1
+  fi
+  success
+}
+
+# Main logic to handle actions
+case "$ACTION" in
+  init-primary-node)
+    shift
+    init_primary_node "$@"
+    ;;
+  init-backup-node)
+    shift
+    init_backup_node "$@"
+    ;;
+  add-lan-interface)
+    shift
+    add_lan_interface "$@"
+    ;;
+  add-wan-interface)
+    shift
+    add_wan_interface "$@"
+    ;;
+  remove-interface)
+    shift
+    remove_interface "$@"
+    ;;
+  add-alias)
+    shift
+    add_alias "$@"
+    ;;
+  remove-alias)
+    shift
+    remove_alias "$@"
+    ;;
+  check-primary-node)
+    shift
+    check_primary_node "$@"
+    ;;
+  check-backup-node)
+    shift
+    check_backup_node "$@"
+    ;;
+  show-config)
+    show_config
+    ;;
+  ssh-remote)
+    shift
+    ssh_remote "$@"
+    ;;
+  upgrade-remote)
+    shift
+    upgrade_remote "$@"
+    ;;
+  reset)
+    reset
+    ;;
+  status)
+    status
+    ;;
+  *)
+    echo "Invalid action: $ACTION"
+    help
+    exit 1
+    ;;
+esac
