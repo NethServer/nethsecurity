@@ -389,6 +389,8 @@ def add_wan_interface(role, interface, virtual_ip, gateway):
     u.commit('keepalived')
     u.commit('network')
     subprocess.run(["/sbin/reload_config"], capture_output=True)
+    # Restart mwan3 that was stopped during the init_local phase
+    subprocess.run(['/etc/init.d/mwan3', 'restart'], capture_output=True)
 
     if role == 'primary':
         # Execute the add-interface API on the backup node
@@ -602,6 +604,9 @@ def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, pubkey = "", p
             file.write(conntrack_conf)
 
     u.commit('keepalived')
+
+    # Stop mwan3: it can mess up routes configuration in this phase, it will be restarted later
+    subprocess.run(['/etc/init.d/mwan3', 'stop'], capture_output=True)
 
     # Enable and start conntrackd
     subprocess.run(['/etc/init.d/conntrackd', 'enable'], capture_output=True)
