@@ -7,6 +7,7 @@
 
 include $(TOPDIR)/rules.mk
 
+# renovate: openwrt
 PKG_NAME:=rsyslog
 PKG_VERSION:=8.2110.0
 PKG_RELEASE:=1

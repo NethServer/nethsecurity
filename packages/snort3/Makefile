@@ -5,6 +5,7 @@
 
 include $(TOPDIR)/rules.mk
 
+# renovate: openwrt
 PKG_NAME:=snort3
 PKG_VERSION:=3.6.2.0
 PKG_RELEASE:=2

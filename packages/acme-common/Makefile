@@ -7,6 +7,7 @@
 
 include $(TOPDIR)/rules.mk
 
+# renovate: openwrt
 PKG_NAME:=acme-common
 PKG_VERSION:=1.1.2
 

@@ -7,6 +7,7 @@
 
 include $(TOPDIR)/rules.mk
 
+# renovate: openwrt
 PKG_NAME:=libdaq3
 PKG_VERSION:=3.0.18
 PKG_RELEASE:=1

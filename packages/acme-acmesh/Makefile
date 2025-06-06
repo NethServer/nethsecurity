@@ -7,6 +7,7 @@
 
 include $(TOPDIR)/rules.mk
 
+# renovate: openwrt
 PKG_NAME:=acme-acmesh
 PKG_VERSION:=3.0.7
 PKG_RELEASE:=2
