@@ -420,7 +420,22 @@ status() {
     else
       echo -e "Current State: \e[97m$STATE\e[0m" # White for others
     fi
-  fi
+
+    # Display virtual IPs
+    echo
+    echo -e "\e[96mVirtual IPs:\e[0m"
+    echo "$OUTPUT" | jq -r '.virtual_ips | to_entries[] | "  \(.key): \(.value.address) (\(.value.device))"'
+
+    # Display keepalived statistics
+    echo
+    echo -e "\e[96mKeepalived Statistics:\e[0m"
+    KEEPALIVED_STATS=$(echo "$OUTPUT" | jq -r '.keepalived_stats')
+    if [[ "$KEEPALIVED_STATS" != "null" ]]; then
+      echo "$KEEPALIVED_STATS" | jq -r 'paths(scalars) as $p | "  \($p | join(".")): \(. as $v | getpath($p))"'
+    else
+      echo "No keepalived statistics available."
+    fi
+    fi
 }
 
 show_config() {
