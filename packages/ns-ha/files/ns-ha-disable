@@ -10,6 +10,7 @@ import sys
 import json
 import subprocess
 from euci import EUci
+from nethsec import utils
 
 out_dir = "/etc/ha"
 
@@ -29,6 +30,25 @@ def disable_routes():
         u.set('network', route, 'disabled', '1')
     u.commit('network')
 
+def disable_hotspot():
+    u = EUci()
+    devices = utils.get_all_by_type(u, 'network', 'device')
+    for d in devices:
+        device = devices[d]
+        tags = device.get('ns_tag', [])
+        if 'ha' in tags and device.get('ns_macaddr'):
+            # Get the original MAC address using ethtool
+            result = subprocess.run(["ethtool", "-P", device.get('name')], capture_output=True, text=True)
+            for line in result.stdout.splitlines():
+                if "Permanent address:" in line:
+                    original_mac = line.split("Permanent address:")[1].strip()
+                    break
+            else:
+                original_mac = ""
+            if original_mac:
+                # Set the original MAC address on the device
+                subprocess.run(["ip", "link", "set", "dev", device.get('name'), "address", original_mac], check=True)
+
 if __name__ == "__main__":
     proc = subprocess.run(["/usr/libexec/rpcd/ns.ha", "call", "status"], capture_output=True, text=True)
     status = json.loads(proc.stdout)
@@ -38,4 +58,5 @@ if __name__ == "__main__":
     disable_interfaces('wg_interfaces')
     disable_interfaces('ipsec_interfaces')
     disable_routes()
+    disable_hotspot()
     subprocess.run(["/sbin/reload_config"], capture_output=True)
