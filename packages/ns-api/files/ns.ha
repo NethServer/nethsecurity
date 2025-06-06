@@ -343,7 +343,7 @@ def add_wan_interface(role, interface, virtual_ip, gateway):
     else:
         kinstance_name = 'backup'
         u.set('network', interface, 'ipaddr', backup_ip)
-    u.set('network', interface, 'netmask', '255.255.0.0')
+    u.set('network', interface, 'netmask', '255.255.255.0')
     u.set('network', interface, 'proto', 'static')
     virtual_ips = list(u.get_all('keepalived', kinstance_name, 'virtual_ipaddress'))
     track_interfaces = list(u.get_all('keepalived', kinstance_name, 'track_interface'))
