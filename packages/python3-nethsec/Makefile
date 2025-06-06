@@ -6,6 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=python3-nethsec
+# renovate: datasource=github-tags depName=NethServer/python3-nethsec
 PKG_VERSION:=1.1.0
 PKG_RELEASE:=1
  
