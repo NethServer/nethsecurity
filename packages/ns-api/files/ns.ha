@@ -211,7 +211,6 @@ def upload_remote_file(local_file_path, remote_file_path, backup_node_ip=None, p
         ssh.close()
         return True
     except Exception as e:
-        print(e)
         return False
 
 def find_device_config(uci, device, config=None):
@@ -242,7 +241,7 @@ def find_device_config(uci, device, config=None):
     return config
 
 def parse_node_state():
-    state = None
+    state = "unknown"
     # Check if keepalived is running
     try:
         proc = subprocess.run(["/etc/init.d/keepalived", "info"], check=True, capture_output=True, text=True)
