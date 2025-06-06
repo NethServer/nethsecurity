@@ -9,15 +9,10 @@
   "packageRules": [
     {
       "matchPaths": [
-        "tools/**"
-      ],
-      "groupName": "tools"
-    },
-    {
-      "matchPaths": [
+        "tools/**",
         "docs/**"
       ],
-      "groupName": "docs"
+      "enabled": false
     }
   ],
   "vulnerabilityAlerts": {
