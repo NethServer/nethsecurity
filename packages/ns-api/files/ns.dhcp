@@ -262,10 +262,23 @@ def is_reserved(u, mac, exclude_lease_id=''):
     return False
 
 
+def count_ip_occurrences(e_uci, ip):
+    occurrences = 0
+    for item in utils.get_all_by_type(e_uci, 'dhcp', 'host'):
+        ip_address = e_uci.get('dhcp', item, 'ip', default=None)
+        if ip_address is None or ip_address != ip:
+            continue
+        occurrences += 1
+
+    return occurrences
+
+
 def add_static_lease(args):
     u = EUci()
     if is_reserved(u, args["macaddr"]):
         return utils.validation_error("mac", "mac_already_reserved", args["macaddr"])
+    if count_ip_occurrences(u, args["ipaddr"]) > 0:
+        return utils.validation_error("ipaddr", "ip_already_reserved", args["ipaddr"])
     lname = utils.get_random_id()
     u.set('dhcp', lname, 'host')
     u.set('dhcp', lname, 'ip', args["ipaddr"])
@@ -287,6 +300,8 @@ def edit_static_lease(args):
     # exclude the lease we are editing from MAC duplication check
     if is_reserved(u, args["macaddr"], args["lease"]):
         return utils.validation_error("mac", "mac_already_reserved", args["macaddr"])
+    if count_ip_occurrences(u, args["ipaddr"]) > 1:
+        return utils.validation_error("ipaddr", "ip_already_reserved", args["ipaddr"])
     lname = args["lease"]
     u.set('dhcp', lname, 'host')
     u.set('dhcp', lname, 'ip', args["ipaddr"])
