@@ -241,23 +241,53 @@ def find_device_config(uci, device, config=None):
     return config
 
 def parse_node_state():
-    state = "unknown"
+    state_map = {
+        -1: "unknown",
+        0: "init",
+        1: "backup",
+        2: "master",
+        3: "fault"
+    }
     # Check if keepalived is running
     try:
         proc = subprocess.run(["/etc/init.d/keepalived", "info"], check=True, capture_output=True, text=True)
         status = json.loads(proc.stdout)
         if not status['keepalived']['instances']['instance1']['running']:
-            return "stopped"
+            return "unknown", {}, -1, -1
     except:
-        return "stopped"
+        return "unknown", {}, -1, -1
 
-    # Open the log file for reading
-    with open('/var/log/messages', 'r') as file:
-        for line in file:
-            # Check if the line is something like "Keepalived_vrrp[10271]: (master) Entering MASTER STATE"
-            if "Entering" in line and "STATE" in line:
-                state = line.split("Entering")[1].split("STATE")[0].strip().lower()
-    return state
+     # Using uci to query the state, with EUci(confdir="/var/state/"), the library can't read the data
+    last_sync_status = subprocess.run(["uci", "-P", "/var/state/", "get", "keepalived.ha_peer.last_sync_status"], capture_output=True, text=True).stdout.strip()
+    last_sync_time = subprocess.run(["uci", "-P", "/var/state/", "get", "keepalived.ha_peer.last_sync_time"], capture_output=True, text=True).stdout.strip()
+
+    # Integrate keepalived stats and state
+    stats = {}
+    state = -1
+    try:
+        # Send 37 signal to keepalived to dump stats
+        pid_file = "/tmp/run/keepalived.pid"
+        stats_file = "/tmp/keepalived.json"
+        if os.path.isfile(pid_file):
+            with open(pid_file, "r") as f:
+                pid = int(f.read().strip())
+            os.kill(pid, 37)
+            # Wait a moment for stats to be written
+            time.sleep(0.2)
+            if os.path.isfile(stats_file):
+                with open(stats_file, "r") as f:
+                    stats_content = json.load(f)
+                # Parse stats into the required structure
+                if len(stats_content) == 0:
+                    ret["keepalived_stats"] = {}
+                else:
+                    stats = stats_content[0].get("stats", {})
+                state = stats_content[0].get("data", {}).get("state", -1)
+    except Exception as e:
+        pass
+
+    return state_map.get(state, "unknown"), stats, last_sync_status, last_sync_time
+
 
 ### API functions
 
@@ -684,7 +714,15 @@ def init_remote(ssh_password):
 
 
 def status():
-    ret = {"role": "", "state": "unknown", "status": "only_primary_node_configured", "last_sync_status": "", "last_sync_time": "", "virtual_ips": []}
+    ret = {
+        "role": "unknown",
+        "state": "unknown",
+        "status": "unknown",
+        "last_sync_status": "",
+        "last_sync_time": "",
+        "virtual_ips": [],
+        "keepalived_stats": {}
+    }
 
     u = EUci()
     try:
@@ -700,100 +738,8 @@ def status():
             ret["status"] = "disabled"
 
     if ret["status"] == "enabled":
-        ret["state"] = parse_node_state()
+        ret["state"], ret["keepalived_stats"], ret["last_sync_status"], ret["last_sync_time"]= parse_node_state()
 
-    # Using uci to query the state, with EUci(confdir="/var/state/"), the library can't read the data
-    ret["last_sync_status"] = subprocess.run(["uci", "-P", "/var/state/", "get", "keepalived.ha_peer.last_sync_status"], capture_output=True, text=True).stdout.strip()
-    ret["last_sync_time"] = subprocess.run(["uci", "-P", "/var/state/", "get", "keepalived.ha_peer.last_sync_time"], capture_output=True, text=True).stdout.strip()
-    # Integrate keepalived stats
-    try:
-        # Send USR2 signal to keepalived to dump stats
-        pid_file = "/tmp/run/keepalived.pid"
-        stats_file = "/tmp/keepalived.stats"
-        if os.path.isfile(pid_file):
-            with open(pid_file, "r") as f:
-                pid = int(f.read().strip())
-            os.kill(pid, signal.SIGUSR2)
-            # Wait a moment for stats to be written
-            time.sleep(0.2)
-            if os.path.isfile(stats_file):
-                with open(stats_file, "r") as f:
-                    stats_content = f.read()
-                # Parse stats into the required structure
-                stats = {}
-                current_instance = None
-                last_section = None
-                for line in stats_content.splitlines():
-                    line = line.rstrip()
-                    if line.startswith("VRRP Instance:"):
-                        current_instance = line.split(":", 1)[1].strip().lower()
-                        stats[current_instance] = {
-                            "advertisements": {"received": 0, "sent": 0},
-                            "became_master": 0,
-                            "released_master": 0,
-                            "packet_errors": {
-                                "length": 0,
-                                "ttl": 0,
-                                "invalid_type": 0,
-                                "advertisement_interval": 0,
-                                "address_list": 0
-                            },
-                            "authentication_errors": {
-                                "invalid_type": 0,
-                                "type_mismatch": 0,
-                                "failure": 0
-                            },
-                            "priority_zero": {"received": 0, "sent": 0}
-                        }
-                        last_section = None
-                    elif current_instance and line.strip():
-                        stripped_line = line.strip()
-                        # Section headers
-                        if stripped_line.lower() == "advertisements:":
-                            last_section = "advertisements"
-                        elif stripped_line.lower() == "packet errors:":
-                            last_section = "packet_errors"
-                        elif stripped_line.lower() == "authentication errors:":
-                            last_section = "authentication_errors"
-                        elif stripped_line.lower() == "priority zero:":
-                            last_section = "priority_zero"
-                        elif ":" in stripped_line:
-                            # Parse key-value pairs
-                            key, value = stripped_line.split(":", 1)
-                            key = key.strip().lower()
-                            value = value.strip()
-
-                            try:
-                                value_int = int(value)
-                                if last_section == "advertisements":
-                                    if key == "received":
-                                        stats[current_instance]["advertisements"]["received"] = value_int
-                                    elif key == "sent":
-                                        stats[current_instance]["advertisements"]["sent"] = value_int
-                                elif last_section == "packet_errors":
-                                    key_normalized = key.replace(" ", "_").replace("-", "_")
-                                    if key_normalized in stats[current_instance]["packet_errors"]:
-                                        stats[current_instance]["packet_errors"][key_normalized] = value_int
-                                elif last_section == "authentication_errors":
-                                    key_normalized = key.replace(" ", "_").replace("-", "_")
-                                    if key_normalized in stats[current_instance]["authentication_errors"]:
-                                        stats[current_instance]["authentication_errors"][key_normalized] = value_int
-                                elif last_section == "priority_zero":
-                                    if key == "received":
-                                        stats[current_instance]["priority_zero"]["received"] = value_int
-                                    elif key == "sent":
-                                        stats[current_instance]["priority_zero"]["sent"] = value_int
-                                if key == "became master":
-                                    stats[current_instance]["became_master"] = value_int
-                                elif key == "released master":
-                                    stats[current_instance]["released_master"] = value_int
-                            except ValueError:
-                                pass
-                ret["keepalived_stats"] = stats
-        else:
-            ret["keepalived_stats"] = {}
-    except Exception as e:
-        ret["keepalived_stats"] = {"error": str(e)}
     # List all configured virtual IPs
     try:
         virtual_ips = utils.get_all_by_type(u, 'keepalived', 'ipaddress')

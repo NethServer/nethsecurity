@@ -359,28 +359,29 @@ After few minutes, the status should be like this:
 Status: enabled
 Role: primary
 Current State: master
-Last Sync Status: Up to Date
-Last Sync Time: Fri Apr 18 13:09:08 UTC 2025
+Last Sync Status: Successful
+Last Sync Time: Mon Jun  9 07:21:15 UTC 2025
 
 Virtual IPs:
   lan_ipaddress: 192.168.100.240/24 (br-lan)
   wan_ipaddress: 192.168.122.49/24 (eth1)
 
 Keepalived Statistics:
-  backup.advertisements.received: 1965
-  backup.advertisements.sent: 0
-  backup.became_master: 0
-  backup.released_master: 0
-  backup.packet_errors.length: 0
-  backup.packet_errors.ttl: 0
-  backup.packet_errors.invalid_type: 0
-  backup.packet_errors.advertisement_interval: 0
-  backup.packet_errors.address_list: 0
-  backup.authentication_errors.invalid_type: 0
-  backup.authentication_errors.type_mismatch: 0
-  backup.authentication_errors.failure: 0
-  backup.priority_zero.received: 0
-  backup.priority_zero.sent: 0
+  advert_rcvd: 0
+  advert_sent: 1730
+  become_master: 1
+  release_master: 0
+  packet_len_err: 0
+  advert_interval_err: 0
+  ip_ttl_err: 0
+  invalid_type_rcvd: 0
+  addr_list_err: 0
+  invalid_authtype: 0
+  authtype_mismatch: 0
+  auth_failure: 0
+  pri_zero_rcvd: 0
+  pri_zero_sent: 0
+
 ```
 
 ## Alerting
