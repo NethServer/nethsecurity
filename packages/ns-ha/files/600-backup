@@ -1,0 +1,9 @@
+#!/bin/sh
+
+# shellcheck source=/dev/null
+. /lib/functions/keepalived/hotplug.sh
+
+set_service_name backup
+add_sync_file /etc/backup.pass
+
+keepalived_hotplug

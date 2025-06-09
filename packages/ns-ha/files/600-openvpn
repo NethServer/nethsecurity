@@ -1,0 +1,19 @@
+#!/bin/sh
+
+# shellcheck source=/dev/null
+. /lib/functions/keepalived/hotplug.sh
+
+set_service_name openvpn
+
+set_restart_if_master
+set_stop_if_backup
+
+add_sync_file /etc/openvpn
+add_sync_file /etc/config/openvpn
+
+if [ "$ACTION" == "NOTIFY_SYNC" ]; then
+    home=$(get_rsync_user_home)
+    rsync -avr $home/etc/openvpn/ /etc/openvpn/
+fi
+
+keepalived_hotplug

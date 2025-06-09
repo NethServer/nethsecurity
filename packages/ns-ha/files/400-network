@@ -1,0 +1,17 @@
+#!/bin/sh
+
+. /lib/functions/keepalived/hotplug.sh
+
+set_service_name network_files
+
+if [ "$ACTION" == "NOTIFY_MASTER" ]; then
+    /usr/sbin/ns-ha-enable
+elif [ "$ACTION" == "NOTIFY_SYNC" ]; then
+    home=$(get_rsync_user_home)
+    rsync -avr $home/etc/ha/ /etc/ha/
+    /usr/sbin/ns-ha-import
+elif [ "$ACTION" == "NOTIFY_BACKUP" ]; then
+    /usr/sbin/ns-ha-disable
+fi
+
+keepalived_hotplug

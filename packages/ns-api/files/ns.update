@@ -148,11 +148,10 @@ def install_uploaded_image(image):
         print(e, file=sys.stderr)
         return utils.generic_error("uploaded_file_not_valid")
 
-    try:
-        subprocess.run(["/sbin/sysupgrade", "-k", "-q", image], check=True, capture_output=True)
-    except Exception as e:
-        print(e, file=sys.stderr)
-        return utils.generic_error("sysupgrade_faled")
+    # Sometime the upgrade may exit with non-zero code, but the upgrade is successful.
+    # Just ignore the exit code
+    subprocess.run(["/sbin/sysupgrade", "-k", "-q", image], capture_output=True)
+
     # The server is too quick: this success result probably will never reach the client.
     return {"result": "success"}
 

@@ -21,7 +21,7 @@ define Package/ns-api
 	CATEGORY:=NethSecurity
 	TITLE:=NethSecurity REST API
 	URL:=https://github.com/NethServer/nethsecurity-controller/
-	DEPENDS:=+python3-nethsec +python3-openssl +python3-urllib +python3-idna +python3-requests
+	DEPENDS:=+python3-nethsec +python3-openssl +python3-urllib +python3-idna +python3-requests +python3-paramiko
 	PKGARCH:=all
 endef
 
@@ -162,6 +162,8 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.nathelpers.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.wizard $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.wizard.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.ha $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.ha.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_CONF) files/msmtp.keep $(1)/lib/upgrade/keep.d/msmtp
 	$(INSTALL_CONF) files/nat-helpers.keep $(1)/lib/upgrade/keep.d/nat-helpers

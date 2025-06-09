@@ -1,0 +1,22 @@
+#!/bin/sh
+
+# shellcheck source=/dev/null
+. /lib/functions/keepalived/hotplug.sh
+. /lib/functions/keepalived/ns.sh
+
+set_service_name ns-plug
+
+set_restart_if_master
+set_stop_if_backup
+
+if [ "$ACTION" == "NOTIFY_BACKUP" ]; then
+    update_cron "disable" "send-heartbeat send-backup send-inventory" "ns-push-reports"
+    cluster_alert "backup"
+elif [ "$ACTION" == "NOTIFY_MASTER" ]; then
+    update_cron "enable" "send-heartbeat send-backup send-inventory" "ns-push-reports"
+    cluster_alert "master"
+fi
+
+add_sync_file /etc/config/ns-plug
+
+keepalived_hotplug
