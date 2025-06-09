@@ -8326,3 +8326,201 @@ Response example:
 ```json
 {"result": "success"}
 ```
+
+### ns.ha
+
+The following APIs are available for managing High Availability (HA) configuration. 
+
+#### import-network-config
+
+Imports network configuration for HA setup.
+
+**Example request:**
+```bash
+api-cli ns.ha call import-network-config --data '[
+  {
+    "record_type": "device",
+    "record_id": "wan",
+    "name": "wan",
+    "type": "8021q",
+    "ifname": "eth0",
+    "vid": "2"
+  }
+]'
+```
+
+**Example response:**
+```json
+{
+  "success": true
+}
+```
+
+#### add-wan-interface
+
+Adds a new WAN interface to the keepalived configuration.
+
+**Example request:**
+```bash
+api-cli ns.ha call add-wan-interface --data'{
+  "role": "primary",
+  "interface": "wan",
+  "virtual_ip": "192.168.1.1/24",
+  "gateway": "192.168.1.254"
+}'
+```
+
+**Example response:**
+```json
+{
+  "success": true
+}
+```
+
+#### add-lan-interface
+
+Adds a LAN interface to the keepalived configuration.
+
+**Example request:**
+```bash
+api-cli ns.ha call add-lan-interface --data '{
+  "role": "primary",
+  "primary_node_ip": "192.168.1.10",
+  "backup_node_ip": "192.168.1.11",
+  "virtual_ip": "192.168.1.1/24"
+}'
+```
+
+**Example response:**
+```json
+{
+  "success": true
+}
+```
+
+#### init-local
+
+Initializes the local node for high availability using Keepalived.
+
+**Example request:**
+```bash
+api-cli ns.ha call init-local --data '{
+  "role": "primary",
+  "primary_node_ip": "192.168.1.10",
+  "backup_node_ip": "192.168.1.11",
+  "virtual_ip": "192.168.1.1/24",
+  "pubkey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC...",
+  "password": "secret123"
+}'
+```
+
+**Example response:**
+```json
+{
+  "success": true
+}
+```
+
+#### init-remote
+
+Initializes the remote node for high availability (called from primary node).
+
+**Example request:**
+```bash
+api-cli ns.ha call init-remote --data '{
+  "ssh_password": "backup_node_password"
+}'
+```
+
+**Example response:**
+```json
+{
+  "success": true
+}
+```
+
+#### status
+
+Retrieves the current HA status and configuration.
+
+**Example request:**
+```bash
+api-cli ns.ha call status
+```
+
+**Example response:**
+```json
+{
+  "role": "primary",
+  "state": "master",
+  "status": "enabled",
+  "last_sync_status": "Successful",
+  "last_sync_time": "1749475026",
+  "virtual_ips": {
+    "lan_ipaddress": {
+      "name": "lan_ha",
+      "address": "192.168.0.253/24",
+      "device": "eth0",
+      "label_suffix": "ha",
+      "ns_link": "network/lan"
+    },
+    "main_wan_ipaddress": {
+      "name": "f1000_ha",
+      "address": "85.xx.xx.xx/31",
+      "device": "eth4",
+      "label_suffix": "ha",
+      "ns_link": "network/f1000"
+    },
+    "backup_wan_ipaddress": {
+      "name": "backup_wan_ha",
+      "address": "150.xx.xx.xx/29",
+      "device": "eth5",
+      "label_suffix": "ha",
+      "ns_link": "network/backup_wan"
+    },
+    "server_ipaddress": {
+      "name": "server_ha",
+      "address": "172.25.0.253/23",
+      "device": "eth1",
+      "label_suffix": "ha",
+      "ns_link": "network/server"
+    },
+    "backup_wan_1_2_3_4_ipaddress": {
+      "name": "backup_wan_1_2_3_4_ha",
+      "address": "1.2.3.4/29",
+      "device": "eth4",
+      "label_suffix": "ha",
+      "ns_link": "network/backup_wan"
+    }
+  },
+  "keepalived_stats": {
+    "advert_rcvd": 4,
+    "advert_sent": 245809,
+    "become_master": 1,
+    "release_master": 0,
+    "packet_len_err": 0,
+    "advert_interval_err": 0,
+    "ip_ttl_err": 0,
+    "invalid_type_rcvd": 0,
+    "addr_list_err": 0,
+    "invalid_authtype": 0,
+    "authtype_mismatch": 0,
+    "auth_failure": 0,
+    "pri_zero_rcvd": 0,
+    "pri_zero_sent": 0
+  }
+}
+```
+
+**Error Response Example:**
+```json
+{
+  "error": "validation_error",
+  "message": "interface_not_found",
+  "field": "interface"
+}
+```
+
+## Reporting bugs
+
+// ... existing code ...
