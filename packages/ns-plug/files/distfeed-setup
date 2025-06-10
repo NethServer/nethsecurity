@@ -24,6 +24,9 @@ if [ -z "$channel" ]; then
         fi
         base_url="$base_url/$channel"
     fi
+else
+    # Setup from env
+    base_url="$base_url/$channel"
 fi
 
 if [ -z "$owrt_version" ]; then
