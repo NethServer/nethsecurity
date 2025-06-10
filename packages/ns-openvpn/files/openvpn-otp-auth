@@ -99,7 +99,8 @@ if uci.get("users", db) == "ldap":
 
     try:
         proc = subprocess.run(ldapsearch_command, env=env, check=True, capture_output=True, text=True)
-        if f"{user_attr}={username}".lower() in proc.stdout.lower():
+        # Search for a generic field: NS7 AD, Windows AD and LDAP all have different DN format
+        if "objectclass" in proc.stdout.lower():
             debug("User found in LDAP")
         else:
             debug("User not found in LDAP")
