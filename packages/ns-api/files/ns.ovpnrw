@@ -762,7 +762,15 @@ def delete_user(ovpninstance, username):
     db_users = users.list_users(u, db)
     user_id = get_user_id(username, db_users)
     if user_id == None:
-        return utils.validation_error("username", "user_not_found", username)
+        # this could be a user deleted from remote but still present locally
+        local_users = utils.get_all_by_type(u, "users", "user")
+        for lu in local_users:
+            user = local_users[lu]
+            if user.get('database') == db and user.get('name') == username:
+                user_id = lu
+                break
+        if user_id == None:
+            return utils.validation_error("username", "user_not_found", username)
     used, matches = objects.is_used_object(u, f'users/{user_id}')
     if used:
         return utils.validation_error("username", "user_is_used", matches)
