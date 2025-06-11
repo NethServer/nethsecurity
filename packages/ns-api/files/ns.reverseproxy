@@ -461,7 +461,12 @@ elif cmd == 'call':
                         item['allow'] = entry['allow']
                     response.append(item)
 
-            print(json.dumps({'data': response}))
+            port_open = e_uci.get('firewall', 'ns_allow_https', 'enabled', dtype=bool, default=True)
+
+            print(json.dumps({
+                'data': response,
+                'port_open': port_open
+            }))
 
         elif action == 'edit-path':
             # load available paths
