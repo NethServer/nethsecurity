@@ -432,6 +432,17 @@ def ping():
         counter = counter + 1
 
 
+def __update_version():
+    # enable catch-all switching from flashstart server
+    client = __get_client()
+    username = e_uci.get('flashstart', 'global', 'username', default='')
+    client.post(f'{FLASHSTART_API_ENDPOINT}/updates/check/{username}', json.dumps({
+        'type': '5',
+        'sys_type': '11',
+        'version': '1.0.2'
+    }))
+
+
 def main():
     import argparse
 
@@ -489,6 +500,7 @@ def main():
             # run the sync command every 30 +/- random(0, 5) seconds
             wait_time = random.randint(25, 35)
             logging.info('Starting flashstart sync daemon')
+            __update_version()
             # this is 9 to trigger the first ping immediately
             ping_timer = 9
             while not event_handler.is_set():
