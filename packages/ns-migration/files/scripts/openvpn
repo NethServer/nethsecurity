@@ -72,7 +72,7 @@ auth_script = '/usr/libexec/ns-openvpn/openvpn-local-auth'
 
 (u, data, nmap) = nsmigration.init("openvpn.json")
 
-if not data:
+if not data or data['rw']['options']['enabled'] == '0':
     sys.exit(0)
 
 # Clean existing config
