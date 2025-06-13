@@ -84,94 +84,98 @@ if os.path.isdir(f'/etc/openvpn/{iname}'):
     shutil.rmtree(f'/etc/openvpn/{iname}')
 subprocess.run(["/usr/sbin/ns-openvpnrw-init-pki", iname], check=True)
 
-# Setup global options
-u.set("openvpn", iname, "openvpn")
-# Migrate from net30 obsolete topology to subnet topology
-# This is required to allow queries to local dnsamasq from VPN if
-# local-service option is enabled
-if data['rw']['options'].get('topology') == 'net30':
-    data['rw']['options']['topology' ] = 'subnet'
-for option in data['rw']['options']:
-    nsmigration.vprint(f"Setting OpenVPN Road Warrior option {option}")
-    u.set("openvpn", iname, option, data['rw']['options'][option])
+# If server = 1, the module has been installed but never configured
+if data['rw']['options']['server'] != '1':
+    # Setup global options
+    u.set("openvpn", iname, "openvpn")
+    # Migrate from net30 obsolete topology to subnet topology
+    # This is required to allow queries to local dnsamasq from VPN if
+    # local-service option is enabled
+    if data['rw']['options'].get('topology') == 'net30':
+        data['rw']['options']['topology'] = 'subnet'
+    for option in data['rw']['options']:
+        nsmigration.vprint(f"Setting OpenVPN Road Warrior option {option}")
+        u.set("openvpn", iname, option, data['rw']['options'][option])
 
-# Force device type and name and server pool
-if data['rw']['options'].get('dev', '').startswith("tun"):
-    dev_type ='tun'
-    if not 'ifconfig_pool' in data['rw']['options'] and 'server' in data['rw']['options'] and data['rw']['options'].get("server"):
-        # set default ifconfig_pool
-        (server_net, server_mask) = data['rw']['options']['server'].split(" ")
-        start_ip = ipaddress.ip_address(server_net) + 2
-        end_ip = ipaddress.ip_address(server_net) + 254
-        u.set("openvpn", iname, "ifconfig_pool", f"{start_ip} {end_ip} {server_mask}")
-        u.set("openvpn", iname, "server", f"{data['rw']['options']['server']} nopool")
-else:
-    dev_type ='tap'
+    # Force device type and name and server pool
+    if data['rw']['options'].get('dev', '').startswith("tun"):
+        dev_type = 'tun'
+        if (not 'ifconfig_pool' in data['rw']['options']
+                and 'server' in data['rw']['options']
+                and data['rw']['options'].get("server")):
+            # set default ifconfig_pool
+            (server_net, server_mask) = data['rw']['options']['server'].split(" ")
+            start_ip = ipaddress.ip_address(server_net) + 2
+            end_ip = ipaddress.ip_address(server_net) + 254
+            u.set("openvpn", iname, "ifconfig_pool", f"{start_ip} {end_ip} {server_mask}")
+            u.set("openvpn", iname, "server", f"{data['rw']['options']['server']} nopool")
+    else:
+        dev_type = 'tap'
 
-u.set("openvpn", iname, 'dev_type', dev_type)
-if dev_type == 'tap':
-    u.set("openvpn", iname, 'dev', 'taprw1')
-    ip = data['rw']['options'].pop("server_bridge").split(" ", 1)
-    ns_bridge = get_bridge_by_ip(u, ip[0])
-    if ns_bridge:
-        u.set("openvpn", iname, 'ns_bridge', ns_bridge)
-        add_tap_to_bridge(u, ns_bridge, 'taprw1')
-else:
-    u.set("openvpn", iname, 'dev', 'tunrw1')
+    u.set("openvpn", iname, 'dev_type', dev_type)
+    if dev_type == 'tap':
+        u.set("openvpn", iname, 'dev', 'taprw1')
+        ip = data['rw']['options'].pop("server_bridge").split(" ", 1)
+        ns_bridge = get_bridge_by_ip(u, ip[0])
+        if ns_bridge:
+            u.set("openvpn", iname, 'ns_bridge', ns_bridge)
+            add_tap_to_bridge(u, ns_bridge, 'taprw1')
+    else:
+        u.set("openvpn", iname, 'dev', 'tunrw1')
 
-# Setup server certificates
-save_cert(os.path.join(cert_dir, 'ca.crt'), data['rw']['ca']['ca.crt'])
-save_cert(os.path.join(cert_dir, 'index'), data['rw']['ca']['certindex'])
-save_cert(os.path.join(cert_dir, 'index.attr'), data['rw']['ca']['certindex.attr'])
-save_cert(os.path.join(cert_dir, 'crl.pem'), data['rw']['ca']['crl.pem'])
-save_cert(os.path.join(cert_dir, 'serial'), data['rw']['ca']['serial'])
-save_cert(os.path.join(cert_dir, 'issued/server.crt'), data['rw']['ca']['srv.crt'])
-save_cert(os.path.join(cert_dir, 'private/server.key'), data['rw']['ca']['srv.key'])
-save_cert(os.path.join(cert_dir, 'private/ca.key'), data['rw']['ca']['srv.key'])
-u.set("openvpn", iname, 'dh', os.path.join(cert_dir, 'dh.pem'))
-u.set("openvpn", iname, 'ca', os.path.join(cert_dir, 'ca.crt'))
-u.set("openvpn", iname, 'cert', os.path.join(cert_dir, 'issued/server.crt'))
-u.set("openvpn", iname, 'key', os.path.join(cert_dir, 'private/server.key'))
-u.set("openvpn", iname, 'key', os.path.join(cert_dir, 'private/ca.key'))
-u.set("openvpn", iname, 'crl_verify', os.path.join(cert_dir, 'crl.pem'))
+    # Setup server certificates
+    save_cert(os.path.join(cert_dir, 'ca.crt'), data['rw']['ca']['ca.crt'])
+    save_cert(os.path.join(cert_dir, 'index'), data['rw']['ca']['certindex'])
+    save_cert(os.path.join(cert_dir, 'index.attr'), data['rw']['ca']['certindex.attr'])
+    save_cert(os.path.join(cert_dir, 'crl.pem'), data['rw']['ca']['crl.pem'])
+    save_cert(os.path.join(cert_dir, 'serial'), data['rw']['ca']['serial'])
+    save_cert(os.path.join(cert_dir, 'issued/server.crt'), data['rw']['ca']['srv.crt'])
+    save_cert(os.path.join(cert_dir, 'private/server.key'), data['rw']['ca']['srv.key'])
+    save_cert(os.path.join(cert_dir, 'private/ca.key'), data['rw']['ca']['srv.key'])
+    u.set("openvpn", iname, 'dh', os.path.join(cert_dir, 'dh.pem'))
+    u.set("openvpn", iname, 'ca', os.path.join(cert_dir, 'ca.crt'))
+    u.set("openvpn", iname, 'cert', os.path.join(cert_dir, 'issued/server.crt'))
+    u.set("openvpn", iname, 'key', os.path.join(cert_dir, 'private/server.key'))
+    u.set("openvpn", iname, 'key', os.path.join(cert_dir, 'private/ca.key'))
+    u.set("openvpn", iname, 'crl_verify', os.path.join(cert_dir, 'crl.pem'))
 
-u.set("openvpn", iname, 'client_connect', f'"/usr/libexec/ns-openvpn/openvpn-connect {iname}"')
-u.set("openvpn", iname, 'client_disconnect', f'"/usr/libexec/ns-openvpn/openvpn-disconnect {iname}"')
-u.set("openvpn", iname, 'management', f'/var/run/openvpn_{iname}.socket unix')
+    u.set("openvpn", iname, 'client_connect', f'"/usr/libexec/ns-openvpn/openvpn-connect {iname}"')
+    u.set("openvpn", iname, 'client_disconnect', f'"/usr/libexec/ns-openvpn/openvpn-disconnect {iname}"')
+    u.set("openvpn", iname, 'management', f'/var/run/openvpn_{iname}.socket unix')
 
-u.set('openvpn', iname, 'ns_description', "Migrated")
-u.set("openvpn", iname, 'ns_auth_mode', 'certificate')
-u.set('openvpn', iname, 'ns_tag', ["automated", "migrated"])
+    u.set('openvpn', iname, 'ns_description', "Migrated")
+    u.set("openvpn", iname, 'ns_auth_mode', 'certificate')
+    u.set('openvpn', iname, 'ns_tag', ["automated", "migrated"])
 
-# cleanup user config, keep only main db
-for s in u.get_all('users'):
-    if u.get('users', s) in ['ldap', 'user']:
-        u.delete('users', s)
+    # cleanup user config, keep only main db
+    for s in u.get_all('users'):
+        if u.get('users', s) in ['ldap', 'user']:
+            u.delete('users', s)
 
-user_db = "main"
-if data['ldap']:
-    user_db = "ns_ldap1"
-    auth_script = '/usr/libexec/ns-openvpn/openvpn-remote-auth'
-    u.set("users", "ns_ldap1", "ldap")
-    for o in data['ldap']:
-        u.set("users", "ns_ldap1", o,  data['ldap'][o])
+    user_db = "main"
+    if data['ldap']:
+        user_db = "ns_ldap1"
+        auth_script = '/usr/libexec/ns-openvpn/openvpn-remote-auth'
+        u.set("users", "ns_ldap1", "ldap")
+        for o in data['ldap']:
+            u.set("users", "ns_ldap1", o, data['ldap'][o])
 
-u.set('openvpn', iname, 'ns_user_db', user_db)
+    u.set('openvpn', iname, 'ns_user_db', user_db)
 
-if data['rw']['auth'] == 'password':
-    u.set("openvpn", iname, 'auth_user_pass_verify', f'{auth_script} via-env')
-    u.set("openvpn", iname, 'verify_client_cert', 'none')
-    u.set("openvpn", iname, 'username_as_common_name', '1')
-    u.set("openvpn", iname, 'script_security', '3')
-    u.set("openvpn", iname, 'ns_auth_mode', 'username_password')
-elif data['rw']['auth'] == 'password-certificate':
-    u.set("openvpn", iname, 'auth_user_pass_verify', f'{auth_script} via-env')
-    u.set("openvpn", iname, 'script_security', '3')
-    u.set("openvpn", iname, 'ns_auth_mode', 'username_password_certificate')
-elif data['rw']['auth'] == 'certificate-otp':
-    u.set("openvpn", iname, 'auth_user_pass_verify', '/usr/libexec/ns-openvpn/openvpn-otp-auth via-env')
-    u.set("openvpn", iname, 'script_security', '3')
-    u.set("openvpn", iname, 'ns_auth_mode', 'username_otp_certificate')
+    if data['rw']['auth'] == 'password':
+        u.set("openvpn", iname, 'auth_user_pass_verify', f'{auth_script} via-env')
+        u.set("openvpn", iname, 'verify_client_cert', 'none')
+        u.set("openvpn", iname, 'username_as_common_name', '1')
+        u.set("openvpn", iname, 'script_security', '3')
+        u.set("openvpn", iname, 'ns_auth_mode', 'username_password')
+    elif data['rw']['auth'] == 'password-certificate':
+        u.set("openvpn", iname, 'auth_user_pass_verify', f'{auth_script} via-env')
+        u.set("openvpn", iname, 'script_security', '3')
+        u.set("openvpn", iname, 'ns_auth_mode', 'username_password_certificate')
+    elif data['rw']['auth'] == 'certificate-otp':
+        u.set("openvpn", iname, 'auth_user_pass_verify', '/usr/libexec/ns-openvpn/openvpn-otp-auth via-env')
+        u.set("openvpn", iname, 'script_security', '3')
+        u.set("openvpn", iname, 'ns_auth_mode', 'username_otp_certificate')
 
 
 # Create user entries
