@@ -642,6 +642,8 @@ def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, pubkey = "", p
     subprocess.run(['/etc/init.d/conntrackd', 'enable'], capture_output=True)
     subprocess.run(['/etc/init.d/conntrackd', 'restart'], capture_output=True)
 
+    # Enable keepalived if previously disabled by reset API
+    subprocess.run(['/etc/init.d/keepalived', 'enable'], capture_output=True)
     # Sometimes keepalived does not start correctly, so we need to restart it
     subprocess.run(['/etc/init.d/keepalived', 'restart'], capture_output=True)
 
