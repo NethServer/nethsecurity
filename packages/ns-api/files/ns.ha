@@ -1033,6 +1033,9 @@ def remove_interface(role, interface):
         return { "success": True }
 
 def upgrade_remote(image):
+    if not os.path.isfile(image):
+        return utils.generic_error("image_file_not_found")
+
     # Upload the image to the backup node
     if not upload_remote_file(image, "/var/run/ns-api-server/uploads/upgrade.img"):
         return utils.generic_error("error_uploading_image_to_backup_node")
