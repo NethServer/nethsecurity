@@ -509,11 +509,11 @@ upgrade_remote() {
   fi
 
   echo -n "Upgrading remote node... "
-  OUTPUT=$(echo '{"image": "'$IMAGE'"}' | /usr/libexec/rpcd/ns.ha call upgrade-remote | jq -r '.success')
+  OUTPUT=$(echo '{"image": "'$IMAGE'"}' | /usr/libexec/rpcd/ns.ha call upgrade-remote)
 
-  if [[ $? -ne 0 ]]; then
+  if [[ $(echo $OUTPUT | jq -r .result) != "success" ]]; then
     error
-    echo "Failed to upgrade the remote node."
+    echo "Failed to upgrade the remote node: "$(echo $OUTPUT | jq -r .error)
     exit 1
   fi
   success
