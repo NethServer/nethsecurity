@@ -37,8 +37,9 @@ def list_redirects():
         redirect =  {}
 
         dest_ip = r.get("dest_ip", "127.0.0.1")
-        if dest_ip not in ret["redirects"]:
-            ret["redirects"][dest_ip] = []
+        redirect["dest_ip"] = dest_ip
+        if redirect["dest_ip"] not in ret["redirects"]:
+            ret["redirects"][redirect["dest_ip"]] = []
 
         # always convert proto to an array
         proto = r.get("proto", "")
@@ -70,7 +71,7 @@ def list_redirects():
                     redirect["restrict"] = ipset.get("entry", [])
                 except:
                     pass
-        ret["redirects"][dest_ip].append(redirect)
+        ret["redirects"][redirect["dest_ip"]].append(redirect)
         count = count + 1
     return ret
 
