@@ -1,6 +1,7 @@
 #!/bin/sh
 
 . /lib/functions/keepalived/hotplug.sh
+. /lib/functions/keepalived/ns.sh
 
 set_service_name adblock
 
@@ -11,6 +12,10 @@ add_sync_file /etc/config/adblock
 if [ "$ACTION" == "NOTIFY_SYNC" ]; then
     home=$(get_rsync_user_home)
     rsync -avr $home/etc/adblock/ /etc/adblock/
+elif [ "$ACTION" == "NOTIFY_BACKUP" ]; then
+    update_cron "disable" "adblock"
+elif [ "$ACTION" == "NOTIFY_MASTER" ]; then
+    update_cron "enable" "adblock"
 fi
 
 keepalived_hotplug
