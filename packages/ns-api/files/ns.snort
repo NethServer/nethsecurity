@@ -161,16 +161,6 @@ def validate_request(request):
         raise ValidationError('direction', 'invalid')
 
 
-def validate_ip(request):
-    try:
-        if request['protocol'] == 'ipv4':
-            ipaddress.IPv4Address(request['ip'])
-        else:
-            ipaddress.IPv6Address(request['ip'])
-    except ipaddress.AddressValueError:
-        raise ValidationError('ip', 'invalid')
-
-
 def __save_settings():
     data = json.load(sys.stdin)
     if 'enabled' not in data:
@@ -256,7 +246,32 @@ def __list_bypasses():
 def __create_bypass():
     request = json.load(sys.stdin)
     validate_request(request)
-    validate_ip(request)
+
+    not_ip = False
+    not_cidr = False
+    if request['protocol'] == 'ipv4':
+        try:
+            ipaddress.IPv4Address(request['ip'])
+        except ipaddress.AddressValueError:
+            not_ip = True
+        try:
+            ipaddress.IPv4Network(request['ip'])
+        except ipaddress.AddressValueError:
+            not_cidr = True
+
+    else:
+        try:
+            ipaddress.IPv6Address(request['ip'])
+        except ipaddress.AddressValueError:
+            not_ip = True
+        try:
+            ipaddress.IPv6Network(request['ip'])
+        except ipaddress.AddressValueError:
+            not_cidr = True
+
+    if not_ip and not_cidr:
+        raise ValidationError('ip', 'invalid_ip_address_or_cidr')
+
     e_uci = EUci()
     if request['direction'] == 'src':
         if request['protocol'] == 'ipv4':
