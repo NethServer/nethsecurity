@@ -33,3 +33,5 @@ jobs:
         run: |
           curl -L -X POST -H "Authorization: Token $RTD_API_TOKEN" \
               https://readthedocs.org/api/v3/projects/nethsecurity-docs/versions/latest/builds
+          curl -L -X POST -H "Authorization: Token $RTD_API_TOKEN" \
+              https://readthedocs.org/api/v3/projects/nethsecurity-docs-it/versions/latest/builds
