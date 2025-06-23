@@ -68,9 +68,19 @@ jobs:
       - uses: actions/upload-artifact@v4
         name: Publish logs as temporary artifact
         with:
-          name: logs
+          name: build-logs
           path: |
             build-logs
+      - uses: actions/upload-artifact@v4
+        name: Upload manifest file
+        with:
+          name: manifest
+          path: bin/targets/**/nethsecurity-*.manifest
+      - uses: actions/upload-artifact@v4
+        name: Upload SBOM
+        with:
+          name: sbom
+          path: bin/targets/**/nethsecurity-*.bom.cdx.json
       # - uses: BetaHuhn/do-spaces-action@v2
       #   name: Publish packages inside the rolling repository
       #   if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags') }}
