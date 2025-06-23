@@ -7,9 +7,10 @@
 
 set -e
 
-NETHSECURITY_VERSION=${NETHSECURITY_VERSION:?Missing NETHSECURITY_VERSION environment variable}
-REPO_CHANNEL=${REPO_CHANNEL:?Missing REPO_CHANNEL environment variable}
-TARGET=${TARGET:?Missing TARGET environment variable}
+nethsecurity_version=${NETHSECURITY_VERSION:?Missing NETHSECURITY_VERSION environment variable}
+repo_channel=${REPO_CHANNEL:?Missing REPO_CHANNEL environment variable}
+target=${TARGET:?Missing TARGET environment variable}
+owrt_version=${OWRT_VERSION:?Missing OWRT_VERSION environment variable}
 
 # Conclude configuration
 cat <<EOF >> config/.diffconfig
@@ -19,12 +20,13 @@ CONFIG_VERSION_DIST="NethSecurity"
 CONFIG_VERSION_HOME_URL="https://github.com/nethserver/nethsecurity"
 CONFIG_VERSION_MANUFACTURER="Nethesis"
 CONFIG_VERSION_MANUFACTURER_URL="https://www.nethesis.it"
-CONFIG_VERSION_NUMBER="${NETHSECURITY_VERSION}"
+CONFIG_VERSION_NUMBER="${nethsecurity_version}"
+CONFIG_VERSION_CODE="${nethsecurity_version}-${owrt_version}"
 CONFIG_VERSION_PRODUCT="NethSecurity"
-CONFIG_VERSION_REPO="https://updates.nethsecurity.nethserver.org/${REPO_CHANNEL}/${NETHSECURITY_VERSION}"
+CONFIG_VERSION_REPO="https://updates.nethsecurity.nethserver.org/${repo_channel}/${nethsecurity_version}"
 CONFIG_VERSION_SUPPORT_URL="https://community.nethserver.org"
 EOF
-cat "config/targets/${TARGET}.conf" >> config/.diffconfig
+cat "config/targets/${target}.conf" >> config/.diffconfig
 
 
 # Netifyd closed-sources plugin
