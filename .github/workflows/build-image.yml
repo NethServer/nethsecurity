@@ -11,6 +11,10 @@ on:
         options:
           - x86_64
           - lamobo
+      channel:
+        description: "Repository channel"
+        required: false
+        type: string
   push:
     branches:
       - 'main'
@@ -46,9 +50,15 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup REPO_CHANNEL
         run: |
-          # If the branch is not main, set REPO_CHANNEL to kebab-case branch name
-          if [[ "${{ github.ref }}" != "refs/heads/main" ]]; then
-            echo "REPO_CHANNEL=${{ github.ref }}" | sed 's|refs/heads/||' | sed 's|/|-|g' >> $GITHUB_ENV
+          # When pushing a tag, set REPO_CHANNEL to stable
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "REPO_CHANNEL=stable" >> $GITHUB_ENV
+          # When pushing to main branch, set REPO_CHANNEL to dev
+          elif [[ "${{ github.ref }}" == refs/heads/main ]]; then
+            echo "REPO_CHANNEL=dev" >> $GITHUB_ENV
+          # Otherwise, get the branch name of the PR pushing if REPO_CHANNEL is not set
+          elif [[ "${{ github.event_name }}" == 'pull_request' && ! -v REPO_CHANNEL ]]; then
+            echo "REPO_CHANNEL=${{ github.head_ref }}" >> $GITHUB_ENV
           fi
       - name: Build the image
         run: ./build-nethsec.sh
@@ -66,12 +76,6 @@ jobs:
             bin/targets/**/nethsecurity-*.img.gz
             !bin/targets/**/nethsecurity-*rootfs.img.gz
       - uses: actions/upload-artifact@v4
-        name: Publish logs as temporary artifact
-        with:
-          name: build-logs
-          path: |
-            build-logs
-      - uses: actions/upload-artifact@v4
         name: Upload manifest file
         with:
           name: manifest
@@ -81,6 +85,13 @@ jobs:
         with:
           name: sbom
           path: bin/targets/**/nethsecurity-*.bom.cdx.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        name: Upload logs
+        with:
+          name: build-logs
+          path: |
+            build-logs
       # - uses: BetaHuhn/do-spaces-action@v2
       #   name: Publish packages inside the rolling repository
       #   if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags') }}
