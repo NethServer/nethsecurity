@@ -14,7 +14,7 @@ PKG_FIXUP:=autoreconf
 PKG_INSTALL:=1
 
 PKG_SOURCE_PROTO:=git
-PKG_SOURCE_URL:=file:///home/build/openwrt/netify-flow-actions
+PKG_SOURCE_URL:=file:///home/buildbot/openwrt/netify-flow-actions
 PKG_SOURCE_DATE:=2023-25-09
 PKG_SOURCE_VERSION:=9daa0174804ae72de78cb21373b4e13ed2ba7dd6
 PKG_MIRROR_HASH:=whatever
