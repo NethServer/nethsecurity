@@ -68,7 +68,7 @@ jobs:
       #     # Create release file pointing to 8-VERSION
       #     echo 8-${{ env.VERSION }} > latest_release
       - uses: actions/upload-artifact@v4
-        name: Publish image as temporary artifact
+        name: Upload image
         with:
           name: image
           compression-level: 0
