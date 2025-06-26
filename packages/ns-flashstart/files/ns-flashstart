@@ -213,6 +213,8 @@ def __sync_pro_profiles():
 
 
 def __add_profile(port, profile):
+    query_logging = e_uci.get('flashstart', 'global', 'logqueries', default=False, dtype=bool)
+    rebind_protection = e_uci.get('flashstart', 'global', 'rebind_protection', default=True, dtype=bool)
     if e_uci.get('dhcp', profile['id'], default=None) is None:
         logging.info(f'New profile found {profile["name"]}, creating instance {profile["id"]}.')
         e_uci.set('dhcp', profile['id'], 'dnsmasq')
@@ -224,6 +226,8 @@ def __add_profile(port, profile):
     e_uci.set('dhcp', profile['id'], 'noresolv', True)
     e_uci.set('dhcp', profile['id'], 'max_ttl', 60)
     e_uci.set('dhcp', profile['id'], 'max_cache_ttl', 60)
+    e_uci.set('dhcp', profile['id'], 'logqueries', query_logging)
+    e_uci.set('dhcp', profile['id'], 'rebind_protection', rebind_protection)
     # sets always get replaced, checking before replacing
     custom_servers = list(e_uci.get('flashstart', 'global', 'custom_servers', list=True, dtype=str, default=[]))
     servers = sorted(custom_servers + profile['servers'])
