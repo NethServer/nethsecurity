@@ -2,3 +2,5 @@ build-sign-key*
 build.conf.override
 bin
 build-logs
+netify-flow-actions
+netify-agent-stats-plugin
