@@ -40,6 +40,18 @@ uci commit flashstart
 reload_config
 ```
 
+## DNS server customization
+
+You can disable `rebind_protection` or enable `logqueries` options for the DNS servers by setting the variables in the
+`flashstart.global` section:
+
+```
+uci set flashstart.global.rebind_protection="0"
+uci set flashstart.global.logqueries="1"
+uci commit flashstart
+reload_config
+```
+
 ## Debug mode
 
 The daemon can be run in various logging levels, to set the levels you can:
