@@ -214,7 +214,7 @@ def __sync_pro_profiles():
 
 def __add_profile(port, profile):
     query_logging = e_uci.get('flashstart', 'global', 'logqueries', default=False, dtype=bool)
-    rebind_protection = e_uci.get('flashstart', 'global', 'rebind_protection', default=True, dtype=bool)
+    rebind_protection = e_uci.get('flashstart', 'global', 'rebind_protection', default=False, dtype=bool)
     if e_uci.get('dhcp', profile['id'], default=None) is None:
         logging.info(f'New profile found {profile["name"]}, creating instance {profile["id"]}.')
         e_uci.set('dhcp', profile['id'], 'dnsmasq')

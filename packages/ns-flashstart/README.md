@@ -42,11 +42,11 @@ reload_config
 
 ## DNS server customization
 
-You can disable `rebind_protection` or enable `logqueries` options for the DNS servers by setting the variables in the
+You can enable `rebind_protection` or enable `logqueries` options for the DNS servers by setting the variables in the
 `flashstart.global` section:
 
 ```
-uci set flashstart.global.rebind_protection="0"
+uci set flashstart.global.rebind_protection="1"
 uci set flashstart.global.logqueries="1"
 uci commit flashstart
 reload_config
