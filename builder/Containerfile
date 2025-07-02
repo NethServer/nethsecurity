@@ -24,10 +24,13 @@ RUN apt-get update \
         libssl-dev \
         python3-distutils \
         rsync \
+        sudo \
         unzip \
+        vim \
         wget \
         zlib1g-dev \
-    && useradd -m -s '/bin/bash' -U 'buildbot'
+    && useradd -m -s '/bin/bash' -U 'buildbot' \
+    && echo 'buildbot ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/buildbot
 
 USER buildbot
 WORKDIR /home/buildbot
@@ -37,17 +40,13 @@ ENV OWRT_VERSION=${OWRT_VERSION}
 RUN git clone --branch "v${OWRT_VERSION}" --depth 1 https://github.com/openwrt/openwrt.git
 WORKDIR /home/buildbot/openwrt
 RUN sed -i '/telephony/d' feeds.conf.default \
-    && sed -i 's/src-git-full/src-git/' feeds.conf.default \
-    && ./scripts/feeds update \
-    && ./scripts/feeds install -a
+    && sed -i 's/src-git-full/src-git/' feeds.conf.default
 
 # Nethsec packages and forks
 COPY --chown=buildbot:buildbot packages nspackages
-RUN echo "src-link nethsecurity /home/buildbot/openwrt/nspackages" >> feeds.conf.default \
-    && ./scripts/feeds update nethsecurity \
-    && ./scripts/feeds install -a -p nethsecurity
-COPY --chmod=777 builder/package-replacement.sh /usr/local/bin/package-replacement
-RUN package-replacement
+RUN echo 'src-link nethsecurity /home/buildbot/openwrt/nspackages' | cat - feeds.conf.default > temp && mv temp feeds.conf.default \
+    && ./scripts/feeds update \
+    && ./scripts/feeds install -a
 
 # Patches to upstream packages
 COPY --chown=buildbot:buildbot patches patches
@@ -71,8 +70,8 @@ RUN mkdir -p \
       dl \
       download \
       staging_dir
-VOLUME "/home/buildbot/openwrt/.ccache", \
-    "/home/buildbot/openwrt/build_dir", \
-    "/home/buildbot/openwrt/dl", \
-    "/home/buildbot/openwrt/download", \
+VOLUME "/home/buildbot/openwrt/.ccache" \
+    "/home/buildbot/openwrt/build_dir" \
+    "/home/buildbot/openwrt/dl" \
+    "/home/buildbot/openwrt/download" \
     "/home/buildbot/openwrt/staging_dir"

@@ -5,6 +5,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
+set -e
+
 find patches/ -type f -name "*.patch" | while read -r patch; do
     dir_name=$(dirname "$patch")
     dir_name=${dir_name#"patches/"}
