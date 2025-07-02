@@ -39,12 +39,10 @@ ARG OWRT_VERSION
 ENV OWRT_VERSION=${OWRT_VERSION}
 RUN git clone --branch "v${OWRT_VERSION}" --depth 1 https://github.com/openwrt/openwrt.git
 WORKDIR /home/buildbot/openwrt
-RUN sed -i '/telephony/d' feeds.conf.default \
-    && sed -i 's/src-git-full/src-git/' feeds.conf.default
-
-# Nethsec packages and forks
 COPY --chown=buildbot:buildbot packages nspackages
-RUN echo 'src-link nethsecurity /home/buildbot/openwrt/nspackages' | cat - feeds.conf.default > temp && mv temp feeds.conf.default \
+RUN sed -i '/telephony/d' feeds.conf.default \
+    && sed -i 's/src-git-full/src-git/' feeds.conf.default \
+    && sed -i '1isrc-link nethsecurity /home/buildbot/openwrt/nspackages' feeds.conf.default \
     && ./scripts/feeds update \
     && ./scripts/feeds install -a
 
