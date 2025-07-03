@@ -267,7 +267,7 @@ def set_instance(args):
     # check if the interface already exists
     if u.get("network", args['instance'], default=None) is None:
         # First time configuration
-        firewall.add_service(u, f'WireGuard{args["instance"]}', args['listen_port'], ['udp'], link=f"network/{args['instance']}")
+        firewall.add_service(u, f'WireGuard-{args["instance"]}', args['listen_port'], ['udp'], link=f"network/{args['instance']}")
         zone = f"{args['instance']}vpn"
         firewall.add_trusted_zone(u, zone, link=f"network/{args['instance']}")
         firewall.add_device_to_zone(u,  args['instance'], zone)
