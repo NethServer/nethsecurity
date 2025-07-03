@@ -50,21 +50,21 @@ cat "config/targets/${target}.conf" >> config/.diffconfig
 
 
 # Netifyd closed-sources plugin
-if [ -z "$NETIFYD_ACCESS_TOKEN" ]; then
-    echo "Netifyd closed-sources plugin not enabled: skipping ns-dpi package"
-    echo CONFIG_PACKAGE_ns-dpi=n >> config/.diffconfig
-else
-    echo "Netifyd closed-sources plugin enabled: enabling ns-dpi package"
-    git clone "https://oauth2:$NETIFYD_ACCESS_TOKEN@gitlab.com/netify.ai/private/nethesis/netify-flow-actions.git"
-    git clone "https://oauth2:$NETIFYD_ACCESS_TOKEN@gitlab.com/netify.ai/private/nethesis/netify-agent-stats-plugin.git"
-    cat << EOF >> config/.diffconfig
-CONFIG_PACKAGE_netify-flow-actions=y
-CONFIG_NETIFY_FLOW_ACTIONS_TARGET_LOG=y
-CONFIG_NETIFY_FLOW_ACTIONS_TARGET_CTLABEL=y
-CONFIG_NETIFY_FLOW_ACTIONS_TARGET_NFTSET=y
-CONFIG_PACKAGE_netify-plugin-stats=y
-EOF
-fi
+# if [ -z "$NETIFYD_ACCESS_TOKEN" ]; then
+#     echo "Netifyd closed-sources plugin not enabled: skipping ns-dpi package"
+#     echo CONFIG_PACKAGE_ns-dpi=n >> config/.diffconfig
+# else
+#     echo "Netifyd closed-sources plugin enabled: enabling ns-dpi package"
+#     git clone "https://oauth2:$NETIFYD_ACCESS_TOKEN@gitlab.com/netify.ai/private/nethesis/netify-flow-actions.git"
+#     git clone "https://oauth2:$NETIFYD_ACCESS_TOKEN@gitlab.com/netify.ai/private/nethesis/netify-agent-stats-plugin.git"
+#     cat << EOF >> config/.diffconfig
+# CONFIG_PACKAGE_netify-flow-actions=y
+# CONFIG_NETIFY_FLOW_ACTIONS_TARGET_LOG=y
+# CONFIG_NETIFY_FLOW_ACTIONS_TARGET_CTLABEL=y
+# CONFIG_NETIFY_FLOW_ACTIONS_TARGET_NFTSET=y
+# CONFIG_PACKAGE_netify-plugin-stats=y
+# EOF
+# fi
 
 # Expand configuration
 cp config/.diffconfig .config
