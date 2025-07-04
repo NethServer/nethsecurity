@@ -40,21 +40,8 @@ ENV OWRT_VERSION=${OWRT_VERSION}
 RUN git clone --branch "v${OWRT_VERSION}" --depth 1 https://github.com/openwrt/openwrt.git
 WORKDIR /home/buildbot/openwrt
 COPY --chown=buildbot:buildbot packages nspackages
-RUN sed -i '/telephony/d' feeds.conf.default \
-    && sed -i 's/src-git-full/src-git/' feeds.conf.default \
-    && sed -i '1isrc-link nethsecurity /home/buildbot/openwrt/nspackages' feeds.conf.default \
-    && ./scripts/feeds update \
-    && ./scripts/feeds install -a
-
-# Patches to upstream packages
 COPY --chown=buildbot:buildbot patches patches
-COPY --chmod=777 builder/apply-patches.sh /usr/local/bin/apply-patches
-RUN apply-patches
-
-# Custom files in root
 COPY --chown=buildbot:buildbot files files
-
-# Build configuration
 COPY --chown=buildbot:buildbot config config
 
 # Build utils and volumes setup
@@ -67,9 +54,11 @@ RUN mkdir -p \
       build_dir \
       dl \
       download \
+      feeds \
       staging_dir
 VOLUME "/home/buildbot/openwrt/.ccache" \
     "/home/buildbot/openwrt/build_dir" \
     "/home/buildbot/openwrt/dl" \
     "/home/buildbot/openwrt/download" \
+    "/home/buildbot/openwrt/feeds" \
     "/home/buildbot/openwrt/staging_dir"

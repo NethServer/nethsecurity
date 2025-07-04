@@ -7,10 +7,30 @@
 
 set -e
 
+# Set up environment
 nethsecurity_version=${NETHSECURITY_VERSION:?Missing NETHSECURITY_VERSION environment variable}
 repo_channel=${REPO_CHANNEL:?Missing REPO_CHANNEL environment variable}
 target=${TARGET:?Missing TARGET environment variable}
 owrt_version=${OWRT_VERSION:?Missing OWRT_VERSION environment variable}
+
+# Configure repositories
+sed -i '/telephony/d' feeds.conf.default
+sed -i 's/src-git-full/src-git/' feeds.conf.default
+sed -i '1isrc-link nethsecurity /home/buildbot/openwrt/nspackages' feeds.conf.default
+./scripts/feeds update
+./scripts/feeds install -a
+
+# Apply patches
+find patches/ -type f -name "*.patch" | while read -r patch; do
+    dir_name=$(dirname "$patch")
+    dir_name=${dir_name#"patches/"}
+    if patch -d "$dir_name" -F 2 -p 1 --dry-run < "$patch" > /dev/null 2>&1; then
+        echo "Patch not yet applied — applying now."
+        patch -d "$dir_name" -F 2 -p 1 < "$patch"
+    else
+        echo "Patch appears to already be applied — skipping."
+    fi
+done
 
 # Conclude configuration
 cat <<EOF >> config/.diffconfig
@@ -46,7 +66,7 @@ CONFIG_PACKAGE_netify-plugin-stats=y
 EOF
 fi
 
-# Define the configuration
+# Expand configuration
 cp config/.diffconfig .config
 make defconfig
 

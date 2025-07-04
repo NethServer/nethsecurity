@@ -57,6 +57,7 @@ podman run \
     --volume nethsecurity_builder_staging:/home/buildbot/openwrt/staging_dir \
     --volume nethsecurity_builder_cache:/home/buildbot/openwrt/.ccache \
     --volume nethsecurity_builder_downloads:/home/buildbot/openwrt/download \
+    --volume nethsecurity_builder_feeds:/home/buildbot/openwrt/feeds \
     --volume nethsecurity_builder_dl:/home/buildbot/openwrt/dl \
     nethsecurity-next \
     "$@"
