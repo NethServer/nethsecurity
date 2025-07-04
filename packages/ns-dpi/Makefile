@@ -22,7 +22,7 @@ define Package/ns-dpi
 	CATEGORY:=NethSecurity
 	TITLE:=DPI rules
 	URL:=https://github.com/NethServer/nethsecurity/
-	DEPENDS:=+netify-flow-actions +kmod-ipt-conntrack-label
+	DEPENDS:=+kmod-ipt-conntrack-label
 	PKGARCH:=all
 endef
 
