@@ -68,7 +68,7 @@ Example of the content of `feeds.conf.default`:
 src-git packages https://git.openwrt.org/feed/packages.git^b5ed85f6e94aa08de1433272dc007550f4a28201
 src-git luci https://git.openwrt.org/project/luci.git^63ba3cba5b7bfb803a875d4d8f01248634687fd5
 src-git routing https://git.openwrt.org/feed/routing.git^e351d1e623e9ef2ab78f28cb1ce8d271d28c902d
-src-link nethsecurity /home/build/openwrt/nspackages
+src-link nethsecurity /home/buildbot/openwrt/nspackages
 ```
 
 This file indicates that the `packages` repository is used at commit `b5ed85f6e94aa08de1433272dc007550f4a28201`.

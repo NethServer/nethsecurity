@@ -11,6 +11,10 @@ on:
         options:
           - x86_64
           - lamobo
+      channel:
+        description: "Repository channel"
+        required: false
+        type: string
   push:
     branches:
       - 'main'
@@ -44,100 +48,112 @@ jobs:
       GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 500
-      - name: Fetch tag annotations
+      - name: Setup REPO_CHANNEL
         run: |
-          # Fetch tag manually because fetch-tags option for checkout@v4 does not work
-          git fetch --force --tags --depth 500
-      - id: read_tag
-        name: Set VERSION env variable
-        if: ${{ startsWith(github.ref, 'refs/tags') }}
-        run: |
-          # Set tag from GitHub: using git describe for tags inside the run script
-          # seems not working
-          echo "VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
-      - id: build
-        name: Build the image
-        run: |
-          # Build the image
-          # The run script will set VERSION, REPO_CHANNEL, and OWRT_VERSION env variables
-          ./run
-      - id: release
-        name: Update latest_release file
-        run: |
-          # Create release file pointing to 8-VERSION
-          echo 8-${{ env.VERSION }} > latest_release
+          # When pushing a tag, set REPO_CHANNEL to stable
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "REPO_CHANNEL=stable" >> $GITHUB_ENV
+          # When pushing to main branch, set REPO_CHANNEL to dev
+          elif [[ "${{ github.ref }}" == refs/heads/main ]]; then
+            echo "REPO_CHANNEL=dev" >> $GITHUB_ENV
+          # Otherwise, get the branch name of the PR pushing if REPO_CHANNEL is not set
+          elif [[ "${{ github.event_name }}" == 'pull_request' && ! -v REPO_CHANNEL ]]; then
+            echo "REPO_CHANNEL=${{ github.head_ref }}" >> $GITHUB_ENV
+          fi
+      - name: Build the image
+        run: ./build-nethsec.sh
+      # - id: release
+      #   name: Update latest_release file
+      #   run: |
+      #     # Create release file pointing to 8-VERSION
+      #     echo 8-${{ env.VERSION }} > latest_release
       - uses: actions/upload-artifact@v4
-        name: Publish image as temporary artifact
+        name: Upload image
         with:
           name: image
           compression-level: 0
           path: |
             bin/targets/**/nethsecurity-*.img.gz
             !bin/targets/**/nethsecurity-*rootfs.img.gz
-      - uses: BetaHuhn/do-spaces-action@v2
-        name: Publish packages inside the rolling repository
-        if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags') }}
+      - uses: actions/upload-artifact@v4
+        name: Upload manifest file
         with:
-          access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
-          secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
-          space_name: ${{ env.DO_SPACE_NAME }}
-          space_region: ${{ env.DO_SPACE_REGION }}
-          cdn_domain: ${{ env.CDN_DOMAIN }}
-          source: bin/packages
-          out_dir: ${{ env.REPO_CHANNEL }}/${{ env.OWRT_VERSION }}/packages
-      - uses: BetaHuhn/do-spaces-action@v2
-        name: Publish images inside the rolling repository
-        if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags') }}
+          name: manifest
+          path: bin/targets/**/nethsecurity-*.manifest
+      - uses: actions/upload-artifact@v4
+        name: Upload SBOM
         with:
-          access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
-          secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
-          space_name: ${{ env.DO_SPACE_NAME }}
-          space_region: ${{ env.DO_SPACE_REGION }}
-          cdn_domain: ${{ env.CDN_DOMAIN }}
-          source: bin/targets
-          out_dir: ${{ env.REPO_CHANNEL }}/${{ env.OWRT_VERSION }}/targets
-      - uses: BetaHuhn/do-spaces-action@v2
-        name: Publish packages inside the fixed repository
-        if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags') }}
+          name: sbom
+          path: bin/targets/**/nethsecurity-*.bom.cdx.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        name: Upload logs
         with:
-          access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
-          secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
-          space_name: ${{ env.DO_SPACE_NAME }}
-          space_region: ${{ env.DO_SPACE_REGION }}
-          cdn_domain: ${{ env.CDN_DOMAIN }}
-          source: bin/packages
-          out_dir: ${{ env.REPO_CHANNEL }}/8-${{ env.VERSION }}/packages
-      - uses: BetaHuhn/do-spaces-action@v2
-        name: Publish images inside the fixed repository
-        if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags') }}
-        with:
-          access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
-          secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
-          space_name: ${{ env.DO_SPACE_NAME }}
-          space_region: ${{ env.DO_SPACE_REGION }}
-          cdn_domain: ${{ env.CDN_DOMAIN }}
-          source: bin/targets
-          out_dir: ${{ env.REPO_CHANNEL }}/8-${{ env.VERSION }}/targets
-      - uses: BetaHuhn/do-spaces-action@v2
-        name: Publish latest_release inside the repository
-        if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags') }}
-        with:
-          access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
-          secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
-          space_name: ${{ env.DO_SPACE_NAME }}
-          space_region: ${{ env.DO_SPACE_REGION }}
-          cdn_domain: ${{ env.CDN_DOMAIN }}
-          source: latest_release
-          out_dir: ${{ env.REPO_CHANNEL }}/
-      - id: issue_comment
-        name: Add comment for issue ready to be tested
-        if: ${{ github.ref == 'refs/heads/main' }}
-        run: |
-          tools/issue-comment
-      - id: bumper
-        name: Bump ns-packages
-        if: ${{ github.ref == 'refs/heads/main' }}
-        run: |
-          tools/package-bumper
+          name: build-logs
+          path: |
+            build-logs
+      # - uses: BetaHuhn/do-spaces-action@v2
+      #   name: Publish packages inside the rolling repository
+      #   if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags') }}
+      #   with:
+      #     access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
+      #     secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
+      #     space_name: ${{ env.DO_SPACE_NAME }}
+      #     space_region: ${{ env.DO_SPACE_REGION }}
+      #     cdn_domain: ${{ env.CDN_DOMAIN }}
+      #     source: bin/packages
+      #     out_dir: ${{ env.REPO_CHANNEL }}/${{ env.OWRT_VERSION }}/packages
+      # - uses: BetaHuhn/do-spaces-action@v2
+      #   name: Publish images inside the rolling repository
+      #   if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags') }}
+      #   with:
+      #     access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
+      #     secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
+      #     space_name: ${{ env.DO_SPACE_NAME }}
+      #     space_region: ${{ env.DO_SPACE_REGION }}
+      #     cdn_domain: ${{ env.CDN_DOMAIN }}
+      #     source: bin/targets
+      #     out_dir: ${{ env.REPO_CHANNEL }}/${{ env.OWRT_VERSION }}/targets
+      # - uses: BetaHuhn/do-spaces-action@v2
+      #   name: Publish packages inside the fixed repository
+      #   if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags') }}
+      #   with:
+      #     access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
+      #     secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
+      #     space_name: ${{ env.DO_SPACE_NAME }}
+      #     space_region: ${{ env.DO_SPACE_REGION }}
+      #     cdn_domain: ${{ env.CDN_DOMAIN }}
+      #     source: bin/packages
+      #     out_dir: ${{ env.REPO_CHANNEL }}/8-${{ env.VERSION }}/packages
+      # - uses: BetaHuhn/do-spaces-action@v2
+      #   name: Publish images inside the fixed repository
+      #   if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags') }}
+      #   with:
+      #     access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
+      #     secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
+      #     space_name: ${{ env.DO_SPACE_NAME }}
+      #     space_region: ${{ env.DO_SPACE_REGION }}
+      #     cdn_domain: ${{ env.CDN_DOMAIN }}
+      #     source: bin/targets
+      #     out_dir: ${{ env.REPO_CHANNEL }}/8-${{ env.VERSION }}/targets
+      # - uses: BetaHuhn/do-spaces-action@v2
+      #   name: Publish latest_release inside the repository
+      #   if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags') }}
+      #   with:
+      #     access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
+      #     secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
+      #     space_name: ${{ env.DO_SPACE_NAME }}
+      #     space_region: ${{ env.DO_SPACE_REGION }}
+      #     cdn_domain: ${{ env.CDN_DOMAIN }}
+      #     source: latest_release
+      #     out_dir: ${{ env.REPO_CHANNEL }}/
+      # - id: issue_comment
+      #   name: Add comment for issue ready to be tested
+      #   if: ${{ github.ref == 'refs/heads/main' }}
+      #   run: |
+      #     tools/issue-comment
+      # - id: bumper
+      #   name: Bump ns-packages
+      #   if: ${{ github.ref == 'refs/heads/main' }}
+      #   run: |
+      #     tools/package-bumper
