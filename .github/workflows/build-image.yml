@@ -93,7 +93,7 @@ jobs:
         with:
           name: build-logs
           path: |
-            build-log
+            build-logs
       - name: Setup rclone
         uses: AnimMouse/setup-rclone@v1
       - name: Copy Packages to repo
