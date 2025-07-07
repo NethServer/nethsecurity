@@ -60,21 +60,23 @@ jobs:
           elif [[ "${{ github.event_name }}" == 'pull_request' && ! -v REPO_CHANNEL ]]; then
             echo "REPO_CHANNEL=${{ github.head_ref }}" >> $GITHUB_ENV
           fi
+      - name: Setup NETHSECURITY_VERSION for release
+        run: |
+          # Fetch NETHSECURITY_VERSION version from build.conf
+          echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf)" >> $GITHUB_ENV
       - name: Build the image
         run: ./build-nethsec.sh
-      # - id: release
-      #   name: Update latest_release file
-      #   run: |
-      #     # Create release file pointing to 8-VERSION
-      #     echo 8-${{ env.VERSION }} > latest_release
+      - name: Update latest_release file
+        run: |
+          # Create release file pointing to 8-VERSION
+          echo "${{ env.NETHSECURITY_VERSION }}" > latest_release
       - uses: actions/upload-artifact@v4
         name: Upload image
         with:
           name: image
           compression-level: 0
           path: |
-            bin/targets/**/nethsecurity-*.img.gz
-            !bin/targets/**/nethsecurity-*rootfs.img.gz
+            bin/targets/**/nethsecurity-*combined-efi.img.gz
       - uses: actions/upload-artifact@v4
         name: Upload manifest file
         with:
@@ -91,69 +93,22 @@ jobs:
         with:
           name: build-logs
           path: |
-            build-logs
-      # - uses: BetaHuhn/do-spaces-action@v2
-      #   name: Publish packages inside the rolling repository
-      #   if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags') }}
-      #   with:
-      #     access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
-      #     secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
-      #     space_name: ${{ env.DO_SPACE_NAME }}
-      #     space_region: ${{ env.DO_SPACE_REGION }}
-      #     cdn_domain: ${{ env.CDN_DOMAIN }}
-      #     source: bin/packages
-      #     out_dir: ${{ env.REPO_CHANNEL }}/${{ env.OWRT_VERSION }}/packages
-      # - uses: BetaHuhn/do-spaces-action@v2
-      #   name: Publish images inside the rolling repository
-      #   if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags') }}
-      #   with:
-      #     access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
-      #     secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
-      #     space_name: ${{ env.DO_SPACE_NAME }}
-      #     space_region: ${{ env.DO_SPACE_REGION }}
-      #     cdn_domain: ${{ env.CDN_DOMAIN }}
-      #     source: bin/targets
-      #     out_dir: ${{ env.REPO_CHANNEL }}/${{ env.OWRT_VERSION }}/targets
-      # - uses: BetaHuhn/do-spaces-action@v2
-      #   name: Publish packages inside the fixed repository
-      #   if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags') }}
-      #   with:
-      #     access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
-      #     secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
-      #     space_name: ${{ env.DO_SPACE_NAME }}
-      #     space_region: ${{ env.DO_SPACE_REGION }}
-      #     cdn_domain: ${{ env.CDN_DOMAIN }}
-      #     source: bin/packages
-      #     out_dir: ${{ env.REPO_CHANNEL }}/8-${{ env.VERSION }}/packages
-      # - uses: BetaHuhn/do-spaces-action@v2
-      #   name: Publish images inside the fixed repository
-      #   if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags') }}
-      #   with:
-      #     access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
-      #     secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
-      #     space_name: ${{ env.DO_SPACE_NAME }}
-      #     space_region: ${{ env.DO_SPACE_REGION }}
-      #     cdn_domain: ${{ env.CDN_DOMAIN }}
-      #     source: bin/targets
-      #     out_dir: ${{ env.REPO_CHANNEL }}/8-${{ env.VERSION }}/targets
-      # - uses: BetaHuhn/do-spaces-action@v2
-      #   name: Publish latest_release inside the repository
-      #   if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags') }}
-      #   with:
-      #     access_key: ${{ secrets.DO_SPACE_ACCESS_KEY }}
-      #     secret_key: ${{ secrets.DO_SPACE_SECRET_KEY }}
-      #     space_name: ${{ env.DO_SPACE_NAME }}
-      #     space_region: ${{ env.DO_SPACE_REGION }}
-      #     cdn_domain: ${{ env.CDN_DOMAIN }}
-      #     source: latest_release
-      #     out_dir: ${{ env.REPO_CHANNEL }}/
-      # - id: issue_comment
-      #   name: Add comment for issue ready to be tested
-      #   if: ${{ github.ref == 'refs/heads/main' }}
-      #   run: |
-      #     tools/issue-comment
-      # - id: bumper
-      #   name: Bump ns-packages
-      #   if: ${{ github.ref == 'refs/heads/main' }}
-      #   run: |
-      #     tools/package-bumper
+            build-log
+      - name: Setup rclone
+        uses: AnimMouse/setup-rclone@v1
+      - name: Copy Packages to repo
+        env:
+          RCLONE_CONFIG_REPO_PROVIDER: DigitalOcean
+          RCLONE_CONFIG_REPO_TYPE: s3
+          RCLONE_CONFIG_REPO_ENV_AUTH: true
+          RCLONE_CONFIG_REPO_ENDPOINT: ams3.digitaloceanspaces.com
+          RCLONE_CONFIG_REPO_ACCESS_KEY_ID: ${{ secrets.DO_SPACE_ACCESS_KEY }}
+          RCLONE_CONFIG_REPO_SECRET_ACCESS_KEY: ${{ secrets.DO_SPACE_SECRET_KEY }}
+        run: |
+          rclone sync --dry-run bin/ repo:nethsecurity/${{ env.REPO_CHANNEL }}/${{ env.NETHSECURITY_VERSION }} --progress --create-empty-src-dirs
+          rclone copy --dry-run latest_release repo:nethsecurity/${{ env.REPO_CHANNEL }}/ --progress --create-empty-src-dirs
+      - name: Run tools
+        if: ${{ github.ref == 'refs/heads/main' }}
+        run: |
+          tools/issue-comment
+          tools/package-bumper
