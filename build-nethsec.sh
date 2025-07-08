@@ -41,6 +41,7 @@ podman build \
 
 set +e
 
+status=0
 podman run \
     --env OWRT_VERSION="$OWRT_VERSION" \
     --env REPO_CHANNEL="$REPO_CHANNEL" \
@@ -57,12 +58,13 @@ podman run \
     --volume nethsecurity_builder_staging:/home/buildbot/openwrt/staging_dir \
     --volume nethsecurity_builder_cache:/home/buildbot/openwrt/.ccache \
     --volume nethsecurity_builder_downloads:/home/buildbot/openwrt/download \
-    --volume nethsecurity_builder_feeds:/home/buildbot/openwrt/feeds \
     --volume nethsecurity_builder_dl:/home/buildbot/openwrt/dl \
     nethsecurity-next \
-    "$@"
+    "$@" || status=$?
 
 podman cp nethsecurity-builder:/home/buildbot/openwrt/logs build-logs
 podman cp nethsecurity-builder:/home/buildbot/openwrt/bin bin
 podman stop nethsecurity-builder
 podman rm nethsecurity-builder
+
+exit $status

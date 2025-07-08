@@ -24,12 +24,7 @@ sed -i '1isrc-link nethsecurity /home/buildbot/openwrt/nspackages' feeds.conf.de
 find patches/ -type f -name "*.patch" | while read -r patch; do
     dir_name=$(dirname "$patch")
     dir_name=${dir_name#"patches/"}
-    if patch -d "$dir_name" -F 2 -p 1 --dry-run < "$patch" > /dev/null 2>&1; then
-        echo "Patch not yet applied — applying now."
-        patch -d "$dir_name" -F 2 -p 1 < "$patch"
-    else
-        echo "Patch appears to already be applied — skipping."
-    fi
+    patch -d "$dir_name" -F 2 -p 1 < "$patch"
 done
 
 # Conclude configuration
@@ -48,6 +43,8 @@ CONFIG_VERSION_SUPPORT_URL="https://community.nethserver.org"
 EOF
 cat "config/targets/${target}.conf" >> config/.diffconfig
 
+# Write version information into a file
+echo "${repo_channel}" > files/etc/repo-channel
 
 # Netifyd closed-sources plugin
 if [ -z "$NETIFYD_ACCESS_TOKEN" ]; then
