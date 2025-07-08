@@ -5,14 +5,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-channel=${CHANNEL:=''}
 version=${VERSION:=''}
 
-if [ -z "$CHANNEL" ]; then
-  channel="$(uci -q get ns-plug.config.channel)"
-fi
-
-base_url="$(uci -q get ns-plug.config.repository_url)/$channel"
+base_url="$(uci -q get ns-plug.config.repository_url)"
 
 source /etc/os-release
 if [ -z "$version" ]; then
