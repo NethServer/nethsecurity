@@ -18,5 +18,11 @@ if [ "$(uci -q get ns-plug.config.repository_url)" = "" ]; then
     uci commit ns-plug
 fi
 
+if [ -z "$(uci -q get ns-plug.config.channel)" ]; then
+  # Set the variable to the channel set in the image
+  uci set ns-plug.config.channel="$(cat /etc/repo-channel)"
+  uci commit ns-plug
+fi
+
 # restore subscription channel on upgrade
 /usr/sbin/distfeed-setup

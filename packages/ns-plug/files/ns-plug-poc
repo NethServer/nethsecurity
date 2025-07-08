@@ -1,0 +1,135 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import argparse
+import base64
+import json
+import logging
+import subprocess
+from argparse import Namespace
+import requests
+from euci import EUci
+
+e_uci = EUci()
+
+
+def register(args: Namespace) -> None:
+    # Parse the token from the command line argument
+    data = json.loads(base64.b64decode(args.token).decode('utf-8'))
+    e_uci.set('ns-plug-poc', 'config', 'controller')
+    e_uci.set('ns-plug-poc', 'config', 'endpoint', data['endpoint'])
+    e_uci.set('ns-plug-poc', 'config', 'id', data['id'])
+    e_uci.set('ns-plug-poc', 'config', 'token', data['token'])
+    e_uci.set('ns-plug-poc', 'config', 'no_verify_ssl', args.no_verify_ssl)
+    e_uci.save('ns-plug-poc')
+    log = logging.getLogger('ns-plug-poc')
+    log.info('Register command executed successfully.')
+
+
+def __has_pending_changes(config: str):
+    result = subprocess.run(['ubus', 'call', 'uci', 'changes', json.dumps({'config': config})], check=True,
+                            capture_output=True, text=True)
+    changes = json.loads(result.stdout)
+    return 'changes' in changes and len(changes['changes']) > 0
+
+
+def __setup():
+    # Fetch configuration from UCI
+    endpoint = e_uci.get('ns-plug-poc', 'config', 'endpoint', dtype=str, default=None)
+    if endpoint is None:
+        raise ValueError('Endpoint not configured. Please run the register command first.')
+    unit_id = e_uci.get('ns-plug-poc', 'config', 'id', dtype=str, default=None)
+    token = e_uci.get('ns-plug-poc', 'config', 'token', dtype=str, default=None)
+    headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
+    verify_ssl = e_uci.get('ns-plug-poc', 'config', 'no_verify_ssl', dtype=bool, default=False)
+    print(verify_ssl)
+
+    # Ask upstream for the WireGuard configuration
+    response = requests.get(endpoint, headers=headers, verify=verify_ssl, auth=(unit_id, token), timeout=30)
+    response.raise_for_status()
+    response_data = response.json()
+    # Check if some changes are pending
+    pending_changes = __has_pending_changes('network') or __has_pending_changes('firewall')
+    # Set up WireGuard interface configuration
+    e_uci.set("network", "controller", "interface")
+    e_uci.set("network", "controller", "proto", "wireguard")
+    e_uci.set("network", "controller", "private_key", response_data["private_key"])
+    e_uci.set("network", "controller", "addresses", response_data["address"])
+    # Set up WireGuard peer configuration
+    e_uci.set("network", "wgserver", "wireguard_controller")
+    e_uci.set("network", "wgserver", "public_key", response_data["public_key"])
+    e_uci.set("network", "wgserver", "endpoint_host", response_data["endpoint"])
+    e_uci.set("network", "wgserver", "endpoint_port", response_data["port"])
+    e_uci.set("network", "wgserver", "persistent_keepalive", "25")
+    e_uci.set("network", "wgserver", "route_allowed_ips", "1")
+    e_uci.set("network", "wgserver", "allowed_ips", response_data["allowed_ips"])
+    # Create firewall zone
+    e_uci.set("firewall", "ns_controller", "zone")
+    e_uci.set("firewall", "ns_controller", "name", "controller")
+    e_uci.set("firewall", "ns_controller", "input", "ACCEPT")
+    e_uci.set("firewall", "ns_controller", "forward", "DROP")
+    e_uci.set("firewall", "ns_controller", "output", "ACCEPT")
+    e_uci.set("firewall", "ns_controller", "log", "0")
+    e_uci.set("firewall", "ns_controller", "network", ["controller"])
+    # Save configuration if there are not pending changes
+    if not pending_changes:
+        e_uci.save("network")
+        e_uci.commit("network")
+        e_uci.save("firewall")
+        e_uci.commit("firewall")
+        subprocess.run(["reload_config"], capture_output=True, check=True)
+
+
+def __teardown():
+    # Check if some changes are pending
+    pending_changes = __has_pending_changes('network') or __has_pending_changes('firewall')
+    # Delete configuration
+    e_uci.delete('network', 'controller')
+    e_uci.delete('network', 'wgserver')
+    e_uci.delete('firewall', 'ns_controller')
+    # Save configuration if there are not pending changes
+    if not pending_changes:
+        e_uci.save("network")
+        e_uci.commit("network")
+        e_uci.save("firewall")
+        e_uci.commit("firewall")
+        subprocess.run(["reload_config"], capture_output=True, check=True)
+
+
+async def __ping():
+    pass
+
+
+def daemonize(args: Namespace) -> None:
+    __setup()
+    #__teardown()
+
+
+def main():
+    parser = argparse.ArgumentParser(description='NS Plug Proof of Concept')
+    parser.add_argument('--log-level', default='info', choices=['debug', 'info', 'warning', 'error', 'critical'])
+    commands = parser.add_subparsers(dest='command', required=True)
+
+    # Register command
+    register_parser = commands.add_parser('register', help='Register the unit to a controller.')
+    register_parser.set_defaults(func=register)
+    register_parser.add_argument('token')
+    register_parser.add_argument('--no-verify-ssl', action='store_true', help='Disable SSL certificate verification')
+
+    # Daemonize command
+    daemonize_parser = commands.add_parser('daemonize', help='Daemonize the NS Plug service.')
+    daemonize_parser.set_defaults(func=daemonize)
+
+    args = parser.parse_args()
+    logger = logging.getLogger('ns-plug-poc')
+    logger.setLevel(args.log_level.upper())
+    logger.addHandler(logging.StreamHandler())
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()
