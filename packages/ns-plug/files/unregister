@@ -27,7 +27,7 @@ uci set ns-plug.config.api_url=""
 uci set ns-plug.config.inventory_url=""
 uci set ns-plug.config.system_id=""
 uci set ns-plug.config.secret=""
-uci set ns-plug.config.repository_url="https://updates.nethsecurity.nethserver.org"
+uci set ns-plug.config.repository_url="https://updates.nethsecurity.nethserver.org/$(cat /etc/repo-channel)"
 
 # Save config
 uci commit ns-plug
