@@ -6,38 +6,24 @@
 #
 
 channel=${CHANNEL:=''}
-owrt_version=${OWRT_VERSION:=''}
+version=${VERSION:=''}
 
-base_url="$(uci -q get ns-plug.config.repository_url)"
-
-source /etc/os-release
-if [ -z "$channel" ]; then
-    if [ -z "$(uci -q get ns-plug.config.system_id)" ]; then
-        channel="dev"
-        # check if ns_version is stable or not
-        ns_version=$(echo "$VERSION" | cut -d- -f3- | cut -d. -f2-)
-        if [[ "$ns_version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$ ]]; then
-            pre_release="${BASH_REMATCH[5]:-""}"
-            if [ -z "$pre_release" ]; then
-                channel="stable"
-            fi
-        fi
-        base_url="$base_url/$channel"
-    fi
-else
-    # Setup from env
-    base_url="$base_url/$channel"
+if [ -z "$CHANNEL" ]; then
+  channel="$(uci -q get ns-plug.config.channel)"
 fi
 
-if [ -z "$owrt_version" ]; then
-    owrt_version=$(echo "$VERSION" | cut -d- -f2)
+base_url="$(uci -q get ns-plug.config.repository_url)/$channel"
+
+source /etc/os-release
+if [ -z "$version" ]; then
+    version="$VERSION"
 fi
 
 cat << EOF > /etc/opkg/distfeeds.conf
-src/gz nethsecurity_core $base_url/$owrt_version/targets/x86/64/packages
-src/gz nethsecurity_base $base_url/$owrt_version/packages/x86_64/base
-src/gz nethsecurity_luci $base_url/$owrt_version/packages/x86_64/luci
-src/gz nethsecurity_nethsecurity $base_url/$owrt_version/packages/x86_64/nethsecurity
-src/gz nethsecurity_packages $base_url/$owrt_version/packages/x86_64/packages
-src/gz nethsecurity_routing $base_url/$owrt_version/packages/x86_64/routing
+src/gz nethsecurity_core $base_url/$version/targets/x86/64/packages
+src/gz nethsecurity_base $base_url/$version/packages/x86_64/base
+src/gz nethsecurity_luci $base_url/$version/packages/x86_64/luci
+src/gz nethsecurity_nethsecurity $base_url/$version/packages/x86_64/nethsecurity
+src/gz nethsecurity_packages $base_url/$version/packages/x86_64/packages
+src/gz nethsecurity_routing $base_url/$version/packages/x86_64/routing
 EOF
