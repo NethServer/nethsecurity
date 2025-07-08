@@ -101,12 +101,13 @@ jobs:
           RCLONE_CONFIG_REPO_PROVIDER: DigitalOcean
           RCLONE_CONFIG_REPO_TYPE: s3
           RCLONE_CONFIG_REPO_ENV_AUTH: true
+          RCLONE_CONFIG_REPO_ACL: public-read
           RCLONE_CONFIG_REPO_ENDPOINT: ams3.digitaloceanspaces.com
           RCLONE_CONFIG_REPO_ACCESS_KEY_ID: ${{ secrets.DO_SPACE_ACCESS_KEY }}
           RCLONE_CONFIG_REPO_SECRET_ACCESS_KEY: ${{ secrets.DO_SPACE_SECRET_KEY }}
         run: |
-          rclone sync --dry-run bin/ repo:nethsecurity/${{ env.REPO_CHANNEL }}/${{ env.NETHSECURITY_VERSION }} --progress --create-empty-src-dirs
-          rclone copy --dry-run latest_release repo:nethsecurity/${{ env.REPO_CHANNEL }}/ --progress --create-empty-src-dirs
+          rclone sync bin/ repo:nethsecurity/${{ env.REPO_CHANNEL }}/${{ env.NETHSECURITY_VERSION }} --progress --create-empty-src-dirs
+          rclone copy latest_release repo:nethsecurity/${{ env.REPO_CHANNEL }}/ --progress --create-empty-src-dirs
       - name: Run tools
         if: ${{ github.ref == 'refs/heads/main' }}
         run: |
