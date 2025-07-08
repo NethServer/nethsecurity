@@ -42,17 +42,6 @@ def get_update_schedule():
     except:
         return -1
 
-def get_distfeed_channel():
-    with open('/etc/opkg/distfeeds.conf', 'r') as f:
-        for line in f.readlines():
-            try:
-                (rtype, rname, url) = line.split(" ")
-                path = urlparse(url).path[1:] # strip first /
-                return path[0:path.index('/')]
-            except:
-                continue
-    return 'stable'
-
 # APIs
 
 def check_package_updates():
@@ -92,8 +81,6 @@ def check_system_update():
     url = e_uci.get('ns-plug', 'config', 'repository_url', default=None)
     if url is None:
         return utils.generic_error("repository_url_not_set")
-    if e_uci.get('ns-plug', 'config', 'system_id', default=None) is None:
-        url = f"{url}/{get_distfeed_channel()}"
     try:
         response = requests.get(f"{url}/latest_release", headers={"Accept": "application/json"}, timeout=5)
         response.raise_for_status()
