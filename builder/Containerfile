@@ -54,11 +54,9 @@ RUN mkdir -p \
       build_dir \
       dl \
       download \
-      feeds \
       staging_dir
 VOLUME "/home/buildbot/openwrt/.ccache" \
     "/home/buildbot/openwrt/build_dir" \
     "/home/buildbot/openwrt/dl" \
     "/home/buildbot/openwrt/download" \
-    "/home/buildbot/openwrt/feeds" \
     "/home/buildbot/openwrt/staging_dir"
