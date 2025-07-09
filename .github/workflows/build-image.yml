@@ -61,7 +61,12 @@ jobs:
             echo "REPO_CHANNEL=${{ github.head_ref }}" >> $GITHUB_ENV
           fi
       - name: Generate build.conf
-        run: cp build.conf.example build.conf
+        run: |
+          cp build.conf.example build.conf
+          # if NETIFYD_ACCESS_TOKEN is set, set NETIFYD_ENABLED to 1
+          if [[ -n "${{ env.NETIFYD_ACCESS_TOKEN }}" ]]; then
+            sed -i 's/^NETIFYD_ENABLED=.*/NETIFYD_ENABLED=1/' build.conf
+          fi
       - name: Setup NETHSECURITY_VERSION for release
         run: |
           # Fetch NETHSECURITY_VERSION version from build.conf
