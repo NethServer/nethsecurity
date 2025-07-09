@@ -15,7 +15,7 @@ if [ -f build.conf ]; then
 fi
 set +o allexport
 
-# Check required environment variables, override .env variables if set
+# Check required environment variables
 OWRT_VERSION=${OWRT_VERSION:?Missing OWRT_VERSION environment variable}
 NETHSECURITY_VERSION=${NETHSECURITY_VERSION:?Missing NETHSECURITY_VERSION environment variable}
 REPO_CHANNEL=${REPO_CHANNEL:-dev}
@@ -48,10 +48,6 @@ set +e
 
 status=0
 podman run \
-    --env OWRT_VERSION="$OWRT_VERSION" \
-    --env REPO_CHANNEL="$REPO_CHANNEL" \
-    --env NETHSECURITY_VERSION="$NETHSECURITY_VERSION" \
-    --env TARGET="$TARGET" \
     --env USIGN_PRIV_KEY="$USIGN_PRIV_KEY" \
     --env USIGN_PUB_KEY="$USIGN_PUB_KEY" \
     --env NETIFYD_ENABLED="$NETIFYD_ENABLED" \

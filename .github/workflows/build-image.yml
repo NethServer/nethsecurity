@@ -60,17 +60,20 @@ jobs:
           elif [[ "${{ github.event_name }}" == 'pull_request' && ! -v REPO_CHANNEL ]]; then
             echo "REPO_CHANNEL=${{ github.head_ref }}" >> $GITHUB_ENV
           fi
-      - name: Generate build.conf
+      - name: Generate build variables
         run: |
-          cp build.conf.example build.conf
+          # export OWRT_VERSION from build.conf.example
+          echo "OWRT_VERSION=$(grep -oP 'OWRT_VERSION=\K.*' build.conf.example)" >> $GITHUB_ENV
+          # export NETHSECURITY_VERSION from build
+          echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.example)" >> $GITHUB_ENV
           # if NETIFYD_ACCESS_TOKEN is set, set NETIFYD_ENABLED to 1
           if [[ -n "${{ env.NETIFYD_ACCESS_TOKEN }}" ]]; then
-            sed -i 's/^NETIFYD_ENABLED=.*/NETIFYD_ENABLED=1/' build.conf
+            echo "NETIFYD_ENABLED=1" >> $GITHUB_ENV
+          else
+            echo "NETIFYD_ENABLED=0" >> $GITHUB_ENV
           fi
-      - name: Setup NETHSECURITY_VERSION for release
-        run: |
-          # Fetch NETHSECURITY_VERSION version from build.conf
-          echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf)" >> $GITHUB_ENV
+          # save NETHSECURITY_VERSION to env
+          echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.example)" >> $GITHUB_ENV
       - name: Build the image
         run: ./build-nethsec.sh
       - name: Update latest_release file
