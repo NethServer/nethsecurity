@@ -14,7 +14,7 @@ if [ ! "$NETIFYD_ENABLED" -eq "0" ]; then
 fi
 
 # if command $1 is a file or a executable, run it
-if [ -f "$1" ] && [ -x "$1" ]; then
+if which "$1" >/dev/null 2>&1; then
     exec "$@"
 else
     # Otherwise, assume it's a make command and run it 
