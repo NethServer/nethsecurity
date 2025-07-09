@@ -40,6 +40,7 @@ podman build \
     --build-arg OWRT_VERSION="$OWRT_VERSION" \
     --build-arg REPO_CHANNEL="$REPO_CHANNEL" \
     --build-arg TARGET="$TARGET" \
+    --build-arg NETHSECURITY_VERSION="$NETHSECURITY_VERSION" \
     --build-arg NETIFYD_ENABLED="$NETIFYD_ENABLED" \
     .
 
