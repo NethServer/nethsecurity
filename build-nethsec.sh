@@ -24,8 +24,8 @@ NETIFYD_ENABLED=${NETIFYD_ENABLED:-0}
 NETIFYD_ACCESS_TOKEN=${NETIFYD_ACCESS_TOKEN}
 
 if [ -z "$USIGN_PRIV_KEY" ] || [ -z "$USIGN_PUB_KEY" ]; then
-    USIGN_PRIV_KEY="$(cat ./build-sign-key)"
-    USIGN_PUB_KEY="$(cat ./build-sign-key.pub)"
+    USIGN_PRIV_KEY="$(cat ./key-build)"
+    USIGN_PUB_KEY="$(cat ./key-build.pub)"
 fi
 
 # Clean up previous builds

@@ -2,19 +2,6 @@ name: "Build NethSecurity image"
 
 on:
   workflow_dispatch:
-    inputs:
-      target:
-        description: "Target architecture"
-        required: true
-        default: 'x86_64'
-        type: choice
-        options:
-          - x86_64
-          - lamobo
-      channel:
-        description: "Repository channel"
-        required: false
-        type: string
   push:
     branches:
       - 'main'
@@ -40,43 +27,59 @@ jobs:
       USIGN_PUB_KEY: ${{ secrets.USIGN_PUB_KEY }}
       USIGN_PRIV_KEY: ${{ secrets.USIGN_PRIV_KEY }}
       NETIFYD_ACCESS_TOKEN: ${{ secrets.NETIFYD_ACCESS_TOKEN }}
-      TARGET: ${{ github.event.inputs.target }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
-      - name: Setup REPO_CHANNEL
-        run: |
-          # When pushing a tag, set REPO_CHANNEL to stable
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "REPO_CHANNEL=stable" >> $GITHUB_ENV
-          # When pushing to main branch, set REPO_CHANNEL to dev
-          elif [[ "${{ github.ref }}" == refs/heads/main ]]; then
-            echo "REPO_CHANNEL=dev" >> $GITHUB_ENV
-          # Otherwise, get the branch name of the PR pushing if REPO_CHANNEL is not set
-          elif [[ "${{ github.event_name }}" == 'pull_request' && ! -v REPO_CHANNEL ]]; then
-            echo "REPO_CHANNEL=${{ github.head_ref }}" >> $GITHUB_ENV
-          fi
       - name: Generate build variables
+        id: build_vars
         run: |
           # export OWRT_VERSION from build.conf.example
-          echo "OWRT_VERSION=$(grep -oP 'OWRT_VERSION=\K.*' build.conf.example)" >> $GITHUB_ENV
+          echo "OWRT_VERSION=$(grep -oP 'OWRT_VERSION=\K.*' build.conf.example)" >> $GITHUB_OUTPUT
+
+          # export TARGET from build.conf.example
+          echo "TARGET=$(grep -oP 'TARGET=\K.*' build.conf.example)" >> $GITHUB_OUTPUT
+
           # export NETHSECURITY_VERSION from build
-          echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.example)" >> $GITHUB_ENV
+          echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.example)" >> $GITHUB_OUTPUT
+
           # if NETIFYD_ACCESS_TOKEN is set, set NETIFYD_ENABLED to 1
           if [[ -n "${{ env.NETIFYD_ACCESS_TOKEN }}" ]]; then
-            echo "NETIFYD_ENABLED=1" >> $GITHUB_ENV
+            echo "NETIFYD_ENABLED=1" >> $GITHUB_OUTPUT
           else
-            echo "NETIFYD_ENABLED=0" >> $GITHUB_ENV
+            echo "NETIFYD_ENABLED=0" >> $GITHUB_OUTPUT
           fi
-          # save NETHSECURITY_VERSION to env
-          echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.example)" >> $GITHUB_ENV
+
+          # When pushing a tag, set REPO_CHANNEL to stable
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "REPO_CHANNEL=stable" >> $GITHUB_OUTPUT
+            # save NETHSECURITY_VERSION to env
+            echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.example)" >> $GITHUB_OUTPUT
+
+          # When pushing to main branch, set REPO_CHANNEL to dev
+          elif [[ "${{ github.ref }}" == refs/heads/main ]]; then
+            echo "REPO_CHANNEL=dev" >> $GITHUB_OUTPUT
+            # save NETHSECURITY_VERSION to env and append -dev to it
+            echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.example)-dev-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+          # Otherwise, get the branch name of the PR pushing if REPO_CHANNEL is not set
+          elif [[ "${{ github.event_name }}" == 'pull_request' && ! -v REPO_CHANNEL ]]; then
+            echo "REPO_CHANNEL=${{ github.head_ref }}" >> $GITHUB_OUTPUT
+            # save NETHSECURITY_VERSION to env and append last commit hash to it
+            echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.example)-${{ github.head_ref }}-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          fi
       - name: Build the image
+        env:
+          OWRT_VERSION: ${{ steps.build_vars.outputs.OWRT_VERSION }}
+          NETHSECURITY_VERSION: ${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}
+          REPO_CHANNEL: ${{ steps.build_vars.outputs.REPO_CHANNEL }}
+          NETIFYD_ENABLED: ${{ steps.build_vars.outputs.NETIFYD_ENABLED }}
+          TARGET: ${{ steps.build_vars.outputs.TARGET }}
         run: ./build-nethsec.sh
       - name: Update latest_release file
         run: |
           # Create release file pointing to 8-VERSION
-          echo "${{ env.NETHSECURITY_VERSION }}" > latest_release
+          echo "${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}" > latest_release
       - uses: actions/upload-artifact@v4
         name: Upload image
         with:
@@ -113,8 +116,8 @@ jobs:
           RCLONE_CONFIG_REPO_ACCESS_KEY_ID: ${{ secrets.DO_SPACE_ACCESS_KEY }}
           RCLONE_CONFIG_REPO_SECRET_ACCESS_KEY: ${{ secrets.DO_SPACE_SECRET_KEY }}
         run: |
-          rclone sync bin/ repo:nethsecurity/${{ env.REPO_CHANNEL }}/${{ env.NETHSECURITY_VERSION }} --progress --create-empty-src-dirs
-          rclone copy latest_release repo:nethsecurity/${{ env.REPO_CHANNEL }}/ --progress --create-empty-src-dirs
+          rclone sync bin/ repo:nethsecurity/${{ steps.build_vars.outputs.REPO_CHANNEL }}/${{ steps.build_vars.outputs.NETHSECURITY_VERSION }} --progress --create-empty-src-dirs
+          rclone copy latest_release repo:nethsecurity/${{ steps.build_vars.outputs.REPO_CHANNEL }}/ --progress --create-empty-src-dirs
       - name: Run tools
         if: ${{ github.ref == 'refs/heads/main' }}
         run: |
