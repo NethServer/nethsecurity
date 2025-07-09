@@ -37,9 +37,6 @@ jobs:
     name: 'Build NethSecurity image'
     runs-on: self-hosted
     env:
-      DO_SPACE_NAME: 'nethsecurity'
-      DO_SPACE_REGION: 'ams3'
-      CDN_NAME: 'updates.nethsecurity.nethserver.org'
       USIGN_PUB_KEY: ${{ secrets.USIGN_PUB_KEY }}
       USIGN_PRIV_KEY: ${{ secrets.USIGN_PRIV_KEY }}
       NETIFYD_ACCESS_TOKEN: ${{ secrets.NETIFYD_ACCESS_TOKEN }}

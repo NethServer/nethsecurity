@@ -1,0 +1,43 @@
+name: "Clean up"
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "Repository channel"
+        required: false
+        type: string
+      
+  pull_request:
+    types: 
+      - closed
+
+jobs:
+  old_builds:
+    name: "Clean up branches"
+    runs-on: ubuntu-22.04
+    env:
+      DO_SPACE_NAME: 'nethsecurity'
+      DO_SPACE_REGION: 'ams3'
+      CDN_NAME: 'updates.nethsecurity.nethserver.org'
+    steps:
+      - name: Setup rclone
+        uses: AnimMouse/setup-rclone@v1
+      - name: Find REPO_CHANNEL
+        id: repo_channel
+        run: |
+          if [[ "${{ github.event.pull_request.merged }}" == 'true' ]]; then
+            echo "REPO_CHANNEL=${{ github.head_ref }}" >> $GITHUB_ENV
+          elif [[ "${{ github.event_name }}" == 'workflow_dispatch' && -n "${{ github.event.inputs.channel }}" ]]; then
+            echo "REPO_CHANNEL=${{ github.event.inputs.channel }}" >> $GITHUB_ENV
+          fi
+      - name: Remove old branches
+        if: steps.repo_channel.outputs.REPO_CHANNEL != 'dev' && steps.repo_channel.outputs.REPO_CHANNEL != 'stable'
+        env:
+          RCLONE_CONFIG_REPO_PROVIDER: DigitalOcean
+          RCLONE_CONFIG_REPO_TYPE: s3
+          RCLONE_CONFIG_REPO_ENV_AUTH: true
+          RCLONE_CONFIG_REPO_ENDPOINT: ams3.digitaloceanspaces.com
+          RCLONE_CONFIG_REPO_ACCESS_KEY_ID: ${{ secrets.DO_SPACE_ACCESS_KEY }}
+          RCLONE_CONFIG_REPO_SECRET_ACCESS_KEY: ${{ secrets.DO_SPACE_SECRET_KEY }}
+        run: rclone purge repo:nethsecurity/${{  steps.repo_channel.outputs.REPO_CHANNEL }}
