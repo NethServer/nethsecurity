@@ -66,7 +66,7 @@ jobs:
           elif [[ "${{ github.event_name }}" == 'pull_request' && ! -v REPO_CHANNEL ]]; then
             echo "REPO_CHANNEL=${{ github.head_ref }}" >> $GITHUB_OUTPUT
             # save NETHSECURITY_VERSION to env and append last commit hash to it
-            echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.example)-${{ github.head_ref }}-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+            echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.example)-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
           fi
       - name: Build the image
         env:
