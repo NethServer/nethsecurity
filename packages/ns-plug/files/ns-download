@@ -45,44 +45,21 @@ fi
 base_url="$(uci -q get ns-plug.config.repository_url)"
 
 # If subscription is active
-if [ "$(uci -q get ns-plug.config.system_id)" ]; then
-    if [ "$latest" -eq 1 ]; then
-        version=$(curl -L -s -m 10 $base_url/latest_release)
-        if [ -z "$version" ]; then
-            exit 1
-        fi
-    else
-        version=$VERSION
-    fi
-    openwrt_version=$(echo $version | cut -d'-' -f2)
 
-    hash="$DL_DIR/sha256"
-    img_name="nethsecurity-$version-$ARCH-generic-squashfs-combined-efi.img.gz"
-    img="$DL_DIR/$img_name"
-    img_url="$base_url/$openwrt_version/targets/$OPENWRT_BOARD/$img_name"
-    hash_url="$base_url/$openwrt_version/targets/$OPENWRT_BOARD/sha256sums"
+if [ "$latest" -eq 1 ]; then
+    version=$(curl -L -s -m 10 $base_url/latest_release)
+    if [ -z "$version" ]; then
+        exit 1
+    fi
 else
-    # Extract channel from nethsecurity_core repository url
-    url=$(cat /etc/opkg/distfeeds.conf | grep nethsecurity_core | awk '{print $3}')
-    path=${url#"$base_url"}
-    channel=$(echo $path | cut -d"/" -f2)
-
-    # Set version to download
-    if [ "$latest" -eq 1 ]; then
-        version=$(curl -L -s -m 10 $base_url/$channel/latest_release)
-        if [ -z "$version" ]; then
-            exit 1
-        fi
-    else
-        version=$VERSION
-    fi
-
-    hash="$DL_DIR/sha256"
-    img_name="nethsecurity-$version-$ARCH-generic-squashfs-combined-efi.img.gz"
-    img="$DL_DIR/$img_name"
-    img_url="$base_url/$channel/$version/targets/$OPENWRT_BOARD/$img_name"
-    hash_url="$base_url/$channel/$version/targets/$OPENWRT_BOARD/sha256sums"
+    version=$VERSION
 fi
+
+hash="$DL_DIR/sha256"
+img_name="nethsecurity-$version-$ARCH-generic-squashfs-combined-efi.img.gz"
+img="$DL_DIR/$img_name"
+img_url="$base_url/$version/targets/$OPENWRT_BOARD/$img_name"
+hash_url="$base_url/$version/targets/$OPENWRT_BOARD/sha256sums"
 
 # Download if image does not exists
 if [ ! -d "$DL_DIR" ] || [ ! -f "$img" ] || [ ! -f "$hash" ]; then

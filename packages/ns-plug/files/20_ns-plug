@@ -18,5 +18,10 @@ if [ "$(uci -q get ns-plug.config.repository_url)" = "" ]; then
     uci commit ns-plug
 fi
 
+# ensure repository URL is set with the new format
+if [ -z "$(uci -q get ns-plug.config.system_id)" ]; then
+  uci set ns-plug.config.repository_url="https://updates.nethsecurity.nethserver.org/$(cat /etc/repo-channel)"
+fi
+
 # restore subscription channel on upgrade
 /usr/sbin/distfeed-setup

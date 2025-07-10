@@ -95,8 +95,12 @@ def check_system_update():
                 return utils.generic_error("maintenance")
             case requests.codes.unauthorized:
                 return utils.generic_error("unauthorized")
-            case _:
+            case requests.codes.server_error:
                 return utils.generic_error("server_error")
+            case requests.codes.not_found:
+                return utils.generic_error("not_found")
+            case _:
+                return utils.generic_error("generic_error")
     except Exception:
         return utils.generic_error("generic_error")
 
