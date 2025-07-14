@@ -3,9 +3,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-# 2025-06-20
-FROM debian:12.11
-ARG SOURCE_DATE_EPOCH=1750425039
+# 2025-06-30
+FROM debian:12.11@sha256:d42b86d7e24d78a33edcf1ef4f65a20e34acb1e1abd53cabc3f7cdf769fc4082
+ARG SOURCE_DATE_EPOCH=1751241600
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends --no-install-suggests \
         bison \
