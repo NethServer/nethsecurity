@@ -16,7 +16,8 @@ The release process is a set of steps to prepare a new image or a new package re
 
 ### New image
 
-A new image should be released when:
+A new image must be released when:
+- a rebase to the new OpenWRT version has been made during development
 - a new security fix is available
 - a group of relevant features are ready to be released
 
