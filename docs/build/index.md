@@ -126,12 +126,12 @@ Stable version example:
 
 Unstable version example
 ```
-8.6.0-dev
+8.6.0-beta.1
 ```
 
 Development version example:
 ```
-8.6.0-feature-26d3f78
+8.6.0-feature-branch-name-26d3f78
 ```
 
 ## Upstream version change
