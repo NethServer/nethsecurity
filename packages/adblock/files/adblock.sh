@@ -570,6 +570,7 @@ f_extconf() {
 						set firewall."adblock_${zone}${port}".target="DNAT"
 						set firewall."adblock_${zone}${port}".family="any"
 						set firewall."adblock_${zone}${port}".ipset="!tsdns_bypass"
+						add_list firewall."adblock_${zone}${port}".ns_tag="automated"
 					EOC
 				fi
 				fwcfg="${fwcfg/adblock_${zone}${port}[ |\$]/}"
