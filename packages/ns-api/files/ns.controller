@@ -119,6 +119,7 @@ def info():
             break
     ret["version"] = get_version()
     ret["unit_name"] = u.get("ns-plug", "config", "unit_name", default=get_hostname())
+    ret["description"] = u.get("ns-plug", "config", "description", default="")
     ret["fqdn"] = get_hostname()
     ret["system_id"] = u.get("ns-plug", "config", "system_id", default="")
     ret["subscription_type"] = u.get("ns-plug", "config", "type", default="")

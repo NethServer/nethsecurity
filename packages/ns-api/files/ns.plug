@@ -44,6 +44,7 @@ def status():
     u = EUci()
     server = u.get("ns-plug", "config", "server", default=None)
     unit_name = u.get("ns-plug", "config", "unit_name", default=get_hostname())
+    description = u.get("ns-plug", "config", "description", default='')
     unit_id = u.get("ns-plug", "config", "unit_id", default='')
     tls_verify = u.get("ns-plug", "config", "tls_verify", default="1") == "1"
     subscription = u.get("ns-plug", "config", "type", default="")
@@ -58,7 +59,8 @@ def status():
                 "unit_id": unit_id,
                 "tls_verify": tls_verify,
                 "push_status": "disabled",
-                "push_last_sent": last_sent
+                "push_last_sent": last_sent,
+                "description": description
             }
 
     # if tun-plug is present
@@ -83,10 +85,11 @@ def status():
             "unit_id": unit_id,
             "tls_verify": tls_verify,
             "push_status": "enabled" if subscription else "disabled",
-            "push_last_sent": last_sent
+            "push_last_sent": last_sent,
+            "description": description
         }
 
-def register(join_code, tls_verify, unit_name):
+def register(join_code, tls_verify, unit_name, description):
     u = EUci()
     try:
         config = json.loads(base64.b64decode(join_code).decode('utf-8'))
@@ -99,6 +102,7 @@ def register(join_code, tls_verify, unit_name):
     if not unit_name:
         unit_name = get_hostname()
     u.set("ns-plug", "config", "unit_name", unit_name)
+    u.set("ns-plug", "config", "description", description)
     if tls_verify:
         u.set("ns-plug", "config", "tls_verify", "1")
     else:
@@ -155,7 +159,7 @@ cmd = sys.argv[1]
 
 if cmd == 'list':
     print(json.dumps({
-        "register": {"join_code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "tls_verify": False, "unit_name": "fw.test.local"},
+        "register": {"join_code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "tls_verify": False, "unit_name": "fw.test.local", "description": "my unit"},
         "unregister": {},
         "status":{},
         "restart": {}
@@ -164,7 +168,7 @@ else:
     action = sys.argv[2]
     if action == "register":
         args = json.loads(sys.stdin.read())
-        ret = register(args["join_code"], args["tls_verify"], args["unit_name"])
+        ret = register(args["join_code"], args["tls_verify"], args["unit_name"], args.get("description", ""))
     elif action == "status":
         ret = status()
     elif action == "unregister":

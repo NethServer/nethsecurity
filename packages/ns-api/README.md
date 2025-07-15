@@ -6851,7 +6851,8 @@ Response example with connected machine:
   "unit_id": "94615a9e-2fae-4ac4-91b0-6c03e624ab48",
   "tls_verify": false,
   "push_status": "enabled",
-  "push_last_sent": 1727703300
+  "push_last_sent": 1727703300,
+  "description": "My NethSecurity unit"
 }
 ```
 
@@ -6865,7 +6866,8 @@ Response example for an unconfigured machine:
   "unit_id": "",
   "tls_verify": true,
   "push_status": "disabled",
-  "push_last_sent": -1
+  "push_last_sent": -1,
+  "description": ""
 }
 ```
 
@@ -6876,12 +6878,13 @@ Possible values for `status` are `connected`, `unregistered` and `pending`.
 time the unit has pushed data to the controller.
 If `unit_name` has not been previously set, default value is the hostname of the machine.
 The `unit_id` is generated from the controller and contained inside the join_code.
+The `description` field is optional and can be used to provide additional information about the unit.
 
 ### register
 
 Register the device to the NethSecurity controller:
 ```
-api-cli ns.plug register --data '{"join_code": "eyJmcWRuIjoiY29udHJvbGxlci5ncy5uZXRoc2VydmVyLm5ldCIsInRva2VuIjoiMTIzNCIsInVuaXRfaWQiOiI5Njk0Y2Y4ZC03ZmE5LTRmN2EtYjFjNC1iY2Y0MGUzMjhjMDIifQ==", "tls_verify": true, "unit_name": "fw.test.local"}'
+api-cli ns.plug register --data '{"join_code": "eyJmcWRuIjoiY29udHJvbGxlci5ncy5uZXRoc2VydmVyLm5ldCIsInRva2VuIjoiMTIzNCIsInVuaXRfaWQiOiI5Njk0Y2Y4ZC03ZmE5LTRmN2EtYjFjNC1iY2Y0MGUzMjhjMDIifQ==", "tls_verify": true, "unit_name": "fw.test.local", "description": "My NethSecurity unit"}'
 ```
 
 Response example:
@@ -6901,7 +6904,7 @@ Response example:
 {"result": "success"}
 ```
 
-Please note that the unregister will also cleanup the `unit_name` field.
+Please note that the unregister will also cleanup the `unit_name` and `description` fields.
 
 ### restart
 
