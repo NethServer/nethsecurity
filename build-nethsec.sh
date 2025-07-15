@@ -23,20 +23,19 @@ TARGET=${TARGET:-x86_64}
 NETIFYD_ENABLED=${NETIFYD_ENABLED:-0}
 NETIFYD_ACCESS_TOKEN=${NETIFYD_ACCESS_TOKEN}
 
-if [ -z "$USIGN_PRIV_KEY" ] || [ -z "$USIGN_PUB_KEY" ]; then
+if [ -f "./key-build" ] && [ -f "./key-build.pub" ]; then
     USIGN_PRIV_KEY="$(cat ./key-build)"
     USIGN_PUB_KEY="$(cat ./key-build.pub)"
 fi
 
-# Clean up previous builds
-rm -rf bin
-rm -rf build-logs
 
 podman build \
     --force-rm \
     --layers \
     --file builder/Containerfile \
     --tag nethsecurity-next \
+    --target builder \
+    --jobs 0 \
     --build-arg OWRT_VERSION="$OWRT_VERSION" \
     --build-arg REPO_CHANNEL="$REPO_CHANNEL" \
     --build-arg TARGET="$TARGET" \
@@ -64,8 +63,14 @@ podman run \
     nethsecurity-next \
     "$@" || status=$?
 
+if [ $status -eq 0 ]; then
+    # Clean up previous builds
+    rm -rf bin
+    podman cp nethsecurity-builder:/home/buildbot/openwrt/bin bin
+fi
+
+rm -rf build-logs
 podman cp nethsecurity-builder:/home/buildbot/openwrt/logs build-logs
-podman cp nethsecurity-builder:/home/buildbot/openwrt/bin bin
 podman stop nethsecurity-builder
 podman rm nethsecurity-builder
 

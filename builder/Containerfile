@@ -4,7 +4,7 @@
 #
 
 # 2025-06-30
-FROM debian:12.11@sha256:d42b86d7e24d78a33edcf1ef4f65a20e34acb1e1abd53cabc3f7cdf769fc4082
+FROM debian:12.11@sha256:d42b86d7e24d78a33edcf1ef4f65a20e34acb1e1abd53cabc3f7cdf769fc4082 AS base
 ARG SOURCE_DATE_EPOCH=1751241600
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends --no-install-suggests \
@@ -12,6 +12,7 @@ RUN apt-get update \
         build-essential \
         ca-certificates \
         clang \
+        cmake \
         curl \
         file \
         flex \
@@ -28,11 +29,18 @@ RUN apt-get update \
         unzip \
         vim \
         wget \
-        zlib1g-dev \
-    && groupadd -g 1000 'buildbot' \
+        zlib1g-dev
+
+FROM base AS usign_build
+RUN git clone --depth 1 https://git.openwrt.org/project/usign.git /tmp/usign \
+    && cd /tmp/usign \
+    && cmake . \
+    && make
+
+FROM base AS builder
+RUN groupadd -g 1000 'buildbot' \
     && useradd -m -s '/bin/bash' -u 1000 -g 1000 'buildbot' \
     && echo 'buildbot ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/buildbot
-
 USER buildbot
 WORKDIR /home/buildbot
 # OpenWRT repo
@@ -61,6 +69,7 @@ ARG NETIFYD_ENABLED=0
 RUN /usr/local/bin/configure-build
 COPY --chmod=777 builder/entrypoint.sh /usr/local/bin/entrypoint.sh
 ENTRYPOINT [ "/usr/local/bin/entrypoint.sh" ]
+COPY --from=usign_build /tmp/usign/usign /usr/local/bin/usign
 RUN mkdir -p \
       .ccache \
       build_dir \
