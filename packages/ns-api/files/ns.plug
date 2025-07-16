@@ -121,6 +121,8 @@ def unregister():
     u = EUci()
     u.set("ns-plug", "config", "server", "")
     u.set("ns-plug", "config", "unit_name", "")
+    u.set("ns-plug", "config", "vpn_address", "")
+    u.set("ns-plug", "config", "api_port", "")
     u.commit("ns-plug")
     u.commit("rpcd")
     u.delete("rsyslog", "promtail")
