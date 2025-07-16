@@ -15,6 +15,12 @@ unit_id = e_uci.get('ns-plug', 'config', 'unit_id', default=None)
 token = e_uci.get('ns-plug', 'config', 'token', default=None)
 server = e_uci.get('ns-plug', 'config', 'server', default=None)
 tls_verify = e_uci.get('ns-plug', 'config', 'tls_verify', default=None)
+vpn_address = e_uci.get('ns-plug', 'config', 'vpn_address', default=None)
+api_port = e_uci.get('ns-plug', 'config', 'api_port', default=None)
+if vpn_address and api_port:
+    url = f'http://{vpn_address}:{api_port}/ingest/info'
+else:
+    url = f'{server}/api/ingest/info'
 
 if not unit_id or not token or not server:
     exit(0)
@@ -43,7 +49,7 @@ curl_opts.extend([
     '-H', 'Content-Type: application/json',
     '-u', f'{unit_id}:{token}',
     '-o', '/dev/null',
-    f'{server}/api/ingest/info',
+    url,
     '--data', json.dumps(data)
 ])
 

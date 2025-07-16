@@ -101,6 +101,16 @@ port=$(echo ${response} | jq -r .data.port)
 cert=$(echo ${response} | jq -r .data.cert)
 key=$(echo ${response} | jq -r .data.key)
 ca=$(echo ${response} | jq -r .data.ca)
+
+# Save VPN address and API port for later use inside push scripts
+vpn_address=$(echo ${response} | jq -r '.data.vpn_address // empty')
+api_port=$(echo ${response} | jq -r '.data.api_port // empty')
+if [ -n "${vpn_address}" ] && [ -n "${api_port}" ]; then
+    uci set ${UCI_CONF}.config.vpn_address="${vpn_address}"
+    uci set ${UCI_CONF}.config.api_port="${api_port}"
+    uci commit ${UCI_CONF}
+fi
+
 cat <<EOF > ${CONFIG_FILE}
 client
 server-poll-timeout 5

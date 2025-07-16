@@ -16,6 +16,13 @@ server=$(uci -q get ${UCI_CONF}.config.server)
 unit_id=$(uci -q get ${UCI_CONF}.config.unit_id)
 token=$(uci -q get ${UCI_CONF}.config.token)
 unit_name=$(uci -q get ${UCI_CONF}.config.unit_name)
+vpn_address=$(uci -q get ${UCI_CONF}.config.vpn_address)
+api_port=$(uci -q get ${UCI_CONF}.config.api_port)
+if [ -n "${vpn_address}" ] && [ -n "${api_port}" ]; then
+    url="http://${vpn_address}:${api_port}/ingest"
+else
+    url="${server}/api/ingest"
+fi
 
 # Exit early if no server has been set
 if [ -z "${server}" ]; then
@@ -56,7 +63,7 @@ for api in "${dump_apis[@]}"; do
         -H "Content-Type: application/json" \
         -u ${unit_id}:${token} \
         -o /dev/null \
-        ${server}/api/ingest/${api} --data @-
+        ${url}/${api} --data @-
     if [ $? -gt 0 ]; then
 	logger -t ns-push-reports "Failed to push $api"
     fi
