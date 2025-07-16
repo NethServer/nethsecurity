@@ -31,7 +31,7 @@ if 'network' in changes:
             if to_remove_interface in qosify_interfaces:
                 qosify_changed = True
                 e_uci.delete('qosify', to_remove_interface)
-            # # if the interface is configured in mwan3 remove the interface
+            # if the interface is configured in mwan3 remove the interface
             if to_remove_interface in mwan_interfaces:
                 mwan_changed = True
                 e_uci.delete('mwan3', to_remove_interface)
