@@ -15,7 +15,7 @@ on:
 jobs:
   old_builds:
     name: "Clean up branches"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       DO_SPACE_NAME: 'nethsecurity'
       DO_SPACE_REGION: 'ams3'
