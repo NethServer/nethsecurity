@@ -26,7 +26,7 @@ define Package/ns-ui
 	CATEGORY:=NethSecurity
 	TITLE:=NethSecurity UI
 	URL:=https://github.com/NethServer/nethsecurity-controller/
-	DEPENDS:=+nginx
+	DEPENDS:=+nginx-ssl
 	PKGARCH:=all
 endef
  

@@ -16,8 +16,8 @@ The release process is a set of steps to prepare a new image or a new package re
 
 ### New image
 
-A new image should be released when:
-- a new OpenWrt release is available
+A new image must be released when:
+- a rebase to the new OpenWRT version has been made during development
 - a new security fix is available
 - a group of relevant features are ready to be released
 
@@ -29,7 +29,8 @@ See [release new image checklist](../build#release-new-image-checklist) for more
 
 A new package should be released when:
 - a new bug fix is available
-- a new feature that does not require new software dependencies is available
+- a new feature is ready to be released
+- a new security fix is available
 
 When releasing a package, remember to:
 - ensure that the package has been tested by the QA team

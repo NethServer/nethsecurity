@@ -1,0 +1,83 @@
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# 2025-06-30
+FROM debian:12.11@sha256:d42b86d7e24d78a33edcf1ef4f65a20e34acb1e1abd53cabc3f7cdf769fc4082 AS base
+ARG SOURCE_DATE_EPOCH=1751241600
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends --no-install-suggests \
+        bison \
+        build-essential \
+        ca-certificates \
+        clang \
+        cmake \
+        curl \
+        file \
+        flex \
+        g++ \
+        gawk \
+        gcc-multilib \
+        gettext \
+        git \
+        libncurses5-dev \
+        libssl-dev \
+        python3-distutils \
+        rsync \
+        sudo \
+        unzip \
+        vim \
+        wget \
+        zlib1g-dev
+
+FROM base AS usign_build
+RUN git clone --depth 1 https://git.openwrt.org/project/usign.git /tmp/usign \
+    && cd /tmp/usign \
+    && cmake . \
+    && make
+
+FROM base AS builder
+RUN groupadd -g 1000 'buildbot' \
+    && useradd -m -s '/bin/bash' -u 1000 -g 1000 'buildbot' \
+    && echo 'buildbot ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/buildbot
+USER buildbot
+WORKDIR /home/buildbot
+# OpenWRT repo
+ARG OWRT_VERSION
+RUN git clone --branch "${OWRT_VERSION}" --depth 1 https://github.com/openwrt/openwrt.git
+WORKDIR /home/buildbot/openwrt
+RUN sed -i '/telephony/d' feeds.conf.default \
+    && ./scripts/feeds update \
+    && ./scripts/feeds install -a
+COPY --chown=buildbot:buildbot packages nspackages
+RUN sed -i '1isrc-link nethsecurity /home/buildbot/openwrt/nspackages' feeds.conf.default
+COPY --chmod=777 builder/apply-patches.sh /usr/local/bin/apply-patches
+COPY --chown=buildbot:buildbot patches patches
+RUN /usr/local/bin/apply-patches \
+    && ./scripts/feeds update nethsecurity \
+    && ./scripts/feeds install -a -p nethsecurity -f
+COPY --chown=buildbot:buildbot files files
+COPY --chown=buildbot:buildbot config config
+
+# Build utils and volumes setup
+ARG REPO_CHANNEL
+ARG TARGET
+ARG NETHSECURITY_VERSION
+COPY --chmod=777 builder/configure-build.sh /usr/local/bin/configure-build
+ARG NETIFYD_ENABLED=0
+RUN /usr/local/bin/configure-build
+COPY --chmod=777 builder/entrypoint.sh /usr/local/bin/entrypoint.sh
+ENTRYPOINT [ "/usr/local/bin/entrypoint.sh" ]
+COPY --from=usign_build /tmp/usign/usign /usr/local/bin/usign
+RUN mkdir -p \
+      .ccache \
+      build_dir \
+      dl \
+      download \
+      staging_dir
+VOLUME "/home/buildbot/openwrt/.ccache" \
+    "/home/buildbot/openwrt/build_dir" \
+    "/home/buildbot/openwrt/dl" \
+    "/home/buildbot/openwrt/download" \
+    "/home/buildbot/openwrt/staging_dir"

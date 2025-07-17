@@ -27,117 +27,76 @@ The GitHub actions also take care of publishing images and packages to the repos
 
 - If the branch is `main`, the image will be built and published to the `dev` [channel](/design/distfeed/#channels).
 - If the branch is `main` and the tag is a stable version, the image will be built and published to the `stable` channel.
-- If the branch is other than `main`, the image will be built but not published to the repository.
-  Instead, an artifact will be created and available for download from the GitHub actions page for 90 days.
+- If the branch is other than `main`, the image will published under a dev branch that has the name of the branch as the name of the release.
+
+Artifacts will be created and available for download from the GitHub actions page for 90 days for every build.
 
 ### Build targets
 
-By default, the CI will build the `x86_64` target. To build a different target, you need to select an alternate
-target from the [GitHub actions page](https://github.com/NethServer/nethsecurity/actions/workflows/build-image.yml).
-
-Click the `Run workflow` button and select the target from the `target` drop-down.
-Please note that occasionally, when changing the target architecture, the build system may fail the build.
-In such cases, it is recommended to delete the podman `nethsecurity-build_dir` volume and retry the build.
-
-Currently supported targets:
-- x86_64
-- [Lamobo BananaPi R1](https://openwrt.org/toh/hwdata/lamobo/lamobo_bananapi_r1)
+By default, the CI will build the `x86_64` target. To build a different target, you need to select an alternate target using the `TARGET` environment variable, refer to [Environment variables](#environment-variables) for more details.
 
 ## Build locally
 
+To build locally, it's recommended to populate the `build.conf` file with the options you want to use for the build.
+This file is ignored by Git and should not be committed to the repository.
+You can use the `build.conf.example` file as a starting point. Refer to [Environment variables](#environment-variables) for more details on the available options.
+
 To build images locally on your machine, make sure these minimum requirements are met:
 
-- Linux distribution with Podman 3.x
+- Linux distribution with Podman 4.x
 - 2GB or more of RAM
 - at least 40GB of free disk space
 - 4 or more CPU cores
 
-Tested on Debian 11, Fedora 35/36/37 and Ubuntu 23.10.
-
 Clone the repository, then to start the build just execute:
 ```
-./run
+./build-nethsec.sh
 ```
 
-The script will create a `bin` directory inside the current working directory.
-At the end, the `bin` directory will contain the output of the build.
-If a previous `bin` directory already exists, it will be renamed to `bin.bak`.
-If a previous `bin.bak` directory already exists, it will be removed.
-
-To speed up successive builds, the script will also create `staging_dir` and `build_dir` directories as cache.
-To avoid cache creation, pass the `--no-cache` option: `./run --no-cache`.
+The script will create a `bin` and `build-logs` directories inside the repository. The `bin` directory will contain the built images and packages, while the `build-logs` directory will contain the build logs.
+Directory `build-logs` will be created even if the build fails, so you can check the logs to understand what went wrong.
 
 If you need a shell inside the build container, execute:
 ```
-./run bash
+./build-nethsec.sh bash
 ```
 
-During the start-up, the container will:
-
-- generate the diffconfig
-- generate a random public key to sign packages
+During the start-up, the container will download netifyd plugins if configuration is set to do so.
 
 ### Environment variables
 
-The `run` script behavior can be changed using the following environment variables:
+The `build-nethsec.sh` script behavior can be changed by giving the following environment variables or setting them inside the `build.conf` file:
 
-- `IMAGE_TAG`: specify the image tag of the builder; if not set default is `latest`, the special value `snapshot` will build a snapshot from the OpenWrt main branch
+- `OWRT_VERSION`: specify the OpenWrt version to build, it can be either a TAG or a branch in the [GitHub OpenWRT repo](https://github.com/openwrt/openwrt); **required**
+- `NETHSECURITY_VERSION`: specify what to call the NethSecurity image; **required**
+- `TARGET`: specify the target to build; if not set default is `x86_64`
+- `REPO_CHANNEL`: specify the channel to publish the image to; if not set default is `dev`
+- `NETIFYD_ENABLED`: configure if netifyd plugins should be downloaded and compiled; if not set, default is `0` (disabled)
+- `NETIFYD_ACCESS_TOKEN`: token to download the netifyd plugins; if not set, default is empty, required if `NETIFYD_ENABLED` is set to `1`
 - `USIGN_PUB_KEY` and `USIGN_PRIV_KEY`: see [package signing section](#package-signing)
    with the given keys
-- `NETIFYD_ACCESS_TOKEN`: GitLab private access token; if set, download and compile netifyd closed
-   source plugins
-- `TARGET`: specify the target to build; if not set default is `x86_64`
 
 The `USIGN_PUB_KEY`, `USIGN_PRIV_KEY` and `NETIFYD_ACCESS_TOKEN` variables are always set as secrets
 inside the CI pipeline, but for [security reasons](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#accessing-secrets)
-they are not accessible when building pull requests.
-
-### Using an alternate builder
-
-If you need to use a modified version of the builder image, edit the files inside the `builder` 
-directory.
-Then build the image and use it with the `run` script:
-```
-./builder/build-builder
-declare IMAGE_TAG="mybranch"
-TAG=$(podman images --quiet ghcr.io/nethserver/nethsecurity-builder:latest)
-podman tag $TAG ghcr.io/nethserver/nethsecurity-builder:$IMAGE_TAG
-./run
-```
+they are not accessible when building pull requests from forks.
 
 ### Build locally for a release
 
 If you need to build some packages locally for a release, make sure the following environment variables are set:
-- `USIGN_PUB_KEY` and `USIGN_PRIV_KEY`: make sure to read the whole key file using `cat` and set the content as the environment variable
-- `NETIFYD_ACCESS`: required to download and compile netifyd closed source plugins
+- `USIGN_PUB_KEY` and `USIGN_PRIV_KEY`: refer to the [package signing section](#package-signing) for more info
+- `NETIFYD_ENABLED` and `NETIFYD_ACCESS_TOKEN`: required to download and compile netifyd closed source plugins
 
-Then execute the `run` script:
-```
-NETIFYD_ACCESS_TOKEN=xxx USIGN_PUB_KEY=$(cat nethsecurity-pub.key) USIGN_PRIV_KEY=$(cat nethsecurity-priv.key) ./run 
-```
+Then execute the build as described in the [Build locally](#build-locally) section.
 
-See the [manual release process](../development_process/#manually-releasing-packages) for more info.
+See the [manual release process](../development_process/#manually-releasing-packages) for additional info.
 
-### Build locally a snapshot
+### Build a snapshot
 
 A snapshot is a build that is based on OpenWrt main branch.
 
-To build a snapshot locally, follow these steps:
+To build a snapshot, just change the `OWRT_VERSION` variable in the `build.conf` file to `main` or `master`.
 
-1. Build the image builder based on main branch:
-   ```
-   pushd builder
-   OWRT_VERSION=snapshot ./build-builder
-   popd
-   ```
-   This will create an image named `ghcr.io/nethserver/nethsecurity-builder:snapshot` that will be used to build the output image
-
-2. Build the image using the builder:
-    ```
-    IMAGE_TAG=snapshot ./run
-    ```
-    Since multiple versions of OpenWrt can't be built using the same directory, the snaphost build will use
-    different podman volume named with `_snapshot` suffix, like `nethsecurity-build_dir_snapshot`
+Then build the image normally using the `build-nethsec.sh` script.
 
 ## Versioning
 
@@ -162,42 +121,29 @@ The generic format for a version is as follows:
 
 Stable version example:
 ```
-8-20.05-ns.1.2.0
+8.6.0
 ```
 
 Unstable version example
 ```
-8-20.05-ns.0.1.0-alpha1
+8.6.0-beta.1
 ```
 
 Development version example:
 ```
-8-20.05-ns.0.0.1-224-g26d3f78
+8.6.0-feature-branch-name-26d3f78
 ```
 
 ## Upstream version change
 
-Create a tag that contains the new OpenWrt release followed by a NethSecurity unstable release.
-
-Example:
-```
-git tag 23.05.2-ns.0.0.1-alpha1
-git push --tags
-```
-
-When the builder of the image has been completed, make sure to:
-- wipe podman volumes, otherwise the build will fail:
-  ```
-  podman volume rm nethsecurity-build_dir nethsecurity-staging_dir
-  ```
-- rebuild the image using the latest builder container image
+To change the OpenWrt version used by NethSecurity, you can just replace the `OWRT_VERSION` variable inside the `build.conf.example` file with the new OpenWrt version.
 
 ## Release new image checklist
 
 When releasing a new image, follow these steps:
 
 1. **Tag the stable release:**
-  - Example: `23.05.5-ns.1.3.0`
+  - Example: `8.5.2`
 
 2. **Update the changelog:**
   - Include the date of release and relevant changes inside the [administrator manual](https://github.com/NethServer/nethsecurity-docs).
@@ -234,27 +180,34 @@ When releasing a new image, follow these steps:
 
 ### OpenWrt configuration
 
-All files with `.conf` extension inside the `config` directory will be merged to create the diffconfig.
-The `.conf` files must respect the syntax of OpenWrt `.config` file.
+Configuration is handled by generating a diffconfig file that contains the differences from the default OpenWrt configuration. This is the recommended way to customize the OpenWrt build system.
+The file than gets enriched with the NethSecurity specific configuration and target specific configuration.
+Then `make defconfig` is executed to generate the final `.config` file used by OpenWrt build system.
 
-Best practices:
+Additional configuration can be found in the official [OpenWrt documentation](https://openwrt.org/docs/guide-developer/toolchain/use-buildsystem#configure_using_config_diff_file).
 
-- create a `.conf` file for each image customization
-- add comments to the conf file to explain why an option has been set
+To edit the config file, you can use the `make menuconfig` command inside the build container. Simply execute:
+```
+./build-nethsec.sh make menuconfig
+```
 
-See [config diff file](https://openwrt.org/docs/guide-developer/toolchain/use-buildsystem#configure_using_config_diff_file) for more info.
+Then, once saved the configuration, you can generate the diffconfig file by executing:
+```
+./scripts/diffconfig.sh > .diffconfig
+```
+
+To see what changed in the configuration, you can use:
+```
+diff -u .diffconfig config/.diffconfig
+```
 
 ### Target configuration
 
 Target configuration is defined inside the `targets` directory under the `config` directory.
 Each target is a configuration named after the target architecture, like `x86_64.conf`.
 
-During the build process, the target will be selected using the `TARGET` environment variable.
-
-To add a new target:
-- create a new `.conf` file inside the `targets` directory
-- add the new target name inside the [GitHub actions workflow file](https://github.com/NethServer/nethsecurity/blob/main/.github/workflows/build-image.yml)
-  under the `inputs` section
+During the build process, the target will be selected using the `TARGET` environment variable. See [Environment variables](#environment-variables) for more details.
+To add a new target, just create a new `.conf` file inside the `targets` directory with `<target_name>.conf` name.
 
 ### Custom files
 
@@ -281,14 +234,14 @@ The patch can be created following these steps:
 - enter the package directory to edit
 - generate a patch and copy it outside the container
 
-First, enter the build system by executing `./run bash`, then enter the directory package to edit. Example:
+First, enter the build system by executing `./build-nethsec.sh bash`, then enter the directory package to edit. Example:
 ```
-cd /home/build/openwrt/feeds/packages/net/adblock
+cd /home/buildbot/openwrt/feeds/packages/net/adblock
 ```
 
 Edit the files, then generate the patch using `git`:
 ```
-cd /home/build/openwrt
+cd /home/buildbot/openwrt
 mkdir -p patches/feeds/packages
 git -C feeds/packages diff > patches/feeds/packages/100-adblock-bypass.patch
 ```
@@ -300,11 +253,9 @@ Note: before submitting a patch using this method, please try to open a pull req
 ### Override upstream packages
 
 It is possible to replace upstream packages with local ones.
-This is useful when you want to use a more recent version than the one already
-released by OpenWrt.
+This is useful when you want to use a more recent version than the one already released by OpenWrt.
 
-To replace an upstream package just create a new package with the same
-name inside the `packages` directory.
+To replace an upstream package just create a new package with the same name inside the `packages` directory.
 
 ### Package signing
 
@@ -318,16 +269,17 @@ untrusted comment: NethSecurity sign key
 RWR2QNFmYt47ieK7g/zEPwgk+MN8bHsA2vFnPThSpnLZ48L7sh6wxB/f
 ```
 
-To sign the packages, just execute the `run` script with the following environment variables:
+To sign the packages, just execute the `build-nethsec.sh` script with the following environment variables:
 - `USIGN_PUB_KEY`
 - `USIGN_PRIV_KEY`
 
 Usage example:
 ```
-USIGN_PUB_KEY=$(cat nethsecurity-pub.key) USIGN_PRIV_KEY=$(cat nethsecurity-priv.key) ./run
+USIGN_PUB_KEY=$(cat nethsecurity-pub.key) USIGN_PRIV_KEY=$(cat nethsecurity-priv.key) ./build-nethsec.sh
 ```
 
-If the above environment variables are not set, the build system will generate a local temporary signing key.
+Or you can have the keys as two files named `key-build` and `key-build.pub` in the root of the repository. They will be automatically used by the build script.
+
 Builds executed inside CI will sign the packages with the correct key.
 
 ### Netifyd plugins
@@ -341,106 +293,8 @@ The plugins should be used with the latest netifyd stable version (4.4.3 at the 
 To create the files for the build, follow the steps below. Such steps should be needed only after a netifyd/plugin version change.
 
 Both plugins source code is hosted on a private repository at [GitLab](https://gitlab.com).
-To access it, you must set `_PERSONAL_ACCESS_TOKEN_` from GitLab.
-During build time, if `_PERSONAL_ACCESS_TOKEN_` is not set, the final image
-will not contain any of these plugins.
+To access it, you must set `NETIFYD_ENABLED=1` and provide a personal access token with read access to the private repositories. And then `NETIFYD_ACCESS_TOKEN` environment variable must be set to the token value.
 
-Prepare the environment:
-```
-sudo apt install -y  libcurl4-openssl-dev libmnl-dev libnetfilter-conntrack-dev libpcap-dev zlib1g-dev pkg-config bison flex uuid-runtime libnftables-dev
-git clone --recursive https://gitlab.com/netify.ai/public/netify-agent.git
-```
-
-Setup netifyd version:
-```
-export NETIFY_ROOT=$(pwd)/netify-root
-cd netify-agent
-git checkout v4.2.2 -b latest
-./autogen.sh && ./configure --prefix=/usr --libdir=/usr/lib
-make DESTDIR=${NETIFY_ROOT} -j $(nproc) install
-cd ..
-```
-
-Setup netify-flow-actions plugin:
-```
-git clone https://oauth2:_PERSONAL_ACCESS_TOKEN_@gitlab.com/netify.ai/private/nethesis/netify-flow-actions.git
-cd netify-flow-actions
-export PKG_CONFIG_PATH=${NETIFY_ROOT}/usr/lib/x86_64-linux-gnu/pkgconfig:${NETIFY_ROOT}/usr/lib/pkgconfig:/usr/lib/pkgconfig
- export CPPFLAGS=$(pkg-config --define-variable=includedir=${NETIFYD_PREFIX}/usr/include --define-variable=libdir=${NETIFYD_PREFIX}/usr/lib libnetifyd --cflags)
-export LDFLAGS=$(pkg-config --define-variable=includedir=${NETIFYD_PREFIX}/usr/include --define-variable=libdir=${NETIFYD_PREFIX}/usr/lib libnetifyd --libs-only-L)
-./autogen.sh && ./configure --prefix=/usr --libdir=/usr/lib
-unset PKG_CONFIG_PATH
-unset CPPFLAGS
-unset LDFLAGS
-cd ..
-```
-
-Setup netify-plugin-stats plugin:
-```
-git clone https://oauth2:_PERSONAL_ACCESS_TOKEN_@gitlab.com/netify.ai/private/nethesis/netify-agent-stats-plugin.git
-cd netify-agent-stats-plugin
-export PKG_CONFIG_PATH=${NETIFY_ROOT}/usr/lib/x86_64-linux-gnu/pkgconfig:${NETIFY_ROOT}/usr/lib/pkgconfig:/usr/lib/pkgconfig
- export CPPFLAGS=$(pkg-config --define-variable=includedir=${NETIFYD_PREFIX}/usr/include --define-variable=libdir=${NETIFYD_PREFIX}/usr/lib libnetifyd --cflags)
-export LDFLAGS=$(pkg-config --define-variable=includedir=${NETIFYD_PREFIX}/usr/include --define-variable=libdir=${NETIFYD_PREFIX}/usr/lib libnetifyd --libs-only-L)
-./autogen.sh && ./configure --prefix=/usr --libdir=/usr/lib
-unset PKG_CONFIG_PATH
-unset CPPFLAGS
-unset LDFLAGS
-cd ..
-```
-
-Copy files to the package directories:
-```
-mkdir -vp packages/net/netifyd/files
-cp netify-agent/deploy/openwrt/Makefile packages/net/netifyd/
-shopt -s extglob
-cp netify-agent/deploy/openwrt/files/!(*.in) packages/net/netifyd/files/
-
-mkdir -p nspackages/netify-flow-actions/
-cp netify-flow-actions/deploy/openwrt/Makefile nspackages/netify-flow-actions/
-cp netify-flow-actions/deploy/openwrt/Config.in nspackages/netify-flow-actions/
-
-mkdir -p nspackages/netify-plugin-stats/files
-cp netify-agent-stats-plugin/deploy/openwrt/Makefile nspackages/netify-plugin-stats/
-cp netify-agent-stats-plugin/deploy/netify-plugin-stats.json nspackages/netify-plugin-stats/files/
-```
-
-Setup Makefile to use a local copy of private repositories:
-```
-sed -i 's/PKG_SOURCE_URL.*$/PKG_SOURCE_URL:=file:\/\/\/home\/build\/openwrt\/netify-flow-actions/' nspackages/netify-flow-actions/Makefile
-sed -i 's/PKG_SOURCE_URL.*$/PKG_SOURCE_URL:=file:\/\/\/home\/build\/openwrt\/netify-agent-stats-plugin/' nspackages/netify-plugin-stats/Makefile
-```
-
-To manually build the stack, use:
-```
-make -j $(nproc) package/feeds/packages/netifyd/{download,compile} V=sc
-make -j $(nproc) package/feeds/nethsecurity/netify-plugin-stats/{download,compile} V=sc
-make -j $(nproc) package/feeds/nethsecurity/netify-flow-actions/{download,compile} V=sc
-```
-
-
-## Builder image
-
-The `nethserver/nethsecurity-builder` is a container image to build NethSecurity.
-It's based on `debian-slim` and contains an OpenWrt build environment ready to be used.
-
-### How to build it
-
-Additional requirements:
-
-- buildah
-
-Execute:
-```
-cd builder
-./build-builder
-```
-
-Publish the image:
-```
-buildah login ghcr.io
-buildah push ghcr.io/nethserver/nethsecurity-builder docker://ghcr.io/nethserver/nethsecurity-builder
-```
 
 ## Self-hosted runner
 
