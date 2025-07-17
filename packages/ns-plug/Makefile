@@ -43,6 +43,7 @@ if [ -z "$${IPKG_INSTROOT}" ]; then
   /usr/libexec/ns-plug/40_ns-plug_automatic_updates
   /etc/init.d/cron restart
   /usr/libexec/ns-plug/40_ns-plug_mwan_hooks
+  /etc/init.d/ns-plug restart
 fi
 exit 0
 endef
