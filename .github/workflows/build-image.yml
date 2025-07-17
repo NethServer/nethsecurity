@@ -120,6 +120,10 @@ jobs:
           rclone copy latest_release repo:nethsecurity/${{ steps.build_vars.outputs.REPO_CHANNEL }}/ --progress --create-empty-src-dirs
       - name: Run tools
         if: ${{ github.ref == 'refs/heads/main' }}
+        env:
+          CDN_NAME: 'updates.nethsecurity.nethserver.org'
+          NETHSECURITY_VERSION: ${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}
+          REPO_CHANNEL: ${{ steps.build_vars.outputs.REPO_CHANNEL }}
         run: |
           tools/issue-comment
           tools/package-bumper

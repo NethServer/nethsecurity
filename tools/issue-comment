@@ -11,16 +11,15 @@
 # without a tag.
 #
 # Required env variables:
-# - VERSION
+# - NETHSECURITY_VERSION
 # - CDN_NAME
 # - REPO_CHANNEL
-# - OWRT_VERSION
 
-if [[ -z "$VERSION" || -z "$CDN_NAME" || -z "$REPO_CHANNEL" || -z "$OWRT_VERSION" ]]; then
+if [[ -z "$NETHSECURITY_VERSION" || -z "$CDN_NAME" || -z "$REPO_CHANNEL" ]]; then
    exit 1
 fi
 
-image_url="https://${CDN_NAME}/${REPO_CHANNEL}/8-${VERSION}"/targets/x86/64/nethsecurity-8-${VERSION}-x86-64-generic-squashfs-combined-efi.img.gz
+image_url="https://${CDN_NAME}/${REPO_CHANNEL}/${NETHSECURITY_VERSION}"/targets/x86/64/nethsecurity-${NETHSECURITY_VERSION}-x86-64-generic-squashfs-combined-efi.img.gz
 
 log=$(git log -1 --pretty=%B)
 reg='#([0-9]+)'
