@@ -28,7 +28,7 @@ else
     status="success"
 fi
 
-echo '{"status": "'$status'", "last_attempt": "'$(date --iso-8601=seconds)'"}' > /tmp/inventory-sent.json
+echo '{"status": "'$status'", "last_attempt": "'$(date -Iseconds)'"}' > /tmp/inventory-sent.json
 
 if [ "$TYPE" = "enterprise" ]; then
     # Update registration date
