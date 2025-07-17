@@ -38,7 +38,7 @@ if [[ "$log" =~ $reg ]]; then
     fi
     state=$(gh issue view --json state $issue_number -q .state)
     if [[ "$state" == "OPEN" ]]; then
-        gh issue comment $issue_number --body "Testing image version: [8-$VERSION]($image_url)"
+        gh issue comment $issue_number --body "Testing image version: [$NETHSECURITY_VERSION]($image_url)"
         gh issue edit $issue_number --add-label "testing"
     fi
 fi
