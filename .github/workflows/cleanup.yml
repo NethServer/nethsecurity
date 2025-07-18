@@ -13,12 +13,9 @@ on:
 jobs:
   update-package:
     name: Cleanup old versions
-
-    runs-on: ubuntu-latest
-
+    runs-on: ubuntu-24.04
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       - name: Cleanup
         env:
           DO_SPACE_ACCESS_KEY: ${{ secrets.DO_SPACE_ACCESS_KEY }}
