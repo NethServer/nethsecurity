@@ -23,6 +23,9 @@ jobs:
   publish_images:
     name: 'Build NethSecurity image'
     runs-on: self-hosted
+    outputs:
+      NETHSECURITY_VERSION: ${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}
+      REPO_CHANNEL: ${{ steps.build_vars.outputs.REPO_CHANNEL }}
     env:
       USIGN_PUB_KEY: ${{ secrets.USIGN_PUB_KEY }}
       USIGN_PRIV_KEY: ${{ secrets.USIGN_PRIV_KEY }}
@@ -60,7 +63,7 @@ jobs:
           elif [[ "${{ github.ref }}" == refs/heads/main ]]; then
             echo "REPO_CHANNEL=dev" >> $GITHUB_OUTPUT
             # save NETHSECURITY_VERSION to env and append -dev to it
-            echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.example)-dev-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+            echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.example)-dev-$(git rev-parse --short HEAD)-$(date +'%Y%m%d_%H%M%S')" >> $GITHUB_OUTPUT
 
           # Otherwise, get the branch name of the PR pushing if REPO_CHANNEL is not set
           elif [[ "${{ github.event_name }}" == 'pull_request' && ! -v REPO_CHANNEL ]]; then
@@ -118,12 +121,22 @@ jobs:
         run: |
           rclone sync bin/ repo:nethsecurity/${{ steps.build_vars.outputs.REPO_CHANNEL }}/${{ steps.build_vars.outputs.NETHSECURITY_VERSION }} --progress --create-empty-src-dirs
           rclone copy latest_release repo:nethsecurity/${{ steps.build_vars.outputs.REPO_CHANNEL }}/ --progress --create-empty-src-dirs
+
+  tools:
+    name: 'Run tools'
+    runs-on: ubuntu-24.04
+    needs: publish_images
+    if: ${{ github.ref == 'refs/heads/main' }}
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
       - name: Run tools
-        if: ${{ github.ref == 'refs/heads/main' }}
         env:
           CDN_NAME: 'updates.nethsecurity.nethserver.org'
-          NETHSECURITY_VERSION: ${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}
-          REPO_CHANNEL: ${{ steps.build_vars.outputs.REPO_CHANNEL }}
+          NETHSECURITY_VERSION: ${{ needs.publish_images.outputs.NETHSECURITY_VERSION }}
+          REPO_CHANNEL: ${{ needs.publish_images.outputs.REPO_CHANNEL }}
         run: |
           tools/issue-comment
           tools/package-bumper
