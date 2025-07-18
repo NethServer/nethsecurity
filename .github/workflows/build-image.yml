@@ -83,6 +83,7 @@ jobs:
         run: |
           # Create release file pointing to 8-VERSION
           echo "${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}" > latest_release
+          echo "::notice title='Image published':: ${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}"
       - uses: actions/upload-artifact@v4
         name: Upload image
         with:
