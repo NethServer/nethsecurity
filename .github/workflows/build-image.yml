@@ -63,13 +63,13 @@ jobs:
           elif [[ "${{ github.ref }}" == refs/heads/main ]]; then
             echo "REPO_CHANNEL=dev" >> $GITHUB_OUTPUT
             # save NETHSECURITY_VERSION to env and append -dev to it
-            echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.example)-dev-$(git rev-parse --short HEAD)-$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+            echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.example)-dev+$(git rev-parse --short HEAD).$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
 
           # Otherwise, get the branch name of the PR pushing if REPO_CHANNEL is not set
           elif [[ "${{ github.event_name }}" == 'pull_request' && ! -v REPO_CHANNEL ]]; then
             echo "REPO_CHANNEL=${{ github.head_ref }}" >> $GITHUB_OUTPUT
             # save NETHSECURITY_VERSION to env and append last commit hash to it
-            echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.example)-${{ github.head_ref }}-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+            echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.example)-${{ github.head_ref }}+$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
           fi
       - name: Build the image
         env:
