@@ -53,6 +53,17 @@ uci commit rsyslog
 rm -f /usr/share/ns-plug/client.conf
 ```
 
+### MTU management
+
+In some cases the VPN connection may not work properly due to MTU issues.
+You can custom set the MTU values by:
+```
+uci set ns-plug.config.tun_mtu=<value>
+uci set ns-plug.config.mssfix=<value>
+uci commit ns-plug
+reload_config
+```
+
 ## Machine registration
 
 To register a machine:
