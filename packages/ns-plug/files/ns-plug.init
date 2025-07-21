@@ -32,3 +32,9 @@ service_triggers()
 {
 		procd_add_reload_trigger "ns-plug"
 }
+
+reload_service()
+{
+        stop
+        start
+}

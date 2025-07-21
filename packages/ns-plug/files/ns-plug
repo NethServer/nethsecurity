@@ -136,6 +136,15 @@ auth-nocache
 verb 3
 EOF
 
+tun_mtu="$(uci -q get ${UCI_CONF}.config.tun_mtu)"
+mssfix="$(uci -q get ${UCI_CONF}.config.mssfix)"
+if [ -n "${tun_mtu}" ] && [ -n "${mssfix}" ]; then
+    echo "tun-mtu ${tun_mtu}" >> ${CONFIG_FILE}
+    echo "mssfix ${mssfix}" >> ${CONFIG_FILE}
+else
+    echo "mtu-test" >> ${CONFIG_FILE}
+fi
+
 # Configure rsyslog to send to promtail
 uci set rsyslog.promtail=forwarder
 uci set rsyslog.promtail.source=*.*
