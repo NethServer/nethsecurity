@@ -47,16 +47,15 @@ WORKDIR /home/buildbot
 ARG OWRT_VERSION
 RUN git clone --branch "${OWRT_VERSION}" --depth 1 https://github.com/openwrt/openwrt.git
 WORKDIR /home/buildbot/openwrt
-RUN sed -i '/telephony/d' feeds.conf.default \
-    && ./scripts/feeds update \
-    && ./scripts/feeds install -a
-COPY --chown=buildbot:buildbot packages nspackages
-RUN sed -i '1isrc-link nethsecurity /home/buildbot/openwrt/nspackages' feeds.conf.default
+RUN sed -i '/telephony/d' feeds.conf.default
+RUN ./scripts/feeds update -a
 COPY --chmod=777 builder/apply-patches.sh /usr/local/bin/apply-patches
 COPY --chown=buildbot:buildbot patches patches
-RUN /usr/local/bin/apply-patches \
-    && ./scripts/feeds update nethsecurity \
-    && ./scripts/feeds install -a -p nethsecurity -f
+RUN /usr/local/bin/apply-patches
+RUN sed -i '1isrc-link nethsecurity /home/buildbot/openwrt/nspackages' feeds.conf.default
+COPY --chown=buildbot:buildbot packages nspackages
+RUN ./scripts/feeds update nethsecurity
+RUN ./scripts/feeds install -a
 COPY --chown=buildbot:buildbot files files
 COPY --chown=buildbot:buildbot config config
 
