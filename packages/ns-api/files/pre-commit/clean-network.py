@@ -67,6 +67,8 @@ if 'network' in changes:
                     if len(policy_members) == 0:
                         e_uci.delete('mwan3', policy)
                         policies_removed.append(policy)
+                    else:
+                        e_uci.set('mwan3', policy, 'use_member', policy_members)
 
                 # iterate over the rules to see if they use the policies removed
                 for rule in rules:
