@@ -7,8 +7,8 @@
 #
 
 import os
-import re
 import boto3
+from semver import VersionInfo
 
 region = "ams3"
 bucket_name = "nethsecurity"
@@ -20,25 +20,25 @@ s3_client = boto3.session.Session().client(
     aws_secret_access_key=os.environ['DO_SPACE_SECRET_KEY']
 )
 prefix = 'dev'
-max_versions = 5
+min_versions = 5
 response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=f'{prefix}/', Delimiter='/')
 
 files = [item.get('Prefix') for item in response.get('CommonPrefixes')]
 parsed_files = []
 for file in files:
-    matched = re.match(
-        '^' + prefix + '/(?P<version>[^/-]+(?:-[^/-]+)*?)-(?P<commit>[0-9a-f]+)-(?P<timestamp>\\d{14})/$', file)
-    if matched is None:
+    file_name = file.lstrip(f'{prefix}/').rstrip('/')
+    version_parsed = VersionInfo.parse(file_name)
+    if version_parsed.build is None:
+        print(f'Skipping {file_name} as it is not a development build.')
         continue
+    build_split = version_parsed.build.split('.')
     parsed_files.append({
-        'version': matched.group('version'),
-        'commit': matched.group('commit'),
-        'timestamp': matched.group('timestamp'),
+        'timestamp': build_split[1],
         'file': file
     })
 
 # keep only the latest 5 dev builds
-to_delete = sorted(parsed_files, key=lambda k: k['timestamp'], reverse=True)[:max_versions]
+to_delete = sorted(parsed_files, key=lambda k: k['timestamp'], reverse=True)[min_versions:]
 for d in to_delete:
     print(f"Deleting {d['file']} ...")
     objects_to_delete = s3_client.list_objects(Bucket=bucket_name, Prefix=d['file'])
