@@ -177,9 +177,9 @@ def list_settings(e_uci):
             'ban_loglimit': True if int(e_uci.get('banip', 'global', 'ban_loglimit', default=100)) > 0 else False,
             'ban_logcount': e_uci.get('banip', 'global', 'ban_logcount', default=1),
             'ban_logterm': e_uci.get('banip', 'global', 'ban_logterm', list=True, default=[]),
-            'ban_icmplimit': True if int(e_uci.get('banip', 'global', 'ban_icmplimit', default=10)) > 0 else False,
-            'ban_synlimit': True if int(e_uci.get('banip', 'global', 'ban_synlimit', default=10)) > 0 else False,
-            'ban_udplimit': True if int(e_uci.get('banip', 'global', 'ban_udplimit', default=100)) > 0 else False,
+            'ban_icmplimit': e_uci.get('banip', 'global', 'ban_icmplimit', default=10, dtype=int),
+            'ban_synlimit': e_uci.get('banip', 'global', 'ban_synlimit', default=10, dtype=int),
+            'ban_udplimit': e_uci.get('banip', 'global', 'ban_udplimit', default=100, dtype=int),
             'ban_nftexpiry': e_uci.get('banip', 'global', 'ban_nftexpiry', default='30m')
         }
     }
@@ -232,15 +232,15 @@ def edit_settings(e_uci, payload):
             raise ValidationError('ban_logforwardlan', 'invalid', payload['ban_logforwardlan'])
         if 'ban_icmplimit' not in payload:
             raise ValidationError('ban_icmplimit', 'required')
-        if not isinstance(payload['ban_icmplimit'], bool):
+        if not (isinstance(payload['ban_icmplimit'], bool) or isinstance(payload['ban_icmplimit'], int)):
             raise ValidationError('ban_icmplimit', 'invalid', payload['ban_icmplimit'])
         if 'ban_synlimit' not in payload:
             raise ValidationError('ban_synlimit', 'required')
-        if not isinstance(payload['ban_synlimit'], bool):
+        if not (isinstance(payload['ban_synlimit'], bool) or isinstance(payload['ban_synlimit'], int)):
             raise ValidationError('ban_synlimit', 'invalid', payload['ban_synlimit'])
         if 'ban_udplimit' not in payload:
             raise ValidationError('ban_udplimit', 'required')
-        if not isinstance(payload['ban_udplimit'], bool):
+        if not (isinstance(payload['ban_udplimit'], bool) or isinstance(payload['ban_udplimit'], int)):
             raise ValidationError('ban_udplimit', 'invalid', payload['ban_udplimit'])
         if 'ban_loglimit' not in payload:
             raise ValidationError('ban_loglimit', 'required')
@@ -273,9 +273,18 @@ def edit_settings(e_uci, payload):
         e_uci.set('banip', 'global', 'ban_logforwardlan', payload['ban_logforwardlan'])
         e_uci.set('banip', 'global', 'ban_loglimit', 100 if payload['ban_loglimit'] else 0)
 
-        e_uci.set('banip', 'global', 'ban_icmplimit', 10 if payload['ban_icmplimit'] else 0)
-        e_uci.set('banip', 'global', 'ban_synlimit', 10 if payload['ban_synlimit'] else 0)
-        e_uci.set('banip', 'global', 'ban_udplimit', 100 if payload['ban_udplimit'] else 0)
+        if isinstance(payload['ban_icmplimit'], int):
+            e_uci.set('banip', 'global', 'ban_icmplimit', max(0, payload['ban_icmplimit']))
+        else:
+            e_uci.set('banip', 'global', 'ban_icmplimit', 10 if payload['ban_icmplimit'] else 0)
+        if isinstance(payload['ban_synlimit'], int):
+            e_uci.set('banip', 'global', 'ban_synlimit', max(0, payload['ban_synlimit']))
+        else:
+            e_uci.set('banip', 'global', 'ban_synlimit', 10 if payload['ban_synlimit'] else 0)
+        if isinstance(payload['ban_udplimit'], int):
+            e_uci.set('banip', 'global', 'ban_udplimit', max(0, payload['ban_udplimit']))
+        else:
+            e_uci.set('banip', 'global', 'ban_udplimit', 100 if payload['ban_udplimit'] else 0)
 
         if payload['ban_loglimit']:
             e_uci.set('banip', 'global', 'ban_logcount', payload['ban_logcount'])
