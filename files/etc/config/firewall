@@ -1,5 +1,4 @@
 config defaults 'ns_defaults'
-	option syn_flood	1
 	option input		REJECT
 	option output		ACCEPT
 	option forward		REJECT
