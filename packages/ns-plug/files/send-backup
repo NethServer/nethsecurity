@@ -19,7 +19,7 @@ PASSPHRASE="/etc/backup.pass"
 function send {
     if [ -s $PASSPHRASE ]; then
         # send encrypted backup
-        gpg --batch -c --passphrase-file $PASSPHRASE $BACKUP
+        gpg --batch -c --yes --passphrase-file $PASSPHRASE $BACKUP
         remote-backup upload "$BACKUP.gpg"
     else
         remote-backup upload "$BACKUP"
