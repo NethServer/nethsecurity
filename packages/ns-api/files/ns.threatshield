@@ -167,6 +167,9 @@ def list_blocklist(e_uci):
     return { "data": ret }
 
 def list_settings(e_uci):
+    ban_icmplimit_default = 25
+    ban_synlimit_default = 10
+    ban_udplimit_default = 100
     return {
         'data': {
             'enabled': e_uci.get('banip', 'global', 'ban_enabled') == '1',
@@ -177,10 +180,13 @@ def list_settings(e_uci):
             'ban_loglimit': True if int(e_uci.get('banip', 'global', 'ban_loglimit', default=100)) > 0 else False,
             'ban_logcount': e_uci.get('banip', 'global', 'ban_logcount', default=1),
             'ban_logterm': e_uci.get('banip', 'global', 'ban_logterm', list=True, default=[]),
-            'ban_icmplimit': e_uci.get('banip', 'global', 'ban_icmplimit', default=10, dtype=int),
-            'ban_synlimit': e_uci.get('banip', 'global', 'ban_synlimit', default=10, dtype=int),
-            'ban_udplimit': e_uci.get('banip', 'global', 'ban_udplimit', default=100, dtype=int),
-            'ban_nftexpiry': e_uci.get('banip', 'global', 'ban_nftexpiry', default='30m')
+            'ban_icmplimit': e_uci.get('banip', 'global', 'ban_icmplimit', default=ban_icmplimit_default, dtype=int),
+            'ban_synlimit': e_uci.get('banip', 'global', 'ban_synlimit', default=ban_synlimit_default, dtype=int),
+            'ban_udplimit': e_uci.get('banip', 'global', 'ban_udplimit', default=ban_udplimit_default, dtype=int),
+            'ban_nftexpiry': e_uci.get('banip', 'global', 'ban_nftexpiry', default='30m'),
+            'ban_icmplimit_default': ban_icmplimit_default,
+            'ban_synlimit_default': ban_synlimit_default,
+            'ban_udplimit_default': ban_udplimit_default,
         }
     }
 
