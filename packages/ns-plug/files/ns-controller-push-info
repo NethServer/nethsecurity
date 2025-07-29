@@ -35,11 +35,11 @@ except subprocess.CalledProcessError as e:
     exit(0)
 
 data = json.loads(info_result.stdout)
-data['scheduled_update'] = json.loads(update_result.stdout)['scheduledAt']
-data['version_update'] = json.loads(update_result.stdout)['lastVersion']
+data['scheduled_update'] = json.loads(update_result.stdout).get('scheduledAt', -1)
+data['version_update'] = json.loads(update_result.stdout).get('lastVersion')
 
 # making a curl request due to `requests` missing from python modules
-curl_opts = ['-L']
+curl_opts = ['-s', '-S', '-L', '--retry', '3', '--retry-max-time', '60']
 if tls_verify == '0':
     curl_opts.append('-k')
 
@@ -53,8 +53,5 @@ curl_opts.extend([
     '--data', json.dumps(data)
 ])
 
-try:
-    subprocess.run(['curl', *curl_opts], check=True, capture_output=True)
-except subprocess.CalledProcessError as e:
-    print('Cannot execute command: %s' % e)
-    exit(0)
+# start curl in background
+subprocess.Popen(['curl', *curl_opts])
