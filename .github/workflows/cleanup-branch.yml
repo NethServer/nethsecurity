@@ -32,7 +32,7 @@ jobs:
             echo "REPO_CHANNEL=${{ github.event.inputs.channel }}" >> "$GITHUB_OUTPUT"
           fi
       - name: Remove old branches
-        if: steps.repo_channel.outputs.REPO_CHANNEL != 'dev' && steps.repo_channel.outputs.REPO_CHANNEL != 'stable'
+        if: steps.repo_channel.outputs.REPO_CHANNEL != 'dev' && steps.repo_channel.outputs.REPO_CHANNEL != 'stable' && steps.repo_channel.outputs.REPO_CHANNEL != ''
         env:
           RCLONE_CONFIG_REPO_PROVIDER: DigitalOcean
           RCLONE_CONFIG_REPO_TYPE: s3
