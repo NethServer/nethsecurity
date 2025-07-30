@@ -1,11 +1,12 @@
 #
-# Copyright (C) 2016-2022 eGloo Incorporated
+# Copyright (C) 2016-2024 eGloo Incorporated
 #
 # This is free software, licensed under the GNU General Public License v2.
 
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=netifyd
+PKG_VERSION:=2025-07-01-v5.1.12
 PKG_RELEASE:=1
 PKG_MAINTAINER:=Darryl Sokoloski <darryl@egloo.ca>
 PKG_LICENSE:=GPL-3.0-or-later
@@ -13,17 +14,25 @@ PKG_LICENSE:=GPL-3.0-or-later
 PKG_BUILD_PARALLEL:=1
 PKG_FIXUP:=autoreconf
 PKG_INSTALL:=1
-PKG_BUILD_FLAGS:=gc-sections
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://gitlab.com/netify.ai/public/netify-agent.git
-PKG_SOURCE_DATE:=2025-08-01
-PKG_SOURCE_VERSION:=4d8d92104e694db3115a1615106022fc28aaed0f
+PKG_SOURCE_VERSION:=v5.1.12-1
+#PKG_SOURCE_VERSION:=329f72ab6aefa051f5d7f2d197c263a1407652a4
+PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_RELEASE)
+PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_SOURCE_SUBDIR)
 PKG_MIRROR_HASH:=whatever
 
 PKG_CONFIG_DEPENDS:= \
 	CONFIG_NETIFYD_BUILD_SHARED_LIBRARY \
-	CONFIG_NETIFYD_WITH_LOCAL_LIBGCRYPT
+	CONFIG_NETIFYD_WITH_LOCAL_LIBGCRYPT \
+	CONFIG_NETIFYD_ENABLE_LINUX_CAPABILITIES \
+	CONFIG_NETIFYD_ENABLE_LEAN_AND_MEAN \
+	CONFIG_NETIFYD_ENABLE_CONNTRACK_MDATA \
+	CONFIG_NETIFYD_ENABLE_CONNTRACK_COUNTERS \
+	CONFIG_NETIFYD_ENABLE_TPACKETV3 \
+	CONFIG_NETIFYD_ENABLE_NFQUEUE \
+	CONFIG_NETIFYD_ENABLE_EXTENDED_STATS
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -32,12 +41,16 @@ define Package/netifyd
   CATEGORY:=Network
   TITLE:=Netify Agent
   URL:=http://www.netify.ai/
-  DEPENDS:=+ca-bundle +libatomic +libcurl +libmnl +libnetfilter-conntrack +libpcap +zlib +libpthread @!USE_UCLIBC
+  DEPENDS:=+ca-bundle +libatomic +libblobmsg-json +libcurl +libjson-c +libmnl \
+	+libnetfilter-conntrack +libpcap +libpthread +libubox +libubus +libuci \
+	+zlib @!USE_UCLIBC
   # Explicitly depend on libstdcpp rather than $(CXX_DEPENDS).  At the moment
   # std::unordered_map is only available via libstdcpp which is required for
   # performance reasons.
   DEPENDS+=+libstdcpp
-  DEPENDS+=+NETIFYD_WITH_LOCAL_LIBGCRYPT:libgcrypt
+  DEPENDS+=+NETIFYD_WITH_LOCAL_LIBGCRYPT:libgcrypt +NETIFYD_WITH_LOCAL_LIBGCRYPT:libgpg-error
+  DEPENDS+=+NETIFYD_ENABLE_LINUX_CAPABILITIES:libcap
+  DEPENDS+=+NETIFYD_ENABLE_NFQUEUE:libnetfilter-queue
 endef
 
 define Package/netifyd/description
@@ -53,30 +66,35 @@ define Package/netifyd/config
 endef
 
 define Package/netifyd/conffiles
-/etc/netifyd.conf
 /etc/config/netifyd
-/etc/netify.d/agent.uuid
-/etc/netify.d/serial.uuid
-/etc/netify.d/site.uuid
+/etc/netifyd/agent.uuid
+/etc/netifyd/netify-apps.conf
+/etc/netifyd/netify-categories.json
+/etc/netifyd/serial.uuid
+/etc/netifyd/site.uuid
+/etc/netifyd.conf
 endef
 
-TARGET_CFLAGS+=-Wno-psabi
-TARGET_CXXFLAGS+=-std=c++11 -Wno-psabi
+TARGET_CFLAGS+=-ffunction-sections -fdata-sections -Wno-psabi
+TARGET_CXXFLAGS+=-std=c++11 -ffunction-sections -fdata-sections -Wno-psabi
+TARGET_LDFLAGS+=-Wl,--gc-sections
 
 CONFIGURE_ARGS+= \
 	$(if $(CONFIG_NETIFYD_BUILD_SHARED_LIBRARY),--enable-shared,--disable-shared) \
 	$(if $(CONFIG_NETIFYD_WITH_LOCAL_LIBGCRYPT),--with-local-libgcrypt,--without-local-libgcrypt) \
+	$(if $(CONFIG_NETIFYD_ENABLE_LEAN_AND_MEAN),--enable-lean-and-mean,--disable-lean-and-mean) \
+	$(if $(CONFIG_NETIFYD_ENABLE_LINUX_CAPABILITIES),--enable-capabilities,--disable-capabilities) \
+	$(if $(CONFIG_NETIFYD_ENABLE_CONNTRACK_MDATA),--enable-conntrack-mdata,--disable-conntrack-mdata) \
+	$(if $(CONFIG_NETIFYD_ENABLE_CONNTRACK_COUNTERS),--enable-conntrack-counters,--disable-conntrack-counters) \
+	$(if $(CONFIG_NETIFYD_ENABLE_TPACKETV3),--enable-tpacketv3,--disable-tpacketv3) \
+	$(if $(CONFIG_NETIFYD_ENABLE_NFQUEUE),--enable-nfqueue,--disable-nfqueue) \
+	$(if $(CONFIG_NETIFYD_ENABLE_EXTENDED_STATS),--enable-extended-stats,--disable-extended-stats) \
 	--sharedstatedir=/var/run \
-	--enable-lean-and-mean \
 	--disable-libtcmalloc \
-	--disable-jemalloc \
 	--without-systemdsystemunitdir \
-	--without-tmpfilesdir
-
-# Disable configuration file-watch support (deprecated feature).
-# Not to be confused with kernel/system-level inotify support.
-CONFIGURE_ARGS+= \
-	--disable-inotify
+	--without-tmpfilesdir \
+	--enable-uci \
+	--enable-ubus
 
 ifneq ($(CONFIG_LIBCURL_ZLIB),y)
 CONFIGURE_ARGS+= \
@@ -84,21 +102,22 @@ CONFIGURE_ARGS+= \
 endif
 
 define Build/InstallDev
-	$(INSTALL_DIR) $(1)/usr/include/netifyd
-	$(CP) $(PKG_INSTALL_DIR)/usr/include/netifyd/*.h $(1)/usr/include/netifyd
-	$(INSTALL_DIR) $(1)/usr/include/netifyd/pcap-compat
-	$(CP) $(PKG_INSTALL_DIR)/usr/include/netifyd/pcap-compat/*.h $(1)/usr/include/netifyd/pcap-compat
-	$(INSTALL_DIR) $(1)/usr/include/netifyd/nlohmann
-	$(CP) $(PKG_INSTALL_DIR)/usr/include/netifyd/nlohmann/*.hpp $(1)/usr/include/netifyd/nlohmann
-	$(INSTALL_DIR) $(1)/usr/include/netifyd/radix
-	$(CP) $(PKG_INSTALL_DIR)/usr/include/netifyd/radix/*.hpp $(1)/usr/include/netifyd/radix
-	$(INSTALL_DIR) $(1)/usr/include/ndpi
-	$(CP) $(PKG_INSTALL_DIR)/usr/include/ndpi/*.h $(1)/usr/include/ndpi
-	$(INSTALL_DIR) $(1)/usr/lib
-	$(CP) $(PKG_INSTALL_DIR)/usr/lib/libnetifyd.a $(1)/usr/lib
-	$(if $(CONFIG_NETIFYD_BUILD_SHARED_LIBRARY),$(CP) $(PKG_INSTALL_DIR)/usr/lib/libnetifyd.so.* $(1)/usr/lib,)
-	$(INSTALL_DIR) $(1)/usr/lib/pkgconfig
-	$(INSTALL_DATA) $(PKG_INSTALL_DIR)/usr/lib/pkgconfig/libnetifyd.pc $(1)/usr/lib/pkgconfig
+	$(INSTALL_DIR) $(STAGING_DIR)/usr/include/netifyd
+	$(CP) $(PKG_INSTALL_DIR)/usr/include/netifyd/*.h $(STAGING_DIR)/usr/include/netifyd
+	$(CP) $(PKG_INSTALL_DIR)/usr/include/netifyd/*.hpp $(STAGING_DIR)/usr/include/netifyd
+	$(INSTALL_DIR) $(STAGING_DIR)/usr/include/netifyd/pcap-compat
+	$(CP) $(PKG_INSTALL_DIR)/usr/include/netifyd/pcap-compat/*.h $(STAGING_DIR)/usr/include/netifyd/pcap-compat
+	$(INSTALL_DIR) $(STAGING_DIR)/usr/include/netifyd/nlohmann
+	$(CP) $(PKG_INSTALL_DIR)/usr/include/netifyd/nlohmann/*.hpp $(STAGING_DIR)/usr/include/netifyd/nlohmann
+	$(INSTALL_DIR) $(STAGING_DIR)/usr/include/netifyd/radix
+	$(CP) $(PKG_INSTALL_DIR)/usr/include/netifyd/radix/*.hpp $(STAGING_DIR)/usr/include/netifyd/radix
+	$(INSTALL_DIR) $(STAGING_DIR)/usr/include/ndpi
+	$(CP) $(PKG_INSTALL_DIR)/usr/include/ndpi/*.h $(STAGING_DIR)/usr/include/ndpi
+	$(INSTALL_DIR) $(STAGING_DIR)/usr/lib
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/libnetifyd.a $(STAGING_DIR)/usr/lib
+	$(if $(CONFIG_NETIFYD_BUILD_SHARED_LIBRARY),$(CP) $(PKG_INSTALL_DIR)/usr/lib/libnetifyd.so.* $(STAGING_DIR)/usr/lib,)
+	$(INSTALL_DIR) $(STAGING_DIR)/usr/lib/pkgconfig
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/pkgconfig/libnetifyd.pc $(STAGING_DIR)/usr/lib/pkgconfig
 endef
 
 define Package/netifyd/install
@@ -111,12 +130,21 @@ define Package/netifyd/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/sbin/netifyd $(1)/usr/sbin
 	$(INSTALL_DIR) $(1)/usr/lib
-	$(if $(CONFIG_NETIFYD_BUILD_SHARED_LIBRARY),$(CP) $(PKG_INSTALL_DIR)/usr/lib/libnetifyd.so.* $(1)/usr/lib,)
-	$(INSTALL_DIR) $(1)/etc/netify.d
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/deploy/netify-apps.conf $(1)/etc/netify.d
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/deploy/netify-categories.json $(1)/etc/netify.d
-	$(INSTALL_DIR) $(1)/usr/share/netifyd
+	$(if $(CONFIG_NETIFYD_BUILD_SHARED_LIBRARY),$(CP) $(PKG_INSTALL_DIR)/usr/lib/libnetifyd.so* $(1)/usr/lib,)
+	$(INSTALL_DIR) $(1)/etc/netifyd
+	$(INSTALL_DIR) $(1)/etc/netifyd/categories.d
+	$(INSTALL_DIR) $(1)/etc/netifyd/profiles.d
+	$(CP) $(PKG_INSTALL_DIR)/etc/netifyd/profiles.d/* $(1)/etc/netifyd/profiles.d
+	$(INSTALL_DIR) $(1)/etc/netifyd/interfaces.d
+	$(CP) $(PKG_INSTALL_DIR)/etc/netifyd/interfaces.d/* $(1)/etc/netifyd/interfaces.d
+	$(INSTALL_DIR) $(1)/etc/netifyd/plugins.d
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/deploy/netify-apps.conf $(1)/etc/netifyd
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/deploy/netify-categories.json $(1)/etc/netifyd
+	$(INSTALL_DIR) $(1)/usr/share/netifyd/plugins.d
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/deploy/functions.sh $(1)/usr/share/netifyd
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/deploy/netify-apps.conf $(1)/usr/share/netifyd
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/deploy/*.json $(1)/usr/share/netifyd
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/deploy/plugins.d/*.conf $(1)/usr/share/netifyd/plugins.d
 endef
 
 $(eval $(call BuildPackage,netifyd))

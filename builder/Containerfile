@@ -64,7 +64,8 @@ ARG REPO_CHANNEL
 ARG TARGET
 ARG NETHSECURITY_VERSION
 COPY --chmod=777 builder/configure-build.sh /usr/local/bin/configure-build
-ARG NETIFYD_ENABLED=0
+# TODO: fix this when specs for V5 arrive
+# ARG NETIFYD_ENABLED=0
 RUN /usr/local/bin/configure-build
 COPY --chmod=777 builder/entrypoint.sh /usr/local/bin/entrypoint.sh
 ENTRYPOINT [ "/usr/local/bin/entrypoint.sh" ]

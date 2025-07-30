@@ -17,12 +17,13 @@ PKG_LICENSE:=GPL-3.0-only
 
 include $(INCLUDE_DIR)/package.mk
 
+# TODO: fix this with proper dependencies when specs for V5 arrive
 define Package/ns-dpi
 	SECTION:=base
 	CATEGORY:=NethSecurity
 	TITLE:=DPI rules
 	URL:=https://github.com/NethServer/nethsecurity/
-	DEPENDS:=+netify-flow-actions +kmod-ipt-conntrack-label
+	DEPENDS:=+kmod-ipt-conntrack-label
 	PKGARCH:=all
 endef
 
