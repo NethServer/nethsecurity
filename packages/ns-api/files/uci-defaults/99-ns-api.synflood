@@ -1,0 +1,14 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# removing the default synflood configuration in uci
+# Issue: https://github.com/NethServer/nethsecurity/issues/1158
+
+if uci -q get firewall.ns_defaults.syn_flood > /dev/null; then
+    uci -q delete firewall.ns_defaults.syn_flood
+    uci commit firewall
+fi
