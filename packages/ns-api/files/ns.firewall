@@ -41,7 +41,8 @@ if cmd == 'list':
             "ns_tag": [],
             "add_to_top": False,
             "ns_src": "database/id",
-            "ns_dst": "database/id"
+            "ns_dst": "database/id",
+            "ns_link": "database/id"
         },
         'edit-rule': {
             "id": "ns_1234",
@@ -59,7 +60,8 @@ if cmd == 'list':
             "ns_tag": [],
             "add_to_top": False,
             "ns_src": "database/id",
-            "ns_dst": "database/id"
+            "ns_dst": "database/id",
+            "ns_link": "database/id"
         },
         'delete-rule': { "id": "ns_1234" },
         'enable-rule': { "id": "ns_1234" },
@@ -121,7 +123,8 @@ elif cmd == 'call':
                     data['ns_tag'],
                     data['add_to_top'],
                     data.get('ns_src'),
-                    data.get('ns_dst')
+                    data.get('ns_dst'),
+                    data.get('ns_link')
             )
             print(json.dumps({"id": ret}))
         elif action == "edit-rule":
@@ -142,7 +145,8 @@ elif cmd == 'call':
                     data['log'],
                     data['ns_tag'],
                     data.get('ns_src'),
-                    data.get('ns_dst')
+                    data.get('ns_dst'),
+                    data.get('ns_link')
             )
             print(json.dumps({"id": ret}))
         elif action == "delete-rule":
@@ -180,8 +184,9 @@ elif cmd == 'call':
                               )
 
             if type(ret) is tuple:
+                conf_name, ret = ret
                 # success
-                print(json.dumps({"message": "success"}))
+                print(json.dumps({"message": "success", "created_zone": conf_name}))
             else:
                 # validation error
                 print(json.dumps(ret))
