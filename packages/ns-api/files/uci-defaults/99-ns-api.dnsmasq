@@ -1,0 +1,21 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# setting a default name for the main dnsmasq instance
+# Issue: https://github.com/NethServer/nethsecurity/issues/1287
+
+if ! uci -q get dhcp.ns_dnsmasq > /dev/null && [ "$(uci -q get dhcp.@dnsmasq[0])" = "dnsmasq" ]; then
+  uci rename dhcp.@dnsmasq[0]=ns_dnsmasq > /dev/null
+fi
+
+if [ "$(uci -q get dhcp.ns_dnsmasq)" = "dnsmasq" ]; then
+  for i in $(uci show dhcp | grep -Po '^dhcp\.([^=]+)(?==dhcp$)'); do
+    uci -q set "$i.instance=ns_dnsmasq" > /dev/null
+  done
+fi
+
+uci commit dhcp

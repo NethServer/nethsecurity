@@ -154,6 +154,7 @@ def edit_interface(args):
     u.set("dhcp", dhcp_id, "leasetime", args["leasetime"])
     u.set("dhcp", dhcp_id, "interface", args['interface'])
     u.set("dhcp", dhcp_id, "force", '1' if args.get('force', False) else '0')
+    u.set("dhcp", dhcp_id, "instance", "ns_dnsmasq")
     if 'ns_binding' in args:
         u.set("dhcp", dhcp_id, "ns_binding", args.get('ns_binding'))
     opts = []
