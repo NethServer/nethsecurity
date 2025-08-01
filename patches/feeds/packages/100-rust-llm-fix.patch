@@ -1,0 +1,13 @@
+diff --git a/lang/rust/Makefile b/lang/rust/Makefile
+index ab5436741..d3741b502 100644
+--- a/lang/rust/Makefile
++++ b/lang/rust/Makefile
+@@ -75,7 +75,7 @@ HOST_CONFIGURE_ARGS = \
+ 	--release-channel=stable \
+ 	--enable-cargo-native-static \
+ 	--bootstrap-cache-path=$(DL_DIR)/rustc \
+-	--set=llvm.download-ci-llvm=true \
++	--set=llvm.download-ci-llvm=false \
+ 	$(TARGET_CONFIGURE_ARGS)
+ 
+ define Host/Uninstall
