@@ -45,7 +45,7 @@ USER buildbot
 WORKDIR /home/buildbot
 # OpenWRT repo
 ARG OWRT_VERSION
-RUN git clone --branch "${OWRT_VERSION}" --depth 1 https://github.com/openwrt/openwrt.git
+RUN git clone --branch "${OWRT_VERSION}" https://github.com/openwrt/openwrt.git
 WORKDIR /home/buildbot/openwrt
 RUN sed -i '/telephony/d' feeds.conf.default
 RUN ./scripts/feeds update -a
