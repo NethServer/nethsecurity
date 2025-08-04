@@ -2,7 +2,17 @@ name: Release stable packages
 
 on:
   workflow_call:
+    inputs:
+      target_version:
+        description: 'Directory on the remote storage where the stable packages will be published'
+        required: false
+        type: string
   workflow_dispatch:
+    inputs:
+      target_version:
+        description: 'Directory on the remote storage where the stable packages will be published'
+        required: false
+        type: string
 
 jobs:
   sync:
@@ -18,19 +28,24 @@ jobs:
       RCLONE_CONFIG_SPACES_ACL: public-read
     steps:
       - uses: actions/checkout@v5
-      - name: Publish stable packages
+      - name: Extract versions
+        id: versions
         run: |
-          git clone -b main https://github.com/NethServer/nethsecurity.git
-          pushd nethsecurity
-          git fetch --force --tags
-          MAJOR_VERSION="$(git describe | cut -d'-' -f1)"
-          if [ -z "$MAJOR_VERSION" ]; then
-            echo "No MAJOR_VERSION found"
+          if [ -n "${{ github.event.inputs.target_version }}" ]; then
+            echo "::info::Using target version from input: ${{ github.event.inputs.target_version }}"
+            echo "TARGET_VERSION=${{ github.event.inputs.target_version }}" >> $GITHUB_OUTPUT
+          else
+            echo "::info::Using target version from build.conf.example"
+            echo "TARGET_VERSION=$(grep '^NETHSECURITY_VERSION=' build.conf.example | cut -d'=' -f2)" >> $GITHUB_OUTPUT
+          fi
+          echo "LAST_BUILD=$(curl -s -L https://updates.nethsecurity.nethserver.org/dev/latest_release)" >> $GITHUB_OUTPUT
+      - name: Setup rclone
+        uses: AnimMouse/setup-rclone@v1
+      - name: Copy dev packages to stable
+        run: |
+          if [ -z "${{ steps.versions.outputs.TARGET_VERSION }}" ]; then
+            echo "::error::TARGET_VERSION is not set. Aborting the workflow."
             exit 1
           fi
-          echo "::notice title=MAJOR_VERSION::$MAJOR_VERSION"
-          popd
-          TMP_FILE=$(mktemp)
-          wget https://downloads.rclone.org/v1.66.0/rclone-v1.66.0-linux-amd64.deb -O "$TMP_FILE"
-          sudo dpkg -i "$TMP_FILE"
-          rclone sync -M --no-update-modtime -v --exclude "/targets/**" "spaces:nethsecurity/dev/$MAJOR_VERSION/" "spaces:nethsecurity/stable/$MAJOR_VERSION/"
+          echo "::notice title='Publishing packages':: Publishing packages from ${{ steps.versions.outputs.LAST_BUILD }} to ${{ steps.versions.outputs.TARGET_VERSION }}"
+          rclone sync -M --no-update-modtime -v --exclude "/targets/**" "spaces:nethsecurity/dev/${{ steps.versions.outputs.LAST_BUILD }}/" "spaces:nethsecurity/stable/${{ steps.versions.outputs.TARGET_VERSION }}/"
