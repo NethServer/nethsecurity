@@ -325,6 +325,9 @@ def list_algs():
             {"name": "4096 bit (DH-16)", "id": "modp4096"},
             {"name": "6144 bit (DH-17)", "id": "modp6144"},
             {"name": "8192 bit (DH-18)", "id": "modp8192"},
+            {"name": "ECP256 (DH-19)", "id": "ecp256"},
+            {"name": "ECP384 (DH-20)", "id": "ecp384"},
+            {"name": "ECP521 (DH-21)", "id": "ecp521"},
             {"name": "Curve 25519", "id": "curve25519"},
             {"name": "Newhope 128", "id": "newhope"},
         ]
