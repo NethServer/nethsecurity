@@ -18,6 +18,7 @@ import logging
 import random
 import signal
 from threading import Event
+import resource
 
 FLASHSTART_API_ENDPOINT = 'https://api.flashstart.com/1.0.0'
 
@@ -224,8 +225,6 @@ def __add_profile(port, profile):
     e_uci.set('dhcp', profile['id'], 'ns_flashstart_dns_code', profile["dns_code"])
     e_uci.set('dhcp', profile['id'], 'port', port)
     e_uci.set('dhcp', profile['id'], 'noresolv', True)
-    e_uci.set('dhcp', profile['id'], 'max_ttl', 60)
-    e_uci.set('dhcp', profile['id'], 'max_cache_ttl', 60)
     e_uci.set('dhcp', profile['id'], 'logqueries', query_logging)
     e_uci.set('dhcp', profile['id'], 'rebind_protection', rebind_protection)
     # sets always get replaced, checking before replacing
@@ -520,6 +519,11 @@ def main():
                 except Exception as e:
                     logging.error(f'Unexpected error: {e}')
                 event_handler.wait(wait_time)
+                # If the application exceeds the max_memory value in size, break the loop
+                max_memory = 500000
+                if resource.getrusage(resource.RUSAGE_SELF).ru_maxrss > max_memory:
+                    logger.warning('Memory usage exceeded 500MB, stopping the daemon.')
+                    break
                 # re-init the UCI object to avoid issues with the config being changed
                 __refresh_uci()
             # remove the config
