@@ -6,10 +6,13 @@ on:
     branches:
       - 'main'
     paths:
+      - 'builder/**'
       - 'config/**'
       - 'files/**'
       - 'packages/**'
       - 'patches/**'
+      - 'build.conf.example'
+      - 'build-nethsec.sh'
     tags:
       - '*'
   pull_request:
