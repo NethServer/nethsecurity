@@ -1,4 +1,5 @@
-OWRT_VERSION=openwrt-24.10
+# Latest commit of 24.10 branch, allows cache-busting
+OWRT_VERSION=92d4f59709eac7422391187edbd85f2a14d5589b
 NETHSECURITY_VERSION=8.6.0
 TARGET=x86_64
 REPO_CHANNEL=dev
