@@ -17,10 +17,13 @@ on:
       - '*'
   pull_request:
     paths:
+      - 'builder/**'
       - 'config/**'
       - 'files/**'
       - 'packages/**'
       - 'patches/**'
+      - 'build.conf.example'
+      - 'build-nethsec.sh'
 
 jobs:
   publish_images:
