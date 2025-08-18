@@ -3,9 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-# 2025-06-30
 FROM debian:12.11 AS base
-ARG SOURCE_DATE_EPOCH=1751241600
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends --no-install-suggests \
         bison \
@@ -45,8 +43,9 @@ USER buildbot
 WORKDIR /home/buildbot
 # OpenWRT repo
 ARG OWRT_VERSION
-RUN git clone --branch "${OWRT_VERSION}" https://github.com/openwrt/openwrt.git
+RUN git clone https://github.com/openwrt/openwrt.git
 WORKDIR /home/buildbot/openwrt
+RUN git checkout "$OWRT_VERSION"
 RUN sed -i '/telephony/d' feeds.conf.default
 RUN ./scripts/feeds update -a
 COPY --chmod=777 builder/apply-patches.sh /usr/local/bin/apply-patches
