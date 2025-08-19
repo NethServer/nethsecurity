@@ -58,6 +58,19 @@ VERSION="8.8.0" distfeed-setup
 If you want to change the base URL, set the UCI variable: `uci set ns-plug.config.repository_url=https://<your_server>`
 then, commit the changes with `uci commit ns-plug` and run `distfeed-setup` to apply the changes.
 
+Every image ships with the file `/etc/repo-channel` that contains the current repository channel. This is used by uci
+defaults to set the repository channel when the image is installed. To switch the repository channel, you can do as the
+following:
+
+```bash
+echo "<channel>" > /etc/repo-channel
+uci set ns-plug.config.repository_url="https://updates.nethsecurity.nethserver.org/$(cat /etc/repo-channel)"
+uci commit
+distfeed-setup
+```
+
+You can now refresh the update page, and the new repository channel will be used.
+
 ### Force updates on a subscription machine
 
 A machine with a valid subscription receives updates from the subscription channel.
