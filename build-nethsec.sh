@@ -55,11 +55,11 @@ podman run \
     --interactive \
     --tty \
     --replace \
-    --volume nethsecurity_builder_build:/home/buildbot/openwrt/build_dir \
-    --volume nethsecurity_builder_staging:/home/buildbot/openwrt/staging_dir \
-    --volume nethsecurity_builder_cache:/home/buildbot/openwrt/.ccache \
-    --volume nethsecurity_builder_downloads:/home/buildbot/openwrt/download \
-    --volume nethsecurity_builder_dl:/home/buildbot/openwrt/dl \
+    --volume "nethsecurity_builder_${OWRT_VERSION}_build:/home/buildbot/openwrt/build_dir" \
+    --volume "nethsecurity_builder_${OWRT_VERSION}_staging:/home/buildbot/openwrt/staging_dir" \
+    --volume "nethsecurity_builder_${OWRT_VERSION}_cache:/home/buildbot/openwrt/.ccache" \
+    --volume "nethsecurity_builder_${OWRT_VERSION}_downloads:/home/buildbot/openwrt/download" \
+    --volume "nethsecurity_builder_${OWRT_VERSION}_dl:/home/buildbot/openwrt/dl" \
     nethsecurity-next \
     "$@" || status=$?
 
