@@ -21,31 +21,20 @@ The distribution feed includes the following channels:
 
 Official package repositories are hosted at [{{site.download_url}}]({{site.download_url}}/index.html).
 
-Each release in the distribution feed is associated with two repositories:
-
-1. Fixed Repository:
-    - Contains packages and images from the build.
-    - This repository remains unchanged and is not used by the running images.
-
-2. Rolling Repository:
-    - Used by the running images.
-    - Contains all updates compatible within the same major OpenWrt release.
+Each release in the distribution feed is associated with a fixed repository. The fixed repository contains the image
+released and the packages. The repository will receive updates compatible with the same release.
 
 ### Examples
 
 Here are some examples of releases and their corresponding repositories:
 
-1. Dev example: `23.05.2-ns.0.0.1-217-g8786a2b`
-    - Fixed repository: `{{site.download_url}}/dev/23.05.2-ns.0.0.1-217-g8786a2b`
-    - Rolling repository: `{{site.download_url}}/dev/23.05.2`
+1. Dev example: `8.6.0-dev+ac63c40f4.20250818092838` and it's repository available at `{{site.download_url}}/dev/8.6.0-dev+ac63c40f4.20250818092838`
 
-2. Stable example: `23.05.2-ns.0.0.1`
-    - Fixed repository: `{{site.download_url}}/stable/23.05.2-ns.0.0.1`
-    - Rolling repository: `{{site.download_url}}/stable/23.05.2`
+2. Stable example: `8.6.0` and it's repository available at `{{site.download_url}}/stable/8.6.0`
 
-3. Unstable example: `23.05.2-ns.0.0.1-alpha1`
-    - Fixed repository: `{{site.download_url}}/dev/23.05.2-ns.0.0.1-alpha1`
-    - Rolling repository: `{{site.download_url}}/dev/23.05.2`
+3. Unstable example: `8.6.0-alpha1` and it's repository available at `{{site.download_url}}/dev/8.6.0-alpha1`
+
+4. Branch example: `8.6.0-netifyd-v5.x+37a64ca8a` and it's repository available at `{{site.download_url}}/dev/8.6.0-netifyd-v5.x+37a64ca8a`
 
 ### Change repository channel
 
@@ -56,19 +45,31 @@ The script is automatically executed when a subscription is enabled or disabled.
 
 #### Customization options
 
-The behavior of the distfeed-setup script can be customized using the following environment variables:
+The behavior of the distfeed-setup script can be customized using the following environment variable:
 
-- `CHANNEL`: define the desired channel for the repository. Possible values include stable, dev, and subscription.
-   By default, the script attempts to extract this information from the `/etc/os-release` file.
-- `OWRT_VERSION`: specify the OpenWrt version used inside the rolling repository URL.
+- `VERSION`: specify the NethSecurity version used inside the rolling repository URL.
    The script typically extracts this information from the `/etc/os-release` file.
 
 Custom configuration example:
 ```
-CHANNEL="dev" OWRT_VERSION="21.02.3" distfeed-setup
+VERSION="8.8.0" distfeed-setup
 ```
 
-If you want to change the base URL, set the UCI variable: `uci set ns-plug.config.repository_url=https://<your_server>`.
+If you want to change the base URL, set the UCI variable: `uci set ns-plug.config.repository_url=https://<your_server>`
+then, commit the changes with `uci commit ns-plug` and run `distfeed-setup` to apply the changes.
+
+Every image ships with the file `/etc/repo-channel` that contains the current repository channel. This is used by uci
+defaults to set the repository channel when the image is installed. To switch the repository channel, you can do as the
+following:
+
+```bash
+echo "<channel>" > /etc/repo-channel
+uci set ns-plug.config.repository_url="https://updates.nethsecurity.nethserver.org/$(cat /etc/repo-channel)"
+uci commit
+distfeed-setup
+```
+
+You can now refresh the update page, and the new repository channel will be used.
 
 ### Force updates on a subscription machine
 
@@ -101,7 +102,7 @@ You can add custom feeds by changing the `/etc/opkg/customfeeds.conf` file.
 To enable OpenWrt package repositories use the following commands
 ```bash
 source /etc/os-release
-VERSION=$(echo $VERSION | cut -d- -f2)
+VERSION=$(echo $OPENWRT_RELEASE | cut -d' ' -f3 | sed 's/^v//')
 cat << EOF > /etc/opkg/customfeeds.conf 
 src/gz core https://downloads.openwrt.org/releases/$VERSION/targets/x86/64/packages
 src/gz base https://downloads.openwrt.org/releases/$VERSION/packages/x86_64/base
