@@ -17,8 +17,7 @@ import hashlib
 import time
 from nethsec import utils
 from jinja2 import Template
-import paramiko
-import io
+import tempfile
 import shutil
 
 ### Utilities functions
@@ -82,6 +81,70 @@ def get_device_from_ip(uci, ipaddr):
             # Return a tuple with the (interface, device)
             return (n, uci.get('network', n, 'device', default=None))
     return (None, None)
+
+def ssh_execute(command, host, port=22, username='root', password=None, private_key_path=None):
+    """
+    Execute SSH command using subprocess
+    """
+    ssh_cmd = ['ssh', '-o', 'StrictHostKeyChecking=no']
+    # Add port if not default
+    if port != 22:
+        ssh_cmd.extend(['-p', str(port)])
+
+    # Handle authentication
+    if private_key_path:
+        ssh_cmd.extend(['-i', private_key_path])
+
+    # Add user@host
+    ssh_cmd.append(f'{username}@{host}')
+
+    # Add command
+    ssh_cmd.append(command)
+
+    try:
+        if password:
+            # Use sshpass for password authentication
+            sshpass_cmd = ['sshpass', '-p', password] + ssh_cmd
+            proc = subprocess.run(sshpass_cmd, capture_output=True, text=True, timeout=30)
+        else:
+            proc = subprocess.run(ssh_cmd, capture_output=True, text=True, timeout=30)
+        return proc.stdout, proc.stderr, proc.returncode
+    except:
+        raise utils.ValidationError('ssh_command_failed')
+
+def ssh_upload_file(local_file_path, remote_file_path, host, port=22, username='root', password=None, private_key_path=None):
+    """
+    Upload file via SCP using subprocess
+    """
+    # First create the destination directory
+    destination_dir = os.path.dirname(remote_file_path)
+    if destination_dir:
+        _, _, returncode = ssh_execute(f"mkdir -p {destination_dir}", host, port, username, password, private_key_path)
+        if returncode != 0:
+            return False
+    scp_cmd = ['scp', '-o', 'StrictHostKeyChecking=no']
+    # Add port if not default
+    if port != 22:
+        scp_cmd.extend(['-P', str(port)])
+
+    # Handle authentication
+    if private_key_path:
+        scp_cmd.extend(['-i', private_key_path])
+
+    # Add source and destination
+    scp_cmd.append(local_file_path)
+    scp_cmd.append(f'{username}@{host}:{remote_file_path}')
+    try:
+        if password:
+            # Use sshpass for password authentication
+            sshpass_cmd = ['sshpass', '-p', password] + scp_cmd
+            proc = subprocess.run(sshpass_cmd, capture_output=True, text=True, timeout=60)
+        else:
+            proc = subprocess.run(scp_cmd, capture_output=True, text=True, timeout=60)
+        return proc.returncode == 0
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return False
+
 
 def allocate_fake_ips(uci):
     wan_counter = 0
@@ -159,59 +222,41 @@ def validate_dhcp(lan_interface):
     return errors
 
 def execute_remote_command(command, backup_node_ip=None, port=None):
-    # Connect to the remote server using SSH
+    """Execute a command on the remote backup node using SSH."""
     uci = EUci()
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     if port is None:
         port = uci.get('dropbear', 'ha_link', 'Port', default=None)
     if backup_node_ip is None:
         backup_node_ip = uci.get('keepalived', 'ha_peer', 'address', default=None)
     if not port or not backup_node_ip:
         raise utils.ValidationError('backup_node_ip', 'missing_backup_node_ip')
-    # Convert the private key from Dropbear to OpenSSH format
-    private_key_path = '/etc/keepalived/keys/id_rsa'
-    proc = subprocess.run(['dropbearconvert', 'dropbear', 'openssh', private_key_path, "-"], check=True, capture_output=True, text=True)
-    private_key = paramiko.RSAKey.from_private_key(io.StringIO(proc.stdout))
-    ssh.connect(backup_node_ip, port=port, username='root', pkey=private_key)
-    # Execute the command
-    _, stdout, stderr = ssh.exec_command(command)
-    # Read the output
-    output = stdout.read().decode()
-    error = stderr.read().decode()
-    return output, error
+    stdout, stderr, returncode = ssh_execute(
+        command,
+        backup_node_ip,
+        port=int(port),
+        private_key_path='/etc/keepalived/keys/id_rsa'
+    )
+    if returncode == 0:
+        # Callers will check for errors in stderr
+        stderr = ''
+    return stdout, stderr
 
 def upload_remote_file(local_file_path, remote_file_path, backup_node_ip=None, port=None):
-    # Prepare the destination directory
-    destination_dir = os.path.dirname(remote_file_path)
-    execute_remote_command(f"mkdir -p {destination_dir}")
-
-    # Connect to the remote server using SSH
+    """Upload a file to the remote backup node using SCP."""
     uci = EUci()
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     if port is None:
         port = uci.get('dropbear', 'ha_link', 'Port', default=None)
     if backup_node_ip is None:
         backup_node_ip = uci.get('keepalived', 'ha_peer', 'address', default=None)
     if not port or not backup_node_ip:
         raise utils.ValidationError('backup_node_ip', 'missing_backup_node_ip')
-
-    # Convert the private key from Dropbear to OpenSSH format
-    private_key_path = '/etc/keepalived/keys/id_rsa'
-    proc = subprocess.run(['dropbearconvert', 'dropbear', 'openssh', private_key_path, "-"], check=True, capture_output=True, text=True)
-    private_key = paramiko.RSAKey.from_private_key(io.StringIO(proc.stdout))
-
-    try:
-        # Upload the file using SFTP
-        ssh.connect(backup_node_ip, port=port, username='root', pkey=private_key)
-        sftp = ssh.open_sftp()
-        sftp.put(local_file_path, remote_file_path)
-        sftp.close()
-        ssh.close()
-        return True
-    except Exception as e:
-        return False
+    return ssh_upload_file(
+        local_file_path,
+        remote_file_path,
+        backup_node_ip,
+        port=int(port),
+        private_key_path='/etc/keepalived/keys/id_rsa'
+    )
 
 def find_device_config(uci, device, config=None):
     if config is None:
@@ -357,11 +402,11 @@ def add_wan_interface(role, interface, virtual_ip, gateway):
                 network_config = network_config + find_device_config(u, slave)
         network_config = network_config + [interface_config]
 
-        # Send the interface configuration to the backup node
-        output, error = execute_remote_command(f"echo '{json.dumps(network_config)}' | /usr/libexec/rpcd/ns.ha call import-network-config")
-        if error:
-            return utils.generic_error("error_adding_interface_on_backup_node")
-            
+        # Send the interface configuration to the backup node:
+        _, stderr = execute_remote_command(f"echo '{json.dumps(network_config)}' | /usr/libexec/rpcd/ns.ha call import-network-config")
+        if stderr:
+            return utils.generic_error("error_executing_import_network_config_on_backup_node")
+
     # Get the fake IP address
     primary_ip, backup_ip = allocate_fake_ips(u)
 
@@ -434,7 +479,6 @@ def add_wan_interface(role, interface, virtual_ip, gateway):
         output, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call add-wan-interface")
         if error:
             return utils.generic_error("error_executing_add_wan_interface_on_backup_node")
-
         return json.loads(output)
     else:
         return { "success": True }
@@ -677,15 +721,6 @@ def init_remote(ssh_password):
     if not all([primary_node_ip, backup_node_ip, password, pubkey]):
         raise utils.ValidationError('paramters', 'missing_required_configuration_values')
 
-    # Connect to the backup node using paramiko
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-    try:
-        ssh.connect(backup_node_ip, port=22, username='root', password=ssh_password)
-    except paramiko.SSHException as e:
-        raise utils.ValidationError('ssh', "ssh_connection_failed")
-
     # Prepare the init-local command
     virtual_ip_sections = utils.get_all_by_type(u, 'keepalived', 'ipaddress')
     virtual_ip = None
@@ -704,15 +739,16 @@ def init_remote(ssh_password):
         "password": password
     })
 
-    # Execute the init-local command on the backup node
-    _, stdout, stderr = ssh.exec_command(f"echo '{init_local_command}' | /usr/libexec/rpcd/ns.ha call init-local")
-    output = stdout.read().decode()
-    error = stderr.read().decode()
-    ssh.close()
-    if error:
-        raise RuntimeError(f"Error executing init-local on backup node: {error}")
-
-    return json.loads(output)
+    # Execute the init-local command on the backup
+    stdout, stderr, returncode = ssh_execute(
+        f"echo '{init_local_command}' | /usr/libexec/rpcd/ns.ha call init-local",
+        backup_node_ip,
+        port=22,
+        password=ssh_password
+    )
+    if returncode != 0:
+        return utils.generic_error(f"ssh_connection_failed: {stderr}")
+    return json.loads(stdout)
 
 
 def status():
@@ -762,16 +798,6 @@ def validate_requirements(role, lan_interface, wan_interface):
 def check_remote(backup_node_ip, ssh_password, lan_interface, wan_interface):
     errors = []
 
-    # Accessible via SSH on port 22
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-    try:
-        ssh.connect(backup_node_ip, port=22, username='root', password=ssh_password)
-    except Exception as e:
-        errors.append('ssh_connection_failed: ' + str(e))
-        return {"success": False, "errors": errors}
-
     # Call validate-configuration on the remote node
     validate_command = json.dumps({
         "role": "backup",
@@ -780,13 +806,22 @@ def check_remote(backup_node_ip, ssh_password, lan_interface, wan_interface):
     })
 
     try:
-        _, stdout, _ = ssh.exec_command(f"echo '{validate_command}' | /usr/libexec/rpcd/ns.ha call validate-requirements")
+        stdout, stderr, returncode = ssh_execute(
+            f"echo '{validate_command}' | /usr/libexec/rpcd/ns.ha call validate-requirements",
+            backup_node_ip,
+            port=22,
+            password=ssh_password
+        )
+        if returncode != 0:
+            errors.append('ssh_connection_failed: ' + stderr)
+            return {"success": False, "errors": errors}
     except Exception as e:
-        errors.append(str(e))
+        errors.append('ssh_connection_failed: ' + str(e))
+        return {"success": False, "errors": errors}
 
     try:
         if stdout:
-            result = json.loads(stdout.read().decode())
+            result = json.loads(stdout)
             if not result.get("success"):
                 errors.extend(result.get("errors", []))
     except:
@@ -1046,7 +1081,9 @@ def upgrade_remote(image):
     })
 
     # Execute the upgrade command on the backup node
-    stdout, _ = execute_remote_command(f"echo '{upgrade_command}' | /usr/libexec/rpcd/ns.update call install-uploaded-image")
+    _, stderr = execute_remote_command(f"echo '{upgrade_command}' | /usr/libexec/rpcd/ns.update call install-uploaded-image")
+    if stderr:
+        return utils.generic_error("error_executing_upgrade_on_backup_node")
     return {"result": "success"}
 
 def reset(role, pubkey = None):
