@@ -8586,12 +8586,117 @@ Response example:
 
 #### add-alias
 
+Add an alias to keepalived configuration.
+
+Request example:
+```bash
+api-cli ns.ha call add-alias --data '{
+  "role": "primary",
+  "interface": "wan",
+  "virtual_ip": "1.2.3.5/24"
+}'
+```
+
+Response example:
+```json
+{
+  "success": true
+}
+```
+
 #### remove-alias
+
+```bash
+api-cli ns.ha call remove-alias --data '{
+  "role": "primary",
+  "interface": "wan",
+  "virtual_ip": "1.2.3.5/24"
+}'
+```
+
+Response example:
+```json
+{
+  "success": true
+}
+```
+
 
 #### list-interfaces
 
+List network interfaces.
+
+Request example:
+```bash
+api-cli ns.ha call list-interfaces
+```
+
+Response example:
+```json
+{
+  "interfaces": [
+    {
+      "device": "br-lan",
+      "name": "lan",
+      "ha_configured": true,
+      "virtual_ip": "192.168.100.240/24"
+    },
+    {
+      "device": "eth1",
+      "name": "wan",
+      "ha_configured": true,
+      "virtual_ip": "192.168.122.49/24"
+    }
+  ]
+}
+```
+
 #### list-aliases
+
+List aliases configured inside keepalived.
+
+Request example:
+```bash
+api-cli ns.ha call list-aliases
+```
+
+Response example:
+```json
+{"aliases": [{"interface": "lan", "ipaddr": "192.168.100.66/24"}]}
+```
 
 #### reset
 
+Resets the keepalived configuration to its initial state.
+
+Request example:
+```bash
+api-cli ns.ha call reset --data '{
+  "role": "primary",
+  "pubkey": "ssh-rsa AAAAB...."
+}'
+```
+```
+
+Response example:
+```json
+{
+  "success": true
+}
+```
+
 #### upgrade-remote
+
+Upgrades the remote node to a specific version.
+
+```bash
+api-cli ns.ha call upgrade-remote --data '{
+  "image": "/tmp/upgrade.img.gz"
+}'
+```
+
+Response example:
+```json
+{
+  "success": true
+}
