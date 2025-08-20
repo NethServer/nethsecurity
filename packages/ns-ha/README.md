@@ -331,9 +331,6 @@ Not configured
 
 Interfaces:
   Interface: wan, Device: eth1 
-
-Aliases:
-  Interface: wan, IP: 192.168.122.66/24
 ```
 
 ## Check the status

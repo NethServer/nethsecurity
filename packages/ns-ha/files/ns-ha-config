@@ -457,8 +457,7 @@ show_config() {
   echo
   # Fetch aliases
   OUTPUT_ALIASES=$(/usr/libexec/rpcd/ns.ha call list-aliases)
-  CONFIGURED_ALIASES=$(echo "$OUTPUT_ALIASES" | jq -r '.aliases[] | select(.ha_configured == true) | "  Interface: \(.interface), Virtual Alias IP: \(.ipaddr)"')
-  NOT_CONFIGURED_ALIASES=$(echo "$OUTPUT_ALIASES" | jq -r '.aliases[] | select(.ha_configured == false) | "  Interface: \(.interface), IP: \(.ipaddr)"')
+  CONFIGURED_ALIASES=$(echo "$OUTPUT_ALIASES" | jq -r '.aliases[] | "  Interface: \(.interface), Virtual Alias IP: \(.ipaddr)"')
 
   echo "Aliases:"
   if [[ -n "$CONFIGURED_ALIASES" ]]; then
@@ -475,14 +474,6 @@ show_config() {
   echo "Interfaces:"
   if [[ -n "$NOT_CONFIGURED_INTERFACES" ]]; then
     echo "$NOT_CONFIGURED_INTERFACES"
-  else
-    echo "  None"
-  fi
-
-  echo
-  echo "Aliases:"
-  if [[ -n "$NOT_CONFIGURED_ALIASES" ]]; then
-    echo "$NOT_CONFIGURED_ALIASES"
   else
     echo "  None"
   fi
