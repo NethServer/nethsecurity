@@ -19,6 +19,7 @@ from nethsec import utils
 from jinja2 import Template
 import tempfile
 import shutil
+import re
 
 ### Utilities functions
 
@@ -851,24 +852,15 @@ def list_interfaces():
 def list_aliases():
     u = EUci()
     aliases = []
-    for n in utils.get_all_by_type(u, 'network', 'interface'):
-        if n == 'loopback':
-            continue
-        device = u.get('network', n, 'device', default=None)
-        ha_configured = False
-        if device and device.startswith('@'): # include aliases
-            interface = device[1:]
-            try:
-                ipaddr = u.get_all('network', n, 'ipaddr')
-            except:
-                continue
-            for ip in ipaddr:
-                record_prefix = f'{interface}_{ip.replace("/", "_").replace(".", "_")}'
-                if u.get('keepalived', f'{record_prefix}_ipaddress', 'name', default=None):
-                    ha_configured = True
-                else:
-                    ha_configured = False
-                aliases.append({"interface": interface, "ha_configured": ha_configured, "ipaddr": ip})
+
+    for section in utils.get_all_by_type(u, 'keepalived', 'ipaddress'):
+        # Check if section name matches pattern like lan_192_168_100_66_24_ipaddress
+        if re.match(r'^[a-zA-Z0-9_]+_\d+_\d+_\d+_\d+_\d+_ipaddress$', section):
+            ns_link = u.get('keepalived', section, 'ns_link', default="")
+            aliases.append({
+                "interface": ns_link.split('/')[-1] if ns_link else "",
+                "ipaddr": u.get('keepalived', section, 'address', default=''),
+                })
     return { "aliases": aliases }
 
 def add_alias(role, interface, virtual_ip, gateway):

@@ -8338,7 +8338,7 @@ The following APIs are available for managing High Availability (HA) configurati
 
 Imports network configuration for HA setup.
 
-**Example request:**
+Request example:
 ```bash
 api-cli ns.ha call import-network-config --data '[
   {
@@ -8352,7 +8352,48 @@ api-cli ns.ha call import-network-config --data '[
 ]'
 ```
 
-**Example response:**
+Response example:
+```json
+{
+  "success": true
+}
+```
+
+#### check-remote
+
+Check the requirements for the remote node.
+
+Request example:
+```bash
+api-cli ns.ha call check-remote --data '{
+  "backup_node_ip": "100.100.100.2",
+  "ssh_password": "Nethesis,1234",
+  "lan_interface": "lan",
+  "wan_interface": "wan"
+}'
+```
+
+Response example:
+```json
+{
+  "success": true
+}
+```
+
+#### validate-requirements
+
+Validates the requirements for the HA setup.
+
+Request example:
+```bash
+api-cli ns.ha call validate-requirements --data '{
+  "role": "primary",
+  "lan_interface": "lan",
+  "wan_interface": "wan"
+}'
+```
+
+Response example:
 ```json
 {
   "success": true
@@ -8363,9 +8404,9 @@ api-cli ns.ha call import-network-config --data '[
 
 Adds a new WAN interface to the keepalived configuration.
 
-**Example request:**
+Request example:
 ```bash
-api-cli ns.ha call add-wan-interface --data'{
+api-cli ns.ha call add-wan-interface --data '{
   "role": "primary",
   "interface": "wan",
   "virtual_ip": "192.168.1.1/24",
@@ -8373,7 +8414,7 @@ api-cli ns.ha call add-wan-interface --data'{
 }'
 ```
 
-**Example response:**
+Response example:
 ```json
 {
   "success": true
@@ -8384,7 +8425,7 @@ api-cli ns.ha call add-wan-interface --data'{
 
 Adds a LAN interface to the keepalived configuration.
 
-**Example request:**
+Request example:
 ```bash
 api-cli ns.ha call add-lan-interface --data '{
   "role": "primary",
@@ -8394,7 +8435,7 @@ api-cli ns.ha call add-lan-interface --data '{
 }'
 ```
 
-**Example response:**
+Response example:
 ```json
 {
   "success": true
@@ -8405,7 +8446,7 @@ api-cli ns.ha call add-lan-interface --data '{
 
 Initializes the local node for high availability using Keepalived.
 
-**Example request:**
+Request example:
 ```bash
 api-cli ns.ha call init-local --data '{
   "role": "primary",
@@ -8417,7 +8458,7 @@ api-cli ns.ha call init-local --data '{
 }'
 ```
 
-**Example response:**
+**Response example:**
 ```json
 {
   "success": true
@@ -8428,14 +8469,14 @@ api-cli ns.ha call init-local --data '{
 
 Initializes the remote node for high availability (called from primary node).
 
-**Example request:**
+Request example:
 ```bash
 api-cli ns.ha call init-remote --data '{
   "ssh_password": "backup_node_password"
 }'
 ```
 
-**Example response:**
+Response example:
 ```json
 {
   "success": true
@@ -8446,12 +8487,12 @@ api-cli ns.ha call init-remote --data '{
 
 Retrieves the current HA status and configuration.
 
-**Example request:**
+Request example:
 ```bash
 api-cli ns.ha call status
 ```
 
-**Example response:**
+Response example:
 ```json
 {
   "role": "primary",
@@ -8515,7 +8556,7 @@ api-cli ns.ha call status
 }
 ```
 
-**Error Response Example:**
+Error response example:
 ```json
 {
   "error": "validation_error",
@@ -8524,6 +8565,33 @@ api-cli ns.ha call status
 }
 ```
 
-## Reporting bugs
+#### remove-interface
 
-// ... existing code ...
+Removes an interface from the keepalived configuration.
+
+Request example:
+```bash
+api-cli ns.ha call remove-interface --data '{
+  "role": "primary",
+  "interface": "wan"
+}'
+```
+
+Response example:
+```json
+{
+  "success": true
+}
+```
+
+#### add-alias
+
+#### remove-alias
+
+#### list-interfaces
+
+#### list-aliases
+
+#### reset
+
+#### upgrade-remote
