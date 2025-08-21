@@ -18,7 +18,7 @@ if [ "$(uci -q get ns-plug.config.repository_url)" = "" ]; then
     uci commit ns-plug
 fi
 
-if [ ! -f $file ]; then
+if [ ! -f /etc/repo-channel ]; then
   echo "stable" > /etc/repo-channel
 fi
 
