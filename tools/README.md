@@ -6,7 +6,6 @@ Tools:
 
 - cleanup: used by `cleanup.yml` to remove old image versions from the CDN
 - issue-comment: used by `build-image.yml` to comment on issues when a PR is merged into the main branch
-- package-bumper: used by `build-image.yml`, it searches for ns-* packages that need to be bumped
 
 ## cleanup
 
@@ -34,15 +33,6 @@ tools/issue-comment
 ```
 
 It works only for x86_64 target.
-
-
-## package-bumper
-
-When new commits are pushed to the main branch, it's usually necessary to bump the ns-* packages versions.
-Bumped packages can then be installed directly from the repository.
-
-The script searches only for ns-* packages that it bumps the version and creates a commit for each package.
-Finally it pushes the commits and creates a PR.
 
 ## changelog
 

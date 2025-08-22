@@ -146,4 +146,3 @@ jobs:
           REPO_CHANNEL: ${{ needs.publish_images.outputs.REPO_CHANNEL }}
         run: |
           tools/issue-comment
-          tools/package-bumper
