@@ -21,14 +21,10 @@ DOWNLOAD_PATH = '/var/run/ns-api-server/downloads/'
 PASSPHRASE_PATH = '/etc/backup.pass'
 
 def generate_random_file_name():
-    suffix = ''
-    passphrase = fetch_passphrase()
-    if passphrase is not None:
-        # add encrypted suffix so the server can infer the type
-        suffix = ".gpg"
-    return 'backup-' + ''.join(random.choice(string.ascii_letters) for i in range(20)) + suffix
+    return 'backup-' + ''.join(random.choice(string.ascii_letters) for i in range(20))
 
-def create_backup():
+
+def create_backup(encrypted=True):
     os.makedirs(DOWNLOAD_PATH, exist_ok=True)
     try:
         # run sysupgrade to create backup file
@@ -37,23 +33,27 @@ def create_backup():
         subprocess.run(['/sbin/sysupgrade', '-k', '-b', backup_path], check=True, capture_output=True)
         # if passphrase is present, encrypt backup file
         passphrase = fetch_passphrase()
-        if passphrase is not None:
+        if encrypted and passphrase is not None:
+            encrypted_path = f'{backup_path}.gpg'
             subprocess.run([
                 '/usr/bin/gpg',
                 '--symmetric',
                 '--batch',
                 '--passphrase', passphrase,
-                '--output', f'{backup_path}.gpg',
+                '--output', encrypted_path,
                 '--yes',
                 backup_path
             ], check=True, capture_output=True)
-            shutil.move(f'{backup_path}.gpg', backup_path)
+            # remove original backup
+            os.remove(backup_path)
+            return f'{file_name}.gpg'
+        else:
+            return file_name
     except subprocess.CalledProcessError as error:
         if error.cmd[0] == '/usr/bin/gpg':
             raise RuntimeError('encryption failed')
         elif error.cmd[0] == '/sbin/sysupgrade':
             raise RuntimeError('backup failed')
-    return file_name
 
 def restore_backup(archive, passphrase=None):
     try:
@@ -94,7 +94,9 @@ cmd = sys.argv[1]
 
 if cmd == 'list':
     print(json.dumps({
-        'backup': { },
+        'backup': {
+            'encrypted': 'bool'
+        },
         'restore': {
             'backup': 'upload-1e20f4b3-e581-454c-9162-ca33885eb223',
             'passphrase': 'str'
@@ -120,8 +122,10 @@ elif cmd == 'call':
     action = sys.argv[2]
     if action == 'backup':
         try:
+            data = json.load(sys.stdin)
+            encrypted = data.get('encrypted', True)
             # generate backup
-            file_name = create_backup()
+            file_name = create_backup(encrypted)
             print(json.dumps({'backup': file_name}))
         except RuntimeError as error:
             print(json.dumps(utils.generic_error(error.args[0])))
