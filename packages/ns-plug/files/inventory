@@ -8,6 +8,7 @@
 import re
 import json
 import subprocess
+import ipaddress
 from euci import EUci
 from struct import pack
 from nethsec import utils, inventory
@@ -68,6 +69,22 @@ def _get_gateway(interface):
         for r in info['route']:
             if r['target'] == '0.0.0.0':
                 return r['nexthop']
+    except:
+        return ''
+
+def _get_public_ip():
+    # Try ifconfig.co: sometimes the site returns an HTML error page, ignore it
+    address = _run("curl --fail --max-time 5 --retry 2 https://ifconfig.co")
+    try:
+        ipaddress.ip_address(address)
+        return address
+    except:
+        # Fallback to DNS query
+        address = _run("dig +short myip.opendns.com @resolver1.opendns.com")
+
+    try:
+        ipaddress.ip_address(address)
+        return address
     except:
         return ''
 
@@ -152,7 +169,7 @@ data = {
         }
     },
     "rpms": { "nethserver-firewall-base-ui": _run("opkg status ns-ui | grep Version | awk '{print $2}'") },
-    "public_ip": _run("curl https://ifconfig.co"),
+    "public_ip": _get_public_ip(),
     "features": features
 }
 
