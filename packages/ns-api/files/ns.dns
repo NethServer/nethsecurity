@@ -149,6 +149,10 @@ def set_config(args):
            if type(val) == type(True):
                val = bool2str(val)
            u.set("dhcp", section, opt, val)
+        if 'server' in opt and len(args['server']) > 0:
+           u.set("dhcp", section, 'noresolv', '1')
+        else:
+           u.set("dhcp", section, 'noresolv', '0')
         u.save("dhcp")
     except:
         return utils.generic_error("config_write_error")
