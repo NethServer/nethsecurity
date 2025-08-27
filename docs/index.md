@@ -12,6 +12,6 @@ It is a downstream rebuild of [OpenWrt](https://openwrt.org/).
 Give it a try: [Quickstart](quickstart.md)!
 
 External links:
-- [Project roadmap](https://trello.com/b/FndRrgIp/nethsecurity-project)
+- [Project roadmap](https://github.com/orgs/NethServer/projects/10/views/2)
 
 Do you need help? Ask the [community](https://community.nethserver.org/)
