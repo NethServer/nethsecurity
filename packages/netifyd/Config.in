@@ -13,4 +13,46 @@ config NETIFYD_WITH_LOCAL_LIBGCRYPT
 	help
 		Link the Agent (and nDPI) against the local system libgcrypt, or use the bundled gcrypt lite version.
 
+config NETIFYD_ENABLE_LEAN_AND_MEAN
+	bool "Enable lean-and-mean?"
+	default y
+	help
+		Enable to reduce the size of the application image as much as possible.  For very small embedded systems.
+
+config NETIFYD_ENABLE_LINUX_CAPABILITIES
+	bool "Enable support for Linux Capabilities?"
+	default n
+	help
+		Enable Linux Capabilities support in order to run as a non-root user.
+
+config NETIFYD_ENABLE_CONNTRACK_MDATA
+	bool "Enable extraction of supplemental conntrack metadata?"
+	default y
+	help
+		Enable the extraction of additional connection tracking metadata such as MARK values.
+
+config NETIFYD_ENABLE_CONNTRACK_COUNTERS
+	bool "Enable conntrack accounting counters?"
+	default y
+	help
+		Enable to extract flow packet and byte counters on each update interval.  Often used in combination with NFQUEUE or flow offloading.
+
+config NETIFYD_ENABLE_TPACKETV3
+	bool "Enable TPACKETv3 capture support?"
+	default n
+	help
+		Enable to support TPACKETv3 capture support.
+
+config NETIFYD_ENABLE_NFQUEUE
+	bool "Enable NFQUEUE capture support?"
+	default y
+	help
+		Enable to support NFQUEUE capture support.
+
+config NETIFYD_ENABLE_EXTENDED_STATS
+	bool "Enable the collection of extended flow stats?"
+	default y
+	help
+		Enable to collect additional flow statistics, such as flow rates, TCP sequence errors, and resets.
+
 endmenu
