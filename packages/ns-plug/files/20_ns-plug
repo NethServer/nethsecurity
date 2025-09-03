@@ -18,6 +18,10 @@ if [ "$(uci -q get ns-plug.config.repository_url)" = "" ]; then
     uci commit ns-plug
 fi
 
+if [ ! -f /etc/repo-channel ]; then
+  echo "stable" > /etc/repo-channel
+fi
+
 # ensure repository URL is set with the new format
 if [ -z "$(uci -q get ns-plug.config.system_id)" ]; then
   uci set ns-plug.config.repository_url="https://updates.nethsecurity.nethserver.org/$(cat /etc/repo-channel)"
