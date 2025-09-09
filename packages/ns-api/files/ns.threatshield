@@ -35,7 +35,13 @@ def has_bl_entitlement(e_uci):
     system_id = e_uci.get('ns-plug', 'config', 'system_id', default='')
     secret = e_uci.get('ns-plug', 'config', 'secret', default='')
     type = e_uci.get('ns-plug', 'config', 'type', default='')
-    url = f'https://bl.nethesis.it/plain/{type}/nethesis-blacklists/whitelist.global'
+    try:
+        with open('/etc/banip/banip.nethesis.feeds') as fp:
+            feeds = json.load(fp)
+        fkey = next(iter(feeds))
+        url = feeds[fkey]['url_4'].replace('__USER__:__PASSWORD__@','').replace('__TYPE__', type)
+    except:
+        return False
     auth_string = f"{system_id}:{secret}".encode("utf-8")
     auth_header = f"Basic {base64.b64encode(auth_string).decode('utf-8')}"
     headers = {
