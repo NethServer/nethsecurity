@@ -13,8 +13,13 @@ from nethsec import utils, firewall, ovpn, users
 import ipaddress
 import base64
 import configparser
+import re
 
 ## Utils
+
+def __next_instance():
+    return f'wg{len(list_instances()["instances"]) + 1}'
+
 
 def generate_wireguard_keys():
     private_key = subprocess.run(["wg", "genkey"], capture_output=True, text=True).stdout.strip()
@@ -227,7 +232,7 @@ def list_instances():
     for i in interfaces:
         interface = interfaces[i]
         if interface.get("proto") == "wireguard":
-            ret.append(i)
+            ret.append(get_configuration(i))
     return {"instances": ret}
 
 def get_instance_defaults():
@@ -255,12 +260,131 @@ def get_instance_defaults():
     while network in used_networks:
         network = ovpn.get_random_network()
     ret["network"] = network
-    ret["routes"] = ovpn.get_local_networks(u)
     try:
         ret["public_endpoint"] = ovpn.get_public_addresses(u)[0]
     except:
         ret["public_endpoint"] = ""
     return ret
+
+
+def validate_tunnel_data(args):
+    if 'enabled' not in args:
+        return utils.validation_error('enabled', 'required')
+    if not isinstance(args['enabled'], bool):
+        return utils.validation_error('enabled', 'invalid', args['enabled'])
+    if 'name' not in args or args['name'] == '':
+        return utils.validation_error('name', 'required')
+    if 'network' not in args:
+        return utils.validation_error('network', 'required')
+    try:
+        ipaddress.IPv4Network(args['network'], strict=False)
+    except ValueError:
+        return utils.validation_error('network', 'invalid_cidr_v4_address', args['network'])
+    if 'listen_port' not in args:
+        return utils.validation_error('listen_port', 'required')
+    if not isinstance(args['listen_port'], int):
+        return utils.validation_error('listen_port', 'invalid', args['listen_port'])
+    if not (1 <= args['listen_port'] <= 65535):
+        return utils.validation_error('listen_port', 'invalid_port', args['listen_port'])
+    if 'public_endpoint' not in args:
+        return utils.validation_error('public_endpoint', 'required')
+    try:
+        ipaddress.ip_address(args['public_endpoint'])
+    except ValueError:
+        if not re.match(r'^[a-zA-Z0-9.-]+$', args['public_endpoint']):
+            return utils.validation_error('public_endpoint', 'invalid_ip_address_or_fqdn', args['public_endpoint'])
+    if 'mtu' in args:
+        try:
+            int(args['mtu'])
+        except ValueError:
+            if args['mtu'] != '':
+                return utils.validation_error('mtu', 'invalid', args['mtu'])
+    if 'dns' in args:
+        for dns in args['dns'].split(','):
+            if dns == '':
+                continue
+            try:
+                ipaddress.ip_address(dns)
+            except ValueError:
+                return utils.validation_error('dns', 'invalid_ip_address', dns)
+
+    return None
+
+
+def add_server(args):
+    # validate input
+    err = validate_tunnel_data(args)
+    if err:
+        return err
+    # save instance
+    instance = __next_instance()
+    e_uci = EUci()
+    e_uci.set('network', instance, 'interface')
+    e_uci.set('network', instance, 'proto', 'wireguard')
+    private_key, _ = generate_wireguard_keys()
+    e_uci.set('network', instance, 'private_key', private_key)
+    e_uci.set('network', instance, 'listen_port', args['listen_port'])
+    interface_network = ipaddress.IPv4Network(args['network'], strict=False)
+    first_ip = str(list(interface_network.hosts())[0])
+    e_uci.set('network', instance, 'addresses', [first_ip])
+    e_uci.set('network', instance, 'ns_network', args['network'])
+    e_uci.set('network', instance, 'mtu', args.get('mtu', 1500))
+    e_uci.set('network', instance, 'ns_dns', args.get('dns', ''))
+    e_uci.set('network', instance, 'ns_public_endpoint', args['public_endpoint'])
+    e_uci.set('network', instance, 'ns_name', args['name'])
+    e_uci.set('network', instance, 'disabled', not args['enabled'])
+    e_uci.save('network')
+    # configure firewall
+    firewall.add_service(
+        e_uci,
+        f'WireGuard-{instance}',
+        args['listen_port'],
+        ['udp'],
+        link=f"network/{instance}"
+    )
+    zone = f"{instance}vpn"
+    firewall.add_trusted_zone(e_uci, zone, link=f"network/{instance}")
+    firewall.add_device_to_zone(e_uci, instance, zone)
+
+    return {"result": "success"}
+
+
+def edit_server(args):
+    if 'instance' not in args or args['instance'] == '':
+        return utils.validation_error('instance', 'required')
+    err = validate_tunnel_data(args)
+    if err:
+        return err
+    e_uci = EUci()
+    e_uci.set('network', args['instance'], 'listen_port', args['listen_port'])
+    interface_network = ipaddress.IPv4Network(args['network'], strict=False)
+    first_ip = str(list(interface_network.hosts())[0])
+    e_uci.set('network', args['instance'], 'addresses', [first_ip])
+    e_uci.set('network', args['instance'], 'ns_network', args['network'])
+    e_uci.set('network', args['instance'], 'mtu', args.get('mtu', 1500))
+    e_uci.set('network', args['instance'], 'ns_dns', args.get('dns', ''))
+    e_uci.set('network', args['instance'], 'ns_public_endpoint', args['public_endpoint'])
+    e_uci.set('network', args['instance'], 'ns_name', args['name'])
+    e_uci.set('network', args['instance'], 'disabled', not args['enabled'])
+    e_uci.save('network')
+
+    return {"result": "success"}
+
+
+def remove_instance(args):
+    if 'instance' not in args or args['instance'] == '':
+        return utils.validation_error('instance', 'required')
+    e_uci = EUci()
+    if e_uci.get('network', args['instance'], 'proto', default='invalid') != 'wireguard':
+        return utils.validation_error('instance', 'invalid', args['instance'])
+    # remove interface
+    e_uci.delete('network', args['instance'])
+    e_uci.save('network')
+    # FIXME: remove peers
+
+
+    retrurn {"result": "success"}
+
 
 def set_instance(args):
     u = EUci()
@@ -314,14 +438,30 @@ def remove_instance(instance):
 
 def get_configuration(instance):
     u = EUci()
-    ret = u.get_all("network", instance)
-    ret['ns_client_to_client'] = ret.get('ns_client_to_client', '0') == '1'
-    ret['ns_route_all_traffic'] = ret.get('ns_route_all_traffic', '0') == '1'
-    if ret.get('disabled', '0') == '1':
-        ret['enabled'] = False
-    else:
-        ret['enabled'] = True
-    return ret
+    if u.get('network', instance, default=None) is None:
+        return utils.generic_error("instance_not_found")
+    config = u.get('network', dtype=str, list=True, default=[])
+    peers = []
+    for i in config:
+        if i.startswith(f"{instance}_") and i.endswith("_peer"):
+            peers.append({
+                "name": i.replace(f"{instance}_", "").replace("_peer", ""),
+                "reserved_ip": u.get('network', i, 'ns_ip'),
+                "enabled": not u.get('network', i, 'disabled', dtype=bool),
+                "allowed_ips": u.get('network', i, 'allowed_ips', dtype=str, list=True, default=[]),
+            })
+    return {
+        "id": instance,
+        "name": u.get('network', instance, 'ns_name'),
+        "listen_port": u.get('network', instance, 'listen_port', dtype=int),
+        "address": u.get('network', instance, 'addresses', dtype=str, list=True, default=None)[0],
+        "network": u.get('network', instance, 'ns_network'),
+        "public_endpoint": u.get('network', instance, 'ns_public_endpoint'),
+        "enabled": not u.get('network', instance, 'disabled', dtype=bool),
+        "peers": peers,
+        "mtu": u.get('network', instance, 'mtu', dtype=int, default=1500),
+        "dns": u.get('network', instance, 'ns_dns', dtype=str, default='')
+    }
 
 def set_peer(args):
     u = EUci()
@@ -509,7 +649,11 @@ if cmd == 'list':
             },
         "remove-peer": {"instance": "wg1", "account": "user1"},
         "download-peer-config": {"instance": "wg1", "account": "user1"},
-        "import-configuration": {"config": "base64encodedconfig"}
+        "import-configuration": {"config": "base64encodedconfig"},
+        "get-instance-defaults": {},
+        "add-server": {},
+        "edit-server": {},
+        "add-peer": {}
     }))
 else:
     action = sys.argv[2]
@@ -539,5 +683,14 @@ else:
         ret = set_instance(args)
     elif action == "get-instance-defaults":
         ret = get_instance_defaults()
+    elif action == "add-server":
+        args = json.loads(sys.stdin.read())
+        ret = add_server(args)
+    elif action == "edit-server":
+        args = json.loads(sys.stdin.read())
+        ret = edit_server(args)
+    elif action == "delete-server":
+        args = json.loads(sys.stdin.read())
+        ret = remove_server(args["instance"])
 
     print(json.dumps(ret))
