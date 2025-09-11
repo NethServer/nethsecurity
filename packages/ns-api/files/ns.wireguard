@@ -18,8 +18,13 @@ import re
 ## Utils
 
 def __next_instance():
-    return f'wg{len(list_instances()["instances"]) + 1}'
+    for i in range(1, 100):
+        instance = f'wg{i}'
+        u = EUci()
+        if u.get("network", instance, 'protocol', default=None) is None:
+            return instance
 
+    return None
 
 def generate_wireguard_keys():
     private_key = subprocess.run(["wg", "genkey"], capture_output=True, text=True).stdout.strip()
