@@ -1,0 +1,24 @@
+#!/bin/sh
+
+# shellcheck source=/dev/null
+. /lib/functions/keepalived/hotplug.sh
+
+set_service_name dhcp-force
+
+if [ "$ACTION" == "NOTIFY_MASTER" ]; then
+    # Enable force option for all dnsmasq sections
+    dnsmasq_sections=$(uci show dhcp | grep "=dnsmasq" | cut -d. -f2 | cut -d= -f1)
+    for section in $dnsmasq_sections; do
+        uci set dhcp.$section.force='1'
+    done
+    uci commit dhcp
+elif [ "$ACTION" == "NOTIFY_BACKUP" ]; then
+    # Disable force option for all dnsmasq sections
+    dnsmasq_sections=$(uci show dhcp | grep "=dnsmasq" | cut -d. -f2 | cut -d= -f1)
+    for section in $dnsmasq_sections; do
+        uci set dhcp.$section.force='0'
+    done
+    uci commit dhcp
+fi
+
+keepalived_hotplug
