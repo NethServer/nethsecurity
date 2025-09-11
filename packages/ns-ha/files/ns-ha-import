@@ -10,6 +10,7 @@
 import os
 import sys
 import json
+import shutil
 import subprocess
 from euci import EUci
 from nethsec import utils
@@ -18,6 +19,8 @@ out_dir = "/etc/ha"
 
 def import_interfaces(file):
     u = EUci()
+    if not os.path.exists(os.path.join(out_dir, file)):
+        return
     with open(os.path.join(out_dir, file), 'r') as f:
         interfaces = json.load(f)
     for interface, options in interfaces.items():
@@ -30,6 +33,8 @@ def import_interfaces(file):
 
 def import_wireguard_peers():
     u = EUci()
+    if not os.path.exists(os.path.join(out_dir, 'wg_peers')):
+        return
     with open(os.path.join(out_dir, 'wg_peers'), 'r') as f:
         peers = json.load(f)
     for section, options in peers.items():
@@ -42,6 +47,8 @@ def import_wireguard_peers():
 
 def import_routes():
     u = EUci()
+    if not os.path.exists(os.path.join(out_dir, 'routes')):
+        return
     with open(os.path.join(out_dir, 'routes'), 'r') as f:
         routes = json.load(f)
     for section, options in routes.items():
@@ -54,6 +61,8 @@ def import_routes():
 
 def import_hotspot_mac():
     u = EUci()
+    if not os.path.exists(os.path.join(out_dir, 'hotspot')):
+        return
     with open(os.path.join(out_dir, 'hotspot'), 'r') as f:
         config = json.load(f)
     target_device = ""
@@ -82,6 +91,12 @@ def import_hotspot_mac():
     u.set('network', target_device, 'ns_tag', ['ha'])
     u.commit('network')
 
+def import_dhcp_leases():
+    # Workaround: the default sync script ignores /tmp/dhcp.leases
+    if not os.path.exists(os.path.join(out_dir, "dhcp.leases")):
+        return
+    src_file = os.path.join(out_dir, "dhcp.leases")
+    shutil.copyfile(src_file, "/tmp/dhcp.leases")
 
 def cleanup_import():
     # Make sure to cleanup all supported configurations to avoid dangling configurations
@@ -111,3 +126,4 @@ if __name__ == "__main__":
     import_interfaces('ipsec_interfaces')
     import_routes()
     import_hotspot_mac()
+    import_dhcp_leases()
