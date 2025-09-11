@@ -194,8 +194,7 @@ def validate_dhcp(lan_interface):
                 continue  # Skip if the DHCP server is not on the given lan interface
 
             # 1. Make sure configured DHCP server has force option enabled
-            if uci.get('dhcp', server, 'force', default="0") != "1":
-                errors.append('dhcp_force_not_enabled')
+            # This is already enforced by the 500-dhcp-force hotplug script
 
             # 2. Make sure configured DHCP server has the router and dns options
             try:
@@ -565,6 +564,8 @@ def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, pubkey = "", p
     u.set('dropbear', 'ha_link', 'PasswordAuth', '0')
     u.commit('dropbear')
     
+    u.set('keepalived', 'globals', 'enabled', '1')
+
     u.set('keepalived', f'{interface}_ipaddress', 'ipaddress')
     u.set('keepalived', f'{interface}_ipaddress', 'name', 'lan_ha')
     u.set('keepalived', f'{interface}_ipaddress', 'address', virtual_ip)
@@ -585,6 +586,8 @@ def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, pubkey = "", p
     u.set('keepalived', 'lan_track', 'ns_link', f'network/{interface}')
 
     if role == 'primary':
+        u.set('keepalived', 'globals', 'vrrp_down_timer_adverts', '5')
+
         u.set('keepalived', 'ha_sender', 'track_script')
         u.set('keepalived', 'ha_sender', 'name', 'sender')
         u.set('keepalived', 'ha_sender', 'value', 'ha_sync')
@@ -633,6 +636,9 @@ def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, pubkey = "", p
         with open('/etc/conntrackd/conntrackd.conf', 'w') as file:
             file.write(conntrack_conf)
     else:
+        # make the secondary node more tolerant to network issues
+        u.set('keepalived', 'globals', 'vrrp_down_timer_adverts', '10')
+
         u.set('keepalived', 'ha_receiver', 'track_script')
         u.set('keepalived', 'ha_receiver', 'name', 'receiver')
         u.set('keepalived', 'ha_receiver', 'value', 'ha_sync')
@@ -1100,6 +1106,8 @@ def reset(role, pubkey = None):
     uci.commit('dropbear')
 
     # Stop and disable keepalived and conntrackd services
+    uci.set('keepalived', 'globals', 'enabled', '0')
+    uci.commit('keepalived')
     subprocess.run(['/etc/init.d/keepalived', 'stop'], capture_output=True)
     subprocess.run(['/etc/init.d/keepalived', 'disable'], capture_output=True)
     subprocess.run(['/etc/init.d/conntrackd', 'stop'], capture_output=True)
