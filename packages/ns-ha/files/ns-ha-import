@@ -98,6 +98,15 @@ def import_dhcp_leases():
     src_file = os.path.join(out_dir, "dhcp.leases")
     shutil.copyfile(src_file, "/tmp/dhcp.leases")
 
+def disable_dhcp_force_option():
+    # Workaround: disable force option to prevent conflicts with active DHCP server
+    u = EUci()
+    for server in utils.get_all_by_type(u, 'dhcp', 'dhcp'):
+        if u.get('dhcp', server, 'dhcpv4', default=None) == 'server':
+            if u.get('dhcp', server, 'force', default="0") != "0":
+                u.set('dhcp', server, 'force', '0')
+                u.commit('dhcp')
+
 def cleanup_import():
     # Make sure to cleanup all supported configurations to avoid dangling configurations
     u = EUci()
@@ -127,3 +136,4 @@ if __name__ == "__main__":
     import_routes()
     import_hotspot_mac()
     import_dhcp_leases()
+    disable_dhcp_force_option()

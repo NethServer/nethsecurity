@@ -194,8 +194,7 @@ def validate_dhcp(lan_interface):
                 continue  # Skip if the DHCP server is not on the given lan interface
 
             # 1. Make sure configured DHCP server has force option enabled
-            if uci.get('dhcp', server, 'force', default="0") != "1":
-                errors.append('dhcp_force_not_enabled')
+            # This is already enforced by the 500-dhcp-force hotplug script
 
             # 2. Make sure configured DHCP server has the router and dns options
             try:

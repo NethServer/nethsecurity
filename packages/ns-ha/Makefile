@@ -47,6 +47,7 @@ define Package/ns-ha/install
 	$(INSTALL_BIN) ./files/ns-ha-import $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-ha-config $(1)/usr/sbin
 	$(INSTALL_DATA) ./files/400-network $(1)/etc/hotplug.d/keepalived
+	$(INSTALL_DATA) ./files/500-dhcp-force $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/500-nathelpers $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/500-netmap $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/560-mac-binding $(1)/etc/hotplug.d/keepalived
