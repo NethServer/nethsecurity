@@ -1,6 +1,6 @@
 key-build*
 build.conf.override
-bin
+/bin
 build-logs
 build.conf
 netify-flow-actions
