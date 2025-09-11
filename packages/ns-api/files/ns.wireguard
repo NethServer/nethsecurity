@@ -371,7 +371,7 @@ def edit_server(args):
     return {"result": "success"}
 
 
-def remove_instance(args):
+def delete_server(args):
     if 'instance' not in args or args['instance'] == '':
         return utils.validation_error('instance', 'required')
     e_uci = EUci()
@@ -381,9 +381,8 @@ def remove_instance(args):
     e_uci.delete('network', args['instance'])
     e_uci.save('network')
     # FIXME: remove peers
-
-
-    retrurn {"result": "success"}
+    firewall.delete_linked_sections(e_uci, f"network/{args['instance']}")
+    return {"result": "success"}
 
 
 def set_instance(args):
@@ -653,7 +652,8 @@ if cmd == 'list':
         "get-instance-defaults": {},
         "add-server": {},
         "edit-server": {},
-        "add-peer": {}
+        "add-peer": {},
+        "delete-server": {"instance": "wg1"}
     }))
 else:
     action = sys.argv[2]
@@ -691,6 +691,6 @@ else:
         ret = edit_server(args)
     elif action == "delete-server":
         args = json.loads(sys.stdin.read())
-        ret = remove_server(args["instance"])
+        ret = delete_server(args)
 
     print(json.dumps(ret))
