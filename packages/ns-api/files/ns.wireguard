@@ -276,11 +276,14 @@ def __list_peers(interface):
     peers = []
     for p in utils.get_all_by_type(u, "network", f"wireguard_{interface}"):
         peer = {
-            "id": p.replace(f"{interface}_", "").replace("_peer", ""),
-            "name": u.get("network", p, "ns_name"),
-            "reserved_ip": u.get("network", p, "ns_ip"),
+            "id": p,
             "enabled": not u.get("network", p, "disabled", dtype=bool),
-            "allowed_ips": u.get("network", p, "allowed_ips", dtype=str, list=True, default=[]),
+            "name": u.get("network", p, "ns_name"),
+            "pre_shared_key": u.get('network', p, "preshared_key", dtype=str, default='') != '',
+            "route_all_traffic": u.get('network', p, "ns_route_all_traffic", dtype=bool, default=False),
+            "remote_networks": u.get('network', p, 'ns_routes', dtype=str, list=True, default=[]),
+            "local_networks": u.get('network', p, 'ns_local_routes', dtype=str, list=True, default=[]),
+            "reserved_ip": u.get("network", p, "ns_ip", dtype=str)
         }
         peers.append(peer)
     return peers
@@ -425,8 +428,10 @@ def delete_server(args):
         return utils.validation_error('instance', 'invalid', args['instance'])
     # remove interface
     e_uci.delete('network', args['instance'])
+    for entry in e_uci.get('network'):
+        if e_uci.get('network', entry, 'ns_link', dtype=str, default='') == f'network/{args["instance"]}':
+            e_uci.delete('network', entry)
     e_uci.save('network')
-    # FIXME: remove peers
     firewall.delete_linked_sections(e_uci, f"network/{args['instance']}")
     return {"result": "success"}
 
@@ -451,6 +456,8 @@ def __validate_peer_data(args):
         return utils.validation_error('reserved_ip', 'invalid_ip_address', args['reserved_ip'])
     duplicate = False
     for peer in __list_peers(args['instance']):
+        if 'id' in args and args['id'] == peer['id']:
+            continue
         if peer['reserved_ip'] == args['reserved_ip']:
             duplicate = True
             break
@@ -472,6 +479,8 @@ def __validate_peer_data(args):
         if not isinstance(args['local_networks'], list):
             return utils.validation_error('local_networks', 'invalid', args['local_networks'])
         for net in args['local_networks']:
+            if net == '':
+                continue
             try:
                 ipaddress.ip_network(net, strict=False)
             except ValueError:
@@ -481,6 +490,8 @@ def __validate_peer_data(args):
     if not isinstance(args['remote_networks'], list):
         return utils.validation_error('remote_networks', 'invalid', args['remote_networks'])
     for net in args['remote_networks']:
+        if net == '':
+            continue
         try:
             ipaddress.ip_network(net, strict=False)
         except ValueError:
@@ -504,7 +515,17 @@ def add_peer(args):
         psk = subprocess.run(["wg", "genpsk"], capture_output=True, text=True).stdout.strip()
         e_uci.set('network', peer_section, 'preshared_key', psk)
     e_uci.set('network', peer_section, 'ns_route_all_traffic', args['route_all_traffic'])
-    e_uci.set('network', peer_section, 'ns_routes', args['remote_networks'])
+    if not args['route_all_traffic']:
+        networks = []
+        for net in args['local_networks']:
+            if net != '':
+                networks.append(net)
+        e_uci.set('network', peer_section, 'ns_local_routes', networks)
+    networks = []
+    for net in args['remote_networks']:
+        if net != '':
+            networks.append(net)
+    e_uci.set('network', peer_section, 'ns_routes', networks)
     e_uci.set('network', peer_section, 'allowed_ips', args['remote_networks'] + [args['reserved_ip'] + '/32'])
     private_key, public_key = generate_wireguard_keys()
     e_uci.set('network', peer_section, 'public_key', public_key)
@@ -512,6 +533,54 @@ def add_peer(args):
     e_uci.set('network', peer_section, 'ns_ip', args['reserved_ip'])
     e_uci.set('network', peer_section, 'persistent_keepalive', 25)
     e_uci.set('network', peer_section, 'ns_link', f'network/{args["instance"]}')
+    e_uci.save('network')
+
+    return {"result": "success"}
+
+
+def edit_peer(args):
+    err = __validate_peer_data(args)
+    if err:
+        return err
+    if 'id' not in args or args['id'] == '':
+        return utils.validation_error('id', 'invalid', args['id'])
+    e_uci = EUci()
+    e_uci.set('network', args['id'], 'disabled', not args['enabled'])
+    e_uci.set('network', args['id'], 'ns_name', args['name'])
+    pre_shared_key_set = e_uci.get('network', args['id'], 'preshared_key', dtype=str, default='') != ''
+    if pre_shared_key_set != args['pre_shared_key']:
+        if args['pre_shared_key']:
+            psk = subprocess.run(["wg", "genpsk"], capture_output=True, text=True).stdout.strip()
+            e_uci.set('network', args['id'], 'preshared_key', psk)
+        else:
+            e_uci.delete('network', args['id'], 'preshared_key')
+    e_uci.set('network', args['id'], 'ns_route_all_traffic', args['route_all_traffic'])
+    if not args['route_all_traffic']:
+        networks = []
+        for net in args['local_networks']:
+            if net != '':
+                networks.append(net)
+        e_uci.set('network', args['id'], 'ns_local_routes', networks)
+    networks = []
+    for net in args['remote_networks']:
+        if net != '':
+            networks.append(net)
+    e_uci.set('network', args['id'], 'ns_routes', networks)
+    e_uci.set('network', args['id'], 'allowed_ips', networks + [args['reserved_ip'] + '/32'])
+    e_uci.set('network', args['id'], 'ns_ip', args['reserved_ip'])
+    e_uci.save('network')
+
+    return {"result": "success"}
+
+
+def delete_peer(args):
+    if 'id' not in args or args['id'] == '':
+        return utils.validation_error('id', 'required')
+    e_uci = EUci()
+    if e_uci.get("network", args['id'], default='').startswith('wireguard') is False:
+        return utils.validation_error('id', 'invalid', args['id'])
+
+    e_uci.delete('network', args['id'])
     e_uci.save('network')
 
     return {"result": "success"}
@@ -782,6 +851,8 @@ if cmd == 'list':
         "delete-server": {"instance": "wg1"},
         "get-peer-defaults": {"instance": "wg1"},
         "add-peer": {},
+        "edit-peer": {"instance": "wg1", "id": "peerid"},
+        "delete-peer": {"id": "peerid"}
     }))
 else:
     action = sys.argv[2]
@@ -826,5 +897,11 @@ else:
     elif action == "add-peer":
         args = json.loads(sys.stdin.read())
         ret = add_peer(args)
+    elif action == "edit-peer":
+        args = json.loads(sys.stdin.read())
+        ret = edit_peer(args)
+    elif action == 'delete-peer':
+        args = json.loads(sys.stdin.read())
+        ret = delete_peer(args)
 
     print(json.dumps(ret))
