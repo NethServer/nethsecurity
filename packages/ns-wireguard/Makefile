@@ -21,7 +21,7 @@ define Package/ns-wireguard
 	CATEGORY:=NethSecurity
 	TITLE:=Wireguard Tools for NethSecurity
 	URL:=https://github.com/NethServer/nethsecurity
-	DEPENDS:=+wireguard-tools +luci-app-wireguard +luci-proto-wireguard
+	DEPENDS:=+netifd +python3-uci +wireguard-tools +luci-app-wireguard +luci-proto-wireguard
 	PKGARCH:=all
 endef
  
