@@ -157,6 +157,19 @@ def unregister():
         return utils.generic_error("failed_to_reload_firewall")
     return {"result": "success"}
 
+
+def update(args):
+    if 'description' not in args:
+        return utils.validation_error("description", "required")
+
+    e_uci = EUci()
+    e_uci.set("ns-plug", "config", "description", args["description"])
+    e_uci.save("ns-plug")
+    e_uci.commit("ns-plug")
+
+    return {"result": "success"}
+
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
@@ -164,7 +177,8 @@ if cmd == 'list':
         "register": {"join_code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "tls_verify": False, "unit_name": "fw.test.local", "description": "my unit"},
         "unregister": {},
         "status":{},
-        "restart": {}
+        "restart": {},
+        "update": {"description": "my new description"}
         }))
 else:
     action = sys.argv[2]
@@ -175,6 +189,9 @@ else:
         ret = status()
     elif action == "unregister":
         ret = unregister()
+    elif action == "update":
+        args = json.load(sys.stdin)
+        ret = update(args)
     elif action == "restart":
         ret = {"result": "success"}
         try:

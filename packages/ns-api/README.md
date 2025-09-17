@@ -6920,6 +6920,20 @@ Response example:
 
 If the restart fails return a `restart_failed` error.
 
+
+### update
+
+You can update the field `description` that is being sent to the controller.
+```
+api-cli ns.plug update --data '{"description": "My new description"}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+
 ## ns.netifyd
 
 Manage netifyd sink configuration.
