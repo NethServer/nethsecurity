@@ -277,13 +277,14 @@ def __list_peers(interface):
     for p in utils.get_all_by_type(u, "network", f"wireguard_{interface}"):
         peer = {
             "id": p,
-            "enabled": not u.get("network", p, "disabled", dtype=bool),
+            "enabled": not u.get("network", p, "disabled", dtype=bool, default=False),
             "name": u.get("network", p, "ns_name"),
             "pre_shared_key": u.get('network', p, "preshared_key", dtype=str, default='') != '',
             "route_all_traffic": u.get('network', p, "ns_route_all_traffic", dtype=bool, default=False),
             "remote_networks": u.get('network', p, 'ns_routes', dtype=str, list=True, default=[]),
             "local_networks": u.get('network', p, 'ns_local_routes', dtype=str, list=True, default=[]),
-            "reserved_ip": u.get("network", p, "ns_ip", dtype=str)
+            "reserved_ip": u.get("network", p, "ns_ip", dtype=str),
+            "config": __generate_peer_config(interface, p)
         }
         peers.append(peer)
     return peers
@@ -586,6 +587,36 @@ def delete_peer(args):
     return {"result": "success"}
 
 
+def __generate_peer_config(server_id, peer_id):
+    e_uci = EUci()
+
+    config = "[Interface]\n"
+    config += f"# Name = {e_uci.get('network', peer_id, 'ns_name')}\n"
+    config += f"PrivateKey = {e_uci.get('network', peer_id, 'private_key')}\n"
+    config += f"Address = {e_uci.get('network', peer_id, 'ns_ip')}\n"
+    if e_uci.get('network', server_id, 'ns_dns', default='') != '':
+        config += f"DNS = {e_uci.get('network', server_id, 'ns_dns')}\n"
+    else:
+        config += "# DNS not configured\n"
+
+    config += "\n[Peer]\n"
+    config += f"# Name = {e_uci.get('network', server_id, 'ns_name')}\n"
+    server_public_key = subprocess.run(["wg", "pubkey"], input=e_uci.get('network', server_id, 'private_key'), capture_output=True, text=True).stdout.strip()
+    config += f"PublicKey = {server_public_key}\n"
+    if e_uci.get('network', peer_id, 'preshared_key', default='') != '':
+        config += f"PresharedKey = {e_uci.get('network', peer_id, 'preshared_key')}\n"
+    else:
+        config += "# PresharedKey not configured\n"
+    if e_uci.get('network', peer_id, 'ns_route_all_traffic', dtype=bool, default=False):
+        config += f"AllowedIPs = 0.0.0.0/0, ::/0\n"
+    else:
+        config += f"AllowedIPs = {','.join(e_uci.get('network', peer_id, 'allowed_ips', list=True, dtype=str))}\n"
+    config += f"Endpoint = {e_uci.get('network', server_id, 'ns_public_endpoint')}:{e_uci.get('network', server_id, 'listen_port')}\n"
+    config += f"PersistentKeepalive = {e_uci.get('network', peer_id, 'persistent_keepalive', default='25')}\n"
+
+    return config
+
+
 def set_instance(args):
     u = EUci()
     # check if the interface already exists
@@ -652,7 +683,7 @@ def get_configuration(instance):
         "address": u.get('network', instance, 'addresses', dtype=str, list=True, default=None)[0],
         "network": u.get('network', instance, 'ns_network'),
         "public_endpoint": u.get('network', instance, 'ns_public_endpoint'),
-        "enabled": not u.get('network', instance, 'disabled', dtype=bool),
+        "enabled": not u.get('network', instance, 'disabled', dtype=bool, default=False),
         "peers": peers,
         "mtu": u.get('network', instance, 'mtu', dtype=int, default=1500),
         "dns": u.get('network', instance, 'ns_dns', dtype=str, default='')
