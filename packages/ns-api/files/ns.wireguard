@@ -230,15 +230,46 @@ def remove_wireguard_peer(u, interface, account):
 
 ## APIs
 
-def list_instances():
+def list_instances(filter_by = None):
     u = EUci()
     ret = []
     interfaces = utils.get_all_by_type(u, "network", "interface")
     for i in interfaces:
         interface = interfaces[i]
         if interface.get("proto") == "wireguard":
+            if filter_by and interface.get('ns_type', '') != filter_by:
+                continue
             ret.append(get_configuration(i))
     return {"instances": ret}
+
+
+def list_tunnels():
+    e_uci = EUci()
+    tunnel_instances = []
+    for instance in e_uci.get('network'):
+        if e_uci.get('network', instance, 'proto', default='') == 'wireguard' and e_uci.get('network', instance, 'ns_type', default='') == 'tunnel':
+            tunnel_instances.append({
+                "id": instance,
+                "name": e_uci.get('network', instance, 'ns_name'),
+                "enabled": not e_uci.get('network', instance, 'disabled', dtype=bool, default=False),
+                "address": e_uci.get('network', instance, 'addresses', dtype=str, list=True, default=None)[0],
+                "dns": e_uci.get('network', instance, 'dns', dtype=str, list=True, default=[]),
+            })
+
+    for tunnel in tunnel_instances:
+        for peer in utils.get_all_by_type(e_uci, 'network', f'wireguard_{tunnel["id"]}'):
+            allowed_ips = e_uci.get("network", peer, "allowed_ips", list=True, dtype=str, default=[])
+            route_all_traffic = '0.0.0.0/0' in allowed_ips and '::/0' in allowed_ips
+            remote_networks = list(filter(lambda x: x != '0.0.0.0/0' and x != '::/0', allowed_ips))
+            tunnel.update({
+                "pre_shared_key": e_uci.get('network', peer, 'preshared_key', dtype=str, default=''),
+                "endpoint": e_uci.get('network', peer, 'endpoint_host', dtype=str, default='') + ':' + e_uci.get('network', peer, 'endpoint_port', dtype=str, default=''),
+                "remote_networks": remote_networks,
+                "route_all_traffic": route_all_traffic
+            })
+
+    return {"tunnels": tunnel_instances}
+
 
 def get_instance_defaults():
     u = EUci()
@@ -383,6 +414,7 @@ def add_server(args):
     e_uci.set('network', instance, 'ns_public_endpoint', args['public_endpoint'])
     e_uci.set('network', instance, 'ns_name', args['name'])
     e_uci.set('network', instance, 'disabled', not args['enabled'])
+    e_uci.set('network', instance, 'ns_type', 'server')
     e_uci.save('network')
     # configure firewall
     firewall.add_service(
@@ -608,7 +640,7 @@ def __generate_peer_config(server_id, peer_id):
     else:
         config += "# PresharedKey not configured\n"
     if e_uci.get('network', peer_id, 'ns_route_all_traffic', dtype=bool, default=False):
-        config += f"AllowedIPs = 0.0.0.0/0, ::/0\n"
+        config += "AllowedIPs = 0.0.0.0/0, ::/0\n"
     else:
         config += f"AllowedIPs = {','.join(e_uci.get('network', peer_id, 'allowed_ips', list=True, dtype=str))}\n"
     config += f"Endpoint = {e_uci.get('network', server_id, 'ns_public_endpoint')}:{e_uci.get('network', server_id, 'listen_port')}\n"
@@ -799,48 +831,46 @@ PersistentKeepalive = {persistent_keepalive}
     return {"config": config.strip(), "qrcode": qrcode}
 
 def import_configuration(args):
-    u = EUci()
-    config = args["config"]
+    if 'config' not in args or args['config'] == '':
+        return utils.validation_error("config", "required")
+    config = args['config']
     try:
         data = base64.b64decode(config).decode()
-    except:
-        return utils.validation_error("config", "invalid_config", config)
+    except ValueError:
+        return utils.validation_error("config", "invalid", config)
 
     config_parser = configparser.ConfigParser(allow_no_value=True)
-    config_parser.read_string(data)
-
-    # Import is like a set-instance plus a set-peer for the remote server
-    # Steps:
-    # 1. create the instance
-    # 2. create the peer for the remote server
+    try:
+        config_parser.read_string(data)
+    except configparser.Error as e:
+        return utils.generic_error(e.message)
+    
     defaults = get_instance_defaults()
-    #{"listen_port": 51821, "instance": "wg2", "network": "10.50.98.0/24", "routes": ["192.168.100.0/24"], "public_endpoint": ""}
-    # add to defaults PrivateKey, Address, DNS
-    defaults["private_key"] = config_parser["Interface"]["PrivateKey"]
-    defaults["dns"] = config_parser["Interface"].get("DNS", "").split(',')
-    
-    defaults["user_db"] = ""
-    defaults["name"] = f"imported_{defaults['instance']}"
-    defaults["enabled"] = True
-    defaults["routes"] = [] # FIXME
-    # Address can be a single IP, or an IP,network1,network2, ....
-    defaults["network"] = config_parser["Interface"]["Address"]
-    defaults["isimport"] = True
+    try:
+        e_uci = EUci()
+        e_uci.set('network', defaults['instance'], 'interface')
+        e_uci.set('network', defaults['instance'], 'proto', 'wireguard')
+        e_uci.set('network', defaults['instance'], 'private_key', config_parser["Interface"]["PrivateKey"])
+        e_uci.set('network', defaults['instance'], 'addresses', [config_parser["Interface"]["Address"]])
+        if 'DNS' in config_parser['Interface']:
+            e_uci.set('network', defaults['instance'], 'dns', [ip.strip() for ip in config_parser["Interface"]["DNS"].split(',')])
+        e_uci.set('network', defaults['instance'], 'ns_type', 'tunnel')
+        e_uci.set('network', defaults['instance'], 'ns_name', f"imported_{defaults['instance']}")
 
-    set_instance(defaults)
-    
-    import_peer({
-        "enabled": True,
-        "instance": defaults["instance"],
-        "account": "imported",
-        "route_all_traffic": False,
-        "client_to_client": True,
-        "ns_routes": [],
-        "preshared_key": config_parser["Peer"].get("PreSharedKey", None),
-        "ipaddr": config_parser["Peer"]["AllowedIPs"],
-        "endpoint": config_parser["Peer"]["Endpoint"],
-        "public_key": config_parser["Peer"]["PublicKey"]
-    })
+        peer_id = utils.get_random_id()
+        peer_instance = f"{defaults['instance']}_{peer_id}_peer"
+        e_uci.set('network', peer_instance, f'wireguard_{defaults["instance"]}')
+        e_uci.set('network', peer_instance, 'public_key', config_parser["Peer"]["PublicKey"])
+        if 'PresharedKey' in config_parser['Peer']:
+            e_uci.set('network', peer_instance, 'preshared_key', config_parser["Peer"]["PresharedKey"])
+        e_uci.set('network', peer_instance, 'allowed_ips', [ip.strip() for ip in config_parser["Peer"]["AllowedIPs"].split(',')])
+        e_uci.set('network', peer_instance, 'endpoint_host', config_parser["Peer"]["Endpoint"].split(':')[0])
+        e_uci.set('network', peer_instance, 'endpoint_port', config_parser["Peer"]["Endpoint"].split(':')[1])
+        e_uci.set('network', peer_instance, 'persistent_keepalive', config_parser["Peer"].get("PersistentKeepalive", "25"))
+        e_uci.set('network', peer_instance, 'ns_link', f'network/{defaults["instance"]}')
+    except ValueError:
+        return utils.validation_error("config", "invalid", config)
+    e_uci.save('network')
 
     return {"result": "success"}
 
@@ -877,13 +907,15 @@ if cmd == 'list':
         "download-peer-config": {"instance": "wg1", "account": "user1"},
         "import-configuration": {"config": "base64encodedconfig"},
         "get-instance-defaults": {},
+        "list-servers": {},
         "add-server": {},
         "edit-server": {},
         "delete-server": {"instance": "wg1"},
         "get-peer-defaults": {"instance": "wg1"},
         "add-peer": {},
         "edit-peer": {"instance": "wg1", "id": "peerid"},
-        "delete-peer": {"id": "peerid"}
+        "delete-peer": {"id": "peerid"},
+        "list-tunnels": {}
     }))
 else:
     action = sys.argv[2]
@@ -913,6 +945,8 @@ else:
         ret = set_instance(args)
     elif action == "get-instance-defaults":
         ret = get_instance_defaults()
+    elif action == "list-servers":
+        ret = list_instances(filter_by="server")
     elif action == "add-server":
         args = json.loads(sys.stdin.read())
         ret = add_server(args)
@@ -934,5 +968,7 @@ else:
     elif action == 'delete-peer':
         args = json.loads(sys.stdin.read())
         ret = delete_peer(args)
+    elif action == 'list-tunnels':
+        ret = list_tunnels()
 
     print(json.dumps(ret))
