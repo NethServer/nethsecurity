@@ -365,8 +365,12 @@ define Package/keepalived-sync/postinst
 
 mkdir -p $(KEYS_DIR)
 
-group_add "$(USER)" "$(USER_ID)"
-user_add "$(USER)" "$(USER_ID)" "$(USER_ID)" "$(USER)" "$(USER_HOME)" "/bin/ash"
+if ! grep -q "^$(USER):" /etc/group; then
+	group_add "$(USER)" "$(USER_ID)"
+fi
+if ! grep -q "^$(USER):" /etc/passwd; then
+	user_add "$(USER)" "$(USER_ID)" "$(USER_ID)" "$(USER)" "$(USER_HOME)" "/bin/ash"
+fi
 
 mkdir -m 700 -p "$(USER_HOME)"
 mkdir -m 700 -p "$(USER_HOME)/.ssh"
