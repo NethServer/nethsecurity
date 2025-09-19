@@ -41,10 +41,10 @@ define Package/ns-ha/install
 	$(INSTALL_DIR) $(1)/usr/libexec
 	$(INSTALL_DIR) $(1)/etc/keepalived/scripts/
 	$(INSTALL_DIR) $(1)/etc/profile.d/
-	$(INSTALL_BIN) ./files/ns-ha-disable $(1)/usr/sbin
-	$(INSTALL_BIN) ./files/ns-ha-enable $(1)/usr/sbin
-	$(INSTALL_BIN) ./files/ns-ha-export $(1)/usr/sbin
-	$(INSTALL_BIN) ./files/ns-ha-import $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/ns-ha-disable $(1)/usr/libexec/
+	$(INSTALL_BIN) ./files/ns-ha-enable $(1)/usr/libexec/
+	$(INSTALL_BIN) ./files/ns-ha-export $(1)/usr/libexec/
+	$(INSTALL_BIN) ./files/ns-ha-import $(1)/usr/libexec/
 	$(INSTALL_BIN) ./files/ns-ha-config $(1)/usr/sbin
 	$(INSTALL_DATA) ./files/400-network $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/500-dhcp-force $(1)/etc/hotplug.d/keepalived
