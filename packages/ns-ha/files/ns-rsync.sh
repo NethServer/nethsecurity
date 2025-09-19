@@ -158,7 +158,7 @@ main() {
 		return 1
 	fi
 
-	/usr/sbin/ns-ha-export
+	/usr/libexec/ns-ha-export
 	config_load keepalived
 	config_foreach ha_sync vrrp_instance
 
