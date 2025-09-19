@@ -45,7 +45,7 @@ update_last_sync_status() {
 
 ha_sync_send() {
 	local cfg=$1
-	local address ssh_key ssh_port sync_list sync_dir sync_file count
+	local address ssh_key ssh_port sync_list sync_dir sync_file count exclude_list
 	local ssh_options ssh_remote dirs_list files_list
 	local changelog="/tmp/changelog"
 	local ha_export="/etc/ha"
@@ -58,13 +58,15 @@ ha_sync_send() {
 	[ -z "$sync_dir" ] && return 0
 	config_get ssh_key "$cfg" ssh_key "$sync_dir"/.ssh/id_rsa
 	config_get sync_list "$cfg" sync_list
+	config_get exclude_list "$cfg" exclude_list
 
+	echo "exclude_list=$exclude_list"
 	for sync_file in $sync_list $(sysupgrade -l); do
-		[ -f "$sync_file" ] && {
-			dir="${sync_file%/*}"
-			list_contains files_list "${sync_file}" || append files_list "${sync_file}"
-		}
+		list_contains exclude_list "${sync_file}" && continue
+		[ -f "$sync_file" ] && dir="${sync_file%/*}"
 		[ -d "$sync_file" ] && dir="${sync_file}"
+
+		list_contains files_list "${sync_file}" || append files_list "${sync_file}"
 		list_contains dirs_list "${sync_dir}${dir}" || append dirs_list "${sync_dir}${dir}"
 	done
 
