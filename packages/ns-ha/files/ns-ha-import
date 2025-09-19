@@ -91,13 +91,6 @@ def import_hotspot_mac():
     u.set('network', target_device, 'ns_tag', ['ha'])
     u.commit('network')
 
-def import_dhcp_leases():
-    # Workaround: the default sync script ignores /tmp/dhcp.leases
-    if not os.path.exists(os.path.join(out_dir, "dhcp.leases")):
-        return
-    src_file = os.path.join(out_dir, "dhcp.leases")
-    shutil.copyfile(src_file, "/tmp/dhcp.leases")
-
 def disable_dhcp_force_option():
     # Workaround: disable force option to prevent conflicts with active DHCP server
     u = EUci()
@@ -135,5 +128,4 @@ if __name__ == "__main__":
     import_interfaces('ipsec_interfaces')
     import_routes()
     import_hotspot_mac()
-    import_dhcp_leases()
     disable_dhcp_force_option()
