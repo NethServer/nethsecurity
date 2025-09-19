@@ -15,9 +15,9 @@ fi
 keepalived_hotplug
 
 if [ "$ACTION" == "NOTIFY_MASTER" ]; then
-    /usr/sbin/ns-ha-enable
+    /usr/libexec/ns-ha-enable
 elif [ "$ACTION" == "NOTIFY_SYNC" ]; then
-    /usr/sbin/ns-ha-import
+    /usr/libexec/ns-ha-import
 elif [ "$ACTION" == "NOTIFY_BACKUP" ]; then
-    /usr/sbin/ns-ha-disable
+    /usr/libexec/ns-ha-disable
 fi
