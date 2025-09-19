@@ -551,6 +551,22 @@ def add_lan_interface(role, primary_node_ip, backup_node_ip, virtual_ip):
 # It is called locally on the primary node and remotly using SSH on the backup node.
 def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, pubkey = "", password = ""):
     u = EUci()
+    sync_list = [
+        '/etc/ha',
+        '/etc/acme/',
+        '/etc/ssl/acme',
+        '/etc/openvpn',
+        '/etc/nginx',
+        '/etc/adblock',
+        '/etc/banip',
+        '/etc/netify.d',
+        '/tmp/dhcp.leases'
+    ]
+    exclude_list = [
+        '/etc/config/network',
+        '/etc/config/keepalived',
+        '/etc/dropbear/authorized_keys'
+    ]
     if role == "primary":
         (interface, lan_device) = get_device_from_ip(u, primary_node_ip)
     else:
@@ -601,6 +617,8 @@ def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, pubkey = "", p
         u.set('keepalived', 'ha_peer', 'sync_dir', '/usr/share/keepalived/rsync')
         u.set('keepalived', 'ha_peer', 'ssh_port', '65022')
         u.set('keepalived', 'ha_peer', 'ssh_key', '/etc/keepalived/keys/id_rsa')
+        u.set('keepalived', 'ha_peer', 'exclude_list', exclude_list)
+        u.set('keepalived', 'ha_peer', 'sync_list', sync_list)
 
         u.set('keepalived', 'primary', 'vrrp_instance')
         u.set('keepalived', 'primary', 'name', 'master')

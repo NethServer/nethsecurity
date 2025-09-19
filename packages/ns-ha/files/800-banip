@@ -8,10 +8,6 @@ set_restart_if_master
 set_stop_if_backup
 
 add_sync_file /etc/config/banip
-
-if [ "$ACTION" == "NOTIFY_SYNC" ]; then
-    home=$(get_rsync_user_home)
-    rsync -avr $home/etc/banip/ /etc/banip/
-fi
+add_sync_file /etc/banip
 
 keepalived_hotplug

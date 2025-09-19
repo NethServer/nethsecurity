@@ -10,11 +10,9 @@ set_stop_if_backup
 add_sync_file /etc/netifyd.conf
 add_sync_file /etc/config/dpi
 add_sync_file /etc/config/netifyd
+add_sync_file /etc/netify.d
 
-if [ "$ACTION" == "NOTIFY_SYNC" ]; then
-    home=$(get_rsync_user_home)
-    rsync -avr $home/etc/netify.d/ /etc/netify.d/
-elif [ "$ACTION" == "NOTIFY_MASTER" ]; then
+if [ "$ACTION" == "NOTIFY_MASTER" ]; then
     /etc/init.d/dpi restart
     /etc/init.d/dpireport restart
 elif [ "$ACTION" == "NOTIFY_BACKUP" ]; then

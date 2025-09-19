@@ -77,13 +77,6 @@ def export_hotspot_mac():
             with open(os.path.join(out_dir, 'hotspot'), 'w') as f:
                 json.dump({"device": device, "mac_address": mac_address}, f)
 
-def export_dhcp_leases():
-    # Workaround: the default sync script ignores /tmp/dhcp.leases
-    if not os.path.exists("/tmp/dhcp.leases"):
-        return
-    dst_file = os.path.join(out_dir, "dhcp.leases")
-    shutil.copyfile("/tmp/dhcp.leases", dst_file)
-
 if __name__ == '__main__':
     proc = subprocess.run(["/usr/libexec/rpcd/ns.ha", "call", "status"], capture_output=True, text=True)
     status = json.loads(proc.stdout)
@@ -101,4 +94,3 @@ if __name__ == '__main__':
     export_wireguard_interfaces()
     export_wireguard_peers()
     export_hotspot_mac()
-    export_dhcp_leases()
