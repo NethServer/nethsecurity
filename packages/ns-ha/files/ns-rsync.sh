@@ -48,7 +48,6 @@ ha_sync_send() {
 	local address ssh_key ssh_port sync_list sync_dir sync_file count exclude_list
 	local ssh_options ssh_remote dirs_list files_list
 	local changelog="/tmp/changelog"
-	local ha_export="/etc/ha"
 
 	config_get address "$cfg" address
 	[ -z "$address" ] && return 0
@@ -60,7 +59,6 @@ ha_sync_send() {
 	config_get sync_list "$cfg" sync_list
 	config_get exclude_list "$cfg" exclude_list
 
-	echo "exclude_list=$exclude_list"
 	for sync_file in $sync_list $(sysupgrade -l); do
 		list_contains exclude_list "${sync_file}" && continue
 		[ -f "$sync_file" ] && dir="${sync_file%/*}"
@@ -98,7 +96,7 @@ ha_sync_send() {
 	fi
 
 	# shellcheck disable=SC2086
-	rsync -a --relative ${files_list} ${ha_export} ${changelog} -e "ssh $ssh_options" --rsync-path="sudo rsync" "$ssh_remote":"$sync_dir" || {
+	rsync -a --relative ${files_list} ${changelog} -e "ssh $ssh_options" --rsync-path="sudo rsync" "$ssh_remote":"$sync_dir" || {
 		log_err "rsync transfer failed for $address"
 		update_last_sync_time "$cfg"
 		update_last_sync_status "$cfg" "Rsync Transfer Failed"
