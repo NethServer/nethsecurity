@@ -537,57 +537,131 @@ You can access them using the static LAN IP addresses configured at the beginnin
 
 ## How it works
 
-The HA cluster consists of two nodes: one is the primary and the other is the backup.
-All configurations must be always done on the primary node.
-The configuration is then automatically synchronized to the backup node.
+### Overview
 
-Keepalived runs a specially crafted rsync script (`/etc/keepalived/scripts/ns-rsync.sh`) on the primary node to:
-- export WireGuard interfaces, IPsec interfaces, routes and hotspot mac address to `/etc/ha`
-- synchronize all files listed by `sysupgrade -l` and custom files added with the `add_sync_file` option from scripts inside `/etc/hotplug.d/keepalived` directory;
-  files are synchronized to the backup node inside the directory `/usr/share/keepalived/rsync/`
+The High Availability system creates an active-passive cluster with two nodes: a primary (master) node that handles all traffic and configuration, and a backup node that remains synchronized but inactive until failover occurs. The system uses three main components:
 
-The hotplug `keepalived` event is used to inform the system about changes in the keepalived status.
+- **Keepalived**: Manages virtual IP addresses and handles failover between nodes using VRRP protocol
+- **Conntrackd**: Synchronizes active connection tracking tables to maintain session continuity during failover
+- **File Synchronization**: Uses rsync over SSH to keep configuration files synchronized between nodes
 
-The event is triggered with an `ACTION` parameter that can be:
+All configuration changes must be performed on the primary node, which automatically propagates them to the backup node. In case of primary node failure, the backup node takes over the virtual IP addresses and becomes the active node, ensuring service continuity.
 
-- `NOTIFY_SYNC`: the script is executed on the backup node after a sync has been done and a listed file is changed
-  During this phase, all directories (like `/etc/openvpn` and `/etc/ha`) are synched to the original position.
-  Also WireGuard interfaces, IPsec interfaces and routes are imported from the `/etc/ha` directory but in disabled state.
+### File synchronization and restoration
 
-- `NOTIFY_MASTER`: the script can be executed both on the primary and on the backup node:
-   - on the primary node, after keepalived is started: this is the normal startup state
-   - on the backup node, after a switchover has been done: this is the failover state; 
-     all WireGuard interfaces, IPsec interfaces and routes previously imported from the `/etc/ha` are enabled if they were enabled on the primary node
+The synchronization system operates through two distinct phases: file transfer and selective restoration.
 
-- `NOTIFY_BACKUP`: the script is executed on the backup node, after keepalived is started or if the primary returns up after a downtime
-  All non-required services are disabled, including WireGuard interfaces, IPsec interfaces and routes.
+#### File transfer phase (rsync)
 
-The backup node keeps the configuration in sync with the primary node, but most services, including crontabs, are disabled.
-The following cronjobs are disabled on the backup node and enabled on the primary node:
+The primary node runs a specialized rsync script (`/etc/keepalived/scripts/ns-rsync.sh`) that:
+- Exports network configurations (WireGuard interfaces, IPsec interfaces, routes, and hotspot MAC addresses) to `/etc/ha`
+- Transfers all files listed by `sysupgrade -l` plus custom files added via `sync_list` option
+- Copies files to the backup node's staging area at `/usr/share/keepalived/rsync/`
 
-- subscription heartbeat
-- subscription inventory
-- phonehome
-- remote reports to the controller
-- remote backup
+Two UCI options control what's synchronized besides the default files:
+- `exclude_list`: Files to exclude from synchronization entirely
+- `sync_list`: Files that should be restored during hotplug events
 
-### Network configuration fundamentals
+Example usage:
+```
+uci add_list keepalived.ha_peer.exclude_list=/etc/config/network
+uci add_list keepalived.ha_peer.sync_list=/tmp/debug
+```
 
-Each network interface managed by the High Availability (HA) system must have a static IP address.
-WAN interfaces and LAN interfacres are configured in different ways:
-- a WAN interface is configured automatically, it will be assigned an IP address in the `169.254.X.0/24` range.
-  For every WAN interface, a new `169.254.X.0` network will be allocated.
-  The primary node will get the IP address `169.254.X.1` and the backup node will get the IP address `169.254.X.2`.
-  This imposes a theoretical limit of 254 WAN interfaces that can be managed by the HA system.
-- a LAN interfaces do not use the 169.254.X.0/24 network. It must be configured manually with a static IP address on both nodes,
-  then it will be assigned a Virtual IP address.
-  The virtual IP must be in the same subnet as the LAN interface IP address.
-  The static configuration is required to ensure that dnsmasq can start correctly: it requires a static IP address on the interface in the
-  range of DHCP range, this is a limitation of OpenWrt implementation.
-  The network interface will then be accessible using the Virtual IP address configured in the HA system.
-  All clients must use the Virtual IP address to access the firewall services.
+#### Selective restoration phase (hotplug)
 
-Note that the backup node does not have access to Internet so:
-- it will not be able to resolve DNS names
-- it will not be able to reach the Controller nor Nethesis portals
-- it will not receive updates
+The backup node doesn't automatically apply all transferred files. Instead, it uses a hotplug system triggered by keepalived events to selectively restore only the files explicitly registered for restoration. This prevents unintended configuration changes and ensures controlled application of synchronized data.
+
+Files marked as `add_sync_file` inside scripts in `/etc/hotplug.d/keepalived/` are automatically registered for restoration.
+
+#### Adding new files to synchronization
+
+To synchronize custom files:
+
+1. Register the file path in the peer sync_list:
+```
+uci add_list keepalived.ha_peer.sync_list=/path/to/file
+uci commit keepalived
+/etc/init.d/keepalived restart
+```
+
+2. Create a hotplug script in `/etc/hotplug.d/keepalived/` that calls `add_sync_file /path/to/file` to register the file for restoration.
+
+### Keepalived event system
+
+The hotplug `keepalived` event system informs the nodes about cluster state changes through different actions:
+
+#### NOTIFY_SYNC
+
+Triggered on the backup node after file synchronization completes and a monitored file changes.
+- Synchronizes directories like `/etc/openvpn` and `/etc/ha` to their final locations
+- Imports network configurations (WireGuard, IPsec, routes) from `/etc/ha` in disabled state
+- Example hotplug invocation:
+```
+ACTION=NOTIFY_SYNC TYPE=peer NAME=master INSTANCE=backup \
+RSYNC_SOURCE=/usr/share/keepalived/rsync/etc/config/network \
+RSYNC_TARGET=/etc/config/network /sbin/hotplug-call keepalived
+```
+
+#### NOTIFY_MASTER
+
+Executed when a node becomes the active (master) node:
+- **On primary node**: Normal startup state after keepalived starts
+- **On backup node**: Failover state after switchover occurs
+  - Enables all network interfaces and services that were active on the failed primary
+  - Activates WireGuard interfaces, IPsec tunnels, and routes imported from `/etc/ha`
+
+#### NOTIFY_BACKUP
+
+Executed on the backup node during normal operation or when the primary node recovers:
+- Disables non-essential services to prevent conflicts with the primary
+- Keeps WireGuard interfaces, IPsec interfaces, and routes in disabled state
+- Disables cron jobs including subscription heartbeat, inventory, phonehome, remote reports, and backups
+
+### Network Interface Management
+
+The HA system handles different types of network interfaces with distinct approaches:
+
+#### WAN Interfaces
+WAN interfaces are automatically configured by the HA system:
+- Assigned IP addresses from the `169.254.X.0/24` range (where X increments for each WAN)
+- Primary node receives `169.254.X.1`, backup node receives `169.254.X.2`
+- Supports up to 254 WAN interfaces theoretically
+- Virtual IP address is configured for external connectivity
+
+#### LAN Interfaces
+LAN interfaces require manual static IP configuration on both nodes:
+- Must be configured with static IP addresses before adding to HA
+- Virtual IP must be in the same subnet as the interface IP addresses
+- Static configuration ensures dnsmasq can start properly (OpenWrt requirement)
+- Clients must use the Virtual IP address to access firewall services
+
+### Service Management
+
+The backup node maintains synchronized configuration but keeps most services disabled to prevent conflicts:
+
+**Disabled services on backup:**
+- DHCP and DNS server (dnsmasq)
+- Threat shield (banip, adblock)
+- OpenVPN server and tunnels
+- MAC binding
+- Multi-WAN (mwan3)
+- Snort
+- Hotspot (dedalo)
+- Netifyd
+- DDNS
+- SNMP server (snmpd)
+- IPsec tunnels (strongSwan)
+- Subscription heartbeat and inventory
+- Phone home functionality
+- Remote reports to controller
+- Remote backup operations
+- WireGuard VPNs
+- Custom routes (until failover)
+
+**Network limitations for backup node:**
+- No Internet access (cannot resolve DNS or reach external services)
+- Cannot connect to Controller or Nethesis portals
+- Does not receive automatic updates
+
+During failover, the backup node activates all necessary services and takes over the virtual IP addresses, ensuring seamless service continuity.

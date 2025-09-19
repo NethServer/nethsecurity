@@ -6,10 +6,8 @@
 . /lib/functions.sh
 # shellcheck source=/dev/null
 . /lib/functions/keepalived/common.sh
-# shellcheck source=/dev/null
-. /lib/functions/keepalived/ns.sh
 
-RSYNC_USER="root"
+RSYNC_USER=$(get_rsync_user)
 RSYNC_HOME=$(get_rsync_user_home)
 
 utc_timestamp() {
@@ -26,26 +24,13 @@ update_last_sync_status() {
 	shift
 	local status="$*"
 
-	# Raise alert if:
-	# - last_sync_time is empty
-	# - last sync time is older than 5 minutes
-	# - last_sync_status is different from the current status
-	config_get last_sync_status "$cfg" last_sync_status
-	if [ -z "$last_sync_status" ] || [ "$last_sync_status" != "$status" ]; then
-		if [[ "$status" != "Up to Date" && "$status" != "Successful" ]]; then
-			send_alert "ha:sync:failed" "FAILURE"
-		else
-			send_alert "ha:sync:failed" "OK"
-		fi
-	fi
-
 	uci_revert_state keepalived "$cfg" last_sync_status
 	uci_set_state keepalived "$cfg" last_sync_status "$status"
 }
 
 ha_sync_send() {
 	local cfg=$1
-	local address ssh_key ssh_port sync_list sync_dir sync_file count exclude_list
+	local address ssh_key ssh_port sync_list sync_dir sync_file count
 	local ssh_options ssh_remote dirs_list files_list
 	local changelog="/tmp/changelog"
 
@@ -57,10 +42,8 @@ ha_sync_send() {
 	[ -z "$sync_dir" ] && return 0
 	config_get ssh_key "$cfg" ssh_key "$sync_dir"/.ssh/id_rsa
 	config_get sync_list "$cfg" sync_list
-	config_get exclude_list "$cfg" exclude_list
 
 	for sync_file in $sync_list $(sysupgrade -l); do
-		list_contains exclude_list "${sync_file}" && continue
 		[ -f "$sync_file" ] && dir="${sync_file%/*}"
 		[ -d "$sync_file" ] && dir="${sync_file}"
 
@@ -102,7 +85,7 @@ ha_sync_send() {
 		update_last_sync_status "$cfg" "Rsync Transfer Failed"
 	}
 
-	log_info "keepalived sync is completed for $address"
+	log_info "keepalived sync is compeleted for $address"
 	update_last_sync_time "$cfg"
 	update_last_sync_status "$cfg" "Successful"
 }
@@ -117,6 +100,15 @@ ha_sync_receive() {
 	[ -z "$sync_dir" ] && return 0
 	config_get ssh_pubkey "$cfg" ssh_pubkey
 	[ -z "$ssh_pubkey" ] && return 0
+
+	home_dir=$sync_dir
+	auth_file="$home_dir/.ssh/authorized_keys"
+
+	if ! grep -q "^$ssh_pubkey$" "$auth_file" 2> /dev/null; then
+		log_notice "public key not found. Updating"
+		echo "$ssh_pubkey" > "$auth_file"
+		chown "$RSYNC_USER":"$RSYNC_USER" "$auth_file"
+	fi
 
 	/etc/init.d/keepalived-inotify enabled || /etc/init.d/keepalived-inotify enable
 	/etc/init.d/keepalived-inotify running "$name" || /etc/init.d/keepalived-inotify start "$name"
@@ -158,7 +150,6 @@ main() {
 		return 1
 	fi
 
-	/usr/libexec/ns-ha-export
 	config_load keepalived
 	config_foreach ha_sync vrrp_instance
 
