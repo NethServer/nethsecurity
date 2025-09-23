@@ -18,7 +18,6 @@ help() {
   echo "  init-primary-node <PRIMARY_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP> [LAN_INTERFACE] [WAN_INTERFACE]"
   echo "  init-backup-node <PRIMARY_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP> <PASSWORD> <PUBKEY>"
   echo "  add-lan-interface <PRIMARY_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP>"
-  echo "  add-wan-interface <INTERFACE> <VIRTUAL_IP> <GATEWAY>"
   echo "  remove-interface <INTERFACE>"
   echo "  add-alias <INTERFACE> <VIRTUAL_ALIAS_IP> [GATEWAY]"
   echo "  remove-alias <INTERFACE> <VIRTUAL_ALIAS_IP>"
@@ -52,10 +51,9 @@ init_primary_node() {
   BACKUP_NODE_IP="$2"
   VIRTUAL_IP="$3"
   LAN_INTERFACE="${4:-lan}"
-  WAN_INTERFACE="${5:-wan}"
 
   if [[ -z "$PRIMARY_NODE_IP" || -z "$BACKUP_NODE_IP" || -z "$VIRTUAL_IP" ]]; then
-    echo "Usage: $0 init-primary-node <PRIMARY_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP> [LAN_INTERFACE] [WAN_INTERFACE]"
+    echo "Usage: $0 init-primary-node <PRIMARY_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP> [LAN_INTERFACE]"
     exit 1
   fi
 
@@ -134,10 +132,10 @@ init_backup_node() {
 # Function to check the primary node status
 check_primary_node() {
   LAN_INTERFACE="${1:-lan}"
-  WAN_INTERFACE="${2:-wan}"
+
 
   echo -n "Checking primary node status... "
-  OUTPUT=$(echo '{"role": "primary", "lan_interface": "'$LAN_INTERFACE'", "wan_interface": "'$WAN_INTERFACE'"}' | /usr/libexec/rpcd/ns.ha call validate-requirements)
+  OUTPUT=$(echo '{"role": "primary", "lan_interface": "'$LAN_INTERFACE'"}' | /usr/libexec/rpcd/ns.ha call validate-requirements)
 
   if [[ $? -ne 0 ]]; then
     error
@@ -161,7 +159,6 @@ check_primary_node() {
 check_backup_node() {
   BACKUP_NODE_IP="$1"
   LAN_INTERFACE="${2:-lan}"
-  WAN_INTERFACE="${3:-wan}"
 
   if [[ -z "$BACKUP_NODE_IP" ]]; then
     error
@@ -177,7 +174,7 @@ check_backup_node() {
   echo
   echo -n "Checking backup node status... "
 
-  OUTPUT=$(echo '{"backup_node_ip": "'${BACKUP_NODE_IP}'", "ssh_password": "'${PASSWORD}'", "lan_interface": "'${LAN_INTERFACE}'", "wan_interface": "'${WAN_INTERFACE}'"}' | /usr/libexec/rpcd/ns.ha call check-remote)
+  OUTPUT=$(echo '{"backup_node_ip": "'${BACKUP_NODE_IP}'", "ssh_password": "'${PASSWORD}'", "lan_interface": "'${LAN_INTERFACE}'"}' | /usr/libexec/rpcd/ns.ha call check-remote)
 
   if [[ $? -ne 0 ]]; then
     error
@@ -219,45 +216,6 @@ add_lan_interface() {
   fi
 
   ERROR_OUTPUT=$(echo '{"role": "primary", "primary_node_ip": "'"$PRIMARY_NODE_IP"'", "backup_node_ip": "'"$BACKUP_NODE_IP"'", "virtual_ip": "'"$VIRTUAL_IP"'"}' | /usr/libexec/rpcd/ns.ha call add-lan-interface 2>&1)
-
-  if [[ $? -ne 0 ]]; then
-    error
-    ACTUAL_ERROR=$(echo "$ERROR_OUTPUT" | grep -oE "nethsec.utils.ValidationError: \('.*', '.*'\)" | awk -F", '" '{print $2}' | tr -d "')")
-    echo "Failed to configure the interface. Error: $ACTUAL_ERROR"
-    exit 1
-  fi
-
-  if [[ $? -ne 0 ]]; then
-    error
-    echo "Failed to configure the interface."
-    exit 1
-  fi
-
-  success
-}
-
-# Function to add a WAN interface
-add_wan_interface() {
-  INTERFACE="$1"
-  VIRTUAL_IP="$2"
-  GATEWAY="${3:-}"
-
-  if [[ -z "$INTERFACE" || -z "$VIRTUAL_IP" || -z "$GATEWAY" ]]; then
-    echo "Interface, Virtual IP, and Gateway are required."
-    help
-    exit 1
-  fi
-
-  echo -n "Adding interface configuration... "
-
-  # Validate that the virtual IP is in CIDR format
-  if ! [[ "$VIRTUAL_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]]; then
-    error
-    echo "Invalid virtual IP format. It must be in CIDR format (e.g., 192.168.1.1/24)."
-    exit 1
-  fi
-
-  ERROR_OUTPUT=$(echo '{"role": "primary", "interface": "'"$INTERFACE"'", "virtual_ip": "'"$VIRTUAL_IP"'", "gateway": "'"${GATEWAY}"'"}' | /usr/libexec/rpcd/ns.ha call add-wan-interface 2>&1)
 
   if [[ $? -ne 0 ]]; then
     error
@@ -523,10 +481,6 @@ case "$ACTION" in
   add-lan-interface)
     shift
     add_lan_interface "$@"
-    ;;
-  add-wan-interface)
-    shift
-    add_wan_interface "$@"
     ;;
   remove-interface)
     shift

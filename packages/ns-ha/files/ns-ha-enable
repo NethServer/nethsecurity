@@ -19,7 +19,8 @@ def enable_interfaces(file):
     with open(os.path.join(out_dir, file), 'r') as f:
         interfaces = json.load(f)
     for interface, options in interfaces.items():
-        if options.get('disabled', '0') == '0':
+        # WAN interfaces are always enabled on master node
+        if options.get('disabled', '0') == '0' and file != 'wan_interfaces':
             u.set('network', interface, 'disabled', '0')
     u.commit('network')
 
@@ -48,6 +49,7 @@ if __name__ == "__main__":
     if status.get("state") != "master":
         # Execute only on master node, no matter the role
         sys.exit(0)
+    enable_interfaces('wan_interfaces')
     enable_interfaces('wg_interfaces')
     enable_interfaces('ipsec_interfaces')
     enable_routes()
