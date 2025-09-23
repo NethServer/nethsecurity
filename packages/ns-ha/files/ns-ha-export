@@ -61,6 +61,19 @@ def export_wireguard_peers():
     with open(os.path.join(out_dir, 'wg_peers'), 'w') as f:
         json.dump(wireguard_peers, f)
 
+def export_wan_interfaces():
+    export_interfaces = {}
+    u = EUci()
+    try:
+        wan_interfaces = u.get_all('firewall', 'ns_wan', 'network')
+    except Exception:
+        wan_interfaces = {}
+    for section in utils.get_all_by_type(u, 'network', 'interface'):
+        if section in wan_interfaces:
+            export_interfaces[section] = u.get_all('network', section)
+    with open(os.path.join(out_dir, 'wan_interfaces'), 'w') as f:
+        json.dump(export_interfaces, f)
+
 def export_hotspot_mac():
     mac_address = ""
     u = EUci()
@@ -89,6 +102,7 @@ if __name__ == '__main__':
         shutil.rmtree(out_dir)
 
     os.makedirs(out_dir, exist_ok=True)
+    export_wan_interfaces()
     export_routes()
     export_ipsec_interfaces()
     export_wireguard_interfaces()

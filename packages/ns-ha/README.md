@@ -82,18 +82,14 @@ ns-ha-config <action> [<option1> <option2>]
 
 First, check the status of the primary node:
 ```
-ns-ha-config check-primary-node [lan_interface] [wan_interface]
+ns-ha-config check-primary-node [lan_interface]
 ```
 
-If the `lan_interface` and `wan_interface` are not specified, the script will use the default values:
-- `lan` for the LAN interface
-- `wan` for the first WAN interface
+If the `lan_interface` is not specified, the script will use the default value `lan`.
 
 It will check the following:
 
 - the LAN interface must be configured with a static IP address
-- there is at least one WAN interface
-- the WAN interface is not configured as a PPPoE connection
 - if a DHCP server is running
   - the `Force DHCP server start` option must be enabled
   - the DHCP option `3: router` must be set and configured with the virtual IP address (e.g. `192.168.100.240`)
@@ -121,9 +117,7 @@ It will check the following:
 
 - the backup node must be reachable via SSH on port 22 with root user
 - the LAN interface must be configured with a static IP address
-- there is at least one WAN interface
 
-Note the WAN interface is not checked on the backup node.
 In case of a switchover, the backup node will take over the WAN interface of the primary node but
 if there is no WAN interface configured on the backup node with the same name, the UI will
 show an unknown device.
@@ -154,7 +148,7 @@ echo Nethesis,1234 | ns-ha-config check-backup-node 192.168.100.239
 
 If the requirements are met, you can initialize the primary node, please note that the Virtual IP (only) must be written in CIDR notation.
 ```
-ns-ha-config init-primary-node <primary_node_ip> <backup_node_ip> <virtual_ip> [lan_interface] [wan_interface]
+ns-ha-config init-primary-node <primary_node_ip> <backup_node_ip> <virtual_ip> [lan_interface]
 ```
 
 The script will:
@@ -193,29 +187,11 @@ The virtual IP of the LAN will switch between the two nodes in case of failure.
 
 It's now time to configure additional interfaces, starting at least with the WAN interface.
 
-### Configure the WAN interface
+### Configure the WAN interfaces
 
-The WAN interface must be configured on both nodes.
-Use the following command to add a WAN interface:
-```
-ns-ha-config add-wan-interface <interface> <virtual_ip_address> <gateway>
-```
-
-Make sure to:
-
-- enter the virtual IP address in CIDR notation
-- enter the gateway IP address of the WAN interface
-
-The script will:
-
-- create the network interface and devices in the backup node
-- configure the interface on both nodes by using fake IP addresses from the fake network `169.254.X.0/16`
-- configure the virtual IP address on both nodes
-
-Example:
-```
-ns-ha-config add-wan-interface wan 192.168.122.49/24 192.168.122.1
-```
+The system does not require any special configuration for the WAN interfaces.
+Just configure them inside the `Interfaces and devices` page and they will be automatically managed
+by the HA scripts.
 
 ### Configure LAN interfaces
 
@@ -252,7 +228,7 @@ ns-ha-config remove-interface <interface>
 
 Example:
 ```
-ns-ha-config remove-interface wan
+ns-ha-config remove-interface lan2
 ```
 
 The script will:
@@ -305,7 +281,7 @@ The script will:
 
 Example:
 ```
-ns-ha-config remove-alias wan 192.168.122.66/24
+ns-ha-config remove-alias lan2 192.168.122.66/24
 ```
 
 ## Show current configuration
@@ -361,7 +337,6 @@ Last Sync Time: Mon Jun  9 07:21:15 UTC 2025
 
 Virtual IPs:
   lan_ipaddress: 192.168.100.240/24 (br-lan)
-  wan_ipaddress: 192.168.122.49/24 (eth1)
 
 Keepalived Statistics:
   advert_rcvd: 0
