@@ -461,6 +461,12 @@ def add_wan_interface(role, interface, virtual_ip, gateway):
     # Add the track interface to the list of tracked interfaces
     u.set('keepalived', kinstance_name, 'track_interface', list(set(track_interfaces + [f'{interface}_ha'])))
 
+    # Set interface up/down delays
+    u.set('keepalived', f'{interface}_delays', 'interface_up_down_delays')
+    u.set('keepalived', f'{interface}_delays', 'device', device)
+    u.set('keepalived', f'{interface}_delays', 'up_delay', '1')
+    u.set('keepalived', f'{interface}_delays', 'down_delay', '1')
+
     u.commit('keepalived')
     u.commit('network')
     subprocess.run(["/sbin/reload_config"], capture_output=True)
@@ -526,6 +532,12 @@ def add_lan_interface(role, primary_node_ip, backup_node_ip, virtual_ip):
     u.set('keepalived', f'{interface}_track', 'ns_link', f'network/{interface}')
     # Add the track interface to the list of tracked interfaces
     u.set('keepalived', kinstance_name, 'track_interface', list(set(track_interfaces + [f'{interface}_ha'])))
+
+    # Set interface up/down delays
+    u.set('keepalived', f'{interface}_delays', 'interface_up_down_delays')
+    u.set('keepalived', f'{interface}_delays', 'device', device)
+    u.set('keepalived', f'{interface}_delays', 'up_delay', '1')
+    u.set('keepalived', f'{interface}_delays', 'down_delay', '1')
 
     u.commit('keepalived')
     subprocess.run(["/sbin/reload_config"], capture_output=True)
@@ -600,6 +612,11 @@ def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, pubkey = "", p
     u.set('keepalived', 'lan_track', 'value', lan_device)
     u.set('keepalived', 'lan_track', 'weight', '100')
     u.set('keepalived', 'lan_track', 'ns_link', f'network/{interface}')
+
+    u.set('keepalived', 'lan_delays', 'interface_up_down_delays')
+    u.set('keepalived', 'lan_delays', 'device', lan_device)
+    u.set('keepalived', 'lan_delays', 'up_delay', '1')
+    u.set('keepalived', 'lan_delays', 'down_delay', '1')
 
     if role == 'primary':
         u.set('keepalived', 'globals', 'vrrp_down_timer_adverts', '5')
