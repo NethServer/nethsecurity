@@ -21,7 +21,7 @@ define Package/ns-api
 	CATEGORY:=NethSecurity
 	TITLE:=NethSecurity REST API
 	URL:=https://github.com/NethServer/nethsecurity-controller/
-	DEPENDS:=+python3-nethsec +python3-openssl +python3-urllib +python3-idna +python3-requests +sshpass
+	DEPENDS:=+python3-nethsec +python3-openssl +python3-urllib +python3-idna +python3-requests +sshpass +wireguard-tools
 	PKGARCH:=all
 endef
 
@@ -180,6 +180,7 @@ define Package/ns-api/install
 	$(INSTALL_BIN) ./files/post-commit/configure-netifyd.py $(1)/usr/libexec/ns-api/post-commit
 	$(INSTALL_BIN) ./files/post-commit/reload-ipsets.py $(1)/usr/libexec/ns-api/post-commit
 	$(INSTALL_BIN) ./files/post-commit/restart-cron.py $(1)/usr/libexec/ns-api/post-commit
+	$(INSTALL_BIN) ./files/post-commit/restart-wireguard.py $(1)/usr/libexec/ns-api/post-commit
 	$(INSTALL_BIN) ./files/pre-commit/clean-network.py $(1)/usr/libexec/ns-api/pre-commit
 	$(INSTALL_BIN) ./files/remove-pppoe-keepalive $(1)/usr/share/ns-api
 	$(INSTALL_DIR) $(1)/etc/uci-defaults

@@ -1021,6 +1021,23 @@ def edit_tunnel(args):
     return {"result": "success"}
 
 
+def delete_tunnel(args):
+    if 'id' not in args or args['id'] == '':
+        return utils.validation_error('id', 'required')
+    e_uci = EUci()
+    if e_uci.get('network', args['id'], 'proto', default='') != 'wireguard':
+        return utils.validation_error('id', 'invalid', args['id'])
+    if e_uci.get('network', args['id'], 'ns_type', default='') != 'tunnel':
+        return utils.validation_error('id', 'invalid', args['id'])
+
+    e_uci.delete("network", args["id"])
+    for entry in e_uci.get('network'):
+        if e_uci.get('network', entry, 'ns_link', dtype=str, default='') == f'network/{args["id"]}':
+            e_uci.delete('network', entry)
+    e_uci.save('network')
+
+    return {"result": "success"}
+
 
 cmd = sys.argv[1]
 
@@ -1063,7 +1080,8 @@ if cmd == 'list':
         "delete-peer": {"id": "peerid"},
         "list-tunnels": {},
         "add-tunnel": {},
-        "edit-tunnel": {"id": "tunnelid"}
+        "edit-tunnel": {"id": "tunnelid"},
+        "delete-tunnel": {"id": "tunnelid"}
     }))
 else:
     action = sys.argv[2]
@@ -1124,5 +1142,8 @@ else:
     elif action == 'edit-tunnel':
         args = json.loads(sys.stdin.read())
         ret = edit_tunnel(args)
+    elif action == 'delete-tunnel':
+        args = json.loads(sys.stdin.read())
+        ret = delete_tunnel(args)
 
     print(json.dumps(ret))
