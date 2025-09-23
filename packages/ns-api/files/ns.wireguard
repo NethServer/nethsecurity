@@ -253,6 +253,7 @@ def list_tunnels():
                 "name": e_uci.get('network', instance, 'ns_name'),
                 "enabled": not e_uci.get('network', instance, 'disabled', dtype=bool, default=False),
                 "address": e_uci.get('network', instance, 'addresses', dtype=str, list=True, default=None)[0],
+                "peer_private_key": e_uci.get('network', instance, 'private_key', dtype=str, default=''),
                 "dns": e_uci.get('network', instance, 'dns', dtype=str, list=True, default=[]),
             })
 
@@ -262,9 +263,12 @@ def list_tunnels():
             route_all_traffic = '0.0.0.0/0' in allowed_ips and '::/0' in allowed_ips
             remote_networks = list(filter(lambda x: x != '0.0.0.0/0' and x != '::/0', allowed_ips))
             tunnel.update({
+                "peer_id": peer,
+                "server_public_key": e_uci.get('network', peer, 'public_key', dtype=str, default=''),
                 "pre_shared_key": e_uci.get('network', peer, 'preshared_key', dtype=str, default=''),
-                "endpoint": e_uci.get('network', peer, 'endpoint_host', dtype=str, default='') + ':' + e_uci.get('network', peer, 'endpoint_port', dtype=str, default=''),
-                "remote_networks": remote_networks,
+                "endpoint": e_uci.get('network', peer, 'endpoint_host', dtype=str, default=''),
+                "udp_port": e_uci.get('network', peer, 'endpoint_port', dtype=int, default=51820),
+                "network_routes": remote_networks,
                 "route_all_traffic": route_all_traffic
             })
 
@@ -274,7 +278,10 @@ def list_tunnels():
 def get_instance_defaults():
     u = EUci()
     ret = {}
-    next_instance = len(list_instances()['instances']) + 1
+    next_instance = 1
+    for entry in u.get('network'):
+        if u.get('network', entry, 'proto', default='') == 'wireguard':
+            next_instance += 1
     if next_instance == 1:
         listen_port = 51820
     else:
@@ -309,7 +316,7 @@ def __list_peers(interface):
         peer = {
             "id": p,
             "enabled": not u.get("network", p, "disabled", dtype=bool, default=False),
-            "name": u.get("network", p, "ns_name"),
+            "name": u.get("network", p, "ns_name", default=''),
             "pre_shared_key": u.get('network', p, "preshared_key", dtype=str, default='') != '',
             "route_all_traffic": u.get('network', p, "ns_route_all_traffic", dtype=bool, default=False),
             "remote_networks": u.get('network', p, 'ns_routes', dtype=str, list=True, default=[]),
@@ -560,10 +567,10 @@ def add_peer(args):
             networks.append(net)
     e_uci.set('network', peer_section, 'ns_routes', networks)
     e_uci.set('network', peer_section, 'allowed_ips', args['remote_networks'] + [args['reserved_ip'] + '/32'])
+    e_uci.set('network', peer_section, 'ns_ip', args['reserved_ip'])
     private_key, public_key = generate_wireguard_keys()
     e_uci.set('network', peer_section, 'public_key', public_key)
     e_uci.set('network', peer_section, 'private_key', private_key)
-    e_uci.set('network', peer_section, 'ns_ip', args['reserved_ip'])
     e_uci.set('network', peer_section, 'persistent_keepalive', 25)
     e_uci.set('network', peer_section, 'ns_link', f'network/{args["instance"]}')
     e_uci.save('network')
@@ -875,6 +882,145 @@ def import_configuration(args):
     return {"result": "success"}
 
 
+def __validate_client_data(args):
+    if 'enabled' not in args:
+        return utils.validation_error('enabled', 'required')
+    if not isinstance(args['enabled'], bool):
+        return utils.validation_error('enabled', 'invalid', args['enabled'])
+    if 'name' not in args or args['name'] == '':
+        return utils.validation_error('name', 'required')
+    if 'reserved_ip' not in args or args['reserved_ip'] == '':
+        return utils.validation_error('reserved_ip', 'required')
+    try:
+        ipaddress.ip_address(args['reserved_ip'])
+    except ValueError:
+        return utils.validation_error('reserved_ip', 'invalid_ip_address', args['reserved_ip'])
+    if 'server_public_key' not in args or args['server_public_key'] == '':
+        return utils.validation_error('server_public_key', 'required')
+    if 'peer_private_key' not in args or args['peer_private_key'] == '':
+        return utils.validation_error('peer_private_key', 'required')
+    # optional pre-shared-key
+    if 'route_all_traffic' not in args:
+        return utils.validation_error('route_all_traffic', 'required')
+    if not isinstance(args['route_all_traffic'], bool):
+        return utils.validation_error('route_all_traffic', 'invalid', args['route_all_traffic'])
+    if args['route_all_traffic'] is False:
+        if "network_routes" not in args:
+            return utils.validation_error("network_routes", "required")
+        if not isinstance(args["network_routes"], list):
+            return utils.validation_error(
+                "network_routes", "invalid", args["network_routes"]
+            )
+        for net in args["network_routes"]:
+            try:
+                ipaddress.ip_network(net, strict=False)
+            except ValueError:
+                return utils.validation_error(
+                    "network_routes", "invalid_cidr_v4_address", net
+                )
+    if 'endpoint' not in args or args['endpoint'] == '':
+        return utils.validation_error('endpoint', 'required')
+    if 'udp_port' not in args:
+        return utils.validation_error('udp_port', 'required')
+    if not isinstance(args['udp_port'], int):
+        return utils.validation_error('udp_port', 'invalid', args['udp_port'])
+    if not (1 <= args['udp_port'] <= 65535):
+        return utils.validation_error('udp_port', 'invalid_port', args['udp_port'])
+    if 'dns' in args and args['dns'] != '':
+        for dns in args['dns'].split(','):
+            if dns == '':
+                continue
+            try:
+                ipaddress.ip_address(dns)
+            except ValueError:
+                return utils.validation_error('dns', 'invalid_ip_address', dns)
+
+    return None
+
+
+def add_tunnel(args):
+    err = __validate_client_data(args)
+    if err:
+        return err
+
+    defaults = get_instance_defaults()
+    e_uci = EUci()
+    e_uci.set('network', defaults['instance'], 'interface')
+    e_uci.set('network', defaults['instance'], 'proto', 'wireguard')
+    e_uci.set('network', defaults['instance'], 'private_key', args['peer_private_key'])
+    e_uci.set('network', defaults['instance'], 'addresses', [args['reserved_ip']])
+    e_uci.set('network', defaults['instance'], 'ns_type', 'tunnel')
+    e_uci.set('network', defaults['instance'], 'ns_name', args['name'])
+    e_uci.set('network', defaults['instance'], 'disabled', not args['enabled'])
+
+    peer_id = utils.get_random_id()
+    peer_instance = f"{defaults['instance']}_{peer_id}_peer"
+    e_uci.set('network', peer_instance, f'wireguard_{defaults["instance"]}')
+    e_uci.set('network', peer_instance, 'public_key', args['server_public_key'])
+    if 'pre_shared_key' in args and args['pre_shared_key'] != '':
+        e_uci.set('network', peer_instance, 'preshared_key', args['pre_shared_key'])
+    allowed_ips = []
+    if args['route_all_traffic']:
+        allowed_ips.append("0.0.0.0/0")
+        allowed_ips.append("::/0")
+    else:
+        allowed_ips += args['network_routes']
+    e_uci.set('network', peer_instance, 'ns_name', args['name'])
+    e_uci.set('network', peer_instance, 'allowed_ips', allowed_ips)
+    e_uci.set('network', peer_instance, 'reserved_ip', args['reserved_ip'])
+    e_uci.set('network', peer_instance, 'endpoint_host', args['endpoint'])
+    e_uci.set('network', peer_instance, 'endpoint_port', args['udp_port'])
+    e_uci.set('network', peer_instance, 'persistent_keepalive', args.get('persistent_keepalive', '25'))
+    e_uci.set('network', peer_instance, 'ns_link', f'network/{defaults["instance"]}')
+    if 'dns' in args:
+        e_uci.set('network', defaults['instance'], 'ns_dns', args['dns'])
+    e_uci.save('network')
+
+    return {"result": "success"}
+
+
+def edit_tunnel(args):
+    err = __validate_client_data(args)
+    if err:
+        return err
+
+    if 'id' not in args or args['id'] == '':
+        return utils.validation_error('id', 'required')
+    e_uci = EUci()
+    if e_uci.get('network', args['id'], 'proto', default='') != 'wireguard':
+        return utils.validation_error('id', 'invalid', args['id'])
+    if 'peer_id' not in args or args['peer_id'] == '':
+        return utils.validation_error('peer_id', 'required')
+    if e_uci.get('network', args['peer_id'], default='') != f"wireguard_{args['id']}":
+        return utils.validation_error('peer_id', 'invalid', args['peer_id'])
+
+    e_uci.set('network', args['id'], 'private_key', args['peer_private_key'])
+    e_uci.set('network', args['id'], 'addresses', [args['reserved_ip']])
+    e_uci.set('network', args['id'], 'ns_name', args['name'])
+    e_uci.set('network', args['id'], 'disabled', not args['enabled'])
+
+    e_uci.set('network', args['peer_id'], 'public_key', args['server_public_key'])
+    if 'pre_shared_key' in args and args['pre_shared_key'] != '':
+        e_uci.set('network', args['peer_id'], 'preshared_key', args['pre_shared_key'])
+    allowed_ips = []
+    if args["route_all_traffic"]:
+        allowed_ips.append("0.0.0.0/0")
+        allowed_ips.append("::/0")
+    else:
+        allowed_ips += args["network_routes"]
+    e_uci.set('network', args['peer_id'], 'ns_name', args['name'])
+    e_uci.set('network', args['peer_id'], 'allowed_ips', allowed_ips)
+    e_uci.set('network', args['peer_id'], 'reserved_ip', args['reserved_ip'])
+    e_uci.set('network', args['peer_id'], 'endpoint_host', args['endpoint'])
+    e_uci.set('network', args['peer_id'], 'endpoint_port', args['udp_port'])
+    e_uci.set('network', args['peer_id'], 'persistent_keepalive', args.get('persistent_keepalive', '25'))
+    if 'dns' in args:
+        e_uci.set('network', args['id'], 'ns_dns', args['dns'])
+    e_uci.save('network')
+
+    return {"result": "success"}
+
+
 
 cmd = sys.argv[1]
 
@@ -915,7 +1061,9 @@ if cmd == 'list':
         "add-peer": {},
         "edit-peer": {"instance": "wg1", "id": "peerid"},
         "delete-peer": {"id": "peerid"},
-        "list-tunnels": {}
+        "list-tunnels": {},
+        "add-tunnel": {},
+        "edit-tunnel": {"id": "tunnelid"}
     }))
 else:
     action = sys.argv[2]
@@ -970,5 +1118,11 @@ else:
         ret = delete_peer(args)
     elif action == 'list-tunnels':
         ret = list_tunnels()
+    elif action == 'add-tunnel':
+        args = json.loads(sys.stdin.read())
+        ret = add_tunnel(args)
+    elif action == 'edit-tunnel':
+        args = json.loads(sys.stdin.read())
+        ret = edit_tunnel(args)
 
     print(json.dumps(ret))
