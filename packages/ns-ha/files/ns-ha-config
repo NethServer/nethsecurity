@@ -19,8 +19,8 @@ help() {
   echo "  init-backup-node <PRIMARY_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP> <PASSWORD> <PUBKEY>"
   echo "  add-lan-interface <PRIMARY_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP>"
   echo "  remove-interface <INTERFACE>"
-  echo "  add-alias <INTERFACE> <VIRTUAL_ALIAS_IP> [GATEWAY]"
-  echo "  remove-alias <INTERFACE> <VIRTUAL_ALIAS_IP>"
+  echo "  add-vip <INTERFACE> <VIRTUAL_IP>"
+  echo "  remove-vip <INTERFACE> <VIRTUAL_IP>"
   echo "  check-primary-node [LAN_INTERFACE] [WAN_INTERFACE]"
   echo "  check-backup-node [LAN_INTERFACE]"
   echo "  show-config"
@@ -262,66 +262,65 @@ remove_interface() {
   success
 }
 
-add_alias() {
+add_vip() {
   INTERFACE="$1"
-  VIRTUAL_ALIAS_IP="$2"
-  GATEWAY="${3:-}"
+  VIRTUAL_IP="$2"
 
-  if [[ -z "$INTERFACE" || -z "$VIRTUAL_ALIAS_IP" ]]; then
-    echo "Interface and Virtual Alias IP are required."
+  if [[ -z "$INTERFACE" || -z "$VIRTUAL_IP" ]]; then
+    echo "Interface and Virtual IP are required."
     help
     exit 1
   fi
 
-  echo -n "Adding alias configuration... "
+  echo -n "Adding VIP configuration... "
 
   # Validate that the virtual IP is in CIDR format
-  if ! [[ "$VIRTUAL_ALIAS_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]]; then
+  if ! [[ "$VIRTUAL_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]]; then
     error
     echo "Invalid virtual IP format. It must be in CIDR format (e.g., 192.168.1.1/24)."
     exit 1
   fi
 
-  ERROR_OUTPUT=$(echo '{"role": "primary", "interface": "'"$INTERFACE"'", "virtual_ip": "'"$VIRTUAL_ALIAS_IP"'", "gateway": "'"${GATEWAY}"'"}' | /usr/libexec/rpcd/ns.ha call add-alias 2>&1)
+  ERROR_OUTPUT=$(echo '{"role": "primary", "interface": "'"$INTERFACE"'", "virtual_ip": "'"$VIRTUAL_IP"'"}' | /usr/libexec/rpcd/ns.ha call add-vip 2>&1)
 
   if [[ $? -ne 0 ]]; then
     error
     ACTUAL_ERROR=$(echo "$ERROR_OUTPUT" | grep -oE "nethsec.utils.ValidationError: \('.*', '.*'\)" | awk -F", '" '{print $2}' | tr -d "')")
-    echo "Failed to configure the alias. Error: $ACTUAL_ERROR"
+    echo "Failed to configure the VIP. Error: $ACTUAL_ERROR"
     exit 1
   fi
   if [[ $? -ne 0 ]]; then
     error
-    echo "Failed to configure the alias."
+    echo "Failed to configure the VIP."
     exit 1
   fi
   success
 }
 
-remove_alias() {
+remove_vip() {
   INTERFACE="$1"
-  VIRTUAL_ALIAS_IP="$2"
+  VIRTUAL_IP="$2"
 
-  if [[ -z "$INTERFACE" || -z "$VIRTUAL_ALIAS_IP" ]]; then
-    echo "Interface and Virtual Alias IP are required."
+  if [[ -z "$INTERFACE" || -z "$VIRTUAL_IP" ]]; then
+    echo "Interface and Virtual IP are required."
     help
     exit 1
   fi
 
-  echo -n "Removing alias configuration... "
+  echo -n "Removing VIP configuration... "
 
-  ERROR_OUTPUT=$(echo '{"role": "primary", "interface": "'"$INTERFACE"'", "virtual_ip": "'"$VIRTUAL_ALIAS_IP"'"}' | /usr/libexec/rpcd/ns.ha call remove-alias 2>&1)
+  ERROR_OUTPUT=$(echo '{"role": "primary", "interface": "'"$INTERFACE"'", "virtual_ip": "'"$VIRTUAL_IP"'"}' | /usr/libexec/rpcd/ns.ha call remove-vip 2>&1)
 
   if [[ $? -ne 0 ]]; then
     error
     ACTUAL_ERROR=$(echo "$ERROR_OUTPUT" | grep -oE "nethsec.utils.ValidationError: \('.*', '.*'\)" | awk -F", '" '{print $2}' | tr -d "')")
-    echo "Failed to remove the alias. Error: $ACTUAL_ERROR"
+    echo "Failed to remove the VIP. Error: $ACTUAL_ERROR"
     exit 1
   fi
 
   if [[ $? -ne 0 ]]; then
     error
-    echo "Failed to remove the alias."
+    echo "Failed to remove the VIP."
     exit 1
   fi
 
@@ -400,7 +399,6 @@ show_config() {
   # Fetch interfaces
   OUTPUT_INTERFACES=$(/usr/libexec/rpcd/ns.ha call list-interfaces)
   CONFIGURED_INTERFACES=$(echo "$OUTPUT_INTERFACES" | jq -r '.interfaces[] | select(.ha_configured == true) | "  Interface: \(.name), Device: \(.device), Virtual IP: \(.virtual_ip)"')
-  NOT_CONFIGURED_INTERFACES=$(echo "$OUTPUT_INTERFACES" | jq -r '.interfaces[] | select(.ha_configured == false) | "  Interface: \(.name), Device: \(.device) "')
 
   echo
   echo -e "\e[92mCurrent configuration\e[0m"
@@ -413,29 +411,16 @@ show_config() {
   fi
 
   echo
-  # Fetch aliases
-  OUTPUT_ALIASES=$(/usr/libexec/rpcd/ns.ha call list-aliases)
-  CONFIGURED_ALIASES=$(echo "$OUTPUT_ALIASES" | jq -r '.aliases[] | "  Interface: \(.interface), Virtual Alias IP: \(.ipaddr)"')
+  # Fetch VIPs
+  OUTPUT_VIPS=$(/usr/libexec/rpcd/ns.ha call list-vips)
+  CONFIGURED_VIPS=$(echo "$OUTPUT_VIPS" | jq -r '.vips[] | "  Interface: \(.interface), Virtual VIP: \(.ipaddr)"')
 
-  echo "Aliases:"
-  if [[ -n "$CONFIGURED_ALIASES" ]]; then
-    echo "$CONFIGURED_ALIASES"
+  echo "Extra Virtual IPs:"
+  if [[ -n "$CONFIGURED_VIPS" ]]; then
+    echo "$CONFIGURED_VIPS"
   else
     echo "  None"
   fi
-
-  echo
-  echo "-----------------------------------------------------------------"
-  echo
-  echo -e "\e[97mNot configured\e[0m"
-  echo
-  echo "Interfaces:"
-  if [[ -n "$NOT_CONFIGURED_INTERFACES" ]]; then
-    echo "$NOT_CONFIGURED_INTERFACES"
-  else
-    echo "  None"
-  fi
-  echo
 }
 
 ssh_remote() {
@@ -486,13 +471,13 @@ case "$ACTION" in
     shift
     remove_interface "$@"
     ;;
-  add-alias)
+  add-vip)
     shift
-    add_alias "$@"
+    add_vip "$@"
     ;;
-  remove-alias)
+  remove-vip)
     shift
-    remove_alias "$@"
+    remove_vip "$@"
     ;;
   check-primary-node)
     shift

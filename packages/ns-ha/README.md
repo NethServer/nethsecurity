@@ -10,12 +10,22 @@ Requirements:
 
 Limitations:
 
-- LAN name must be 'lan' in both firewalls
-- IPv4 only
-- VLANs are supported only on physical interfaces
+- Primary LAN interface must be named 'lan' in both firewalls
+- On LAN interfaces, only static IPv4 addresses are supported
 - Extra packages such as NUT are not supported
 - rsyslog configuration is not synced: if you need to send logs to a remote server, you must use the controller
 - After the first synchronization, the backup node will have the same hostname as the primary node
+
+Supported WAN configurations:
+
+- static IPv4 and IPv6
+- DHCP IPv4
+- physical interfaces
+- bond interfaces over physical interfaces
+- bridges over physical interfaces
+- VLANs over physical interfaces
+- VLANs over bond interfaces
+- VLANs over bridges
 
 The following features are supported:
 
@@ -238,50 +248,45 @@ The script will:
 - remove the interface from the backup node
 - move the virtual IP address to the original interface
 
-### Configue an alias
+### Configure a VIP (alias) on a LAN interface
 
-Aliases are special configurations that must explicitly set on the primary node.
-First, add the alias to the network interface using the web interface.
-Then, you can add the alias to the HA configuration.
+Aliases are extra virtual IP addresses that can be added to an interface.
+When an alias is added to a WAN interface, no special configuration is required:
+the alias will be automatically kept in sync between the two nodes.
+
+When an alias is added to a LAN interface, it's a bit different:
+
+- if the alias must be kept in sync between the two nodes, it must be added to the HA configuration as
+  VIP (Virtual IP) and not as a traditional alias
+- if the alias must be bound to a node and does not need to be kept in sync,
+  it must be configured normally using UCI or the web interface (not recommended)
 
 To add an alias, use the following command:
 ```
-ns-ha-config add-alias <interface> <alias> <ip_address> [<gateway>]
+ns-ha-config add-vip <interface> <vip_address>
 ```
-
-If the alias is for a WAN interface, you must enter also the gateway IP address.
-
-The script will:
-
-- check if the given interface is already configured as HA interface
-- add the alias to keepalived configuration
 
 Example:
 ```
-ns-ha-config add-alias lan 192.168.100.66/24
+ns-ha-config add-vip lan 192.168.100.66/24
 ```
 
-Example for WAN interface:
-```
-ns-ha-config add-alias wan 192.168.122.66/24 192.168.122.1
-```
 
-**NOTE**: the alias will not appear in the network configuration of the backup node.
+The VIP will appear in the network configuration of the backup node only when the node
+becomes primary.
 
-### Remove an alias
+### Remove an VIP (alias) from a LAN interface
 
 To remove an alias, use the following command:
 ```
-ns-ha-config remove-alias <interface> <alias>
+ns-ha-config remove-vip <interface> <alias>
 ```
 
-The script will:
-- remove the alias from keepalived configuration
-- remove all virtual routes, if present
+The script will remove the alias from keepalived configuration.
 
 Example:
 ```
-ns-ha-config remove-alias lan2 192.168.122.66/24
+ns-ha-config remove-vip lan2 192.168.122.66/24
 ```
 
 ## Show current configuration
