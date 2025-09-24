@@ -8,6 +8,7 @@
 import os
 import sys
 import json
+import time
 import subprocess
 from euci import EUci
 from nethsec import utils
@@ -15,14 +16,18 @@ from nethsec import utils
 out_dir = "/etc/ha"
 
 def enable_interfaces(file):
+    pppoe_interfaces = []
     u = EUci()
     with open(os.path.join(out_dir, file), 'r') as f:
         interfaces = json.load(f)
     for interface, options in interfaces.items():
         # WAN interfaces are always enabled on master node
-        if options.get('disabled', '0') == '0' and file != 'wan_interfaces':
+        if file == 'wan_interfaces' or options.get('disabled', '0') == '1':
             u.set('network', interface, 'disabled', '0')
+        if file == 'wan_interfaces' and options.get('proto') == 'pppoe':
+            pppoe_interfaces.append(interface)
     u.commit('network')
+    return pppoe_interfaces
 
 def enable_routes():
     u = EUci()
@@ -49,9 +54,14 @@ if __name__ == "__main__":
     if status.get("state") != "master":
         # Execute only on master node, no matter the role
         sys.exit(0)
-    enable_interfaces('wan_interfaces')
+    pppoe_interfaces = enable_interfaces('wan_interfaces')
     enable_interfaces('wg_interfaces')
     enable_interfaces('ipsec_interfaces')
     enable_routes()
     enable_hotspot_mac()
     subprocess.run(["/sbin/reload_config"], capture_output=True)
+    # Restart pppoe interfaces to force reconnection
+    if pppoe_interfaces:
+        time.sleep(1)
+        for iface in pppoe_interfaces:
+            subprocess.run(["/sbin/ifup", iface], capture_output=True)
