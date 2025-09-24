@@ -727,21 +727,21 @@ def list_interfaces():
             interfaces.append({"device": device, "name": n, "ha_configured": ha_configured, "virtual_ip": virtual_ip})
     return { "interfaces": interfaces }
 
-def list_aliases():
+def list_vips():
     u = EUci()
-    aliases = []
+    vips = []
 
     for section in utils.get_all_by_type(u, 'keepalived', 'ipaddress'):
         # Check if section name matches pattern like lan_192_168_100_66_24_ipaddress
         if re.match(r'^[a-zA-Z0-9_]+_\d+_\d+_\d+_\d+_\d+_ipaddress$', section):
             ns_link = u.get('keepalived', section, 'ns_link', default="")
-            aliases.append({
+            vips.append({
                 "interface": ns_link.split('/')[-1] if ns_link else "",
                 "ipaddr": u.get('keepalived', section, 'address', default=''),
                 })
-    return { "aliases": aliases }
+    return { "vips": vips }
 
-def add_alias(role, interface, virtual_ip, gateway):
+def add_vip(role, interface, virtual_ip):
     u = EUci()
     # Retrive interfaces configured for HA
     ha_configured_interfaces = [iface['name'] for iface in list_interfaces()['interfaces'] if iface['ha_configured']]
@@ -751,16 +751,24 @@ def add_alias(role, interface, virtual_ip, gateway):
     device = u.get('network', interface, 'device', default=None)
     if role == 'primary':
         kinstance_name = 'primary'
+
+        validate_command = json.dumps({
+            "role": "backup",
+            "lan_interface": interface
+        })
+        output, error = execute_remote_command(f"echo '{validate_command}' | /usr/libexec/rpcd/ns.ha call validate-requirements")
+        if error:
+              raise utils.ValidationError('error_executing_validate_requirements_on_backup_node', error)
+        if output:
+            result = json.loads(output)
+            if not result.get("success"):
+                raise utils.ValidationError('backup_node_invalid_configuration', ','.join(result.get("errors", [])))
     else:
         kinstance_name = 'backup'
 
     virtual_ips = list(u.get_all('keepalived', kinstance_name, 'virtual_ipaddress'))
-    try:
-        virtual_routes = list(u.get_all('keepalived', kinstance_name, 'virtual_routes'))
-    except:
-        virtual_routes = []
 
-    # Create the VIP address for alias
+    # Create the VIP address
     record_prefix = f'{interface}_{virtual_ip.replace("/", "_").replace(".", "_")}'
     u.set('keepalived', f'{record_prefix}_ipaddress', 'ipaddress')
     u.set('keepalived', f'{record_prefix}_ipaddress', 'name', f'{record_prefix}_ha')
@@ -768,21 +776,8 @@ def add_alias(role, interface, virtual_ip, gateway):
     u.set('keepalived', f'{record_prefix}_ipaddress', 'device', device)
     u.set('keepalived', f'{record_prefix}_ipaddress', 'label_suffix', 'ha')
     u.set('keepalived', f'{record_prefix}_ipaddress', 'ns_link', f'network/{interface}')
-    # Add the alias VIP to the list of virtual IPs
+    # Add the VIP to the list of virtual IPs
     u.set('keepalived', kinstance_name, 'virtual_ipaddress', list(set(virtual_ips + [f'{record_prefix}_ha'])))
-
-    if gateway:
-        # If there is a gateway, a virtual route for the alias is needed
-        u.set('keepalived', f'{record_prefix}_route', 'route')
-        u.set('keepalived', f'{record_prefix}_route', 'table', 'main')
-        u.set('keepalived', f'{record_prefix}_route', 'address', '0.0.0.0/0')
-        u.set('keepalived', f'{record_prefix}_route', 'name', f'{record_prefix}_route')
-        u.set('keepalived', f'{record_prefix}_route', 'device', device)
-        u.set('keepalived', f'{record_prefix}_route', 'gateway', gateway)
-        u.set('keepalived', f'{record_prefix}_route', 'src_addr', virtual_ip.split('/')[0])
-        u.set('keepalived', f'{record_prefix}_route', 'ns_link', f'network/{interface}')
-        # Add the route to the list of virtual routes
-        u.set('keepalived', kinstance_name, 'virtual_routes', list(set(virtual_routes + [f'{record_prefix}_route'])))
 
     u.commit('keepalived')
     u.commit('network')
@@ -793,19 +788,18 @@ def add_alias(role, interface, virtual_ip, gateway):
         command = json.dumps({
             "role": "backup",
             "interface": interface,
-            "virtual_ip": virtual_ip,
-            "gateway": gateway
+            "virtual_ip": virtual_ip
         })
 
-        output, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call add-alias")
+        output, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call add-vip")
         if error:
-            return utils.generic_error("error_executing_add_alias_on_backup_node")
+            return utils.generic_error("error_executing_add_vip_on_backup_node")
 
         return json.loads(output)
     else:
         return { "success": True }
-    
-def remove_alias(role, interface, virtual_ip):
+
+def remove_vip(role, interface, virtual_ip):
     u = EUci()
     # Retrive interfaces configured for HA
     ha_configured_interfaces = [iface['name'] for iface in list_interfaces()['interfaces'] if iface['ha_configured']]
@@ -851,9 +845,9 @@ def remove_alias(role, interface, virtual_ip):
             "virtual_ip": virtual_ip
         })
 
-        output, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call remove-alias")
+        output, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call remove-vip")
         if error:
-            return utils.generic_error("error_executing_remove_alias_on_backup_node")
+            return utils.generic_error("error_executing_remove_vip_on_backup_node")
 
         return json.loads(output)
     else:
@@ -1083,11 +1077,11 @@ if cmd == 'list':
             "virtual_ip": "192.168.200.250/24"
         },
         "remove-interface": { "role": "primary", "interface": "lan2" },
-        "add-alias": { "role": "primary", "interface": "lan", "virtual_ip": "1.2.3.5/24" },
-        "remove-alias": { "role": "primary", "interface": "lan", "virtual_ip": "1.2.3.5/24" },
+        "add-vip": { "role": "primary", "interface": "lan", "virtual_ip": "1.2.3.5/24" },
+        "remove-vip": { "role": "primary", "interface": "lan", "virtual_ip": "1.2.3.5/24" },
         "status": {},
         "list-interfaces": {},
-        "list-aliases": {},
+        "list-vips": {},
         "reset": {"role": "primary", "pubkey": "ssh-rsa AAAAB...."},
         "upgrade-remote": { "image": "/tmp/upgrade.img.gz" }
         }))
@@ -1097,8 +1091,8 @@ else:
         ret = status()
     elif action == "list-interfaces":
         ret = list_interfaces()
-    elif action == "list-aliases":
-        ret = list_aliases()
+    elif action == "list-vips":
+        ret = list_vips()
     else:
         # Paramaters:
         args = json.loads(sys.stdin.read())
@@ -1114,10 +1108,10 @@ else:
             ret = check_remote(args.get('backup_node_ip'), args.get('ssh_password'), args.get('lan_interface'))
         elif action == "validate-requirements":
             ret = validate_requirements(args.get('role'), args.get('lan_interface'))
-        elif action == "add-alias":
-            ret = add_alias(args.get('role'), args.get('interface'), args.get('virtual_ip'), args.get('gateway', ''))
-        elif action == "remove-alias":
-            ret = remove_alias(args.get('role'), args.get('interface'), args.get('virtual_ip'))
+        elif action == "add-vip":
+            ret = add_vip(args.get('role'), args.get('interface'), args.get('virtual_ip'))
+        elif action == "remove-vip":
+            ret = remove_vip(args.get('role'), args.get('interface'), args.get('virtual_ip'))
         elif action == "reset":
             ret = reset(args.get('role'), args.get('pubkey'))
         elif action == "upgrade-remote":
