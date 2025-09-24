@@ -90,6 +90,58 @@ def export_hotspot_mac():
             with open(os.path.join(out_dir, 'hotspot'), 'w') as f:
                 json.dump({"device": device, "mac_address": mac_address}, f)
 
+def get_device_by_name(u, name):
+    ret = {}
+    for section in u.get_all('network'):
+        if u.get('network', section, 'name', default=None) == name:
+            ret = u.get_all('network', section)
+            ret['type'] = 'device'
+            ret['key'] = section
+            break
+    return ret
+
+def find_wan_devices(u, wan_devices):
+    # Export wan devices recursively, expanding bonds and bridges
+    # Output is a list of devices with all options plus 2 special fields:
+    # - type: 'device' or 'interface'
+    # - key: the uci section name
+    ret = []
+    for device_name in wan_devices:
+        device = {}
+        if not isinstance(device_name, str):
+            continue
+
+        if device_name.startswith('@'):
+            # Skip alias: it's already included inside the wan interfaces
+            continue
+
+        if device_name.startswith('bond-'):
+            # It's a bond, export all the slaves
+            bond_key = device_name.removeprefix('bond-')
+            device = u.get_all('network', bond_key)
+            device['type'] = 'interface'
+            device['key'] = bond_key
+            try:
+                slaves = u.get_all('network', bond_key, 'slaves')
+            except Exception:
+                slaves = []
+            ret.extend(find_wan_devices(u, slaves))
+        else:
+            device = get_device_by_name(u, device_name)
+            if device.get('ports'):
+                # It's a bridge, export all the ports
+                ret.extend(find_wan_devices(u, device.get('ports', [])))
+
+        if device:
+            ret.append(device)
+    return ret
+
+def export_wan_devices():
+    u = EUci()
+    wan_devices = find_wan_devices(u, utils.get_all_wan_devices(u))
+    with open(os.path.join(out_dir, 'wan_devices'), 'w') as f:
+        json.dump(wan_devices, f)
+
 if __name__ == '__main__':
     proc = subprocess.run(["/usr/libexec/rpcd/ns.ha", "call", "status"], capture_output=True, text=True)
     status = json.loads(proc.stdout)
@@ -102,6 +154,7 @@ if __name__ == '__main__':
         shutil.rmtree(out_dir)
 
     os.makedirs(out_dir, exist_ok=True)
+    export_wan_devices()
     export_wan_interfaces()
     export_routes()
     export_ipsec_interfaces()
