@@ -26,6 +26,8 @@ Supported WAN configurations:
 - VLANs over physical interfaces
 - VLANs over bond interfaces
 - VLANs over bridges
+- PPPoE over physical interfaces
+- PPPoE over VLANs
 
 The following features are supported:
 
