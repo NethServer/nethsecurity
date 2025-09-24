@@ -115,6 +115,25 @@ def cleanup_import():
                 u.delete('network', section)
     u.commit('network')
 
+def import_wan_devices():
+    u = EUci()
+    if not os.path.exists(os.path.join(out_dir, 'wan_devices')):
+        return
+    with open(os.path.join(out_dir, 'wan_devices'), 'r') as f:
+        devices = json.load(f)
+    for device in devices:
+        dtype = device.get('type', 'device')
+        key = device.get('key', None)
+        if not key:
+            continue
+        u.set('network', key, dtype)
+        u.set('network', key, 'ns_tag', ['ha'])
+        for opt in device:
+            if opt in ['type', 'key']:
+                continue
+            u.set('network', key, opt, device[opt])
+    u.commit('network')
+
 if __name__ == "__main__":
     proc = subprocess.run(["/usr/libexec/rpcd/ns.ha", "call", "status"], capture_output=True, text=True)
     status = json.loads(proc.stdout)
@@ -122,6 +141,7 @@ if __name__ == "__main__":
         # Execute only on backup node
         sys.exit(0)
     cleanup_import()
+    import_wan_devices()
     import_interfaces('wan_interfaces')
     import_interfaces('wg_interfaces')
     import_wireguard_peers()
