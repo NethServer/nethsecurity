@@ -324,9 +324,24 @@ def add_lan_interface(role, primary_node_ip, backup_node_ip, virtual_ip):
     if role == "primary":
         kinstance_name = 'primary'
         (interface, device) = get_device_from_ip(u, primary_node_ip)
+
+        validate_command = json.dumps({
+            "role": "backup",
+            "lan_interface": interface
+        })
+        output, error = execute_remote_command(f"echo '{validate_command}' | /usr/libexec/rpcd/ns.ha call validate-requirements")
+        if error:
+              raise utils.ValidationError('error_executing_validate_requirements_on_backup_node', error)
+        if output:
+            result = json.loads(output)
+            if not result.get("success"):
+                raise utils.ValidationError('backup_node_invalid_configuration', ','.join(result.get("errors", [])))
     else:
         kinstance_name = 'backup'
         (interface, device) = get_device_from_ip(u, backup_node_ip)
+
+    if interface is None:
+        raise utils.ValidationError(f'{role}_node_ip', 'no_interface_with_static_ip_found')
     if device is None:
         raise utils.ValidationError(f'{role}_node_ip', 'no_device_with_static_ip_found')
 
