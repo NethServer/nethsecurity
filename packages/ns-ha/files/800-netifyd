@@ -7,11 +7,6 @@ set_service_name netifyd
 set_restart_if_master
 set_stop_if_backup
 
-add_sync_file /etc/netifyd.conf
-add_sync_file /etc/config/dpi
-add_sync_file /etc/config/netifyd
-add_sync_file /etc/netify.d
-
 if [ "$ACTION" == "NOTIFY_MASTER" ]; then
     /etc/init.d/dpi restart
     /etc/init.d/dpireport restart

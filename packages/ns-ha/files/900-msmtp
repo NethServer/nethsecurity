@@ -4,6 +4,4 @@
 
 set_service_name msmtp
 
-add_sync_file /etc/msmtprc
-
 keepalived_hotplug

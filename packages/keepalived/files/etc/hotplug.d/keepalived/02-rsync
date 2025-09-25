@@ -1,0 +1,84 @@
+#!/bin/sh
+# Sync selected entries from /usr/share/keepalived/rsync to root paths.
+#
+# Behavior:
+# - Reads a list of paths (one per line) from /tmp/restore_list.
+# - Empty lines and lines starting with '#' are ignored. Leading/trailing
+#   whitespace is trimmed.
+# - Entries may be absolute (/etc/...) or relative (etc/...), absolute
+#   paths are treated as root-relative.
+# - Paths containing '..' are rejected to avoid directory traversal.
+# - If an entry refers to a directory: rsync -avr --delete
+#   /usr/share/keepalived/rsync/<dir>/ /<dir>/
+# - If an entry refers to a regular file: rsync -avr
+#   /usr/share/keepalived/rsync/<file> /<file>
+# - If a listed entry does not exist in the source dir, a warning is logged
+#   and the entry is skipped.
+
+. /lib/functions/keepalived/common.sh
+
+set -eu
+
+SRC_DIR="/usr/share/keepalived/rsync"
+RESTORE_LIST="$SRC_DIR/tmp/restore_list"
+
+# Ensure source directory exists
+if [ ! -d "$SRC_DIR" ]; then
+    log_err "Source directory does not exist: $SRC_DIR"
+    exit 1
+fi
+
+# Ensure restore list exists and is readable
+if [ ! -r "$RESTORE_LIST" ]; then
+    log_err "Restore list not found or not readable: $RESTORE_LIST"
+    exit 1
+fi
+
+while IFS= read -r entry || [ -n "$entry" ]; do
+    # Skip empty lines and comments
+    case "$entry" in
+        ''|\#*)
+            continue
+            ;;
+    esac
+
+    # Trim leading/trailing whitespace
+    name="$(printf '%s' "$entry" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+    # Skip if empty after trimming
+    [ -n "$name" ] || continue
+
+    # Allow absolute paths in the list; convert to relative path under root
+    if [ "${name#/}" != "$name" ]; then
+        rel="${name#/}"
+    else
+        rel="$name"
+    fi
+
+    # Remove any trailing slash for normalization
+    rel="${rel%/}"
+
+    # Reject any path containing '..' to avoid directory traversal
+    if printf '%s' "$rel" | grep -Eq '(^|/)\.\.(/|$)'; then
+        log_warn "Skipping unsafe path (contains '..'): $entry"
+        continue
+    fi
+
+    src="$SRC_DIR/$rel"
+    dst="/$rel"
+
+    # Ensure the source exists
+    if [ ! -e "$src" ]; then
+        log_warn "No matching source for '$rel' in $SRC_DIR; skipping"
+        continue
+    fi
+
+    if [ -d "$src" ]; then
+        log_debug "Syncing directory from list: $src/ -> $dst/"
+        rsync -ar --delete "$src"/ "$dst"/
+    elif [ -f "$src" ]; then
+        log_debug "Syncing file from list: $src -> $dst"
+        rsync -a "$src" "$dst"
+    else
+        log_warn "Skipping unsupported entry type: $src"
+    fi
+done < "$RESTORE_LIST"

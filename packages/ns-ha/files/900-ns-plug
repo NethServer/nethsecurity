@@ -15,8 +15,11 @@ if [ "$ACTION" == "NOTIFY_BACKUP" ]; then
 elif [ "$ACTION" == "NOTIFY_MASTER" ]; then
     update_cron "enable" "send-heartbeat send-backup send-inventory" "ns-push-reports"
     cluster_alert "master"
+elif [ "$ACTION" == "NOTIFY_SYNC" ]; then
+    # Remove backup.pass if it has been unset on the primary
+    if [ ! -f /usr/share/keepalived/rsync/tmp/etc/backup.pass ] && [ -f /etc/backup.pass ]; then
+        rm -f /etc/backup.pass
+    fi
 fi
-
-add_sync_file /etc/config/ns-plug
 
 keepalived_hotplug

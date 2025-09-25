@@ -4,16 +4,6 @@
 
 set_service_name network_files
 
-add_sync_file /etc/ha
-add_sync_file /tmp/dhcp.leases
-
-# Prepare destination directory inside the secondary, otherwise hotplug sync will fail
-if [ ! -d /etc/ha ]; then
-    mkdir -p /etc/ha
-fi
-
-keepalived_hotplug
-
 if [ "$ACTION" == "NOTIFY_MASTER" ]; then
     /usr/libexec/ns-ha-enable
 elif [ "$ACTION" == "NOTIFY_SYNC" ]; then
