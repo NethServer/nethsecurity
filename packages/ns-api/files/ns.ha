@@ -1048,6 +1048,50 @@ def reset(role, pubkey = None):
     else:
         return { "success": True }
 
+def disable(role):
+    uci = EUci()
+    if role == "primary":
+        # Execute on backup
+        command = json.dumps({
+            "role": "backup"
+        })
+        port = uci.get('dropbear', 'ha_link', 'Port')
+        backup_node_ip = uci.get('keepalived', 'ha_peer', 'address')
+        _, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call disable", backup_node_ip=backup_node_ip, port=port)
+        if error:
+            return utils.generic_error("error_executing_disable_on_backup_node")
+
+    uci.set('keepalived', 'globals', 'enabled', '0')
+    uci.commit('keepalived')
+    # Reload the configuration to apply changes
+    subprocess.run(["/sbin/reload_config"], capture_output=True)
+    # Force keepalived to stop, it seems the reload_config does not always stop it
+    subprocess.run(['/etc/init.d/keepalived', 'disable'], capture_output=True)
+    subprocess.run(['/etc/init.d/keepalived', 'stop'], capture_output=True)
+    return { "success": True }
+
+def enable(role):
+    uci = EUci()
+    if role == "primary":
+        # Execute on backup
+        command = json.dumps({
+            "role": "backup"
+        })
+        port = uci.get('dropbear', 'ha_link', 'Port')
+        backup_node_ip = uci.get('keepalived', 'ha_peer', 'address')
+        _, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call enable", backup_node_ip=backup_node_ip, port=port)
+        if error:
+            return utils.generic_error("error_executing_enable_on_backup_node")
+
+    uci.set('keepalived', 'globals', 'enabled', '1')
+    uci.commit('keepalived')
+    # Reload the configuration to apply changes
+    subprocess.run(["/sbin/reload_config"], capture_output=True)
+    # Force keepalived to start, it seems the reload_config does not always start it
+    subprocess.run(['/etc/init.d/keepalived', 'enable'], capture_output=True)
+    subprocess.run(['/etc/init.d/keepalived', 'restart'], capture_output=True)
+    return { "success": True }
+
 
 cmd = sys.argv[1]
 
@@ -1083,7 +1127,9 @@ if cmd == 'list':
         "list-interfaces": {},
         "list-vips": {},
         "reset": {"role": "primary", "pubkey": "ssh-rsa AAAAB...."},
-        "upgrade-remote": { "image": "/tmp/upgrade.img.gz" }
+        "upgrade-remote": { "image": "/tmp/upgrade.img.gz" },
+        "disable": {"role": "primary"},
+        "enable": {"role": "primary"}
         }))
 else:
     action = sys.argv[2]
@@ -1116,5 +1162,9 @@ else:
             ret = reset(args.get('role'), args.get('pubkey'))
         elif action == "upgrade-remote":
             ret = upgrade_remote(args.get('image'))
+        elif action == "disable":
+            ret = disable(args.get('role'))
+        elif action == "enable":
+            ret = enable(args.get('role'))
 
     print(json.dumps(ret))

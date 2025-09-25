@@ -500,6 +500,23 @@ Proceed with the primarytenance of the primary node, then re-enable the HA clust
 
 The primary node will take over the virtual IP address again.
 
+## Disable and enable the HA cluster
+
+After the configuration, the HA is enabled by default.
+
+To disable the HA cluster, use the following command on the **primary** node:
+```
+ns-ha-config disable
+```
+
+The script will:
+- connect to the backup node and disable keepalived
+- disable keepalived on the primary node
+
+To enable again the HA cluster, use the following command on the **primary** node:
+```
+ns-ha-config enable
+```
 
 ## Reset the configuration
 
