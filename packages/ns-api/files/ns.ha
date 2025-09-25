@@ -281,7 +281,14 @@ def parse_node_state():
 
      # Using uci to query the state, with EUci(confdir="/var/state/"), the library can't read the data
     last_sync_status = subprocess.run(["uci", "-P", "/var/state/", "get", "keepalived.ha_peer.last_sync_status"], capture_output=True, text=True).stdout.strip()
-    last_sync_time = subprocess.run(["uci", "-P", "/var/state/", "get", "keepalived.ha_peer.last_sync_time"], capture_output=True, text=True).stdout.strip()
+    last_sync_time_raw = subprocess.run(["uci", "-P", "/var/state/", "get", "keepalived.ha_peer.last_sync_time"], capture_output=True, text=True).stdout.strip()
+    try:
+        if last_sync_time_raw == "":
+            last_sync_time = 0
+        else:
+            last_sync_time = int(last_sync_time_raw)
+    except ValueError:
+        last_sync_time = 0
 
     # Integrate keepalived stats and state
     stats = {}
