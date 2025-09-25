@@ -27,6 +27,8 @@ help() {
   echo "  ssh-remote"
   echo "  upgrade-remote [<IMAGE>]"
   echo "  reset"
+  echo "  enable"
+  echo "  disable"
   echo "  status (This is the only action that can be run on both nodes)"
 }
 
@@ -456,6 +458,32 @@ upgrade_remote() {
   success
 }
 
+enable() {
+  echo -n "Enabling HA... "
+  OUTPUT=$(echo '{"role": "primary"}' | /usr/libexec/rpcd/ns.ha call enable)
+
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to enable HA."
+    exit 1
+  fi
+
+  success
+}
+
+disable() {
+  echo -n "Disabling HA... "
+  OUTPUT=$(echo '{"role": "primary"}' | /usr/libexec/rpcd/ns.ha call disable)
+
+  if [[ $? -ne 0 ]]; then
+    error
+    echo "Failed to disable HA."
+    exit 1
+  fi
+
+  success
+}
+
 # Main logic to handle actions
 case "$ACTION" in
   init-primary-node)
@@ -506,6 +534,12 @@ case "$ACTION" in
     ;;
   status)
     status
+    ;;
+  enable)
+    enable
+    ;;
+  disable)
+    disable
     ;;
   *)
     echo "Invalid action: $ACTION"
