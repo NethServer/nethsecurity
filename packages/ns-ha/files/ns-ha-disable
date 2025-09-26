@@ -65,7 +65,7 @@ def disable_hotspot():
 
 def stop_services():
     services = set()
-    exceptions = {'nginx', 'dropbear'}
+    exceptions = {'nginx', 'dropbear', 'rpcd'}
     hotplug_dir = "/etc/hotplug.d/keepalived"
     try:
         for fname in sorted(os.listdir(hotplug_dir)):
