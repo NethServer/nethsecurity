@@ -277,14 +277,14 @@ ns-ha-config add-vip lan 192.168.100.66/24
 The VIP will appear in the network configuration of the backup node only when the node
 becomes primary.
 
-### Remove an VIP (alias) from a LAN interface
+### Remove a VIP (alias) from a LAN interface
 
-To remove an alias, use the following command:
+To remove a VIP (alias), use the following command:
 ```
 ns-ha-config remove-vip <interface> <alias>
 ```
 
-The script will remove the alias from keepalived configuration.
+The script will remove the VIP from keepalived configuration.
 
 Example:
 ```
@@ -622,13 +622,15 @@ Executed on the backup node during normal operation or when the primary node rec
 The HA system handles different types of network interfaces with distinct approaches:
 
 #### WAN Interfaces
-WAN interfaces are automatically configured by the HA system:
-- Assigned IP addresses from the `169.254.X.0/24` range (where X increments for each WAN)
-- Primary node receives `169.254.X.1`, backup node receives `169.254.X.2`
-- Supports up to 254 WAN interfaces theoretically
-- Virtual IP address is configured for external connectivity
+
+WAN interfaces are automatically configured by the HA system including aliases.
+The configuration is synchronized from the primary to the backup node:
+- the `ns-ha-export` creates the file `/etc/ha/wan_interfaces` with the WAN configuration
+- during NOTIFY_SYNC, the `ns-ha-import` backup node imports the WAN configuration and creates the devices (like VLAN, bond, bridges, etc) and interfaces in disabled state
+- the `ns-ha-enable` script activates the WAN interfaces during NOTIFY_MASTER event
 
 #### LAN Interfaces
+
 LAN interfaces require manual static IP configuration on both nodes:
 - Must be configured with static IP addresses before adding to HA
 - Virtual IP must be in the same subnet as the interface IP addresses

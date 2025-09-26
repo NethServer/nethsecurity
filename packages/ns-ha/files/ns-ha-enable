@@ -12,11 +12,22 @@ import time
 import subprocess
 from euci import EUci
 from nethsec import utils
+import logging
+import logging.handlers
 
 out_dir = "/etc/ha"
 
+# Syslog logger for info-level
+logger = logging.getLogger('ns-ha')
+if not logger.handlers:
+    handler = logging.handlers.SysLogHandler(address='/dev/log')
+    formatter = logging.Formatter('%(name)s: %(levelname)s: %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+
 def enable_interfaces(file):
-    pppoe_interfaces = []
+    wan_interfaces = []
     u = EUci()
     with open(os.path.join(out_dir, file), 'r') as f:
         interfaces = json.load(f)
@@ -24,10 +35,10 @@ def enable_interfaces(file):
         # WAN interfaces are always enabled on master node
         if file == 'wan_interfaces' or options.get('disabled', '0') == '1':
             u.set('network', interface, 'disabled', '0')
-        if file == 'wan_interfaces' and options.get('proto') == 'pppoe':
-            pppoe_interfaces.append(interface)
+        if file == 'wan_interfaces':
+            wan_interfaces.append(interface)
     u.commit('network')
-    return pppoe_interfaces
+    return wan_interfaces
 
 def enable_routes():
     u = EUci()
@@ -46,7 +57,8 @@ def enable_hotspot_mac():
         tags = device.get('ns_tag', [])
         if 'ha' in tags and device.get('ns_macaddr'):
             # Force mac address on the device, OpenWrt seems to ignore it
-            subprocess.run(["ip", "link", "set", "dev", device.get('name'), "address", device.get('ns_macaddr')], check=True)
+            proc = subprocess.run(["ip", "link", "set", "dev", device.get('name'), "address", device.get('ns_macaddr')], check=True)
+            logger.info("Setting mac address on device %s to %s: %s", device.get('name'), device.get('ns_macaddr'), "success" if proc.returncode == 0 else "fail")
 
 if __name__ == "__main__":
     proc = subprocess.run(["/usr/libexec/rpcd/ns.ha", "call", "status"], capture_output=True, text=True)
@@ -54,14 +66,16 @@ if __name__ == "__main__":
     if status.get("state") != "master":
         # Execute only on master node, no matter the role
         sys.exit(0)
-    pppoe_interfaces = enable_interfaces('wan_interfaces')
+    wan_interfaces = enable_interfaces('wan_interfaces')
     enable_interfaces('wg_interfaces')
     enable_interfaces('ipsec_interfaces')
     enable_routes()
     enable_hotspot_mac()
     subprocess.run(["/sbin/reload_config"], capture_output=True)
-    # Restart pppoe interfaces to force reconnection
-    if pppoe_interfaces:
+    # Restart WAN interfaces to force reconnection: reload_config is not enough for
+    # interfaces brought down with ifdown command
+    if wan_interfaces:
         time.sleep(1)
-        for iface in pppoe_interfaces:
-            subprocess.run(["/sbin/ifup", iface], capture_output=True)
+        for iface in wan_interfaces:
+            proc = subprocess.run(["/sbin/ifup", iface], capture_output=True, text=True)
+            logger.info("Bringing up interface %s: %s", iface, "success" if proc.returncode == 0 else "fail")
