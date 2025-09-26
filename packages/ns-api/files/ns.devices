@@ -6,11 +6,12 @@
 #
 
 import json
-import sys
-import subprocess
 import re
+import subprocess
+import sys
+
 from euci import EUci
-from nethsec import utils, firewall
+from nethsec import firewall, utils
 
 
 def get_all_by_type_as_list(uci, config, utype):
@@ -131,10 +132,15 @@ def list_devices():
 
             # check if wireguard interface
             if deviceOrIface.get('name', '').startswith('wg'):
+                found = False
                 for configured_iface in ifaces_from_config:
                     if configured_iface.get('proto') == 'wireguard' and configured_iface.get('.name') == deviceOrIface.get('name'):
                         iface = configured_iface
+                        found = True
                         break
+                if not found:
+                    # a wireguard device pending deletion has been found
+                    continue
             else:
                 iface = get_interface(deviceOrIface.get('name'), ifaces_from_config)
 
@@ -193,9 +199,12 @@ def list_devices():
 
     devices_to_show = list(filter(lambda device:
                                   # do not show devices used by bridges or bonds
-                                  not get_name(device) in devices_used_by_logical_ifaces and
+                                  get_name(device) not in devices_used_by_logical_ifaces and
                                   # do not show duplicated pppoe devices
-                                  not (device.get('name') and device.get('name').startswith('pppoe-')), all_devices))
+                                  not (device.get('name') and device.get('name').startswith('pppoe-')) and 
+                                  # discard wireguard devices without interface (pending deletion)
+                                  not (device.get('name', '').startswith('wg') and not device.get('iface'))
+                                  , all_devices))
 
     # retrieve stats
 
