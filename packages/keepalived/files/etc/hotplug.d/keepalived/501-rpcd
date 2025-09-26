@@ -7,6 +7,4 @@ set_service_name rpcd
 
 set_reload_if_sync
 
-add_sync_file /etc/config/rpcd
-
 keepalived_hotplug

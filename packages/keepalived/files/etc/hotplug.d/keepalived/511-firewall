@@ -8,6 +8,4 @@ set_service_name firewall
 set_skip_running_check
 set_reload_if_sync
 
-add_sync_file /etc/config/firewall
-
 keepalived_hotplug

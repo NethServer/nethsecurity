@@ -4,7 +4,6 @@
 
 __FILE__="$(basename "$0")"
 
-KEEPALIVED_USER=keepalived
 KEEPALIVED_DEBUG=0
 
 __function__() {
@@ -36,12 +35,4 @@ log_warn() {
 
 log_err() {
 	log err "$*"
-}
-
-get_rsync_user() {
-	echo "$KEEPALIVED_USER"
-}
-
-get_rsync_user_home() {
-	awk -F: "/^$KEEPALIVED_USER/{print \$6}" /etc/passwd
 }

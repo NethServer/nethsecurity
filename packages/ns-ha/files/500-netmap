@@ -6,6 +6,4 @@ set_service_name ns-netmap
 
 set_reload_if_sync
 
-add_sync_file /etc/config/netmap
-
 keepalived_hotplug

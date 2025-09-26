@@ -242,6 +242,9 @@ endif
 	$(INSTALL_DATA) ./files/etc/hotplug.d/keepalived/01-ubus \
 		$(1)/etc/hotplug.d/keepalived/01-ubus
 
+	$(INSTALL_DATA) ./files/etc/hotplug.d/keepalived/02-rsync \
+		$(1)/etc/hotplug.d/keepalived/02-rsync
+
 	$(INSTALL_DIR) $(1)/usr/libexec/rpcd
 	$(INSTALL_BIN) ./files/usr/libexec/rpcd/keepalived \
 		$(1)/usr/libexec/rpcd/keepalived
@@ -287,7 +290,7 @@ define Package/keepalived-sync
   SECTION:=net
   CATEGORY:=Network
   TITLE:=Keepalived Master and Backup Synchronization
-  DEPENDS:= +keepalived +rsync +inotifywait +sudo +coreutils-timeout
+  DEPENDS:= +keepalived +rsync +sudo +coreutils-timeout
 endef
 
 define Package/keepalived-sync/description
@@ -301,20 +304,10 @@ endef
 
 define Package/keepalived-sync/install
 	$(INSTALL_DIR) $(1)/etc/init.d
-	$(INSTALL_BIN) ./files/etc/init.d/keepalived-inotify \
-		$(1)/etc/init.d/keepalived-inotify
 
 	$(INSTALL_DIR) $(1)/usr/share/keepalived/scripts
-	$(INSTALL_BIN) ./files/usr/share/keepalived/scripts/rsync.sh \
-		$(1)/usr/share/keepalived/scripts/rsync.sh
 
 	$(INSTALL_DIR) $(1)/etc/keepalived/scripts
-	$(LN) /usr/share/keepalived/scripts/rsync.sh \
-		$(1)/etc/keepalived/scripts/rsync.sh
-
-	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_BIN) ./files/usr/bin/keepalived-rsync-inotify \
-		$(1)/usr/bin/keepalived-rsync-inotify
 
 	$(INSTALL_DIR) $(1)/lib/functions/keepalived
 	$(INSTALL_DATA) ./files/lib/functions/keepalived/hotplug.sh \
@@ -336,12 +329,6 @@ define Package/keepalived-sync/install
 	$(CP) ./files/etc/hotplug.d/keepalived/551-dnsmasq \
 		$(1)/etc/hotplug.d/keepalived
 	$(CP) ./files/etc/hotplug.d/keepalived/555-dropbear \
-		$(1)/etc/hotplug.d/keepalived
-	$(CP) ./files/etc/hotplug.d/keepalived/600-uhttpd \
-		$(1)/etc/hotplug.d/keepalived
-	$(CP) ./files/etc/hotplug.d/keepalived/700-luci \
-		$(1)/etc/hotplug.d/keepalived
-	$(CP) ./files/etc/hotplug.d/keepalived/810-files \
 		$(1)/etc/hotplug.d/keepalived
 endef
 

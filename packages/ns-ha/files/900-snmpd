@@ -6,6 +6,4 @@ set_service_name snmpd
 
 set_reload_if_sync
 
-add_sync_file /etc/config/snmpd
-
 keepalived_hotplug

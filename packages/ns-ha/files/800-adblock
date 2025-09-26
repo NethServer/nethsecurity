@@ -8,9 +8,6 @@ set_service_name adblock
 set_restart_if_master
 set_stop_if_backup
 
-add_sync_file /etc/config/adblock
-add_sync_file /etc/adblock
-
 if [ "$ACTION" == "NOTIFY_BACKUP" ]; then
     update_cron "disable" "adblock"
 elif [ "$ACTION" == "NOTIFY_MASTER" ]; then

@@ -51,10 +51,8 @@ define Package/ns-ha/install
 	$(INSTALL_DATA) ./files/500-nathelpers $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/500-netmap $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/560-mac-binding $(1)/etc/hotplug.d/keepalived
-	$(INSTALL_DATA) ./files/600-backup $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/600-openvpn $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/600-mwan3 $(1)/etc/hotplug.d/keepalived
-	$(INSTALL_DATA) ./files/600-users-objects $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/600-qosify $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/600-snort $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/600-ipsec $(1)/etc/hotplug.d/keepalived

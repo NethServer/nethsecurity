@@ -548,30 +548,25 @@ All configuration changes must be performed on the primary node, which automatic
 
 ### File synchronization and restoration
 
-The synchronization system operates through two distinct phases: file transfer and selective restoration.
+The synchronization system operates through two distinct phases: file transfer and hotplug event to restore files.
 
-#### File transfer phase (rsync)
+#### File transfer phase (rsync): from primary to backup
 
 The primary node runs a specialized rsync script (`/etc/keepalived/scripts/ns-rsync.sh`) that:
-- Exports network configurations (WireGuard interfaces, IPsec interfaces, routes, and hotspot MAC addresses) to `/etc/ha`
-- Transfers all files listed by `sysupgrade -l` plus custom files added via `sync_list` option
+- Exports network configurations (WireGuard interfaces, IPsec interfaces, routes, and hotspot MAC addresses) to `/etc/ha` using `/usr/libexec/ns-ha-export` script
+- Lists all files to synchronize, which includes:
+  - All files listed by `sysupgrade -l`
+  - Custom files added via the `keepalived.ha_peer.sync_list` UCI option
+  - Excludes files listed in the `keepalived.ha_peer.exclude_list` UCI option
+  The list is saved inside the file `/tmp/restore_list`
 - Copies files to the backup node's staging area at `/usr/share/keepalived/rsync/`
+- Triggers a hotplug event on the backup node to notify that synchronization is complete
 
-Two UCI options control what's synchronized besides the default files:
-- `exclude_list`: Files to exclude from synchronization entirely
-- `sync_list`: Files that should be restored during hotplug events
+#### Restore phase (hotplug): on the backup node
 
-Example usage:
-```
-uci add_list keepalived.ha_peer.exclude_list=/etc/config/network
-uci add_list keepalived.ha_peer.sync_list=/tmp/debug
-```
-
-#### Selective restoration phase (hotplug)
-
-The backup node doesn't automatically apply all transferred files. Instead, it uses a hotplug system triggered by keepalived events to selectively restore only the files explicitly registered for restoration. This prevents unintended configuration changes and ensures controlled application of synchronized data.
-
-Files marked as `add_sync_file` inside scripts in `/etc/hotplug.d/keepalived/` are automatically registered for restoration.
+The backup node doesn't automatically apply all transferred files. Instead, it uses a hotplug event fired
+by the primary node at the end of the rsync process.
+All files and directories inside `/usr/share/keepalived/rsync/tmp/restore_list` are copied to the original locations using `rsync`. For directories, `rsync` is invoked with `--delete` option to ensure exact mirroring.
 
 #### Adding new files to synchronization
 
@@ -579,12 +574,10 @@ To synchronize custom files:
 
 1. Register the file path in the peer sync_list:
 ```
-uci add_list keepalived.ha_peer.sync_list=/path/to/file
+uci add_list keepalived.ha_peer.sync_list=/tmp/debug
 uci commit keepalived
 /etc/init.d/keepalived restart
 ```
-
-2. Create a hotplug script in `/etc/hotplug.d/keepalived/` that calls `add_sync_file /path/to/file` to register the file for restoration.
 
 ### Keepalived event system
 
@@ -593,21 +586,21 @@ The hotplug `keepalived` event system informs the nodes about cluster state chan
 #### NOTIFY_SYNC
 
 Triggered on the backup node after file synchronization completes and a monitored file changes.
-- Synchronizes directories like `/etc/openvpn` and `/etc/ha` to their final locations
-- Imports network configurations (WireGuard, IPsec, routes) from `/etc/ha` in disabled state
-- Example hotplug invocation:
+- Synchronizes files and directories
+- Imports network configurations (WireGuard, IPsec, routes) from `/etc/ha` in disabled state using `/usr/libexec/ns-ha-import` script
+
+Example hotplug invocation:
 ```
-ACTION=NOTIFY_SYNC TYPE=peer NAME=master INSTANCE=backup \
-RSYNC_SOURCE=/usr/share/keepalived/rsync/etc/config/network \
-RSYNC_TARGET=/etc/config/network /sbin/hotplug-call keepalived
+ACTION=NOTIFY_SYNC /sbin/hotplug-call keepalived
 ```
 
 #### NOTIFY_MASTER
 
 Executed when a node becomes the active (master) node:
-- **On primary node**: Normal startup state after keepalived starts
+- **On primary node**: Normal startup state after keepalived starts, execute also `/usr/libexec/ns-ha-enable`
+  script that activates all network interfaces
 - **On backup node**: Failover state after switchover occurs
-  - Enables all network interfaces and services that were active on the failed primary
+  - Enables all network interfaces and services that were active on the failed primary using `/usr/libexec/ns-ha-enable` script
   - Activates WireGuard interfaces, IPsec tunnels, and routes imported from `/etc/ha`
 
 #### NOTIFY_BACKUP
