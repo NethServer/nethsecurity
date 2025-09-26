@@ -2,6 +2,6 @@
 
 # Tear down all services when a node is in fault state or keepalived has been manually stopped
 if [ "$ACTION" == "NOTIFY_STOP" ] || [ "$ACTION" == "NOTIFY_FAULT" ]; then
-    logger -t ns-ha-disable "Node is in $ACTION state, stopping all services"
+    logger -t ns-ha "Node is in $ACTION state, stopping all services"
     /usr/libexec/ns-ha-disable --force
 fi
