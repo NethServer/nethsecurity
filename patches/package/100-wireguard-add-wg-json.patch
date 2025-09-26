@@ -1,0 +1,12 @@
+diff --git a/network/utils/wireguard-tools/Makefile b/network/utils/wireguard-tools/Makefile
+index d704577d2c..71af6558ca 100644
+--- a/network/utils/wireguard-tools/Makefile
++++ b/network/utils/wireguard-tools/Makefile
+@@ -55,6 +55,7 @@ endef
+ define Package/wireguard-tools/install
+ 	$(INSTALL_DIR) $(1)/usr/bin/
+ 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/src/wg $(1)/usr/bin/
++	$(INSTALL_BIN) $(PKG_BUILD_DIR)/contrib/json/wg-json $(1)/usr/bin/wg-json
+ 	$(INSTALL_BIN) ./files/wireguard_watchdog $(1)/usr/bin/
+ 	$(INSTALL_DIR) $(1)/lib/netifd/proto/
+ 	$(INSTALL_BIN) ./files/wireguard.sh $(1)/lib/netifd/proto/
