@@ -26,5 +26,5 @@ if which "$1" >/dev/null 2>&1; then
     exec "$@"
 else
     # Otherwise, assume it's a make command and run it
-    exec make -j"$(nproc)" "$@"
+    exec make -j"$(nproc)" V=sc "$@"
 fi
