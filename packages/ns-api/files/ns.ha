@@ -418,7 +418,9 @@ def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, pubkey = "", p
         '/etc/banip',
         '/etc/netify.d',
         '/tmp/dhcp.leases',
-        '/var/ns-snort/rules/'
+        '/var/ns-snort/rules/',
+        '/tmp/banIP-backup/',
+        '/tmp/adblock-Backup/'
     ]
     exclude_list = [
         '/etc/config/network',
