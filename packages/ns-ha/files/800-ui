@@ -7,6 +7,4 @@ set_service_name ns-ui
 set_restart_if_master
 set_stop_if_backup
 
-add_sync_file /etc/config/ns-ui
-
 keepalived_hotplug

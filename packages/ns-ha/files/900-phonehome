@@ -12,6 +12,4 @@ elif [ "$ACTION" == "NOTIFY_MASTER" ]; then
     update_cron "enable" "send-phonehome"
 fi
 
-add_sync_file /etc/config/phonehome
-
 keepalived_hotplug

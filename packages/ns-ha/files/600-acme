@@ -8,10 +8,6 @@ set_service_name acme
 set_restart_if_master
 set_stop_if_backup
 
-add_sync_file /etc/config/acme
-add_sync_file /etc/acme
-add_sync_file /etc/ssl/acme
-
 if [ "$ACTION" == "NOTIFY_BACKUP" ]; then
     update_cron "disable" "acme"
 elif [ "$ACTION" == "NOTIFY_MASTER" ]; then

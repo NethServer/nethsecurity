@@ -7,7 +7,4 @@ set_service_name nginx
 
 set_restart_if_master
 
-add_sync_file /etc/config/nginx
-add_sync_file /etc/nginx
-
 keepalived_hotplug

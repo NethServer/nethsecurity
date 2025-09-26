@@ -10,7 +10,7 @@
 . /lib/functions/keepalived/ns.sh
 
 RSYNC_USER="root"
-RSYNC_HOME=$(get_rsync_user_home)
+RSYNC_HOME="/usr/share/keepalived/rsync"
 
 utc_timestamp() {
 	date -u +%s
@@ -44,10 +44,15 @@ update_last_sync_status() {
 }
 
 ha_sync_send() {
+	# The list of files to sync is built from:
+	# - the sync_list option in the config keepalived.ha_sync.sync_list
+	# - the list of files modified by sysupgrade (sysupgrade -l)
+	# The exclude_list option in the config keepalived.ha_sync.exclude_list
 	local cfg=$1
 	local address ssh_key ssh_port sync_list sync_dir sync_file count exclude_list
 	local ssh_options ssh_remote dirs_list files_list
 	local changelog="/tmp/changelog"
+	local restore_list="/tmp/restore_list"
 
 	config_get address "$cfg" address
 	[ -z "$address" ] && return 0
@@ -56,23 +61,28 @@ ha_sync_send() {
 	config_get sync_dir "$cfg" sync_dir "$RSYNC_HOME"
 	[ -z "$sync_dir" ] && return 0
 	config_get ssh_key "$cfg" ssh_key "$sync_dir"/.ssh/id_rsa
+	# Read list extra files to sync from config
 	config_get sync_list "$cfg" sync_list
 	config_get exclude_list "$cfg" exclude_list
 
 	for sync_file in $sync_list $(sysupgrade -l); do
 		list_contains exclude_list "${sync_file}" && continue
-		[ -f "$sync_file" ] && dir="${sync_file%/*}"
-		[ -d "$sync_file" ] && dir="${sync_file}"
-
+		[ ! -e "$sync_file" ] && continue
 		list_contains files_list "${sync_file}" || append files_list "${sync_file}"
-		list_contains dirs_list "${sync_dir}${dir}" || append dirs_list "${sync_dir}${dir}"
+	done
+
+	# Save the files_list to restore_list file: the restore list file is used by the
+	# backup node
+	> "$restore_list"
+	for file in $files_list; do
+		echo "$file" >> "$restore_list"
 	done
 
 	ssh_options="-y -y -i $ssh_key -p $ssh_port"
 	ssh_remote="$RSYNC_USER@$address"
 
 	# shellcheck disable=SC2086
-	timeout 10 ssh $ssh_options $ssh_remote mkdir -m 755 -p "$dirs_list /tmp" || {
+	timeout 10 ssh $ssh_options $ssh_remote mkdir -m 755 -p "/tmp" || {
 		log_err "can not connect to $address. check key or connection"
 		update_last_sync_time "$cfg"
 		update_last_sync_status "$cfg" "SSH Connection Failed"
@@ -96,15 +106,18 @@ ha_sync_send() {
 	fi
 
 	# shellcheck disable=SC2086
-	rsync -a --relative ${files_list} ${changelog} -e "ssh $ssh_options" --rsync-path="sudo rsync" "$ssh_remote":"$sync_dir" || {
+	rsync -a --relative ${files_list} ${changelog} ${restore_list} -e "ssh $ssh_options" --rsync-path="sudo rsync" "$ssh_remote":"$sync_dir" || {
 		log_err "rsync transfer failed for $address"
 		update_last_sync_time "$cfg"
 		update_last_sync_status "$cfg" "Rsync Transfer Failed"
 	}
 
 	log_info "keepalived sync is completed for $address"
-	update_last_sync_time "$cfg"
-	update_last_sync_status "$cfg" "Successful"
+    # Invoke detached hotplug on the backup node
+    ssh $ssh_options $ssh_remote "ACTION=NOTIFY_SYNC /usr/bin/setsid /sbin/hotplug-call keepalived &" &> /dev/null
+    update_last_sync_time "$cfg"
+    update_last_sync_status "$cfg" "Successful"
+
 }
 
 ha_sync_receive() {

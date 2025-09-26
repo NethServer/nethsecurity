@@ -8,7 +8,4 @@ set_service_name dnsmasq
 set_restart_if_master
 set_stop_if_backup
 
-add_sync_file /etc/config/dhcp
-add_sync_file /tmp/dhcp.leases
-
 keepalived_hotplug

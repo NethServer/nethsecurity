@@ -74,26 +74,7 @@ set_service_name() {
 	set_var SERVICE_NAME "$1"
 }
 
-add_sync_file() {
-	append SYNC_FILES_LIST "$1"
-}
-
-is_sync_file() {
-	list_contains SYNC_FILES_LIST "$1"
-}
-
-is_sync_file_in_folder() {
- 	local f="$1"
-	while [ "$f" != "" ]; do
-		f="${f%/*}"
-		if list_contains SYNC_FILES_LIST "$f"; then
-			return 0
-		fi
-	done
-	return 1
-}
-
-_set_update_target() {
+set_update_target() {
 	set_var UPDATE_TARGET "${1:-1}"
 }
 
@@ -230,23 +211,6 @@ _notify_fault() {
 }
 
 _notify_sync() {
-	[ -z "$RSYNC_SOURCE" ] && return
-	[ -z "$RSYNC_TARGET" ] && return
-
-	if ! is_update_target; then
-		log_notice "skip $RSYNC_TARGET. Update target not set. To set use \"set_update_target 1\""
-		return
-	fi
-
-	is_sync_file "$RSYNC_TARGET" || is_sync_file_in_folder "$RSYNC_TARGET" || return
-
-	if ! cp -a "$RSYNC_SOURCE" "$RSYNC_TARGET"; then
-		log_err "can not copy $RSYNC_SOURCE => $RSYNC_TARGET"
-		return
-	fi
-
-	log_debug "updated $RSYNC_SOURCE to $RSYNC_TARGET"
-
 	if sync_and_reload; then
 		log_debug "reload service $SERVICE_NAME"
 		_reload_service
