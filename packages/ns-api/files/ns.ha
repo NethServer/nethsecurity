@@ -425,7 +425,8 @@ def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, pubkey = "", p
     exclude_list = [
         '/etc/config/network',
         '/etc/config/keepalived',
-        '/etc/dropbear/authorized_keys'
+        '/etc/dropbear/authorized_keys',
+        '/etc/conntrackd/conntrackd.conf'
     ]
     if role == "primary":
         (interface, lan_device) = get_device_from_ip(u, primary_node_ip)
