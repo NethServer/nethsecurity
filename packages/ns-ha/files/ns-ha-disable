@@ -64,8 +64,9 @@ def disable_hotspot():
                 logger.info("Restored original mac address on device %s to %s: %s", device.get('name'), original_mac, "success" if proc.returncode == 0 else "fail")
 
 def stop_services():
+    # Force stop of services managed by keepalived on backup node:
+    # it seems the sh code is not very reliable
     services = set()
-    exceptions = {'nginx', 'dropbear', 'rpcd'}
     hotplug_dir = "/etc/hotplug.d/keepalived"
     try:
         for fname in sorted(os.listdir(hotplug_dir)):
@@ -74,10 +75,15 @@ def stop_services():
                 continue
             try:
                 with open(path, 'r') as fh:
-                    for line in fh:
+                    content = fh.read()
+                    # Only consider this file if it contains the marker to stop services on backup
+                    if 'set_stop_if_backup' not in content:
+                        continue
+
+                    for line in content.splitlines():
                         # match: set_service_name <name>  (allow optional quotes)
-                        m = re.search(r'\bset_service_name\s+([\'"]?)([A-Za-z0-9._-]+)\1', line)
-                        if m and m.group(2) not in exceptions:
+                        m = re.search(r'\bset_service_name\s+([\'\"]?)([A-Za-z0-9._-]+)\1', line)
+                        if m:
                             services.add(m.group(2))
             except Exception:
                 # ignore unreadable files
