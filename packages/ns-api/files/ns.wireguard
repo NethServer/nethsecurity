@@ -5,15 +5,17 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-import sys
-import json
-import subprocess
-from euci import EUci
-from nethsec import utils, firewall, ovpn
-import ipaddress
 import base64
 import configparser
+import ipaddress
+import json
 import re
+import subprocess
+import sys
+from datetime import datetime, timezone
+
+from euci import EUci
+from nethsec import firewall, ovpn, utils
 
 
 def __next_instance():
@@ -24,6 +26,7 @@ def __next_instance():
             return instance
 
     return None
+
 
 def generate_wireguard_keys():
     private_key = subprocess.run(["wg", "genkey"], capture_output=True, text=True).stdout.strip()
@@ -39,9 +42,7 @@ def list_servers():
         interface = interfaces[i]
         if interface.get("proto") == "wireguard" and interface.get("ns_type", '') == 'server':
             ret.append(__get_configuration(i))
-    return {"instances": ret}
-
-
+    return ret
 
 
 def list_tunnels():
@@ -58,6 +59,8 @@ def list_tunnels():
                 "dns": e_uci.get('network', instance, 'dns', dtype=str, list=True, default=[]),
             })
 
+    active_peers = __active_peers()
+
     for tunnel in tunnel_instances:
         for peer in utils.get_all_by_type(e_uci, 'network', f'wireguard_{tunnel["id"]}'):
             allowed_ips = e_uci.get("network", peer, "allowed_ips", list=True, dtype=str, default=[])
@@ -72,8 +75,12 @@ def list_tunnels():
                 "network_routes": remote_networks,
                 "route_all_traffic": route_all_traffic
             })
+            public_key = e_uci.get('network', peer, 'public_key', dtype=str, default='')
+            if public_key in active_peers:
+                tunnel["latest_handshake"] = active_peers[public_key]["latest_handshake"]
+                tunnel["active"] = active_peers[public_key]["active"]
 
-    return {"tunnels": tunnel_instances}
+    return tunnel_instances
 
 
 def get_instance_defaults():
@@ -110,7 +117,35 @@ def get_instance_defaults():
         ret["public_endpoint"] = ""
     return ret
 
+
+def __active_peers():
+    peers_status = {}
+    try:
+        result = subprocess.run("wg-json", check=True, capture_output=True)
+        wg_data = json.loads(result.stdout)
+        for active_server in wg_data:
+            for peer in wg_data[active_server]["peers"]:
+                peer_config = wg_data[active_server]["peers"][peer]
+                if "latestHandshake" in peer_config:
+                    time = datetime.fromtimestamp(
+                        peer_config["latestHandshake"], tz=timezone.utc
+                    )
+                    # consider active if latest handshake was within the last 2 minutes
+                    peers_status[peer] = {
+                        "active": (datetime.now(timezone.utc) - time).total_seconds() < 120,
+                        "latest_handshake": time.isoformat(),
+                    }
+                else:
+                    peers_status[peer] = {"active": False}
+    except:
+        pass
+
+    return peers_status
+
+
 def __list_peers(interface):
+    peers_status = __active_peers()
+
     u = EUci()
     peers = []
     for p in utils.get_all_by_type(u, "network", f"wireguard_{interface}"):
@@ -123,9 +158,15 @@ def __list_peers(interface):
             "remote_networks": u.get('network', p, 'ns_routes', dtype=str, list=True, default=[]),
             "local_networks": u.get('network', p, 'ns_local_routes', dtype=str, list=True, default=[]),
             "reserved_ip": u.get("network", p, "ns_ip", dtype=str),
-            "config": __generate_peer_config(interface, p)
+            "config": __generate_peer_config(interface, p),
         }
+        public_key = u.get('network', p, 'public_key', dtype=str, default='')
+        if public_key in peers_status:
+            peer["latest_handshake"] = peers_status[public_key]["latest_handshake"]
+            peer["active"] = peers_status[public_key]["active"]
+
         peers.append(peer)
+
     return peers
 
 
@@ -220,7 +261,8 @@ def add_server(args):
     e_uci.set('network', instance, 'addresses', [first_ip])
     e_uci.set('network', instance, 'ns_network', args['network'])
     e_uci.set('network', instance, 'mtu', args.get('mtu', 1500))
-    e_uci.set('network', instance, 'ns_dns', args.get('dns', []))
+    filter_dns = list(filter(lambda x: x != '', args.get('dns', [])))
+    e_uci.set('network', instance, 'ns_dns', filter_dns)
     e_uci.set('network', instance, 'ns_public_endpoint', args['public_endpoint'])
     e_uci.set('network', instance, 'ns_name', args['name'])
     e_uci.set('network', instance, 'disabled', not args['enabled'])
@@ -254,7 +296,8 @@ def edit_server(args):
     e_uci.set('network', args['instance'], 'addresses', [first_ip])
     e_uci.set('network', args['instance'], 'ns_network', args['network'])
     e_uci.set('network', args['instance'], 'mtu', args.get('mtu', 1500))
-    e_uci.set('network', args['instance'], 'ns_dns', args.get('dns', []))
+    filter_dns = list(filter(lambda x: x != "", args.get("dns", [])))
+    e_uci.set('network', args['instance'], 'ns_dns', filter_dns)
     e_uci.set('network', args['instance'], 'ns_public_endpoint', args['public_endpoint'])
     e_uci.set('network', args['instance'], 'ns_name', args['name'])
     e_uci.set('network', args['instance'], 'disabled', not args['enabled'])
@@ -276,6 +319,7 @@ def delete_server(args):
             e_uci.delete('network', entry)
     e_uci.save('network')
     firewall.delete_linked_sections(e_uci, f"network/{args['instance']}")
+    
     return {"result": "success"}
 
 
@@ -469,6 +513,7 @@ def __get_configuration(instance):
     for i in config:
         if i.startswith(f"{instance}_") and i.endswith("_peer"):
             peers = __list_peers(instance)
+
     return {
         "id": instance,
         "name": u.get('network', instance, 'ns_name'),
@@ -685,6 +730,49 @@ def delete_tunnel(args):
     return {"result": "success"}
 
 
+def status():
+    try:
+        result = subprocess.run('wg-json', check=True, capture_output=True)
+        status = json.loads(result.stdout)
+        data = {}
+        for tunnel in list_tunnels():
+            if tunnel['id'] in status:
+                if tunnel['server_public_key'] in status[tunnel['id']]['peers']:
+                    peer_status = status[tunnel['id']]['peers'][tunnel['server_public_key']]
+                    latest_handshake = peer_status.get('latestHandshake')
+                    if latest_handshake is not None:
+                        data[tunnel['peer_id']] = {
+                            "active": latest_handshake is not None and latest_handshake > 0,
+                            "latest_handshake": peer_status.get('latestHandshake', 0),
+                        }
+                    else:
+                        data[tunnel['peer_id']] = {
+                            "active": False
+                        }
+        for tunnel in list_servers():
+            if tunnel['id'] in status:
+                for peer in tunnel['peers']:
+                    if peer['public_key'] in status[tunnel['id']]['peers']:
+                        peer_status = status[tunnel['id']]['peers'][peer['public_key']]
+                        latest_handshake = peer_status.get('latestHandshake')
+                        if latest_handshake is not None:
+                            data[peer['id']] = {
+                                "active": latest_handshake is not None and latest_handshake > 0,
+                                "latest_handshake": peer_status.get('latestHandshake', 0),
+                            }
+                        else:
+                            data[peer['id']] = {
+                                "active": False
+                            }
+
+    except subprocess.CalledProcessError:
+        return utils.generic_error('wg_json_command_failed')
+    except json.JSONDecodeError:
+        return utils.generic_error('wg_json_parse_failed')
+
+    return data
+
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
@@ -714,7 +802,7 @@ else:
     elif action == "get-instance-defaults":
         ret = get_instance_defaults()
     elif action == "list-servers":
-        ret = list_servers()
+        ret = {"instances": list_servers()}
     elif action == "add-server":
         args = json.loads(sys.stdin.read())
         ret = add_server(args)
@@ -737,7 +825,7 @@ else:
         args = json.loads(sys.stdin.read())
         ret = delete_peer(args)
     elif action == 'list-tunnels':
-        ret = list_tunnels()
+        ret = {"tunnels": list_tunnels()}
     elif action == 'add-tunnel':
         args = json.loads(sys.stdin.read())
         ret = add_tunnel(args)
@@ -748,6 +836,6 @@ else:
         args = json.loads(sys.stdin.read())
         ret = delete_tunnel(args)
     elif action == 'status':
-        pass
+        ret = status()
 
     print(json.dumps(ret))
