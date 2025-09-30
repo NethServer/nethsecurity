@@ -8,10 +8,12 @@
 # this script reloads wireguard interfaces if configuration has changed
 
 import subprocess
-from euci import EUci
 
 if 'network' in changes:
-    e_uci = EUci()
-    for item in e_uci.get('network'):
-        if e_uci.get('network', item, 'proto') == 'wireguard':
-            subprocess.call(f'ifdown {item} ; ifup {item}', shell=True)
+    interfaces_to_restart = []
+    for entry in changes['network']:
+        if entry[1].startswith('wg'):
+            interfaces_to_restart.append(entry[1][:3])
+    for item in set(interfaces_to_restart):
+        print('restarting interface', item)
+        subprocess.call(f'ifdown {item} ; ifup {item}', shell=True)
