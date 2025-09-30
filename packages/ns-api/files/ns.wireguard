@@ -76,8 +76,11 @@ def list_tunnels():
             })
             public_key = e_uci.get('network', peer, 'public_key', dtype=str, default='')
             if public_key in active_peers:
-                tunnel["latest_handshake"] = active_peers[public_key]["latest_handshake"]
                 tunnel["active"] = active_peers[public_key]["active"]
+                if "latest_handshake" in active_peers[public_key]:
+                    tunnel["latest_handshake"] = active_peers[public_key][
+                        "latest_handshake"
+                    ]
 
     return tunnel_instances
 
@@ -161,8 +164,9 @@ def __list_peers(interface):
         }
         public_key = u.get('network', p, 'public_key', dtype=str, default='')
         if public_key in peers_status:
-            peer["latest_handshake"] = peers_status[public_key]["latest_handshake"]
             peer["active"] = peers_status[public_key]["active"]
+            if 'latest_handshake' in peers_status[public_key]:
+                peer['latest_handshake'] = peers_status[public_key]['latest_handshake']
 
         peers.append(peer)
 
@@ -259,7 +263,8 @@ def add_server(args):
     first_ip = str(list(interface_network.hosts())[0])
     e_uci.set('network', instance, 'addresses', [first_ip])
     e_uci.set('network', instance, 'ns_network', args['network'])
-    e_uci.set('network', instance, 'mtu', args.get('mtu', 1500))
+    if 'mtu' in args:
+        e_uci.set('network', instance, 'mtu', args['mtu'])
     filter_dns = list(filter(lambda x: x != '', args.get('dns', [])))
     e_uci.set('network', instance, 'ns_dns', filter_dns)
     e_uci.set('network', instance, 'ns_public_endpoint', args['public_endpoint'])
@@ -294,7 +299,10 @@ def edit_server(args):
     first_ip = str(list(interface_network.hosts())[0])
     e_uci.set('network', args['instance'], 'addresses', [first_ip])
     e_uci.set('network', args['instance'], 'ns_network', args['network'])
-    e_uci.set('network', args['instance'], 'mtu', args.get('mtu', 1500))
+    if 'mtu' in args and args['mtu'] != '':
+        e_uci.set('network', args['instance'], 'mtu', args['mtu'])
+    else:
+        e_uci.delete('network', args['instance'], 'mtu')
     filter_dns = list(filter(lambda x: x != "", args.get("dns", [])))
     e_uci.set('network', args['instance'], 'ns_dns', filter_dns)
     e_uci.set('network', args['instance'], 'ns_public_endpoint', args['public_endpoint'])
@@ -522,7 +530,7 @@ def __get_configuration(instance):
         "public_endpoint": u.get('network', instance, 'ns_public_endpoint'),
         "enabled": not u.get('network', instance, 'disabled', dtype=bool, default=False),
         "peers": peers,
-        "mtu": u.get('network', instance, 'mtu', dtype=int, default=1500),
+        "mtu": u.get('network', instance, 'mtu', dtype=int, default=0),
         "dns": u.get('network', instance, 'ns_dns', dtype=str, list=True, default=[])
     }
 
