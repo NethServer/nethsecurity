@@ -267,7 +267,7 @@ def interface_traffic(interface):
     # retrieve from netdata the traffic for the last hour
     url = f'http://127.0.0.1:19999/api/v1/data?chart=net.{interface}&after=-3600&points=180&options=abs'
     try:
-        with urllib.request.urlopen(url) as fu:
+        with urllib.request.urlopen(url, timeout=10) as fu:
             data = json.loads(fu.read())
     except:
         return ret
