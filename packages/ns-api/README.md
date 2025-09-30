@@ -8201,18 +8201,13 @@ Response example:
 
 ## ns.wireguard
 
-Configure WireGuard VPN both in Road Warrior and site-to-site mode.
+Configure WireGuard VPN in site-to-site mode.
 
-### list-instances
+### import-configuration
 
-List all WireGuard instances:
+Import a WireGuard configuration file, must be base64 encoded:
 ```
-api-cli ns.wireguard list-instances
-```
-
-Response example:
-```json
-{"instances": ["wg1", "wg2"]}
+api-cli ns.wireguard import-configuration --data '{"config": "BASE64_ENCODED_FILE_CONTENT"}'
 ```
 
 ### get-instance-defaults
@@ -8224,125 +8219,230 @@ api-cli ns.wireguard get-instance-defaults
 
 Response example:
 ```json
-{"listen_port": 51821, "instance": "wg2", "network": "10.210.112.0/24", "routes": ["192.168.100.0/24"], "public_endpoint": "185.96.1.1"}
+{
+  "listen_port": 51822,
+  "instance": "wg3",
+  "network": "10.245.149.0/24",
+  "public_endpoint": "79.19.71.172"
+}
 ```
 
-### get-configuration
+### list-servers
 
-Return current instance configuration:
+List all WireGuard tunnel servers:
 ```
-api-cli ns.wireguard get-configuration --data '{"instance": "wg1"}'
-```
-
-Response example:
-```json
-{"proto": "wireguard", "private_key": "oBwTyCkOgUz29UEvuJZstuAjB87SH4x26MVLxAj152M=", "listen_port": "51820", "addresses": ["10.103.1.1"], "ns_network": "10.103.1.0/24", "ns_public_endpoint": "192.168.122.49", "ns_routes": ["192.168.100.0/24"], "ns_name": "wg1", "disabled": "0", "ns_client_to_client": false, "ns_route_all_traffic": false, "enabled": true}
-```
-
-### set-instance
-
-Create a new instance or configure an existing one:
-```
-api-cli ns.wireguard set-instance --data '{"listen_port": 51820, "name": "wg1", "instance": "wg1", "enabled": true, "network": "10.103.1.0/24", "routes": ["192.168.100.0/24"], "public_endpoint": "192.168.122.49", "dns": [], "user_db": ""}'
+api-cli ns.wireguard list-servers
 ```
 
 Response example:
 ```json
-{"result": "success"}
+{
+  "instances": [
+    {
+      "id": "wg1",
+      "name": "HQ",
+      "listen_port": 51820,
+      "address": "10.1.122.1",
+      "network": "10.1.122.0/24",
+      "public_endpoint": "127.0.0.1",
+      "enabled": true,
+      "peers": [
+        {
+          "id": "wg1_ns_76e103f5_peer",
+          "enabled": true,
+          "name": "iPhone di Tommaso",
+          "pre_shared_key": true,
+          "route_all_traffic": true,
+          "remote_networks": [],
+          "local_networks": [],
+          "reserved_ip": "10.1.122.2",
+          "config": "[Interface]\n# Name = iPhone di Tommaso\nPrivateKey = XXX\nAddress = 10.1.122.2\n# DNS not configured\n\n[Peer]\n# Name = HQ\nPublicKey = XXX\nPresharedKey = XXX\nAllowedIPs = 0.0.0.0/0, ::/0\nEndpoint = 127.0.0.1:51820\nPersistentKeepalive = 25\n",
+          "active": true,
+          "latest_handshake": "2025-09-30T08:52:29+00:00"
+        }
+      ],
+      "mtu": 0,
+      "dns": []
+    }
+  ]
+}
+```
+
+
+### add-server
+
+Add a new WireGuard tunnel server:
+```
+api-cli ns.wireguard add-server --data '{"enabled": true, "name": "Cool Server", "public_endpoint": "wireguard.example.com", "listen_port": 51822, "network": "10.1.85.0/24", "mtu": "1420", "dns": ["192.168.1.1"]}'
 ```
 
 Parameters:
-- `listen_port`: the port where the WireGuard server listens
-- `name`: the name of the instance, it must be unique and it's the name of the interface on the system, it must be a valid interface name and start with `wg`
-- `enabled`: `true` to enable the instance, `false` to disable it
-- `network`: the network of the WireGuard instance, this is the network where the clients will be connected
-- `routes`: the routes that the clients will receive when connected, this parameter is used during the client configuration creation
+- `enabled`: create the instance as active if `true`, inactive if `false`
+- `name`: the name of the instance
 - `public_endpoint`: the public endpoint of the WireGuard server, it can be an IP address or a domain name, it's used during the client configuration creation
-- `dns`: the DNS servers that the clients will receive when connected, it's used during the client configuration creation; this option is honored only if the peer
-   has the `ns_route_all_traffic` option set to `1`   
-- `user_db`: the user database to use for authentication; if empty, the instance will not be connected to an existing user db and the WireGuard peer will be 
-  indipendent; if the user db is set, each new peer must be have a user with the same name in the user db
+- `listen_port`: the port where the WireGuard server listens
+- `network`: the network of the WireGuard instance, this is the client subnet
+- `mtu`: the MTU of the WireGuard interface, if kept empty auto-detection will be used
+- `dns`: the DNS servers that the clients can use to avoid dns bleeding
 
-### remove-instance
+### edit-server
 
-Remove an existing instance and all associated peers:
+Edit the wireguard instance
 ```
-api-cli ns.wireguard remove-instance --data '{"instance": "wg1"}'
-```
-
-Response example:
-```json
-{"result": "success"}
-```
-
-### set-peer
-
-Create or configure a peer.
-
-Example to create a Road Warrior peer:
-```
-api-cli ns.wireguard set-peer --data '{"instance": "wg1", "account": "user1", "enabled": true, "route_all_traffic": false, "client_to_client": false, "ns_routes": [], "preshared_key": true}'
-```
-
-Example to create a Site-to-Site peer:
-```
-api-cli ns.wireguard set-peer --data '{"instance": "wg1", "account": "site1", "enabled": true, "route_all_traffic": true, "client_to_client": true, "ns_routes": ["192.168.100.0/24"], "preshared_key": true}'
-```
-
-Response example:
-```json
-{"result": "success"}
+api-cli ns.wireguard edit-server --data '{"instance": "wgX",enabled": true, "name": "Cool Server", "public_endpoint": "wireguard.example.com", "listen_port": 51822, "network": "10.1.85.0/24", "mtu": "1420", "dns": ["192.168.1.1"]}'
 ```
 
 Parameters:
 - `instance`: the name of the WireGuard instance, the instance must exist
-- `account`: the name of the peer, it must be unique for the instance; if the instance is connected to a user db, the account must be the name of an existing user
+
+All other parameters are the same as in `add-server`.
+
+### delete-server
+
+Remove an existing instance and all associated peers:
+```
+api-cli ns.wireguard delete-server --data '{"instance": "wg1"}'
+```
+
+### get-peer-defaults
+
+Generate defaults for a new WireGuard peer:
+```
+api-cli ns.wireguard get-peer-defaults --data '{"instance": "wg1"}
+```
+
+Parameters:
+- `instance`: the name of the WireGuard instance, the instance must exist
+
+Response example:
+```json
+{
+  "local_networks": [
+    "10.0.1.0/24",
+    "192.168.100.0/24"
+  ],
+  "reserved_ip": "10.1.85.2"
+}
+```
+
+### add-peer
+
+Add a new WireGuard peer to an existing instance:
+```
+api-cli ns.wireguard add-peer --data '{"instance": "wg3", "enabled": true, "name": "HQ Milan", "reserved_ip": "10.1.85.2", "pre_shared_key": true, "route_all_traffic": false, "local_networks": ["10.0.1.0/24", "192.168.100.0/24"], "remote_networks": [""]}'
+```
+
+Parameters:
+- `instance`: the name of the WireGuard instance, the instance must exist
 - `enabled`: `true` to enable the peer, `false` to disable it
-- `route_all_traffic`: `true` to route all the traffic of the peer through the WireGuard tunnel, `false` to route only the traffic for the `ns_routes` through the tunnel; if this option is set the `dns` option in the instance configuration will be honored
-- `client_to_client`: `true` to allow the peer to communicate with other peers connected to the same instance, `false` to disallow it; it must be set to `true`
-   if the `route_all_traffic` is set to `true` when the client is not a Road Warrior user but another firewall for a site-to-site connection
-- `ns_routes`: the routes that the peer will receive when connected, this parameter is used during the client configuration creation
-- `preshared_key`: `true` to generate a new preshared key for the peer, `false` to not use it
+- `name`: the name of the peer
+- `reserved_ip`: the reserved IP address for the peer, it must be in the network of the instance and unique
+- `pre_shared_key`: `true` to generate a new preshared key for the peer
+- `route_all_traffic`: `true` to route all the traffic of the peer through the WireGuard tunnel, this will effectively ignore the local networks param
+- `local_networks`: the local networks that the peer will be able to access, this parameter is used during the client configuration creation
+- `remote_networks`: the networks that the peer will route through the WireGuard tunnel, this parameter is used during the client configuration creation
 
-### remove-peer
 
-Remove an existing peer:
+### edit-peer
+
+Edit an existing WireGuard peer:
 ```
-api-cli ns.wireguard remove-peer --data '{"instance": "wg1", "account": "user1"}'
-```
-
-Response example:
-```json
-{"result": "success"}
+api-cli ns.wireguard add-peer --data '{"instance": "wg3", "id": "peerid", "enabled": true, "name": "HQ Milan", "reserved_ip": "10.1.85.2", "pre_shared_key": true, "route_all_traffic": false, "local_networks": ["10.0.1.0/24", "192.168.100.0/24"], "remote_networks": [""]}'
 ```
 
-### download-peer-config
+Parameters:
+- `id`: the id of the peer, it can be found in the `list-servers` output
 
-Download the configuration of a peer:
+All other parameters are the same as in `add-peer`
+
+### delete-peer
+
+Delete a peer:
 ```
-api-cli ns.wireguard download-peer-config --data '{"instance": "wg1", "account": "user1"}'
+api-cli ns.wireguard delete-peer --data '{"id": "peerid"}'
 ```
 
-Response example:
-```json
-{"config": "# Account: user1 for wg1\n[Interface]\nPrivateKey = 4OoVRqKW0Tur511IL6ttX6iz/EnxrbKzUcAX89bUxlU=\nAddress = 10.103.1.2\n# Custom DNS disabled\n\n[Peer]\nPublicKey = gm1cTae6ub4QGvQcknrb3FbN46x1tbaXJjOQbwX/siM=\nPreSharedKey = /3EbK9a8DW3D7vn0SFp3oK2XSoem05DpG4IxEZ4qoyU=\nAllowedIPs = 192.168.100.0/24,10.103.1.0/24\nEndpoint = 192.168.122.49:51820\nPersistentKeepalive = 25", "qrcode": "G1s0MDszNzs..."}
+Parameters:
+- `id`: the id of the peer, it can be found in the `list-servers` output
+
+
+### list-tunnels
+
+List all Wireguard tunnels used as clients
 ```
-
-Output parameters:
-- `config`: the configuration of the peer, it's in clear text; remember to encode it to base64 before importing it into another firewall
-- `qrcode`: the QR code of the configuration, it's a base64 encoded image; it can be used to import the configuration into a mobile app
-
-### import-configuration
-
-Import a WireGuard configuration:
-```
-api-cli ns.wireguard import-configuration --data '{"config": "base64encodedconfig"}'
+api-cli ns.wireguard list-tunnels
 ```
 
 Response example:
 ```json
-{"result": "success"}
+{
+  "tunnels": [
+    {
+      "active": true,
+      "address": "10.1.122.2",
+      "dns": [
+        "192.168.1.1"
+      ],
+      "enabled": true,
+      "endpoint": "wireguard.example.com",
+      "id": "wg2",
+      "latest_handshake": "2025-09-30T09:07:25+00:00",
+      "name": "imported_wg2",
+      "network_routes": [],
+      "peer_id": "wg2_ns_5454129c_peer",
+      "peer_private_key": "XXX",
+      "pre_shared_key": "XXX",
+      "route_all_traffic": true,
+      "server_public_key": "XXX",
+      "udp_port": 51820
+    }
+  ]
+}
 ```
+
+### add-tunnel
+
+Add a wireguard tunnel as a client
+```
+api-cli ns.wireguard add-tunnel --data '{"enabled": true, "name": "HQ Milan", "reserved_ip": "10.2.13.4", "server_public_key": "XXX", "peer_private_key": "XXX", "pre_shared_key": "XXX", "route_all_traffic": true, "network_routes": [""], "endpoint": "wireguard.example.com", "udp_port": 51121, "dns": ["192.168.1.1"]}'
+```
+
+Parameters: 
+- `enabled`: create the tunnel as active if `true`, inactive if `false`
+- `name`: the name of the tunnel
+- `reserved_ip`: the reserved IP address for the tunnel
+- `server_public_key`: the public key of the server
+- `peer_private_key`: the private key of the peer
+- `pre_shared_key`: the preshared key, it can be empty if not used
+- `route_all_traffic`: `true` to route all the traffic of the peer through the WireGuard tunnel, `false` to route only the traffic for the `network_routes` through the tunnel
+- `network_routes`: the networks that the peer will route through the WireGuard tunnel
+- `endpoint`: the public endpoint of the WireGuard server, it can be an IP address or a domain name
+- `udp_port`: the port where the WireGuard server listens
+- 'dns': the DNS servers that the clients can use to avoid dns bleeding
+
+
+### edit-tunnel
+
+Edit an existing WireGuard tunnel:
+```
+api-cli ns.wireguard edit-tunnel --data '{"id": "wg4", "peer_id": "wg4_ns_884e488b_peer", "enabled": true, "name": "HQ Milan", "reserved_ip": "10.2.13.4", "server_public_key": "XXX", "peer_private_key": "XXX", "pre_shared_key": "XXX", "route_all_traffic": true, "network_routes": [""], "endpoint": "wireguard.example.com", "udp_port": 51121, "dns": ["192.168.1.1"]}'
+```
+
+Parameters:
+- `id`: the id of the tunnel, it can be found in the `list-tunnels` output
+- `peer_id`: the id of the peer, it can be found in the `list-tunnels` output
+
+All other parameters are the same as in `add-tunnel`.
+
+### delete-tunnel
+
+Delete a tunnel:
+```
+api-cli ns.wireguard delete-tunnel --data '{"id": "wg4"}'
+```
+
+Parameters:
+- `id`: the id of the tunnel, it can be found in the `list-tunnels` output
 
 ### ns.ha
 

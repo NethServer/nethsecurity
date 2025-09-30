@@ -737,49 +737,6 @@ def delete_tunnel(args):
     return {"result": "success"}
 
 
-def status():
-    try:
-        result = subprocess.run('wg-json', check=True, capture_output=True)
-        status = json.loads(result.stdout)
-        data = {}
-        for tunnel in list_tunnels():
-            if tunnel['id'] in status:
-                if tunnel['server_public_key'] in status[tunnel['id']]['peers']:
-                    peer_status = status[tunnel['id']]['peers'][tunnel['server_public_key']]
-                    latest_handshake = peer_status.get('latestHandshake')
-                    if latest_handshake is not None:
-                        data[tunnel['peer_id']] = {
-                            "active": latest_handshake is not None and latest_handshake > 0,
-                            "latest_handshake": peer_status.get('latestHandshake', 0),
-                        }
-                    else:
-                        data[tunnel['peer_id']] = {
-                            "active": False
-                        }
-        for tunnel in list_servers():
-            if tunnel['id'] in status:
-                for peer in tunnel['peers']:
-                    if peer['public_key'] in status[tunnel['id']]['peers']:
-                        peer_status = status[tunnel['id']]['peers'][peer['public_key']]
-                        latest_handshake = peer_status.get('latestHandshake')
-                        if latest_handshake is not None:
-                            data[peer['id']] = {
-                                "active": latest_handshake is not None and latest_handshake > 0,
-                                "latest_handshake": peer_status.get('latestHandshake', 0),
-                            }
-                        else:
-                            data[peer['id']] = {
-                                "active": False
-                            }
-
-    except subprocess.CalledProcessError:
-        return utils.generic_error('wg_json_command_failed')
-    except json.JSONDecodeError:
-        return utils.generic_error('wg_json_parse_failed')
-
-    return data
-
-
 cmd = sys.argv[1]
 
 if cmd == 'list':
@@ -787,18 +744,79 @@ if cmd == 'list':
         "import-configuration": {"config": "base64encodedconfig"},
         "get-instance-defaults": {},
         "list-servers": {},
-        "add-server": {},
-        "edit-server": {},
+        "add-server": {
+            "enabled": True,
+            "name": "My Server",
+            "network": "10.0.0.0/24",
+            "listen_port": 51820,
+            "public_endpoint": "vpn.example.com",
+            "mtu": 1420,
+            "dns": ["1.1.1.1"]
+        },
+        "edit-server": {
+            "instance": "wg1",
+            "enabled": True,
+            "name": "My Server",
+            "network": "10.0.0.0/24",
+            "listen_port": 51820,
+            "public_endpoint": "vpn.example.com",
+            "mtu": 1420,
+            "dns": ["1.1.1.1"]
+        },
         "delete-server": {"instance": "wg1"},
         "get-peer-defaults": {"instance": "wg1"},
-        "add-peer": {},
-        "edit-peer": {"instance": "wg1", "id": "peerid"},
+        "add-peer": {
+            "instance": "wg1",
+            "enabled": True,
+            "name": "Client 1",
+            "reserved_ip": "10.0.0.10",
+            "pre_shared_key": True,
+            "route_all_traffic": False,
+            "local_networks": ["192.168.1.0/24"],
+            "remote_networks": [],
+        },
+        "edit-peer": {
+            "instance": "wg1",
+            "id": "peerid",
+            "enabled": True,
+            "name": "Client 1",
+            "reserved_ip": "10.0.0.10",
+            "pre_shared_key": True,
+            "route_all_traffic": False,
+            "local_networks": ["192.168.1.0/24"],
+            "remote_networks": [],
+        },
         "delete-peer": {"id": "peerid"},
         "list-tunnels": {},
-        "add-tunnel": {},
-        "edit-tunnel": {"id": "tunnelid"},
-        "delete-tunnel": {"id": "tunnelid"},
-        "status": {}
+        "add-tunnel": {
+            "enabled": True,
+            "name": "My Tunnel",
+            "reserved_ip": "10.0.1.2",
+            "server_public_key": "serverpublickey",
+            "peer_private_key": "peerprivatekey",
+            "pre_shared_key": "presharedkey",
+            "route_all_traffic": False,
+            "network_routes": ["192.168.1.0/24"],
+            "endpoint": "vpn.example.com",
+            "udp_port": 51820,
+            "dns": ["1.1.1.1"]
+        },
+        "edit-tunnel": {
+            "id": "tunnelid",
+            "peer_id": "peerid",
+            "enabled": True,
+            "name": "My Tunnel",
+            "reserved_ip": "10.0.1.2",
+            "server_public_key": "serverpublickey",
+            "peer_private_key": "peerprivatekey",
+            "pre_shared_key": "presharedkey",
+            "route_all_traffic": False,
+            "network_routes": ["192.168.1.0/24"],
+            "endpoint": "vpn.example.com",
+            "udp_port": 51820,
+            "dns": ["1.1.1.1"]
+        },
+        "delete-tunnel": {"id": "tunnelid"}
     }))
 else:
     action = sys.argv[2]
@@ -842,7 +860,5 @@ else:
     elif action == 'delete-tunnel':
         args = json.loads(sys.stdin.read())
         ret = delete_tunnel(args)
-    elif action == 'status':
-        ret = status()
 
     print(json.dumps(ret))
