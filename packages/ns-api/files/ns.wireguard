@@ -5,17 +5,16 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
+import sys
+import json
+import subprocess
+from euci import EUci
+from nethsec import utils, firewall, ovpn
+import ipaddress
 import base64
 import configparser
-import ipaddress
-import json
 import re
-import subprocess
-import sys
 from datetime import datetime, timezone
-
-from euci import EUci
-from nethsec import firewall, ovpn, utils
 
 
 def __next_instance():

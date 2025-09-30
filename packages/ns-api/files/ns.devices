@@ -6,12 +6,11 @@
 #
 
 import json
-import re
-import subprocess
 import sys
-
+import subprocess
+import re
 from euci import EUci
-from nethsec import firewall, utils
+from nethsec import utils, firewall
 
 
 def get_all_by_type_as_list(uci, config, utype):
@@ -199,7 +198,7 @@ def list_devices():
 
     devices_to_show = list(filter(lambda device:
                                   # do not show devices used by bridges or bonds
-                                  get_name(device) not in devices_used_by_logical_ifaces and
+                                  not get_name(device) in devices_used_by_logical_ifaces and
                                   # do not show duplicated pppoe devices
                                   not (device.get('name') and device.get('name').startswith('pppoe-')) and 
                                   # discard wireguard devices without interface (pending deletion)

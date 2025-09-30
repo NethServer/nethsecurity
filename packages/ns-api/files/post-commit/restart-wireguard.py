@@ -14,4 +14,4 @@ if 'network' in changes:
     e_uci = EUci()
     for item in e_uci.get('network'):
         if e_uci.get('network', item, 'proto') == 'wireguard':
-            subprocess.call(f'ifdown {item} && ifup {item}', shell=True)
+            subprocess.call(f'ifdown {item} ; ifup {item}', shell=True)
