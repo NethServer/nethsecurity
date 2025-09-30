@@ -8418,7 +8418,7 @@ Parameters:
 - `network_routes`: the networks that the peer will route through the WireGuard tunnel
 - `endpoint`: the public endpoint of the WireGuard server, it can be an IP address or a domain name
 - `udp_port`: the port where the WireGuard server listens
-- 'dns': the DNS servers that the clients can use to avoid dns bleeding
+- `dns`: the DNS servers that the clients can use to avoid dns bleeding
 
 
 ### edit-tunnel
