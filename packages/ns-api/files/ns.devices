@@ -32,7 +32,7 @@ def list_devices():
 
     # interfaces without device (e.g. bond interfaces)
     ifaces_without_device = list(
-        filter(lambda iface: not iface.get('device'), ifaces_from_config))
+        filter(lambda iface: not iface.get('device') and iface.get('proto', '') != 'wireguard', ifaces_from_config))
 
     physical_devices = get_physical_devices()
 
@@ -128,8 +128,20 @@ def list_devices():
                     ipaddr, netmask)
         else:
             # it's a device, associate its interface
-            iface = get_interface(
-                deviceOrIface.get('name'), ifaces_from_config)
+
+            # check if wireguard interface
+            if deviceOrIface.get('name', '').startswith('wg'):
+                found = False
+                for configured_iface in ifaces_from_config:
+                    if configured_iface.get('proto') == 'wireguard' and configured_iface.get('.name') == deviceOrIface.get('name'):
+                        iface = configured_iface
+                        found = True
+                        break
+                if not found:
+                    # a wireguard device pending deletion has been found
+                    continue
+            else:
+                iface = get_interface(deviceOrIface.get('name'), ifaces_from_config)
 
             if iface:
                 # convert ip4 addresses to CIDR notation
@@ -188,7 +200,10 @@ def list_devices():
                                   # do not show devices used by bridges or bonds
                                   not get_name(device) in devices_used_by_logical_ifaces and
                                   # do not show duplicated pppoe devices
-                                  not (device.get('name') and device.get('name').startswith('pppoe-')), all_devices))
+                                  not (device.get('name') and device.get('name').startswith('pppoe-')) and 
+                                  # discard wireguard devices without interface (pending deletion)
+                                  not (device.get('name', '').startswith('wg') and not device.get('iface'))
+                                  , all_devices))
 
     # retrieve stats
 
@@ -249,7 +264,7 @@ def list_devices():
                 'name': 'hotspot',
                 'devices': [device.get('name')]
             })
-        elif device.get('openvpn') or device.get('openvpn_rw') or device.get('zone') == 'ipsec':
+        elif device.get('openvpn') or device.get('openvpn_rw') or device.get('zone') == 'ipsec' or device.get('iface', {}).get('proto') == 'wireguard':
             # vpn
             vpn_zone = None
 
