@@ -15,5 +15,4 @@ if 'network' in changes:
         if entry[1].startswith('wg'):
             interfaces_to_restart.append(entry[1][:3])
     for item in set(interfaces_to_restart):
-        print('restarting interface', item)
         subprocess.call(f'ifdown {item} ; ifup {item}', shell=True)
