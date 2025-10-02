@@ -22,6 +22,11 @@ set -eu
 SRC_DIR="/usr/share/keepalived/rsync"
 RESTORE_LIST="$SRC_DIR/tmp/restore_list"
 
+# Do not execute on backup/master switch
+if [ "$ACTION" != "NOTIFY_SYNC" ]; then
+    exit 0
+fi
+
 # Ensure source directory exists
 if [ ! -d "$SRC_DIR" ]; then
     log_err "Source directory does not exist: $SRC_DIR"
