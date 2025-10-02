@@ -66,7 +66,7 @@ def download_official_rules(oinkcode):
     archive_path = os.path.join(DATA_DIR, f"{archive_loc}.tar.gz")
     
     try:
-        with urllib.request.urlopen(url) as response:
+        with urllib.request.urlopen(url, timeout=10) as response:
             if response.status != 200:
                 log(f"Failed to download rules from {url}")
                 sys.exit(1)
