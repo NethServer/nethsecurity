@@ -190,6 +190,8 @@ define Package/ns-api/install
 	$(INSTALL_BIN) ./files/uci-defaults/99-ns-api.synflood $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/uci-defaults/99-ns-api.dnsmasq $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/uci-defaults/99-ns-api.wireguard $(1)/etc/uci-defaults
+	$(INSTALL_DIR) $(1)/usr/libexec
+	$(INSTALL_BIN) ./files/misc/wireguard-migrate.py $(1)/usr/libexec/wireguard-migrate
 endef
  
 $(eval $(call BuildPackage,ns-api))
