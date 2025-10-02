@@ -488,7 +488,7 @@ Response:
 
 Add a rule:
 ```
-api-cli ns.firewall add-rule '{"name": "r1", "src": "lan", "src_ip": [], "dest": "wan", "dest_ip": ["1.2.3.4"], "proto": [], "dest_port": ", "target": "ACCEPT", "ns_service": "ssh", "enabled": true, "log": false, "ns_tag": [], "add_to_top": false}'
+api-cli ns.firewall add-rule --data '{"name": "r1", "src": "lan", "src_ip": [], "dest": "wan", "dest_ip": ["1.2.3.4"], "proto": [], "dest_port": ", "target": "ACCEPT", "ns_service": "ssh", "enabled": true, "log": false, "ns_tag": [], "add_to_top": false}'
 ```
 
 Response example:
@@ -508,7 +508,7 @@ Possible validation errors:
 
 Edit an existing rule:
 ```
-api-cli ns.firewall edit-rule '{"id": "ns_206325d3", "name": "r1", "src": "lan", "src_ip": [], "dest": "wan", "dest_ip": ["1.2.3.4"], "proto": ["tcp"], "dest_port": "22", "target": "ACCEPT", "ns_service": "ssh", "enabled": true, "log": false, "ns_tag": []}'
+api-cli ns.firewall edit-rule --data '{"id": "ns_206325d3", "name": "r1", "src": "lan", "src_ip": [], "dest": "wan", "dest_ip": ["1.2.3.4"], "proto": ["tcp"], "dest_port": "22", "target": "ACCEPT", "ns_service": "ssh", "enabled": true, "log": false, "ns_tag": []}'
 ```
 
 Response example:
@@ -524,7 +524,7 @@ Possible validation errors:
 
 Order a group of rules:
 ```
-api-cli ns.firewall order-rule '{"type": "forward", "order": ["ns_e6f258a3", "ns_2be3a634", "cfg0f92bd"]}'
+api-cli ns.firewall order-rule --data '{"type": "forward", "order": ["ns_e6f258a3", "ns_2be3a634", "cfg0f92bd"]}'
 ```
 
 This API assumes that the /etc/config/firewall file is ordered using this schema:
@@ -555,7 +555,7 @@ It may rise the following validation errors:
 
 Delete an existing rule:
 ```
-api-cli ns.firewall delete-rule '{"id": "ns_206325d3"}'
+api-cli ns.firewall delete-rule --data '{"id": "ns_206325d3"}'
 ```
 
 Reponse example:
@@ -569,7 +569,7 @@ It may raise `rule_not_found` if the `id` is not found inside the `firewall` con
 
 Enable an existing rule:
 ```
-api-cli ns.firewall enable-rule '{"id": "ns_206325d3"}'
+api-cli ns.firewall enable-rule --data '{"id": "ns_206325d3"}'
 ```
 
 Reponse example:
@@ -583,7 +583,7 @@ It may raise `rule_not_found` if the `id` is not found inside the `firewall` con
 
 Disable an existing rule:
 ```
-api-cli ns.firewall disable-rule '{"id": "ns_206325d3"}'
+api-cli ns.firewall disable-rule --data '{"id": "ns_206325d3"}'
 ```
 
 Reponse example:
@@ -1064,7 +1064,7 @@ Response example:
 
 Get tunnel server configuration:
 ```
-api-cli ns.ovpntunnel get-tunnel-server '{"id": "ns_502e84af"}'
+api-cli ns.ovpntunnel get-tunnel-server --data '{"id": "ns_502e84af"}'
 ```
 
 Format returned is the same object passed to the `add-server`, plus the `id` field.
@@ -1132,7 +1132,7 @@ Response example:
 
 Disable the given tunnel:
 ```
-api-cli ns.ovpntunnel disable-tunnel '{"id": "tun1"}'
+api-cli ns.ovpntunnel disable-tunnel --data '{"id": "tun1"}'
 ```
 
 It can raise a `tunnel_not_found` validation error.
@@ -1151,7 +1151,7 @@ Error response example:
 
 Enable the given tunnel:
 ```
-api-cli ns.ovpntunnel enable-tunnel '{"id": "tun1"}'
+api-cli ns.ovpntunnel enable-tunnel --data '{"id": "tun1"}'
 ```
 
 It can raise a `tunnel_not_found` validation error.
@@ -1170,7 +1170,7 @@ Error response example:
 
 Disable the given tunnel:
 ```
-api-cli ns.ovpntunnel delete-tunnel '{"id": "tun1"}'
+api-cli ns.ovpntunnel delete-tunnel --data '{"id": "tun1"}'
 ```
 
 It can raise a `tunnel_not_found` validation error.
@@ -2078,7 +2078,7 @@ List and manage routes
 
 List routes from the main table:
 ```
-api-cli ns.routes main-table --date '{"protocol": "ipv4"}'
+api-cli ns.routes main-table --data '{"protocol": "ipv4"}'
 ```
 
 The `protocol` field can be `ipv4 ` or `ipv6`.
