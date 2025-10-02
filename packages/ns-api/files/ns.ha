@@ -520,8 +520,7 @@ def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, pubkey = "", p
         with open('/etc/conntrackd/conntrackd.conf', 'w') as file:
             file.write(conntrack_conf)
     else:
-        # make the secondary node more tolerant to network issues
-        u.set('keepalived', 'globals', 'vrrp_down_timer_adverts', '10')
+        u.set('keepalived', 'globals', 'vrrp_down_timer_adverts', '5')
 
         u.set('keepalived', 'ha_receiver', 'track_script')
         u.set('keepalived', 'ha_receiver', 'name', 'receiver')
