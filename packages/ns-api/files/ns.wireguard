@@ -282,7 +282,7 @@ def add_server(args):
     )
     zone = f"{instance}vpn"
     firewall.add_trusted_zone(e_uci, zone, link=f"network/{instance}")
-    firewall.add_device_to_zone(e_uci, instance, zone)
+    firewall.add_interface_to_zone(e_uci, instance, zone)
 
     return {"result": "success"}
 
@@ -426,6 +426,7 @@ def add_peer(args):
     e_uci.set('network', peer_section, 'public_key', public_key)
     e_uci.set('network', peer_section, 'private_key', private_key)
     e_uci.set('network', peer_section, 'persistent_keepalive', 25)
+    e_uci.set('network', peer_section, 'route_allowed_ips', True)
     e_uci.set('network', peer_section, 'ns_link', f'network/{args["instance"]}')
     e_uci.save('network')
 
@@ -504,7 +505,9 @@ def __generate_peer_config(server_id, peer_id):
     if e_uci.get('network', peer_id, 'ns_route_all_traffic', dtype=bool, default=False):
         config += "AllowedIPs = 0.0.0.0/0, ::/0\n"
     else:
-        config += f"AllowedIPs = {','.join(e_uci.get('network', peer_id, 'allowed_ips', list=True, dtype=str))}\n"
+        addresses = list(e_uci.get('network', peer_id, 'ns_local_routes', list=True, dtype=str, default=[]))
+        addresses.append(e_uci.get('network', server_id, 'ns_network', dtype=str))
+        config += f"AllowedIPs = {','.join(addresses)}\n"
     config += f"Endpoint = {e_uci.get('network', server_id, 'ns_public_endpoint')}:{e_uci.get('network', server_id, 'listen_port')}\n"
     config += f"PersistentKeepalive = {e_uci.get('network', peer_id, 'persistent_keepalive', default='25')}\n"
 
@@ -566,9 +569,13 @@ def import_configuration(args):
         e_uci.set('network', peer_instance, 'allowed_ips', [ip.strip() for ip in config_parser["Peer"]["AllowedIPs"].split(',')])
         e_uci.set('network', peer_instance, 'endpoint_host', config_parser["Peer"]["Endpoint"].split(':')[0])
         e_uci.set('network', peer_instance, 'endpoint_port', config_parser["Peer"]["Endpoint"].split(':')[1])
+        e_uci.set('network', peer_instance, 'route_allowed_ips', True)
         e_uci.set('network', peer_instance, 'persistent_keepalive', config_parser["Peer"].get("PersistentKeepalive", "25"))
         e_uci.set('network', peer_instance, 'ns_link', f'network/{defaults["instance"]}')
         e_uci.save('network')
+        zone = f"{defaults['instance']}vpn"
+        firewall.add_trusted_zone(e_uci, zone, link=f"network/{defaults['instance']}")
+        firewall.add_interface_to_zone(e_uci, defaults['instance'], zone)
     except Exception:
         return utils.validation_error("config", "invalid_file_format")
 
@@ -665,11 +672,15 @@ def add_tunnel(args):
     e_uci.set('network', peer_instance, 'reserved_ip', args['reserved_ip'])
     e_uci.set('network', peer_instance, 'endpoint_host', args['endpoint'])
     e_uci.set('network', peer_instance, 'endpoint_port', args['udp_port'])
+    e_uci.set("network", peer_instance, "route_allowed_ips", True)
     e_uci.set('network', peer_instance, 'persistent_keepalive', args.get('persistent_keepalive', '25'))
     e_uci.set('network', peer_instance, 'ns_link', f'network/{defaults["instance"]}')
     if 'dns' in args:
         e_uci.set('network', defaults['instance'], 'dns', args['dns'])
     e_uci.save('network')
+    zone = f"{defaults['instance']}vpn"
+    firewall.add_trusted_zone(e_uci, zone, link=f"network/{defaults['instance']}")
+    firewall.add_interface_to_zone(e_uci, defaults["instance"], zone)
 
     return {"result": "success"}
 
@@ -733,6 +744,7 @@ def delete_tunnel(args):
         if e_uci.get('network', entry, 'ns_link', dtype=str, default='') == f'network/{args["id"]}':
             e_uci.delete('network', entry)
     e_uci.save('network')
+    firewall.delete_linked_sections(e_uci, f"network/{args['id']}")
 
     return {"result": "success"}
 
