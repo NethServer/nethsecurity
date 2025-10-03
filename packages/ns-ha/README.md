@@ -60,13 +60,13 @@ The following features are supported:
 
 ## Configuration
 
-The setup process configures the following:
+The setup process automatically does the following:
 - check if requirements are met both on the primary and backup nodes
-- configures HA traffic on lan interface
-- sets up keepalived with the virtual IP, a random password and a public key for the synchronization
-- configures dropbear to listen on port `65022`: this is used to sync data between the nodes using rsync, only
+- configure HA traffic on lan interface
+- set up keepalived with the virtual IP, a random password and a public key for the synchronization
+- configure dropbear to listen on port `65022`: this is used to sync data between the nodes using rsync, only
   key-based authentication is allowed
-- configures conntrackd to sync the connection tracking table
+- configure conntrackd to sync the connection tracking table
 
 In this example:
 - `primary_node_ip` is the primary node, with LAN IP `192.168.100.238`
@@ -81,7 +81,7 @@ Before starting, follow these steps:
 These IP addresses are used to access the nodes directly, even if the HA cluster is disabled.
 You can consider these IP addresses as management IP addresses.
 
-When the HA cluster is enabled, all the configuration will be automatically synchronized to the backup node, except for the network configuration.
+When the HA cluster is enabled, all the configuration will be automatically synchronized to the backup node, except for the LAN network configuration.
 If you need to change the network configuration, do it on the primary node then follow the instructions below to adapt the HA configuration to the new network configuration.
 
 The package provides a script to ease the configuration of the HA cluster, without accessing directly the APIs.
@@ -103,7 +103,6 @@ It will check the following:
 
 - the LAN interface must be configured with a static IP address
 - if a DHCP server is running
-  - the `Force DHCP server start` option must be enabled
   - the DHCP option `3: router` must be set and configured with the virtual IP address (e.g. `192.168.100.240`)
   - the DHCP option `6: DNS server` must be set; you can set it to the virtual IP address or to the DNS server of your choice:
     just make sure that the DNS server is reachable from the clients even if the primary node is down
@@ -130,9 +129,7 @@ It will check the following:
 - the backup node must be reachable via SSH on port 22 with root user
 - the LAN interface must be configured with a static IP address
 
-In case of a switchover, the backup node will take over the WAN interface of the primary node but
-if there is no WAN interface configured on the backup node with the same name, the UI will
-show an unknown device.
+In case of a switchover, the backup node will take over the WAN interface of the primary node.
 
 Execute:
 ```
@@ -250,20 +247,15 @@ The script will:
 - remove the interface from the backup node
 - move the virtual IP address to the original interface
 
-### Configure a VIP (alias) on a LAN interface
+### Configure a VIP on a LAN interface
 
-Aliases are extra virtual IP addresses that can be added to an interface.
-When an alias is added to a WAN interface, no special configuration is required:
-the alias will be automatically kept in sync between the two nodes.
+VIPs are extra virtual IP addresses that can be added to an interface.
 
-When an alias is added to a LAN interface, it's a bit different:
+If a simple alias is required, just configure it normally using UCI or the web interface.
+Bear in mind that such alias will be bound to the node where it was created and will not be kept in sync nor
+moved to the backup node in case of a switchover.
 
-- if the alias must be kept in sync between the two nodes, it must be added to the HA configuration as
-  VIP (Virtual IP) and not as a traditional alias
-- if the alias must be bound to a node and does not need to be kept in sync,
-  it must be configured normally using UCI or the web interface (not recommended)
-
-To add an alias, use the following command:
+To add a VIP, use the following command:
 ```
 ns-ha-config add-vip <interface> <vip_address>
 ```
@@ -277,11 +269,11 @@ ns-ha-config add-vip lan 192.168.100.66/24
 The VIP will appear in the network configuration of the backup node only when the node
 becomes primary.
 
-### Remove a VIP (alias) from a LAN interface
+### Remove a VIP from a LAN interface
 
-To remove a VIP (alias), use the following command:
+To remove a VIP, use the following command:
 ```
-ns-ha-config remove-vip <interface> <alias>
+ns-ha-config remove-vip <interface> <vip>
 ```
 
 The script will remove the VIP from keepalived configuration.
