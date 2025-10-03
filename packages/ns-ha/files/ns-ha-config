@@ -15,14 +15,14 @@ ACTION="$1"
 help() {
   echo "Usage: $0 <action> [parameters]"
   echo "Actions:"
-  echo "  init-primary-node <PRIMARY_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP> [LAN_INTERFACE] [WAN_INTERFACE]"
-  echo "  init-backup-node <PRIMARY_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP> <PASSWORD> <PUBKEY>"
+  echo "  init-primary-node <PRIMARY_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP> <LAN_INTERFACE>"
+  echo "  init-backup-node <LAN_INTERFACE>"
   echo "  add-lan-interface <PRIMARY_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP>"
-  echo "  remove-interface <INTERFACE>"
-  echo "  add-vip <INTERFACE> <VIRTUAL_IP>"
-  echo "  remove-vip <INTERFACE> <VIRTUAL_IP>"
-  echo "  check-primary-node [LAN_INTERFACE] [WAN_INTERFACE]"
-  echo "  check-backup-node [LAN_INTERFACE]"
+  echo "  remove-interface <LAN_INTERFACE>"
+  echo "  add-vip <LAN_INTERFACE> <VIRTUAL_IP>"
+  echo "  remove-vip <LAN_INTERFACE> <VIRTUAL_IP>"
+  echo "  check-primary-node <LAN_INTERFACE>"
+  echo "  check-backup-node <LAN_INTERFACE>"
   echo "  show-config"
   echo "  ssh-remote"
   echo "  upgrade-remote [<IMAGE>]"
@@ -52,15 +52,14 @@ init_primary_node() {
   PRIMARY_NODE_IP="$1"
   BACKUP_NODE_IP="$2"
   VIRTUAL_IP="$3"
-  LAN_INTERFACE="${4:-lan}"
+  LAN_INTERFACE="${4}"
 
-  if [[ -z "$PRIMARY_NODE_IP" || -z "$BACKUP_NODE_IP" || -z "$VIRTUAL_IP" ]]; then
-    echo "Usage: $0 init-primary-node <PRIMARY_NODE_IP> <BACKUP_NODE_IP> <VIRTUAL_IP> [LAN_INTERFACE]"
+  if [[ -z "$PRIMARY_NODE_IP" || -z "$BACKUP_NODE_IP" || -z "$VIRTUAL_IP" || -z "$LAN_INTERFACE" ]]; then
+    error
+    echo "All parameters are required."
+    help
     exit 1
   fi
-
-  # Make sure local requirements are met
-  check_primary_node "$LAN_INTERFACE" "$WAN_INTERFACE"
 
   echo -n "Setting up primary node... "
 
@@ -71,7 +70,7 @@ init_primary_node() {
     exit 1
   fi
 
-  OUTPUT=$(echo '{"role": "primary", "primary_node_ip": "'"$PRIMARY_NODE_IP"'", "backup_node_ip": "'"$BACKUP_NODE_IP"'", "virtual_ip": "'"$VIRTUAL_IP"'"}' | /usr/libexec/rpcd/ns.ha call init-local)
+  OUTPUT=$(echo '{"role": "primary", "primary_node_ip": "'"$PRIMARY_NODE_IP"'", "backup_node_ip": "'"$BACKUP_NODE_IP"'", "virtual_ip": "'"$VIRTUAL_IP"'", "lan_interface": "'"$LAN_INTERFACE"'" }' | /usr/libexec/rpcd/ns.ha call init-local)
 
   if [[ $? -eq 0 ]]; then
     uci commit && reload_config
@@ -86,6 +85,14 @@ init_primary_node() {
 
 # Function to initialize HA configuration on the backup node
 init_backup_node() {
+  LAN_INTERFACE="${1}"
+
+  if [[ -z "$LAN_INTERFACE" ]]; then
+    error
+    echo "LAN interface name is required."
+    help
+    exit 1
+  fi
   read -s -p "Enter password for backup node: " PASSWORD
   echo
   if [[ $? -ne 0 ]]; then
@@ -108,7 +115,7 @@ init_backup_node() {
   fi
 
   echo -n "Initializing remote backup node... "
-  OUTPUT=$(echo '{"ssh_password": "'"$PASSWORD"'"}' | /usr/libexec/rpcd/ns.ha call init-remote)
+  OUTPUT=$(echo '{"ssh_password": "'"$PASSWORD"'", "lan_interface": "'"$LAN_INTERFACE"'" }' | /usr/libexec/rpcd/ns.ha call init-remote)
 
   if [[ $? -ne 0 ]]; then
     error
@@ -133,8 +140,14 @@ init_backup_node() {
 
 # Function to check the primary node status
 check_primary_node() {
-  LAN_INTERFACE="${1:-lan}"
+  LAN_INTERFACE="${1}"
 
+  if [[ -z "$LAN_INTERFACE" ]]; then
+    error
+    echo "LAN interface name is required."
+    help
+    exit 1
+  fi
 
   echo -n "Checking primary node status... "
   OUTPUT=$(echo '{"role": "primary", "lan_interface": "'$LAN_INTERFACE'"}' | /usr/libexec/rpcd/ns.ha call validate-requirements)
@@ -160,11 +173,12 @@ check_primary_node() {
 # Function to check the backup node status
 check_backup_node() {
   BACKUP_NODE_IP="$1"
-  LAN_INTERFACE="${2:-lan}"
+  LAN_INTERFACE="${2}"
 
   if [[ -z "$BACKUP_NODE_IP" ]]; then
     error
     echo "Backup node IP is required."
+    help
     exit 1
   fi
   read -s -p "Enter password for backup node: " PASSWORD
@@ -203,6 +217,7 @@ add_lan_interface() {
   VIRTUAL_IP="$3"
 
   if [[ -z "$PRIMARY_NODE_IP" || -z "$BACKUP_NODE_IP" || -z "$VIRTUAL_IP" ]]; then
+    error
     echo "Primary Node IP, Backup Node IP, and Virtual IP are required."
     help
     exit 1
@@ -239,6 +254,7 @@ remove_interface() {
   INTERFACE="$1"
 
   if [[ -z "$INTERFACE" ]]; then
+    error
     echo "Interface is required."
     help
     exit 1
@@ -269,6 +285,7 @@ add_vip() {
   VIRTUAL_IP="$2"
 
   if [[ -z "$INTERFACE" || -z "$VIRTUAL_IP" ]]; then
+    error
     echo "Interface and Virtual IP are required."
     help
     exit 1
@@ -304,6 +321,7 @@ remove_vip() {
   VIRTUAL_IP="$2"
 
   if [[ -z "$INTERFACE" || -z "$VIRTUAL_IP" ]]; then
+    error
     echo "Interface and Virtual IP are required."
     help
     exit 1
