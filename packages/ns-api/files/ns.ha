@@ -406,7 +406,7 @@ def add_lan_interface(role, primary_node_ip, backup_node_ip, virtual_ip):
 
 # This function initializes the local node for high availability (HA) using Keepalived.
 # It is called locally on the primary node and remotly using SSH on the backup node.
-def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, pubkey = "", password = ""):
+def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, lan_interface, pubkey = "", password = ""):
     u = EUci()
     sync_list = [
         '/etc/ha',
@@ -428,6 +428,11 @@ def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, pubkey = "", p
         '/etc/dropbear/authorized_keys',
         '/etc/conntrackd/conntrackd.conf'
     ]
+
+    validate_network_errors = validate_network(lan_interface)
+    if len(validate_network_errors) > 0:
+        raise utils.ValidationError("lan_network_errors", validate_network_errors[0])
+
     if role == "primary":
         (interface, lan_device) = get_device_from_ip(u, primary_node_ip)
     else:
@@ -587,7 +592,7 @@ def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, pubkey = "", p
     return { "success": True }
 
 # This function assumes it's called on the primary node
-def init_remote(ssh_password):
+def init_remote(ssh_password, lan_interface):
     u = EUci()
     # Check if it's running on the primary node and the primary node is already configured
     try:
@@ -614,7 +619,7 @@ def init_remote(ssh_password):
     # Prepare the init-local command
     virtual_ip_sections = utils.get_all_by_type(u, 'keepalived', 'ipaddress')
     virtual_ip = None
-    for section, details in virtual_ip_sections.items():
+    for _, details in virtual_ip_sections.items():
         if 'address' in details:
             virtual_ip = details['address']
             break
@@ -625,6 +630,7 @@ def init_remote(ssh_password):
         "primary_node_ip": primary_node_ip,
         "backup_node_ip": backup_node_ip,
         "virtual_ip": virtual_ip,
+        "lan_interface": lan_interface,
         "pubkey": pubkey,
         "password": password
     })
@@ -1113,10 +1119,12 @@ if cmd == 'list':
             "backup_node_ip": "100.100.100.2",
             "virtual_ip": "192.168.100.253",
             "pubkey": "ssh-rsa AAAAB....",
-            "password": "xxxxxxxx"
+            "password": "xxxxxxxx",
+            "lan_interface": "lan"
         },
         "init-remote": {
             "ssh_password": "Nethesis,1234",
+            "lan_interface": "lan"
         },
         "check-remote": {
             "backup_node_ip": "100.100.100.2",
@@ -1153,9 +1161,9 @@ else:
         # Paramaters:
         args = json.loads(sys.stdin.read())
         if action == "init-local":
-            ret = init_local(args.get('role'), args.get('primary_node_ip'), args.get('backup_node_ip'), args.get('virtual_ip'), args.get('pubkey'), args.get('password'))
+            ret = init_local(args.get('role'), args.get('primary_node_ip'), args.get('backup_node_ip'), args.get('virtual_ip'), args.get('lan_interface'), args.get('pubkey'), args.get('password'))
         elif action == "init-remote":
-            ret = init_remote(args.get('ssh_password'))
+            ret = init_remote(args.get('ssh_password'), args.get('lan_interface'))
         elif action == "add-lan-interface":
             ret = add_lan_interface(args.get('role'), args.get('primary_node_ip'), args.get('backup_node_ip'), args.get('virtual_ip'))
         elif action == "remove-interface":
