@@ -10,7 +10,6 @@ Requirements:
 
 Limitations:
 
-- Primary LAN interface must be named 'lan' in both firewalls
 - On LAN interfaces, only static IPv4 addresses are supported
 - Extra packages such as NUT are not supported
 - rsyslog configuration is not synced: if you need to send logs to a remote server, you must use the controller
@@ -62,7 +61,7 @@ The following features are supported:
 
 The setup process automatically does the following:
 - check if requirements are met both on the primary and backup nodes
-- configure HA traffic on lan interface
+- configure HA traffic on LAN interface
 - set up keepalived with the virtual IP, a random password and a public key for the synchronization
 - configure dropbear to listen on port `65022`: this is used to sync data between the nodes using rsync, only
   key-based authentication is allowed
@@ -94,10 +93,8 @@ ns-ha-config <action> [<option1> <option2>]
 
 First, check the status of the primary node:
 ```
-ns-ha-config check-primary-node [lan_interface]
+ns-ha-config check-primary-node <lan_interface>
 ```
-
-If the `lan_interface` is not specified, the script will use the default value `lan`.
 
 It will check the following:
 
@@ -121,7 +118,7 @@ Also note that active sessions, which are saved in RAM, will be lost during a sw
 
 Then, check the status of the backup node:
 ```
-ns-ha-config check-backup-node <backup_node_ip> [lan_interface]
+ns-ha-config check-backup-node <backup_node_ip> <lan_interface>
 ```
 
 It will check the following:
@@ -133,31 +130,31 @@ In case of a switchover, the backup node will take over the WAN interface of the
 
 Execute:
 ```
-ns-ha-config check-backup-node <backup_node_ip>
+ns-ha-config check-backup-node <backup_node_ip> <lan_interface>
 ```
 
 The script will require to enter the password of the root user for the backup node.
 
 You can also pass the SSH directly to standard input:
 ```
-echo "password" | ns-ha-config check-backup-node <backup_node_ip>
+echo "password" | ns-ha-config check-backup-node <backup_node_ip> <lan_interface>
 ```
 
 Example with interactive password:
 ```
-ns-ha-config check-backup-node 192.168.100.239
+ns-ha-config check-backup-node 192.168.100.239 lan
 ```
 
 Example with password on standard input:
 ```
-echo Nethesis,1234 | ns-ha-config check-backup-node 192.168.100.239
+echo Nethesis,1234 | ns-ha-config check-backup-node 192.168.100.239 lan
 ```
 
 ### Initlialize the primary node
 
 If the requirements are met, you can initialize the primary node, please note that the Virtual IP (only) must be written in CIDR notation.
 ```
-ns-ha-config init-primary-node <primary_node_ip> <backup_node_ip> <virtual_ip> [lan_interface]
+ns-ha-config init-primary-node <primary_node_ip> <backup_node_ip> <virtual_ip> <lan_interface>
 ```
 
 The script will:
@@ -169,25 +166,25 @@ The script will:
 
 Example:
 ```
-ns-ha-config init-primary-node 192.168.100.238 192.168.100.239 192.168.100.240/24
+ns-ha-config init-primary-node 192.168.100.238 192.168.100.239 192.168.100.240/24 lan
 ```
 
 ### Initialize the backup node
 
 If the requirements are met, you can initialize the backup node:
 ```
-ns-ha-config init-backup-node
+ns-ha-config init-backup-node <lan_interface>
 ```
 The script will ask for the password of the root user for the backup node.
 
 You can also pass the SSH directly to standard input:
 ```
-echo "password" | ns-ha-config init-backup-node
+echo "password" | ns-ha-config init-backup-node lan
 ```
 
 Example with password on standard input:
 ```
-echo Nethesis,1234 | ns-ha-config init-backup-node
+echo Nethesis,1234 | ns-ha-config init-backup-node lan
 ```
 
 At this point, the primary node and the backup node are configured to talk to each other
