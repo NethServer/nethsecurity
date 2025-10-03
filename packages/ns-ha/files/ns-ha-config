@@ -401,7 +401,7 @@ status() {
     # Display virtual IPs
     echo
     echo -e "\e[96mVirtual IPs:\e[0m"
-    echo "$OUTPUT" | jq -r '.virtual_ips | to_entries[] | "  \(.key): \(.value.address) (\(.value.device))"'
+    echo "$OUTPUT" | jq -r '.virtual_ips | to_entries[] | "  \(.key): \(.value.address) (\(.value.device))"' | sed 's/_ipaddress//'
     echo
 
     if [[ "$STATE" == "unknown" ]]; then
