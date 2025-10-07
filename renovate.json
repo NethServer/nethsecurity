@@ -8,6 +8,8 @@
   ],
   "branchPrefix": "renovate-",
   "branchNameStrict": true,
+  "rebaseWhen": "never",
+  "keepUpdatedLabel": "auto-update",
   "packageRules": [
     {
       "matchPaths": [
