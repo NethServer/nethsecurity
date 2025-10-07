@@ -17,8 +17,6 @@
 
 . /lib/functions/keepalived/common.sh
 
-set -eu
-
 SRC_DIR="/usr/share/keepalived/rsync"
 RESTORE_LIST="$SRC_DIR/tmp/restore_list"
 
