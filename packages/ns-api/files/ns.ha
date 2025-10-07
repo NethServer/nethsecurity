@@ -410,7 +410,7 @@ def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, lan_interface,
     u = EUci()
     sync_list = [
         '/etc/ha',
-        '/etc/acme/',
+        '/etc/acme',
         '/etc/ssl/acme',
         '/etc/openvpn',
         '/etc/nginx',
@@ -418,9 +418,9 @@ def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, lan_interface,
         '/etc/banip',
         '/etc/netify.d',
         '/tmp/dhcp.leases',
-        '/var/ns-snort/rules/',
-        '/tmp/banIP-backup/',
-        '/tmp/adblock-Backup/'
+        '/var/ns-snort',
+        '/tmp/banIP-backup',
+        '/tmp/adblock-Backup'
     ]
     exclude_list = [
         '/etc/config/network',
