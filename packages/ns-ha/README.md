@@ -14,6 +14,7 @@ Limitations:
 - Extra packages such as NUT are not supported
 - rsyslog configuration is not synced: if you need to send logs to a remote server, you must use the controller
 - After the first synchronization, the backup node will have the same hostname as the primary node
+- Hotspot is supported only on physical network interfaces
 
 Supported WAN configurations:
 
@@ -106,12 +107,11 @@ It will check the following:
 
 Hotspot is supported, but with the following requirements:
 - the backup node must have the exact same network devices as the primary node
-  As an example, if the primary node has a VLAN interface named `vlan10`, the backup node must have the same VLAN interface with the same name.
-  Otherwise, the hotspot will not work after a switchover.
-- the hostspot can run only on a physical interface or on a VLAN interface
+- the hotspot can run only on a physical interface
 
 To ensure hotspot functionality, the MAC address of the interface on the master node where the hotspot is configured will be copied to the corresponding
-interface on the backup node during failover.
+interface on the backup node during failover. When the backup node becomes the master, it will use the MAC address of the primary node for that interface:
+this is the reason why the Hotspot can be used only on a physical interface.
 Also note that active sessions, which are saved in RAM, will be lost during a switchover, so the clients will need to re-authenticate if auto-login is disabled.
 
 ### Check remote requirements
