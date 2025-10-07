@@ -74,22 +74,6 @@ set_service_name() {
 	set_var SERVICE_NAME "$1"
 }
 
-set_update_target() {
-	set_var UPDATE_TARGET "${1:-1}"
-}
-
-get_update_target() {
-	get_var UPDATE_TARGET
-}
-
-set_disable_update_target() {
-	_set_update_target 0
-}
-
-is_update_target() {
-	get_var_flag UPDATE_TARGET
-}
-
 set_master_cb() {
 	set_var MASTER_CB "$1"
 }
@@ -236,7 +220,6 @@ keepalived_hotplug() {
 	[ -z "$(get_fault_cb)" ] && set_fault_cb _notify_fault
 	[ -z "$(get_sync_cb)" ] && set_sync_cb _notify_sync
 
-	[ -z "$(get_update_target)" ] && _set_update_target "$@"
 	[ -z "$(get_reload_if_sync)" ] && _set_reload_if_sync "$@"
 
 	case $ACTION in
