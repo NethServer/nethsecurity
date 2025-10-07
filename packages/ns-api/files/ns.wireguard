@@ -107,7 +107,7 @@ def get_instance_defaults():
         if interface.get("proto") == "wireguard":
             addr = u.get("network", i, "addresses", default="")
             if addr:
-                net = ipaddress.IPv4Network(addr, strict=False)
+                net = ipaddress.IPv4Network(addr)
                 used_networks.append(str(net))
     network = ovpn.random_network()
     while network in used_networks:
@@ -179,7 +179,7 @@ def get_peer_defaults(args):
     e_uci = EUci()
     if e_uci.get("network", args['instance'], default=None) is None:
         return utils.validation_error("instance", "invalid", args['instance'])
-    server_network = ipaddress.IPv4Network(e_uci.get("network", args['instance'], "ns_network"), strict=False)
+    server_network = ipaddress.IPv4Network(e_uci.get("network", args['instance'], "ns_network"))
 
     taken_ips = set()
     peers = __list_peers(args['instance'])
@@ -200,6 +200,17 @@ def get_peer_defaults(args):
     return data
 
 
+def __is_port_duplicate(port, instance=None):
+    ports_used = []
+    for server in list_servers():
+        if instance is not None and server['id'] == instance:
+            continue
+        ports_used.append(server['listen_port'])
+    if port in ports_used:
+        return True
+    return False
+
+
 def __validate_tunnel_data(args):
     if 'enabled' not in args:
         return utils.validation_error('enabled', 'required')
@@ -210,7 +221,9 @@ def __validate_tunnel_data(args):
     if 'network' not in args:
         return utils.validation_error('network', 'required')
     try:
-        ipaddress.IPv4Network(args['network'], strict=False)
+        addr = ipaddress.IPv4Network(args['network'])
+        if len(list(addr.hosts())) < 2:
+            return utils.validation_error("network", "invalid_cidr_v4_address", args["network"])
     except ValueError:
         return utils.validation_error('network', 'invalid_cidr_v4_address', args['network'])
     if 'listen_port' not in args:
@@ -219,6 +232,8 @@ def __validate_tunnel_data(args):
         return utils.validation_error('listen_port', 'invalid', args['listen_port'])
     if not (1 <= args['listen_port'] <= 65535):
         return utils.validation_error('listen_port', 'invalid_port', args['listen_port'])
+    if __is_port_duplicate(args['listen_port'], args.get('instance', None)):
+        return utils.validation_error('listen_port', 'duplicate_port', args['listen_port'])
     if 'public_endpoint' not in args:
         return utils.validation_error('public_endpoint', 'required')
     try:
@@ -259,7 +274,7 @@ def add_server(args):
     private_key, _ = generate_wireguard_keys()
     e_uci.set('network', instance, 'private_key', private_key)
     e_uci.set('network', instance, 'listen_port', args['listen_port'])
-    interface_network = ipaddress.IPv4Network(args['network'], strict=False)
+    interface_network = ipaddress.IPv4Network(args['network'])
     first_ip = str(list(interface_network.hosts())[0])
     e_uci.set('network', instance, 'addresses', [first_ip])
     e_uci.set('network', instance, 'ns_network', args['network'])
@@ -295,7 +310,7 @@ def edit_server(args):
         return err
     e_uci = EUci()
     e_uci.set('network', args['instance'], 'listen_port', args['listen_port'])
-    interface_network = ipaddress.IPv4Network(args['network'], strict=False)
+    interface_network = ipaddress.IPv4Network(args['network'])
     first_ip = str(list(interface_network.hosts())[0])
     e_uci.set('network', args['instance'], 'addresses', [first_ip])
     e_uci.set('network', args['instance'], 'ns_network', args['network'])
@@ -376,7 +391,7 @@ def __validate_peer_data(args):
             if net == '':
                 continue
             try:
-                ipaddress.ip_network(net, strict=False)
+                ipaddress.ip_network(net)
             except ValueError:
                 return utils.validation_error('local_networks', 'invalid_cidr_v4_address', net)
     if 'remote_networks' not in args:
@@ -387,7 +402,7 @@ def __validate_peer_data(args):
         if net == '':
             continue
         try:
-            ipaddress.ip_network(net, strict=False)
+            ipaddress.ip_network(net)
         except ValueError:
             return utils.validation_error('remote_networks', 'invalid_cidr_v4_address', net)
 
@@ -613,7 +628,7 @@ def __validate_client_data(args):
             )
         for net in args["network_routes"]:
             try:
-                ipaddress.ip_network(net, strict=False)
+                ipaddress.ip_network(net)
             except ValueError:
                 return utils.validation_error(
                     "network_routes", "invalid_cidr_v4_address", net
