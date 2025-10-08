@@ -145,8 +145,9 @@ def export_wan_devices():
 if __name__ == '__main__':
     proc = subprocess.run(["/usr/libexec/rpcd/ns.ha", "call", "status"], capture_output=True, text=True)
     status = json.loads(proc.stdout)
-    if status.get("role") != "primary":
-        # Export must be executed only on primary node
+    if status.get("role") != "primary" and status.get("state") != "master":
+        # Export must be executed only on primary node when master
+        # If the script is executed when the node is not still master, it will export disabled interfaces
         sys.exit(0)
 
     # Cleanup the directory if it exists
