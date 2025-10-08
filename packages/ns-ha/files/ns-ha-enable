@@ -33,7 +33,7 @@ def enable_interfaces(file):
         interfaces = json.load(f)
     for interface, options in interfaces.items():
         # WAN interfaces are always enabled on master node
-        if file == 'wan_interfaces' or options.get('disabled', '0') == '1':
+        if file == 'wan_interfaces' or options.get('disabled', '0') != '1':
             u.set('network', interface, 'disabled', '0')
         if file == 'wan_interfaces':
             wan_interfaces.append(interface)
