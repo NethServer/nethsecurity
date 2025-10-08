@@ -27,27 +27,17 @@ if not logger.handlers:
 logger.setLevel(logging.INFO)
 
 def enable_interfaces(file):
-    wan_interfaces = []
     u = EUci()
     with open(os.path.join(out_dir, file), 'r') as f:
         interfaces = json.load(f)
-    for interface, options in interfaces.items():
-        # WAN interfaces are always enabled on master node
-        if file == 'wan_interfaces' or options.get('disabled', '0') != '1':
-            u.set('network', interface, 'disabled', '0')
-        if file == 'wan_interfaces':
-            wan_interfaces.append(interface)
-    u.commit('network')
-    return wan_interfaces
-
-def enable_routes():
-    u = EUci()
-    with open(os.path.join(out_dir, 'routes'), 'r') as f:
-        routes = json.load(f)
-    for route, options in routes.items():
-        if options.get('disabled', '0') == '0':
-            u.set('network', route, 'disabled', '0')
-    u.commit('network')
+    for interface in interfaces:
+        disabled = u.get('network', interface, 'disabled', default='0')
+        if disabled == '0':
+            time.sleep(0.3)
+            # Bring the interface up
+            subprocess.run(["/sbin/ifup", interface], capture_output=True, text=True)
+            # Return code of ifup is not reliable, so we do not check it nor log it
+            logger.info("Bringing up interface %s", interface)
 
 def enable_hotspot_mac():
     u = EUci()
@@ -57,7 +47,7 @@ def enable_hotspot_mac():
         tags = device.get('ns_tag', [])
         if 'ha' in tags and device.get('ns_macaddr'):
             # Force mac address on the device, OpenWrt seems to ignore it
-            proc = subprocess.run(["ip", "link", "set", "dev", device.get('name'), "address", device.get('ns_macaddr')], check=True)
+            proc = subprocess.run(["/sbin/ifup", "link", "set", "dev", device.get('name'), "address", device.get('ns_macaddr')], check=True)
             logger.info("Setting mac address on device %s to %s: %s", device.get('name'), device.get('ns_macaddr'), "success" if proc.returncode == 0 else "fail")
 
 if __name__ == "__main__":
@@ -66,16 +56,8 @@ if __name__ == "__main__":
     if status.get("state") != "master":
         # Execute only on master node, no matter the role
         sys.exit(0)
-    wan_interfaces = enable_interfaces('wan_interfaces')
+    enable_interfaces('wan_interfaces')
     enable_interfaces('wg_interfaces')
     enable_interfaces('ipsec_interfaces')
-    enable_routes()
     enable_hotspot_mac()
     subprocess.run(["/sbin/reload_config"], capture_output=True)
-    # Restart WAN interfaces to force reconnection: reload_config is not enough for
-    # interfaces brought down with ifdown command
-    if wan_interfaces:
-        time.sleep(1)
-        for iface in wan_interfaces:
-            proc = subprocess.run(["/sbin/ifup", iface], capture_output=True, text=True)
-            logger.info("Bringing up interface %s: %s", iface, "success" if proc.returncode == 0 else "fail")

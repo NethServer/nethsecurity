@@ -27,7 +27,6 @@ def import_interfaces(file):
         u.set('network', interface, 'ns_tag', ['ha'])
         for opt in options:
             u.set('network', interface, opt, options[opt])
-        u.set('network', interface, 'disabled', '1')
     u.commit('network')
 
 def import_wireguard_peers():

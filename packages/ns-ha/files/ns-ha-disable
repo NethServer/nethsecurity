@@ -32,16 +32,10 @@ def disable_interfaces(file):
     with open(os.path.join(out_dir, file), 'r') as f:
         interfaces = json.load(f)
     for interface in interfaces.keys():
-        u.set('network', interface, 'disabled', '1')
-    u.commit('network')
-
-def disable_routes():
-    u = EUci()
-    with open(os.path.join(out_dir, 'routes'), 'r') as f:
-        routes = json.load(f)
-    for route in routes.keys():
-        u.set('network', route, 'disabled', '1')
-    u.commit('network')
+        # bring down the interface, do not check with ifstatus because exit code is not reliable
+        subprocess.run(["/sbin/ifdown", interface], capture_output=True)
+        # Return code of ifdown is not reliable, so we do not check it nor log it
+        logger.info("Bringing down interface %s", interface)
 
 def disable_hotspot():
     u = EUci()
@@ -60,7 +54,7 @@ def disable_hotspot():
                 original_mac = ""
             if original_mac:
                 # Set the original MAC address on the device
-                subprocess.run(["ip", "link", "set", "dev", device.get('name'), "address", original_mac], check=True)
+                subprocess.run(["/sbin/ip", "link", "set", "dev", device.get('name'), "address", original_mac], check=True)
                 logger.info("Restored original mac address on device %s to %s: %s", device.get('name'), original_mac, "success" if proc.returncode == 0 else "fail")
 
 def stop_services():
@@ -97,16 +91,6 @@ def stop_services():
         if os.path.exists(init_script) and os.path.isfile(init_script):
             subprocess.run([init_script, "stop"], capture_output=True)
 
-def stop_wan_interfaces():
-    u = EUci()
-    try:
-        wan_interfaces = u.get_all('firewall', 'ns_wan', 'network')
-    except Exception:
-        wan_interfaces = {}
-    for interface in wan_interfaces:
-         proc = subprocess.run(["ifdown", interface], capture_output=True)
-         logger.info("Bringing down interface %s: %s", interface, "success" if proc.returncode == 0 else "fail")
-
 if __name__ == "__main__":
 	# Parse --force flag to override HA role check
 	parser = argparse.ArgumentParser(add_help=False)
@@ -127,12 +111,8 @@ if __name__ == "__main__":
 	disable_interfaces('wg_interfaces')
 	disable_interfaces('ipsec_interfaces')
 	disable_interfaces('wan_interfaces')
-	disable_routes()
 	disable_hotspot()
-	if not args.force:
-		# Apply the configuration changes
-		subprocess.run(["/sbin/reload_config"], capture_output=True)
-	else:
+     # Do not apply network changes yet, they will be applied when switching to primary
+	if args.force:
 		# Tear down everything immediately in case of fault or stop
 		stop_services()
-		stop_wan_interfaces()
