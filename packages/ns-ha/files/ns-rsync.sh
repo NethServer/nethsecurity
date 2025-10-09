@@ -51,7 +51,6 @@ ha_sync_send() {
 	local cfg=$1
 	local address ssh_key ssh_port sync_list sync_dir sync_file count exclude_list
 	local ssh_options ssh_remote dirs_list files_list
-	local changelog="/tmp/changelog"
 	local restore_list="/tmp/restore_list"
 
 	config_get address "$cfg" address
@@ -83,56 +82,26 @@ ha_sync_send() {
 
 	# shellcheck disable=SC2086
 	timeout 10 ssh $ssh_options $ssh_remote mkdir -m 755 -p "/tmp" || {
-		log_err "can not connect to $address. check key or connection"
+		log_err "Can not connect to $address. check key or connection"
 		update_last_sync_time "$cfg"
 		update_last_sync_status "$cfg" "SSH Connection Failed"
 		return 0
 	}
 
 	# shellcheck disable=SC2086
-	if rsync --out-format='%n' --dry-run -a --relative ${files_list} -e "ssh $ssh_options" --rsync-path="sudo rsync" "$ssh_remote":"$sync_dir" > "$changelog"; then
-		count=$(wc -l "$changelog")
-		if [ "${count%% *}" = "0" ]; then
-			log_debug "all files are up to date"
-			update_last_sync_time "$cfg"
-			update_last_sync_status "$cfg" "Up to Date"
-			return 0
-		fi
-	else
-		log_err "rsync dry run failed for $address"
-		update_last_sync_time "$cfg"
-		update_last_sync_status "$cfg" "Rsync Detection Failed"
-		return 0
-	fi
-
-	# shellcheck disable=SC2086
-	rsync -a --relative ${files_list} ${changelog} ${restore_list} -e "ssh $ssh_options" --rsync-path="sudo rsync" "$ssh_remote":"$sync_dir" || {
-		log_err "rsync transfer failed for $address"
+	rsync -a --relative --delete-after ${files_list} ${restore_list} -e "ssh $ssh_options" --rsync-path="rsync" "$ssh_remote":"$sync_dir" || {
+		log_err "Configuration sync transfer failed for $address"
 		update_last_sync_time "$cfg"
 		update_last_sync_status "$cfg" "Rsync Transfer Failed"
+		return 0
 	}
 
-	log_info "keepalived sync is completed for $address"
+	log_info "Configuration sync completed for $address"
     # Invoke detached hotplug on the backup node
     ssh $ssh_options $ssh_remote "ACTION=NOTIFY_SYNC /usr/bin/setsid /sbin/hotplug-call keepalived &" &> /dev/null
     update_last_sync_time "$cfg"
     update_last_sync_status "$cfg" "Successful"
 
-}
-
-ha_sync_receive() {
-	local cfg=$1
-	local ssh_pubkey
-	local name auth_file home_dir
-
-	config_get name "$cfg" name
-	config_get sync_dir "$cfg" sync_dir "$RSYNC_HOME"
-	[ -z "$sync_dir" ] && return 0
-	config_get ssh_pubkey "$cfg" ssh_pubkey
-	[ -z "$ssh_pubkey" ] && return 0
-
-	/etc/init.d/keepalived-inotify enabled || /etc/init.d/keepalived-inotify enable
-	/etc/init.d/keepalived-inotify running "$name" || /etc/init.d/keepalived-inotify start "$name"
 }
 
 ha_sync_each_peer() {
@@ -151,7 +120,7 @@ ha_sync_each_peer() {
 
 	case "$sync_mode" in
 		send) ha_sync_send "$cfg" ;;
-		receive) ha_sync_receive "$cfg" ;;
+		receive) ;;
 	esac
 }
 
@@ -167,7 +136,7 @@ main() {
 	local lockfile="/var/lock/keepalived-rsync.lock"
 
 	if ! lock -n "$lockfile" > /dev/null 2>&1; then
-		log_info "another process is already running"
+		log_info "Another process is already running"
 		return 1
 	fi
 
