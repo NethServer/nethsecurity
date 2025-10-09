@@ -172,20 +172,20 @@ sync_and_restart() {
 
 _notify_master() {
 	if master_and_reload; then
-		log_debug "reload service $SERVICE_NAME"
+		log_info "reload service $SERVICE_NAME"
 		_reload_service
 	elif master_and_restart; then
-		log_debug "restart service $SERVICE_NAME"
+		log_info "restart service $SERVICE_NAME"
 		_restart_service
 	fi
 }
 
 _notify_backup() {
 	if backup_and_stop; then
-		log_debug "stop service $SERVICE_NAME"
+		log_info "stop service $SERVICE_NAME"
 		_stop_service
 	elif backup_and_reload; then
-		log_debug "restart service $SERVICE_NAME"
+		log_info "restart service $SERVICE_NAME"
 		_restart_service
 	fi
 }
@@ -196,10 +196,10 @@ _notify_fault() {
 
 _notify_sync() {
 	if sync_and_reload; then
-		log_debug "reload service $SERVICE_NAME"
+		log_info "reload service $SERVICE_NAME"
 		_reload_service
 	elif sync_and_restart; then
-		log_debug "restart service $SERVICE_NAME"
+		log_info "restart service $SERVICE_NAME"
 		_restart_service
 	fi
 }
@@ -207,7 +207,7 @@ _notify_sync() {
 call_cb() {
 	[ $# -eq 0 ] && return
 	if __function__ "$1"; then
-		log_debug "calling function \"$1\""
+		log_info "calling function \"$1\""
 		"$1"
 	else
 		log_err "function \"$1\" not defined"

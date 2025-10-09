@@ -4,8 +4,6 @@
 
 __FILE__="$(basename "$0")"
 
-KEEPALIVED_DEBUG=0
-
 __function__() {
 	type "$1" > /dev/null 2>&1
 }
@@ -13,16 +11,11 @@ __function__() {
 log() {
 	local facility=$1
 	shift
-	logger -t "${__FILE__}[$$]" -p "$facility" "$*"
+	logger -t "ns-ha" -p "$facility" "$*"
 }
 
 log_info() {
 	log info "$*"
-}
-
-log_debug() {
-	[ "$KEEPALIVED_DEBUG" = "0" ] && return
-	log debug "$*"
 }
 
 log_notice() {
