@@ -194,7 +194,7 @@ def delete_tunnel(id):
         for tunnel in utils.get_all_by_type(u, 'ipsec', 'tunnel'):
             if tunnel.startswith(f'{id}_tunnel'):
                  if_id = u.get('ipsec', f'{id}_tunnel', 'if_id', default=None)
-                 u.delete(tunnel)
+                 u.delete('ipsec', tunnel)
         u.delete('ipsec', id)
         u.save('ipsec')
     except:
