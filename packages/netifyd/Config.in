@@ -1,11 +1,23 @@
 menu "Configuration"
 	depends on PACKAGE_netifyd
 
+config NETIFYD_ENABLE_OPENWRT
+	bool "Enable OpenWrt support (UCI, UBUS)?"
+	default y
+	help
+		Enable to include UCI and UBUS integration.
+
 config NETIFYD_BUILD_SHARED_LIBRARY
 	bool "Build the Agent as a shared library?"
 	default y
 	help
 		Build the Agent as a shared library when enabled, or statically link it otherwise.  Statically linking can make debugging easier.
+
+config NETIFYD_WITH_STDCPP17
+	bool "Compile using the C++17 standard?"
+	default y
+	help
+		Compile with the C++17 standard.
 
 config NETIFYD_WITH_LOCAL_LIBGCRYPT
 	bool "Link nDPI with the local system libgcrypt?"
