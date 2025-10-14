@@ -1,0 +1,10 @@
+menu "Configuration"
+	depends on PACKAGE_netify-sink-socket
+
+config NETIFY_SINK_SOCKET_WITH_STDCPP17
+	bool "Compile using the C++17 standard?"
+	default y
+	help
+		Compile with the C++17 standard.
+
+endmenu
