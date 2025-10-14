@@ -16,7 +16,7 @@ import configparser
 
 def status():
     uuid = ""
-    if not os.path.exists("/etc/netify.d/agent.uuid"):
+    if not os.path.exists("/etc/netifyd/agent.uuid"):
         # generate the uuid id not exists
         try:
             subprocess.run(["/usr/sbin/netifyd", "-p"], check=True, capture_output=True)
@@ -24,7 +24,7 @@ def status():
             return utils.generic_error("failed_to_generate_uuid")
 
     try:
-        with open("/etc/netify.d/agent.uuid", "r") as f:
+        with open("/etc/netifyd/agent.uuid", "r") as f:
             uuid = f.read().strip()
     except:
         return utils.generic_error("failed_to_read_uuid")
