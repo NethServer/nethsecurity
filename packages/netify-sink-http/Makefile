@@ -5,8 +5,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=netify-sink-http
-PKG_VERSION:=2025-07-01-v1.0.64
-PKG_RELEASE:=6
+PKG_VERSION:=2025-10-01-v1.0.64
+PKG_RELEASE:=22
 PKG_MAINTAINER:=Darryl Sokoloski <darryl@egloo.ca>
 PKG_LICENSE:=UNLICENSED
 
@@ -16,11 +16,14 @@ PKG_INSTALL:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://gitlab.com/netify.ai/public/netify-plugins/netify-sink-http.git
-PKG_SOURCE_VERSION:=v1.0.64-6
-#PKG_SOURCE_VERSION:=afee9d5ecd9ca88d2d951be92ba067b854bbe5ce
+PKG_SOURCE_VERSION:=v1.0.64-22
+#PKG_SOURCE_VERSION:=dbf248cd9f5832b3301fd431eefd78f2ece8fd97
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_RELEASE)
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_SOURCE_SUBDIR)
 PKG_MIRROR_HASH:=whatever
+
+PKG_CONFIG_DEPENDS:= \
+	CONFIG_NETIFY_SINK_HTTP_WITH_STDCPP17
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -34,7 +37,7 @@ define Package/netify-sink-http
   # std::unordered_map is only available via libstdcpp which is required for
   # performance reasons.
   DEPENDS+=+libstdcpp +libcurl
-  EXTRA_DEPENDS:=netifyd (=2025-07-01-v5.1.12-r1)
+  EXTRA_DEPENDS:=netifyd (=2025-10-01-v5.1.24-r1)
 endef
 
 define Package/netify-sink-http/description
@@ -49,6 +52,9 @@ endef
 TARGET_CFLAGS+=-ffunction-sections -fdata-sections -Wno-psabi
 TARGET_CXXFLAGS+=-ffunction-sections -fdata-sections -Wno-psabi
 TARGET_LDFLAGS+=-Wl,--gc-sections
+
+CONFIGURE_ARGS+= \
+	$(if $(CONFIG_NETIFY_SINK_HTTP_WITH_STDCPP17),--with-stdcpp=17,--with-stdcpp=11)
 
 define Build/Configure
 	(cd $(PKG_BUILD_DIR); ./autogen.sh)
