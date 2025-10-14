@@ -1,5 +1,7 @@
 #!/bin/sh
 
 if [ "$ACTION" == "NOTIFY_MASTER" ]; then
-    /usr/sbin/load-kernel-modules
+    if [ -f /etc/modules.d/ns-nathelpers ]; then
+        /usr/sbin/load-kernel-modules
+    fi
 fi
