@@ -31,27 +31,11 @@ _service() {
 	[ ! -x "$rc" ] && return
 
 	case $1 in
-		start) _service_running_check "$rc" || $rc start ;;
-		stop) _service_running_check "$rc" && $rc stop ;;
-		reload)
-			if _service_running_check "$rc"; then
-				$rc reload
-			else
-				$rc start
-			fi
-			;;
-		restart)
-			if _service_running_check "$rc"; then
-				$rc restart
-			else
-				$rc start
-			fi
-			;;
+		start) $rc start ;;
+		stop) $rc stop ;;
+		reload) $rc reload ;;
+		restart) $rc restart ;;
 	esac
-}
-
-_service_running_check() {
-	skip_running_check || "$1" running
 }
 
 _start_service() {
@@ -136,14 +120,6 @@ set_stop_if_backup() {
 
 backup_and_stop() {
 	get_var_flag NOTIFY_BACKUP_STOP 1
-}
-
-set_skip_running_check() {
-	set_var NOTIFY_SKIP_RUNNING 1
-}
-
-skip_running_check() {
-	get_var_flag NOTIFY_SKIP_RUNNING
 }
 
 _set_reload_if_sync() {
