@@ -5,8 +5,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=netify-proc-core
-PKG_VERSION:=2025-07-01-v1.0.94
-PKG_RELEASE:=6
+PKG_VERSION:=2025-10-01-v1.0.94
+PKG_RELEASE:=24
 PKG_MAINTAINER:=Darryl Sokoloski <darryl@egloo.ca>
 PKG_LICENSE:=UNLICENSED
 
@@ -16,11 +16,14 @@ PKG_INSTALL:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://gitlab.com/netify.ai/public/netify-plugins/netify-proc-core.git
-PKG_SOURCE_VERSION:=v1.0.94-6
-#PKG_SOURCE_VERSION:=323060c19cb4543ba748b4ce7a2d8218cad841a7
+PKG_SOURCE_VERSION:=v1.0.94-24
+#PKG_SOURCE_VERSION:=28721dc550b1a534ba3e5b7abf7cd9e7daa011bb
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_RELEASE)
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_SOURCE_SUBDIR)
 PKG_MIRROR_HASH:=whatever
+
+PKG_CONFIG_DEPENDS:= \
+	CONFIG_NETIFY_PROC_CORE_WITH_STDCPP17
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -34,7 +37,7 @@ define Package/netify-proc-core
   # std::unordered_map is only available via libstdcpp which is required for
   # performance reasons.
   DEPENDS+=+libstdcpp
-  EXTRA_DEPENDS:=netifyd (=2025-07-01-v5.1.12-r1)
+  EXTRA_DEPENDS:=netifyd (=2025-10-01-v5.1.24-r1)
 endef
 
 define Package/netify-proc-core/description
@@ -49,6 +52,9 @@ endef
 TARGET_CFLAGS+=-ffunction-sections -fdata-sections -Wno-psabi
 TARGET_CXXFLAGS+=-ffunction-sections -fdata-sections -Wno-psabi
 TARGET_LDFLAGS+=-Wl,--gc-sections
+
+CONFIGURE_ARGS+= \
+	$(if $(CONFIG_NETIFY_PROC_CORE_WITH_STDCPP17),--with-stdcpp=17,--with-stdcpp=11)
 
 define Build/Configure
 	(cd $(PKG_BUILD_DIR); ./autogen.sh)
