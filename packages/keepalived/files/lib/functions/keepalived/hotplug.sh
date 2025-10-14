@@ -207,7 +207,6 @@ _notify_sync() {
 call_cb() {
 	[ $# -eq 0 ] && return
 	if __function__ "$1"; then
-		log_info "calling function \"$1\""
 		"$1"
 	else
 		log_err "function \"$1\" not defined"

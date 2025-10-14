@@ -76,10 +76,8 @@ while IFS= read -r entry || [ -n "$entry" ]; do
     fi
 
     if [ -d "$src" ]; then
-        log_info "Syncing directory from list: $src/ -> $dst/"
         rsync -ar --delete "$src"/ "$dst"/
     elif [ -f "$src" ]; then
-        log_info "Syncing file from list: $src -> $dst"
         cp -a "$src" "$dst"
     else
         log_warn "Skipping unsupported entry type: $src"
