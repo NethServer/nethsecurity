@@ -14,7 +14,7 @@ import socket
 from nethsec import dpi
 
 
-def list_talkers(limit = 20, stat_file="/tmp/netify-plugin-stats.json"):
+def list_talkers(limit = 20, stat_file="/var/run/netifyd/aggregator-stats.json"):
     data = None
     stats = dict()
     applications = dict()

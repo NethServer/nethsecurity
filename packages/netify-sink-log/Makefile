@@ -70,8 +70,8 @@ define Package/netify-sink-log/install
 	$(INSTALL_DIR) $(1)/usr/lib
 	$(INSTALL_DIR) $(1)/etc/netifyd/plugins.d
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/libnetify-sink-log.so.* $(1)/usr/lib/
-	$(INSTALL_CONF) $(PKG_INSTALL_DIR)/etc/netifyd/netify-sink-log.json $(1)/etc/netifyd/
-	$(INSTALL_CONF) $(PKG_INSTALL_DIR)/etc/netifyd/plugins.d/10-netify-sink-log.conf $(1)/etc/netifyd/plugins.d/
+	$(INSTALL_CONF) ./files/netify-sink-log.json $(1)/etc/netifyd/
+	$(INSTALL_CONF) ./files/plugins.d/10-netify-sink-log.conf $(1)/etc/netifyd/plugins.d/
 endef
 
 $(eval $(call BuildPackage,netify-sink-log))
