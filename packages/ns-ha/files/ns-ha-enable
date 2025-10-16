@@ -39,6 +39,38 @@ def enable_interfaces(file):
             # Return code of ifup is not reliable, so we do not check it nor log it
             logger.info("Bringing up interface %s", interface)
 
+def send_gratuitous_arp(file):
+    # Get the mapping interface -> device
+    proc = subprocess.run(["ubus", "-v", "call", "network.interface", "dump"], capture_output=True, text=True)
+    try:
+        network_dump = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        logger.error("Can't send gratuitous ARP: failed to decode JSON from network dump")
+        return
+    device_map = {}
+    for iface in network_dump.get('interface', []):
+        if 'device' in iface and 'interface' in iface:
+            device_map[iface['interface']] = iface['device']
+    # Load the file with the interfaces to send gratuitous ARP for
+    with open(os.path.join(out_dir, file), 'r') as f:
+        interfaces = json.load(f)
+    for interface in interfaces:
+        if 'ipaddr' in interfaces[interface]:
+            device = device_map.get(interface)
+            if not device:
+                logger.error("Can't send gratuitous ARP: no device found for interface %s", interface)
+                continue
+            # It should not happen, but ipaddr can contain multiple IPs
+            ipaddr = interfaces[interface]['ipaddr']
+            if isinstance(ipaddr, str):
+                ipaddr = [ipaddr]
+            for ip in ipaddr:
+                # Remove /mask if present
+                ip = ip.split('/')[0]
+                # Send gratuitous ARP to update switches ARP tables
+                aproc = subprocess.run(["/usr/bin/arping", "-c", "1", "-U", "-I", device, ip], capture_output=True)
+                logger.info("Sending gratuitous ARP on interface %s (%s) for IP %s: %s", interface, device, ip, "success" if aproc.returncode == 0 else "fail")
+
 def enable_hotspot_mac():
     u = EUci()
     devices = utils.get_all_by_type(u, 'network', 'device')
@@ -60,4 +92,5 @@ if __name__ == "__main__":
     enable_interfaces('wg_interfaces')
     enable_interfaces('ipsec_interfaces')
     enable_hotspot_mac()
+    send_gratuitous_arp('wan_interfaces')
     subprocess.run(["/sbin/reload_config"], capture_output=True)
