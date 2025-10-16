@@ -70,8 +70,8 @@ define Package/netify-sink-socket/install
 	$(INSTALL_DIR) $(1)/usr/lib
 	$(INSTALL_DIR) $(1)/etc/netifyd/plugins.d
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/libnetify-sink-socket.so.* $(1)/usr/lib/
-	$(INSTALL_CONF) $(PKG_INSTALL_DIR)/etc/netifyd/netify-sink-socket.json $(1)/etc/netifyd/
-	$(INSTALL_CONF) $(PKG_INSTALL_DIR)/etc/netifyd/plugins.d/10-netify-sink-socket.conf $(1)/etc/netifyd/plugins.d/
+	$(INSTALL_CONF) ./files/netify-sink-socket.json $(1)/etc/netifyd/
+	$(INSTALL_CONF) ./files/plugins.d/10-netify-sink-socket.conf $(1)/etc/netifyd/plugins.d/
 endef
 
 $(eval $(call BuildPackage,netify-sink-socket))
