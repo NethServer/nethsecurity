@@ -1,0 +1,15 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# if old netify.d directory exists, remove it
+if [ -d /etc/netify.d ]; then
+    rm -rf /etc/netify.d
+    rm -rf /etc/netifyd.conf
+    if [ -f /etc/netifyd.conf-opkg ]; then
+        mv /etc/netifyd.conf-opkg /etc/netifyd.conf
+    fi
+fi

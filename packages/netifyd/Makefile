@@ -153,6 +153,8 @@ define Package/netifyd/install
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/deploy/netify-apps.conf $(1)/usr/share/netifyd
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/deploy/*.json $(1)/usr/share/netifyd
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/deploy/plugins.d/*.conf $(1)/usr/share/netifyd/plugins.d
+	$(INSTALL_DIR) $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/99-netify-v4-migrate.uci-default $(1)/etc/uci-defaults/99-netify-v4-migrate
 endef
 
 $(eval $(call BuildPackage,netifyd))
