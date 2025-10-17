@@ -26,6 +26,40 @@ if not logger.handlers:
     logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
+def is_device_up(device):
+    # Use JSON output to reliably inspect link state
+    proc = subprocess.run(["/sbin/ip", "-j", "link", "show", "dev", device], capture_output=True, text=True)
+    try:
+        link_json = json.loads(proc.stdout) if proc.stdout else []
+    except json.JSONDecodeError:
+        link_json = []
+
+    if isinstance(link_json, list) and link_json:
+        li = link_json[0]
+        if li.get('operstate') == 'UP' or 'UP' in li.get('flags', []):
+            return True
+    return False
+
+def get_device_ips(device):
+    ipv4 = []
+    ipv6 = []
+    # Use JSON output to reliably inspect addresses
+    addr_proc = subprocess.run(["/sbin/ip", "-j", "addr", "show", "dev", device], capture_output=True, text=True)
+    try:
+        addrs = json.loads(addr_proc.stdout) if addr_proc.stdout else []
+    except json.JSONDecodeError:
+        addrs = []
+
+    for ent in addrs:
+        for info in ent.get('addr_info', []):
+            family = info.get('family')
+            local = info.get('local', '')
+            if family == 'inet':
+                ipv4.append(local)
+            elif family == 'inet6':
+                ipv6.append(local)
+    return ipv4, ipv6
+
 def enable_interfaces(file):
     u = EUci()
     with open(os.path.join(out_dir, file), 'r') as f:
@@ -55,24 +89,38 @@ def send_gratuitous_arp(file):
     with open(os.path.join(out_dir, file), 'r') as f:
         interfaces = json.load(f)
     for interface in interfaces:
-        if 'ipaddr' in interfaces[interface]:
-            device = device_map.get(interface)
-            if not device:
-                logger.error("Can't send gratuitous ARP: no device found for interface %s", interface)
-                continue
-            # It should not happen, but ipaddr can contain multiple IPs
-            ipaddr = interfaces[interface]['ipaddr']
-            if isinstance(ipaddr, str):
-                ipaddr = [ipaddr]
-            for ip in ipaddr:
-                # Remove /mask if present
-                ip = ip.split('/')[0]
-                # Send gratuitous ARP to update switches ARP tables
-                aproc = subprocess.run(["/usr/bin/arping", "-c", "1", "-U", "-I", device, ip], capture_output=True, text=True)
-                if aproc.returncode == 0:
-                    logger.info("Sending gratuitous ARP on interface %s (%s) for IP %s: success", interface, device, ip)
-                else:
-                    logger.error("Sending gratuitous ARP on interface %s (%s) for IP %s: fail, %s", interface, device, ip, aproc.stderr.strip())
+        device = device_map.get(interface)
+        if not device:
+            logger.error("Can't send gratuitous ARP: no device found for interface %s", interface)
+            continue
+        # Check if device is up
+        max_attempts = 10
+        ready = False
+        # First check if device is up
+        for _ in range(max_attempts):
+            if is_device_up(device):
+                ready = True
+                break
+            time.sleep(0.5)
+        if not ready:
+            logger.error("Can't send gratuitous ARP: device %s for interface %s is down", device, interface)
+            continue
+        # Check if device has IP address
+        for _ in range(max_attempts):
+            # Ignore IPv6 which has a different ARP tools (ndisc6)
+            ipv4, _ = get_device_ips(device)
+            if len(ipv4) > 0:
+                for ip in ipv4:
+                    # Send gratuitous ARP to update switches ARP tables
+                    # Wait for the device to be up and to have the IP address (timeout ~10s)
+                    proc = subprocess.run(["/usr/bin/arping", "-U", "-I", device, "-c", "3", ip], capture_output=True, text=True)
+                    if proc.returncode == 0:
+                        logger.info("Sent gratuitous ARP for IP %s on interface %s: success", ip, interface)
+                    else:
+                        logger.info("Sent gratuitous ARP for IP %s on interface %s: fail, %s", ip, interface, proc.stderr.strip())
+                break
+            time.sleep(0.5)
+
 
 def enable_hotspot_mac():
     u = EUci()
