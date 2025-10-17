@@ -6,7 +6,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=netify-sink-log
 PKG_VERSION:=2025-10-01-v1.0.62
-PKG_RELEASE:=24
+PKG_RELEASE:=25
 PKG_MAINTAINER:=Darryl Sokoloski <darryl@egloo.ca>
 PKG_LICENSE:=UNLICENSED
 
@@ -16,7 +16,7 @@ PKG_INSTALL:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://gitlab.com/netify.ai/public/netify-plugins/netify-sink-log.git
-PKG_SOURCE_VERSION:=v1.0.62-24
+PKG_SOURCE_VERSION:=v1.0.62-25
 #PKG_SOURCE_VERSION:=b27b54b03cac0c49fe35dbb4e45a1130a78a6b5b
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_RELEASE)
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_SOURCE_SUBDIR)
@@ -37,7 +37,7 @@ define Package/netify-sink-log
   # std::unordered_map is only available via libstdcpp which is required for
   # performance reasons.
   DEPENDS+=+libstdcpp
-  EXTRA_DEPENDS:=netifyd (=2025-10-01-v5.1.24-r1)
+  EXTRA_DEPENDS:=netifyd (=2025-10-01-v5.1.24-r2)
 endef
 
 define Package/netify-sink-log/description
