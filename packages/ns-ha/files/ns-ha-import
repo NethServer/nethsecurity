@@ -54,7 +54,6 @@ def import_routes():
         u.set('network', section, 'ns_tag', ['ha'])
         for opt in options:
             u.set('network', section, opt, options[opt])
-        u.set('network', section, 'disabled', '1')
     u.commit('network')
 
 def import_hotspot_mac():
