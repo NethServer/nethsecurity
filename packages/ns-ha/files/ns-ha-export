@@ -41,6 +41,17 @@ def export_ipsec_interfaces():
     with open(os.path.join(out_dir, 'ipsec_interfaces'), 'w') as f:
         json.dump(ipsec_interfaces, f)
 
+def export_tun_interfaces():
+    tun_interfaces = {}
+    u = EUci()
+    for interface in utils.get_all_by_type(u, 'network', 'interface'):
+        device = u.get('network', interface, 'device', default=None)
+        if device is not None and device.startswith('tun'):
+            tun_interfaces[interface] = u.get_all('network', interface)
+
+    with open(os.path.join(out_dir, 'tun_interfaces'), 'w') as f:
+        json.dump(tun_interfaces, f)
+
 def export_wireguard_interfaces():
     wireguard_interfaces = {}
     u = EUci()
@@ -161,4 +172,5 @@ if __name__ == '__main__':
     export_ipsec_interfaces()
     export_wireguard_interfaces()
     export_wireguard_peers()
+    export_tun_interfaces()
     export_hotspot_mac()

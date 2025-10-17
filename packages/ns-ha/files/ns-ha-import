@@ -145,6 +145,7 @@ if __name__ == "__main__":
     import_interfaces('wg_interfaces')
     import_wireguard_peers()
     import_interfaces('ipsec_interfaces')
+    import_interfaces('tun_interfaces')
     import_routes()
     import_hotspot_mac()
     disable_dhcp_force_option()
