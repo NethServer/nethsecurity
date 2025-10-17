@@ -15,17 +15,17 @@ log() {
 }
 
 log_info() {
-	log info "$*"
+	log info "INFO: $*"
 }
 
 log_notice() {
-	log notice "$*"
+	log notice "NOTICE: $*"
 }
 
 log_warn() {
-	log warn "$*"
+	log warn "WARNING: $*"
 }
 
 log_err() {
-	log err "$*"
+	log err "ERROR: $*"
 }
