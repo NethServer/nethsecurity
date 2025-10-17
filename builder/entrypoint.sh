@@ -7,11 +7,12 @@
 
 set -e
 
-if [ ! "$NETIFYD_ENABLED" -eq "0" ]; then
-    echo "Netifyd is enabled, downloading sources..."
-    git clone "https://oauth2:$NETIFYD_ACCESS_TOKEN@gitlab.com/netify.ai/private/nethesis/netify-flow-actions.git"
-    git clone "https://oauth2:$NETIFYD_ACCESS_TOKEN@gitlab.com/netify.ai/private/nethesis/netify-agent-stats-plugin.git"
-fi
+# TODO: fix this when specs for V5 arrive
+#if [ ! "$NETIFYD_ENABLED" -eq "0" ]; then
+#    echo "Netifyd is enabled, downloading sources..."
+#    git clone "https://oauth2:$NETIFYD_ACCESS_TOKEN@gitlab.com/netify.ai/private/nethesis/netify-flow-actions.git"
+#    git clone "https://oauth2:$NETIFYD_ACCESS_TOKEN@gitlab.com/netify.ai/private/nethesis/netify-agent-stats-plugin.git"
+#fi
 
 if [ -n "$USIGN_PUB_KEY" ] && [ -n "$USIGN_PRIV_KEY" ]; then
     echo "$USIGN_PUB_KEY" > /home/buildbot/openwrt/key-build.pub

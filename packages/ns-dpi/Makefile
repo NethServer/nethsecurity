@@ -17,12 +17,13 @@ PKG_LICENSE:=GPL-3.0-only
 
 include $(INCLUDE_DIR)/package.mk
 
+# TODO: fix this with proper dependencies when specs for V5 arrive
 define Package/ns-dpi
 	SECTION:=base
 	CATEGORY:=NethSecurity
 	TITLE:=DPI rules
 	URL:=https://github.com/NethServer/nethsecurity/
-	DEPENDS:=+netify-flow-actions +kmod-ipt-conntrack-label
+	DEPENDS:=+kmod-ipt-conntrack-label
 	PKGARCH:=all
 endef
 
@@ -60,9 +61,7 @@ define Package/ns-dpi/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
-	$(INSTALL_DIR) $(1)/etc/xtables
 	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/unregister
-	$(INSTALL_CONF) ./files/connlabel.conf $(1)/etc/xtables
 	$(INSTALL_BIN) ./files/dpi.init $(1)/etc/init.d/dpi
 	$(INSTALL_BIN) ./files/dpi $(1)/usr/sbin/
 	$(INSTALL_BIN) ./files/dpi-nft $(1)/usr/sbin/
