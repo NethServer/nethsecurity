@@ -68,8 +68,11 @@ def send_gratuitous_arp(file):
                 # Remove /mask if present
                 ip = ip.split('/')[0]
                 # Send gratuitous ARP to update switches ARP tables
-                aproc = subprocess.run(["/usr/bin/arping", "-c", "1", "-U", "-I", device, ip], capture_output=True)
-                logger.info("Sending gratuitous ARP on interface %s (%s) for IP %s: %s", interface, device, ip, "success" if aproc.returncode == 0 else "fail")
+                aproc = subprocess.run(["/usr/bin/arping", "-c", "1", "-U", "-I", device, ip], capture_output=True, text=True)
+                if aproc.returncode == 0:
+                    logger.info("Sending gratuitous ARP on interface %s (%s) for IP %s: success", interface, device, ip)
+                else:
+                    logger.error("Sending gratuitous ARP on interface %s (%s) for IP %s: fail, %s", interface, device, ip, aproc.stderr.strip())
 
 def enable_hotspot_mac():
     u = EUci()
