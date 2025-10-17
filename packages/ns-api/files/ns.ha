@@ -966,7 +966,7 @@ def upgrade_remote(image):
         return utils.generic_error("error_executing_upgrade_on_backup_node")
     return {"result": "success"}
 
-def reset(role, pubkey = None):
+def reset(role, pubkey = ""):
     # Reset the HA configuration
     uci = EUci()
 
@@ -974,7 +974,7 @@ def reset(role, pubkey = None):
     port = uci.get('dropbear', 'ha_link', 'Port')
     backup_node_ip = uci.get('keepalived', 'ha_peer', 'address')
 
-    if pubkey is None:
+    if not pubkey:
         private_key_path = '/etc/keepalived/keys/id_rsa'
         if os.path.isfile(private_key_path):
             result = subprocess.run(['dropbearkey', '-y', '-f', private_key_path], capture_output=True, text=True)
