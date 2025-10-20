@@ -26,6 +26,22 @@ if not logger.handlers:
     logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
+def find_device_from_config(interface):
+    # Read device from UCI config because sometimes ubus network dump is not updated yet
+    u = EUci()
+    try:
+        section = u.get_all('network', interface)
+    except:
+        return None
+    device = section.get('device', '')
+    if device.startswith('@'):
+        try:
+            parent = u.get_all('network', device[1:])
+        except:
+            return None
+        return parent.get('device')
+    return device
+
 def is_device_up(device):
     # Use JSON output to reliably inspect link state
     proc = subprocess.run(["/sbin/ip", "-j", "link", "show", "dev", device], capture_output=True, text=True)
@@ -89,7 +105,7 @@ def send_gratuitous_arp(file):
     with open(os.path.join(out_dir, file), 'r') as f:
         interfaces = json.load(f)
     for interface in interfaces:
-        device = device_map.get(interface)
+        device = device_map.get(interface, find_device_from_config(interface))
         if not device:
             logger.error("Can't send gratuitous ARP: no device found for interface %s", interface)
             continue
@@ -113,12 +129,12 @@ def send_gratuitous_arp(file):
                 for ip in ipv4:
                     # Send gratuitous ARP to update switches ARP tables
                     # Wait for the device to be up and to have the IP address (timeout ~10s)
-                    proc = subprocess.run(["/usr/bin/arping", "-U", "-I", device, "-c", "3", ip], capture_output=True, text=True)
-                    if proc.returncode == 0:
+                    proca = subprocess.run(["/usr/bin/arping", "-U", "-I", device, "-c", "1", ip], capture_output=True, text=True)
+                    if proca.returncode == 0:
                         logger.info("Sent gratuitous ARP for IP %s on interface %s: success", ip, interface)
                     else:
-                        logger.info("Sent gratuitous ARP for IP %s on interface %s: fail, %s", ip, interface, proc.stderr.strip())
-                break
+                        logger.info("Sent gratuitous ARP for IP %s on interface %s: fail, %s", ip, interface, proca.stderr.strip())
+                return
             time.sleep(0.5)
 
 
