@@ -290,6 +290,8 @@ elif cmd == 'call':
             e_uci.set('nginx', '_lan', 'uci_manage_ssl', 'custom')
 
             for domain in e_uci.get('nginx', dtype=str, list=True):
+                if e_uci.get('nginx', domain) != 'server':
+                    continue
                 if e_uci.get('nginx', domain, 'ssl_certificate', default='') == old_ssl_certificate:
                     e_uci.set('nginx', domain, 'ssl_certificate', valid_certificates[data['name']]['cert_path'])
                 if e_uci.get('nginx', domain, 'ssl_certificate_key', default='') == old_ssl_certificate_key:
