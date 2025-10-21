@@ -1,0 +1,130 @@
+diff --git a/utils/telegraf/Makefile b/utils/telegraf/Makefile
+index d8764e1..ad0b5ea 100644
+--- a/utils/telegraf/Makefile
++++ b/utils/telegraf/Makefile
+@@ -59,12 +59,6 @@ define Package/telegraf-full/description
+ 	(Full build. including all plugins)
+ endef
+ 
+-define Package/telegraf/conffiles
+-/etc/telegraf.conf
+-endef
+-
+-Package/telegraf-full/conffiles = $(Package/telegraf/conffiles)
+-
+ define Build/Prepare
+ 	$(call Build/Prepare/Default)
+ ifeq ($(BUILD_VARIANT),small)
+@@ -76,7 +70,7 @@ define Package/telegraf/install
+ 	$(call GoPackage/Package/Install/Bin,$(1))
+ 	$(INSTALL_DIR) $(1)/etc/init.d $(1)/etc/config
+ 	$(INSTALL_BIN) ./files/etc/init.d/telegraf $(1)/etc/init.d/telegraf
+-	$(INSTALL_CONF) $(PKG_BUILD_DIR)/etc/telegraf.conf $(1)/etc/telegraf.conf
++	$(INSTALL_CONF) ./files/etc/telegraf.conf $(1)/etc/telegraf.conf
+ endef
+ 
+ define Package/telegraf-full/install
+diff --git a/utils/telegraf/files/etc/telegraf.conf b/utils/telegraf/files/etc/telegraf.conf
+new file mode 100644
+index 0000000..8fffde9
+--- /dev/null
++++ b/utils/telegraf/files/etc/telegraf.conf
+@@ -0,0 +1,46 @@
++[global_tags]
++
++[agent]
++  interval = "10s"
++  round_interval = true
++  metric_batch_size = 1000
++  metric_buffer_limit = 10000
++  collection_jitter = "0s"
++  flush_interval = "10s"
++  flush_jitter = "0s"
++  precision = "0s"
++  omit_hostname = true
++
++###############################################################################
++#                            OUTPUT PLUGINS                                   #
++###############################################################################
++
++[[outputs.prometheus_client]]
++  listen = ":9273"
++
++###############################################################################
++#                            INPUT PLUGINS                                    #
++###############################################################################
++
++[[inputs.file]]
++  files = ["/var/run/netifyd/telegraf.json"]
++  data_format = "json_v2"
++  [[inputs.file.json_v2]]
++    measurement_name = "netifyd"
++    timestamp_path = "log_time_end"
++    timestamp_format = "unix"
++    [[inputs.file.json_v2.object]]
++      path = "stats"
++      tags = ["detected_application", "detected_application_name", "detected_protocol", "detected_protocol_name", "interface", "internal", "ip_protocol", "ip_version", "local_ip", "local_mac", "local_origin", "other_ip", "other_port", "other_type"]
++      excluded_keys = ["digests"]
++
++[[inputs.ping]]
++  urls = ["google.com"]
++
++###############################################################################
++#                            SERVICE INPUT PLUGINS                            #
++###############################################################################
++
++[[inputs.prometheus]]
++  urls = ["http://127.0.0.1:19999/api/v1/allmetrics%3Fformat=prometheus&help=no"]
++
+diff --git a/utils/telegraf/variant-small/plugins/inputs/all/all.go b/utils/telegraf/variant-small/plugins/inputs/all/all.go
+index 1b30a03..1d94f44 100644
+--- a/utils/telegraf/variant-small/plugins/inputs/all/all.go
++++ b/utils/telegraf/variant-small/plugins/inputs/all/all.go
+@@ -2,29 +2,7 @@ package all
+ 
+ import (
+ 	//Blank imports for plugins to register themselves
+-	_ "github.com/influxdata/telegraf/plugins/inputs/cpu"
+-	_ "github.com/influxdata/telegraf/plugins/inputs/ethtool"
+-	_ "github.com/influxdata/telegraf/plugins/inputs/internal"
+-	_ "github.com/influxdata/telegraf/plugins/inputs/interrupts"
+-	_ "github.com/influxdata/telegraf/plugins/inputs/ipset"
+-	_ "github.com/influxdata/telegraf/plugins/inputs/iptables"
+-	_ "github.com/influxdata/telegraf/plugins/inputs/kernel"
+-	_ "github.com/influxdata/telegraf/plugins/inputs/mem"
+-	_ "github.com/influxdata/telegraf/plugins/inputs/net"
+-	_ "github.com/influxdata/telegraf/plugins/inputs/net_response"
++	_ "github.com/influxdata/telegraf/plugins/inputs/file"
+ 	_ "github.com/influxdata/telegraf/plugins/inputs/ping"
+-	_ "github.com/influxdata/telegraf/plugins/inputs/processes"
+-	_ "github.com/influxdata/telegraf/plugins/inputs/procstat"
+ 	_ "github.com/influxdata/telegraf/plugins/inputs/prometheus"
+-	_ "github.com/influxdata/telegraf/plugins/inputs/sensors"
+-	_ "github.com/influxdata/telegraf/plugins/inputs/snmp"
+-	_ "github.com/influxdata/telegraf/plugins/inputs/socket_listener"
+-	_ "github.com/influxdata/telegraf/plugins/inputs/swap"
+-	_ "github.com/influxdata/telegraf/plugins/inputs/syslog"
+-	_ "github.com/influxdata/telegraf/plugins/inputs/system"
+-	_ "github.com/influxdata/telegraf/plugins/inputs/tail"
+-	_ "github.com/influxdata/telegraf/plugins/inputs/tcp_listener"
+-	_ "github.com/influxdata/telegraf/plugins/inputs/udp_listener"
+-	_ "github.com/influxdata/telegraf/plugins/inputs/wireguard"
+-	_ "github.com/influxdata/telegraf/plugins/inputs/wireless"
+ )
+diff --git a/utils/telegraf/variant-small/plugins/outputs/all/all.go b/utils/telegraf/variant-small/plugins/outputs/all/all.go
+index eefc73b..3090442 100644
+--- a/utils/telegraf/variant-small/plugins/outputs/all/all.go
++++ b/utils/telegraf/variant-small/plugins/outputs/all/all.go
+@@ -2,12 +2,5 @@ package all
+ 
+ import (
+ 	//Blank imports for plugins to register themselves
+-	_ "github.com/influxdata/telegraf/plugins/outputs/exec"
+-	_ "github.com/influxdata/telegraf/plugins/outputs/file"
+-	_ "github.com/influxdata/telegraf/plugins/outputs/graphite"
+-	_ "github.com/influxdata/telegraf/plugins/outputs/http"
+-	_ "github.com/influxdata/telegraf/plugins/outputs/influxdb"
+-	_ "github.com/influxdata/telegraf/plugins/outputs/influxdb_v2"
+ 	_ "github.com/influxdata/telegraf/plugins/outputs/prometheus_client"
+-	_ "github.com/influxdata/telegraf/plugins/outputs/syslog"
+ )
