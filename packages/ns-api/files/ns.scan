@@ -43,7 +43,7 @@ def scan(device):
             if len(parts) < 2:
                 continue
             try:
-                hostname = socket.getnameinfo((parts[1], 0), 0)[0]
+                hostname = socket.getnameinfo((parts[0], 0), 0)[0]
             except:
                 hostname = ""
             ret.append({"mac": parts[1], "ip": parts[0], "hostname": hostname, "description": parts[2] if len(parts) > 2 else ""})
