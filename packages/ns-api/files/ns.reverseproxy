@@ -281,10 +281,21 @@ elif cmd == 'call':
             if data['name'] not in valid_certificates:
                 raise ValidationError('name', 'invalid', data['name'])
 
+            old_ssl_certificate = e_uci.get("nginx", "_lan", "ssl_certificate")
+            old_ssl_certificate_key = e_uci.get("nginx", "_lan", "ssl_certificate_key")
+
             # set default certificate for _lan
             e_uci.set('nginx', '_lan', 'ssl_certificate', valid_certificates[data['name']]['cert_path'])
             e_uci.set('nginx', '_lan', 'ssl_certificate_key', valid_certificates[data['name']]['key_path'])
             e_uci.set('nginx', '_lan', 'uci_manage_ssl', 'custom')
+
+            for domain in e_uci.get('nginx', dtype=str, list=True):
+                if e_uci.get('nginx', domain) != 'server':
+                    continue
+                if e_uci.get('nginx', domain, 'ssl_certificate', default='') == old_ssl_certificate:
+                    e_uci.set('nginx', domain, 'ssl_certificate', valid_certificates[data['name']]['cert_path'])
+                if e_uci.get('nginx', domain, 'ssl_certificate_key', default='') == old_ssl_certificate_key:
+                    e_uci.set('nginx', domain, 'ssl_certificate_key', valid_certificates[data['name']]['key_path'])
 
             # submit changes
             e_uci.save('nginx')
