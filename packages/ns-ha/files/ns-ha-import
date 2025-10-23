@@ -25,6 +25,7 @@ def import_interfaces(file):
     for interface, options in interfaces.items():
         u.set('network', interface, 'interface')
         u.set('network', interface, 'ns_tag', ['ha'])
+        u.set('network', interface, 'auto', '0')
         for opt in options:
             u.set('network', interface, opt, options[opt])
     u.commit('network')
