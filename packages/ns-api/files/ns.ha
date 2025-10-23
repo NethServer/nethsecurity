@@ -473,8 +473,6 @@ def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, lan_interface,
     u.set('keepalived', 'lan_delays', 'down_delay', '1')
 
     if role == 'primary':
-        u.set('keepalived', 'globals', 'vrrp_down_timer_adverts', '5')
-
         u.set('keepalived', 'ha_sender', 'track_script')
         u.set('keepalived', 'ha_sender', 'name', 'sender')
         u.set('keepalived', 'ha_sender', 'value', 'ha_sync')
@@ -525,8 +523,6 @@ def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, lan_interface,
         with open('/etc/conntrackd/conntrackd.conf', 'w') as file:
             file.write(conntrack_conf)
     else:
-        u.set('keepalived', 'globals', 'vrrp_down_timer_adverts', '5')
-
         u.set('keepalived', 'ha_receiver', 'track_script')
         u.set('keepalived', 'ha_receiver', 'name', 'receiver')
         u.set('keepalived', 'ha_receiver', 'value', 'ha_sync')
