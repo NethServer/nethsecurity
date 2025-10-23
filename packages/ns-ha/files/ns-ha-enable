@@ -134,7 +134,7 @@ def send_gratuitous_arp(file):
                         logger.info("Sent gratuitous ARP for IP %s on interface %s: success", ip, interface)
                     else:
                         logger.info("Sent gratuitous ARP for IP %s on interface %s: fail, %s", ip, interface, proca.stderr.strip())
-                return
+                break
             time.sleep(0.5)
 
 
