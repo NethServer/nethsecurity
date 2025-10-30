@@ -14,7 +14,7 @@ elif [ "$ACTION" == "NOTIFY_BACKUP" ]; then
         uci set dhcp.$section.force='0'
     done
     uci commit dhcp
-else
+elif [ "$ACTION" != "startup" ]; then
     # Sometimes dnsmasq starts when it should not: stop it at every sync and during shutdown
     /etc/init.d/dnsmasq stop 2&>/dev/null
 fi

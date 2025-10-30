@@ -659,7 +659,7 @@ start_service() {
 	[ -f /etc/config/keepalived ] || return 0
 
 	config_load 'keepalived'
-	config_get_bool enabled globals enabled 1
+	config_get_bool enabled globals enabled 0
 	[ "$enabled" = "0" ] && return 0
 
 	process_config
