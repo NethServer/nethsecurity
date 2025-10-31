@@ -1,0 +1,35 @@
+diff --git a/net/strongswan/Makefile b/net/strongswan/Makefile
+index 672f1a8..31688b8 100644
+--- a/net/strongswan/Makefile
++++ b/net/strongswan/Makefile
+@@ -9,7 +9,7 @@ include $(TOPDIR)/rules.mk
+ 
+ PKG_NAME:=strongswan
+ PKG_VERSION:=5.9.14
+-PKG_RELEASE:=7
++PKG_RELEASE:=8
+ 
+ PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
+ PKG_SOURCE_URL:=https://download.strongswan.org/ https://download2.strongswan.org/
+@@ -271,6 +271,7 @@ $(call Package/strongswan/Default)
+ 	+strongswan-mod-gmp \
+ 	+strongswan-mod-hmac \
+ 	@(PACKAGE_strongswan-mod-kdf||PACKAGE_strongswan-mod-openssl||PACKAGE_strongswan-mod-wolfssl) \
++	+strongswan-mod-kdf \
+ 	+strongswan-mod-kernel-netlink \
+ 	+strongswan-mod-md5 \
+ 	+strongswan-mod-mgf1 \
+@@ -298,6 +299,13 @@ $(call Package/strongswan/description/Default)
+  This meta-package contains only dependencies to match upstream defaults.
+ endef
+ 
++define Package/strongswan-default/postinst
++#!/bin/sh
++if [ -z "$${IPKG_INSTROOT}" ]; then
++  /etc/init.d/swanctl restart
++fi
++exit 0
++endef
+ 
+ define Package/strongswan-isakmp
+ $(call Package/strongswan/Default)
