@@ -8,8 +8,8 @@
 # if old netify.d directory exists, remove it
 if [ -d /etc/netify.d ]; then
     rm -rf /etc/netify.d
-    rm -rf /etc/netifyd.conf
     if [ -f /etc/netifyd.conf-opkg ]; then
+        rm -f /etc/netifyd.conf
         mv /etc/netifyd.conf-opkg /etc/netifyd.conf
     fi
 fi
