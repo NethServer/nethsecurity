@@ -1,0 +1,10 @@
+{
+    "overwrite": false,
+    "channels": {
+        "stats": {
+            "log_path": "/var/run/netifyd",
+            "log_name": "aggregator-stats",
+            "overwrite": true
+        }
+    }
+}
