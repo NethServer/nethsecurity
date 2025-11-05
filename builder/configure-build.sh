@@ -39,22 +39,6 @@ CONFIG_VERSION_SUPPORT_URL="https://community.nethserver.org"
 EOF
 cat "config/targets/${target}.conf" >> .config
 
-# TODO: fix this when specs for V5 arrive
-## Netifyd closed-sources plugin
-#if [ "$NETIFYD_ENABLED" -eq "0" ]; then
-#    echo "Netifyd closed-sources plugin not enabled: skipping ns-dpi package"
-#    echo CONFIG_PACKAGE_ns-dpi=n >> .config
-#else
-#    echo "Netifyd closed-sources plugin enabled: enabling ns-dpi package"
-#    cat << EOF >> .config
-#CONFIG_PACKAGE_netify-flow-actions=y
-#CONFIG_NETIFY_FLOW_ACTIONS_TARGET_LOG=y
-#CONFIG_NETIFY_FLOW_ACTIONS_TARGET_CTLABEL=y
-#CONFIG_NETIFY_FLOW_ACTIONS_TARGET_NFTSET=y
-#CONFIG_PACKAGE_netify-plugin-stats=y
-#EOF
-#fi
-
 # Write version information into a file
 echo "${repo_channel}" > files/etc/repo-channel
 
