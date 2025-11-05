@@ -1,0 +1,18 @@
+{
+    "timeout_connect": 30,
+    "timeout_transfer": 300,
+    "tls_verify": true,
+    "tls_version1": false,
+    "channels": {
+        "informatics-http": {
+            "enable": true,
+            "url": "https://sink.netify.ai/v1/",
+            "headers": {
+                "x-vendor-id": "EG",
+                "X-UUID": "${uuid_agent}",
+                "X-UUID-Site": "${uuid_site}",
+                "X-UUID-Serial": "${uuid_serial}"
+            }
+        }
+    }
+}
