@@ -56,6 +56,14 @@ define Build/Compile
 	true
 endef
 
+define Package/netify-integration-meta/conffiles
+/etc/config/netifyd
+/etc/netifyd.conf
+/etc/netifyd/agent.uuid
+/etc/netifyd/netify-apps.conf
+/etc/netifyd/netify-categories.json
+endef
+
 define Package/netify-integration-meta/install
 	$(INSTALL_DIR) $(1)/etc
 	$(INSTALL_DIR) $(1)/etc/config
@@ -72,6 +80,7 @@ define Package/netify-integration-meta/install
 	$(INSTALL_DIR) $(1)/usr/share
 	$(INSTALL_DIR) $(1)/usr/share/netifyd
 	$(INSTALL_DIR) $(1)/usr/share/netifyd/plugins.d
+	$(INSTALL_DIR) $(1)/usr/share/nftables.d/table-pre
 	$(INSTALL_DATA) ./files/etc/config/netifyd $(1)/etc/config/netifyd
 	$(INSTALL_BIN) ./files/etc/init.d/netifyd $(1)/etc/init.d/netifyd
 	$(INSTALL_DATA) ./files/etc/netifyd.conf $(1)/etc/netifyd.conf
@@ -110,6 +119,7 @@ define Package/netify-integration-meta/install
 	$(INSTALL_DATA) ./files/usr/share/netifyd/netify-sink-http-auto.json $(1)/usr/share/netifyd/netify-sink-http-auto.json
 	$(INSTALL_DATA) ./files/usr/share/netifyd/plugins.d/99-netify-proc-core-auto.conf $(1)/usr/share/netifyd/plugins.d/99-netify-proc-core-auto.conf
 	$(INSTALL_DATA) ./files/usr/share/netifyd/plugins.d/99-netify-sink-http-auto.conf $(1)/usr/share/netifyd/plugins.d/99-netify-sink-http-auto.conf
+	$(INSTALL_DATA) ./files/usr/share/nftables.d/table-pre/10-netifyd.nft $(1)/usr/share/nftables.d/table-pre/10-netifyd.nft
 	$(LN) /usr/lib/libnetifyd.so.4.0.0 $(1)/usr/lib/libnetifyd.so
 	$(LN) /usr/lib/libnetifyd.so.4.0.0 $(1)/usr/lib/libnetifyd.so.4
 	$(LN) /usr/lib/libnetify-plm.so.1.0.0 $(1)/usr/lib/libnetify-plm.so.1

@@ -7,9 +7,12 @@
 
 # if old netify.d directory exists, remove it
 if [ -d /etc/netify.d ]; then
-    rm -rf /etc/netify.d
     if [ -f /etc/netifyd.conf-opkg ]; then
         rm -f /etc/netifyd.conf
         mv /etc/netifyd.conf-opkg /etc/netifyd.conf
     fi
+    if [ -f /etc/netify.d/agent.uuid ]; then
+        mv /etc/netify.d/agent.uuid /etc/netifyd/agent.uuid
+    fi
+    rm -rf /etc/netify.d
 fi
