@@ -9,15 +9,15 @@ set -eou pipefail
 BASE="$(realpath "packages")"
 IPKS="$(realpath "scripts/netifyd-ipks")"
 PACKAGES="$(find "$IPKS" -name 'netify*.ipk' | grep -v integration)"
-FEED="${BASE}/netify-integration-meta"
 
 if [ -z "$PACKAGES" ]; then
     echo "No packages found."
     exit 1
 fi
 
+FEED="${BASE}/netify-integration-meta"
 if [ -d "${FEED}/files" ]; then
-    sudo rm -rf "${FEED}/files"
+    FEED="${BASE}/netify-integration-meta.new"
 fi
 
 mkdir -vp "${FEED}/files"
@@ -25,13 +25,13 @@ pushd "${FEED}/files"
 
 DEPENDS=
 for PACKAGE in $PACKAGES; do
-    tar -xf "${PACKAGE}" ./data.tar.gz -O | sudo tar -xzf - -C "${FEED}/files/"
+    tar -xf "${PACKAGE}" ./data.tar.gz -O | tar -xzf - -C "${FEED}/files/"
 done
 
-sudo rm -rf lib
-sudo chown -R ${USER}:${USER} .
-sudo find . -type f -print0 | xargs -0 -n 1 chmod a+r
-sudo find . -type d -print0 | xargs -0 -n 1 chmod a+x
+rm -rf lib
+chown -R ${USER}:${USER} .
+find . -type f -print0 | xargs -0 -n 1 chmod a+r
+find . -type d -print0 | xargs -0 -n 1 chmod a+x
 
 DIRS=$(find . -type d | sed -e 's/^\.//' | sort)
 FILES=$(find . -type f | sed -e 's/^\.//' | sort)
@@ -67,12 +67,13 @@ for LINK in $LINKS; do
     else
         echo -e "\t\$(LN) $LINK_SRC \$(1)$LINK"
     fi
+    rm -f ./$LINK
 done
 echo -e "endef\n"
 
 popd
 
-echo "Edit ${BASE}/netify-integration-meta/Makefile"
+echo "Edit ${FEED}/Makefile"
 echo "and update the 'install' file list."
 
 exit 0
