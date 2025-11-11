@@ -243,24 +243,7 @@ def __sync_pro_plus_profiles():
     dhcp_instances = __fetch_local_dhcp_instances()
     ip_set_instances = __fetch_instanced_services('firewall', 'ipset')
     redirect_instances = __fetch_instanced_services('firewall', 'redirect')
-
     added_redirects = []
-    # for each zone, generate bypass redirect rule
-    for zone in e_uci.get('flashstart', 'global', 'zones', default=[], list=True, dtype=str):
-        redirect_id = f'ns_flashstart_bypass_{zone}'
-        if e_uci.get('firewall', redirect_id, default=None) is None:
-            logging.debug(f'Creating new redirect {redirect_id}')
-            e_uci.set('firewall', redirect_id, 'redirect')
-            e_uci.set('firewall', redirect_id, 'ns_flashstart', True)
-            e_uci.set('firewall', redirect_id, 'ns_tag', ['automated'])
-        e_uci.set('firewall', redirect_id, 'name', f'Flashstart-bypass-DNS-from-{zone}')
-        e_uci.set('firewall', redirect_id, 'src', zone)
-        e_uci.set('firewall', redirect_id, 'src_dport', 53)
-        e_uci.set('firewall', redirect_id, 'dest_port', 53)
-        e_uci.set('firewall', redirect_id, 'proto', "tcp udp")
-        e_uci.set('firewall', redirect_id, 'target', 'DNAT')
-        e_uci.set('firewall', redirect_id, 'ipset', f'flashstart-bypass')
-        added_redirects.append(redirect_id)
 
     # fetch config
     config = __fetch_config()
@@ -305,6 +288,7 @@ def __sync_pro_plus_profiles():
             e_uci.set('firewall', redirect_id, 'target', 'DNAT')
             if profile['catch-all']:
                 e_uci.set('firewall', redirect_id, 'name', f'Flashstart-catch-all-{zone}-{profile["id"]}')
+                e_uci.set('firewall', redirect_id, 'ipset', f'!flashstart-bypass')
             else:
                 e_uci.set('firewall', redirect_id, 'name', f'Flashstart-intercept-DNS-from-{zone}-{profile["id"]}')
                 e_uci.set('firewall', redirect_id, 'ipset', f'flashstart-ipset-{profile["id"]}')
