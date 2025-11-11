@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import ipaddress
 
 #
 # Copyright (C) 2025 Nethesis S.r.l.
@@ -7,6 +6,8 @@ import ipaddress
 #
 
 # this script is supposed to be run by the 99-ns-api.wireguard uci defaults
+
+import ipaddress
 
 from euci import EUci
 
