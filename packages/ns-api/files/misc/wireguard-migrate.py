@@ -7,10 +7,12 @@
 
 # this script is supposed to be run by the 99-ns-api.wireguard uci defaults
 
+import ipaddress
+
 from euci import EUci
 
 
-def main():
+def migrate_old():
     e_uci = EUci()
     wireguard_sections = []
     for wg_id in e_uci.get("network"):
@@ -39,5 +41,29 @@ def main():
     e_uci.commit("network")
 
 
+def fix_addresses():
+    """Fix addresses without CIDR notation."""
+    e_uci = EUci()
+    for wg_id in e_uci.get("network"):
+        if e_uci.get("network", wg_id, "proto", dtype=str, default="") == "wireguard":
+            addresses = e_uci.get("network", wg_id, "addresses", dtype=str, default="", list=True)
+            fixed_addresses = []
+            for address in addresses:
+                if "/" not in address:
+                    try:
+                        vpn_network = e_uci.get(
+                            "network", wg_id, "ns_network", dtype=str, default=""
+                        )
+                        interface_network = ipaddress.IPv4Network(vpn_network)
+                        first_address = str(list(interface_network.hosts())[0])
+                        fixed_addresses.append(first_address + "/" + str(interface_network.prefixlen))
+                    except Exception:
+                        fixed_addresses.append(address)
+            e_uci.set("network", wg_id, "addresses", fixed_addresses)
+
+    e_uci.save("network")
+
+
 if __name__ == "__main__":
-    main()
+    migrate_old()
+    fix_addresses()

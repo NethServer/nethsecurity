@@ -276,7 +276,7 @@ def add_server(args):
     e_uci.set('network', instance, 'listen_port', args['listen_port'])
     interface_network = ipaddress.IPv4Network(args['network'])
     first_ip = str(list(interface_network.hosts())[0])
-    e_uci.set('network', instance, 'addresses', [first_ip])
+    e_uci.set('network', instance, 'addresses', [first_ip + '/'+ str(interface_network.prefixlen)])
     e_uci.set('network', instance, 'ns_network', args['network'])
     if 'mtu' in args:
         e_uci.set('network', instance, 'mtu', args['mtu'])
@@ -312,7 +312,7 @@ def edit_server(args):
     e_uci.set('network', args['instance'], 'listen_port', args['listen_port'])
     interface_network = ipaddress.IPv4Network(args['network'])
     first_ip = str(list(interface_network.hosts())[0])
-    e_uci.set('network', args['instance'], 'addresses', [first_ip])
+    e_uci.set('network', args['instance'], 'addresses', [first_ip + '/'+ str(interface_network.prefixlen)])
     e_uci.set('network', args['instance'], 'ns_network', args['network'])
     if 'mtu' in args and args['mtu'] != '':
         e_uci.set('network', args['instance'], 'mtu', args['mtu'])
