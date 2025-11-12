@@ -17,17 +17,18 @@ PKG_LICENSE:=GPL-3.0-only
 
 include $(INCLUDE_DIR)/package.mk
 
-# TODO: fix this with proper dependencies when specs for V5 arrive
 define Package/ns-dpi
 	SECTION:=base
 	CATEGORY:=NethSecurity
 	TITLE:=DPI rules
 	URL:=https://github.com/NethServer/nethsecurity/
-	DEPENDS:=+kmod-ipt-conntrack-label
+	DEPENDS:=+kmod-ipt-conntrack-label \
+		+micrond \
+		+netify-integration-meta
 	PKGARCH:=all
 endef
 
-define Package/ns-dpi/description
+define Package/nsLICENSE_DEFAULT_LOCATION-dpi/description
 	Traffic rules for network flows
 endef
 
@@ -63,10 +64,12 @@ define Package/ns-dpi/install
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/unregister
 	$(INSTALL_BIN) ./files/dpi.init $(1)/etc/init.d/dpi
+	$(INSTALL_BIN) ./files/dpi-license.init $(1)/etc/init.d/dpi-license
 	$(INSTALL_BIN) ./files/dpi $(1)/usr/sbin/
 	$(INSTALL_BIN) ./files/dpi-nft $(1)/usr/sbin/
 	$(INSTALL_BIN) ./files/dpi-config $(1)/usr/sbin/
 	$(INSTALL_BIN) ./files/dpi-update $(1)/usr/sbin/
+	$(INSTALL_BIN) ./files/dpi-license-update.py $(1)/usr/sbin/dpi-license-update
 	$(INSTALL_CONF) ./files/20_dpi $(1)/etc/uci-defaults
 	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/register
 	$(INSTALL_BIN) ./files/70dpi $(1)/usr/share/ns-plug/hooks/unregister/
