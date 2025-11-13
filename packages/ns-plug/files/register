@@ -78,6 +78,7 @@ uci set ns-plug.config.system_id="$system_id"
 uci set ns-plug.config.secret="$secret"
 uci set ns-plug.config.repository_url="https://$system_id:$secret@distfeed.nethesis.it/repository/$type/nethsecurity"
 uci commit ns-plug
+reload_config
 # Register the machine by sending the inventory for the first time
 send-inventory
 send-heartbeat
