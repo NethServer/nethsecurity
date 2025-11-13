@@ -54,15 +54,31 @@ def save_license(content: str) -> None:
 
     if license_updated:
         # Reload netifyd to reload the license
-        subprocess.run(["/etc/init.d/netifyd", "reload"], check=True, capture_output=True)
+        subprocess.run(
+            ["/etc/init.d/netifyd", "reload"], check=True, capture_output=True
+        )
 
 
 def download_license() -> str:
     s = Session()
-    retries = Retry(backoff_factor=0.1, status_forcelist=range(500, 600))
+    retries = Retry(
+        total=20, backoff_factor=0.1, status_forcelist=range(500, 600), backoff_max=30
+    )
     s.mount(LICENSE_SERVER_ENDPOINT, HTTPAdapter(max_retries=retries))
     s.headers.update({"Accept": "application/json"})
     path = LICENSE_FREE_ENDPOINT
+    e_uci = EUci()
+    subscription = e_uci.get('ns-plug', 'config', 'type', dtype=str, default=None)
+    if subscription is not None:
+        s.auth = (
+            e_uci.get('ns-plug', 'config', 'system_id', dtype=str, default=''),
+            e_uci.get('ns-plug', 'config', 'secret', dtype=str, default=''),
+        )
+        if subscription == 'community':
+            path = LICENSE_COMMUNITY_ENDPOINT
+        elif subscription == 'enterprise':
+            path = LICENSE_ENTERPRISE_ENDPOINT
+
     response = s.get(LICENSE_SERVER_ENDPOINT + path, timeout=5)
     response.raise_for_status()
     return response.text
