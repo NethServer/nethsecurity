@@ -101,6 +101,22 @@ def is_license_valid() -> bool:
     try:
         with open(__license_location(), "r") as f:
             json_status = json.load(f)
+            issued_to = json_status.get("issued_to", "")
+            e_uci = EUci()
+            subscription = e_uci.get(
+                "ns-plug", "config", "type", dtype=str, default=None
+            )
+            if subscription is not None and "Enterprise" not in issued_to:
+                logging.warning(
+                    f"License type mismatch: expected Enterprise, got {issued_to}"
+                )
+                return False
+            elif "Community" not in issued_to:
+                logging.warning(
+                    f"License type mismatch: expected Community, got {issued_to}"
+                )
+                return False
+
             expire_at = json_status.get("expire_at", {})
             unix_expiration = expire_at.get("unix", 0)
             current_time = int(time.time())
