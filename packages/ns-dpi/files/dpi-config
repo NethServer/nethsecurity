@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 #
-# Copyright (C) 2022 Nethesis S.r.l.
+# Copyright (C) 2025 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
@@ -26,17 +26,28 @@ def get_interface_ips(interface):
 
     return ret
 
-cfg_file = "/etc/netify.d/netify-flow-actions.json"
+cfg_file = "/etc/netifyd/netify-proc-flow-actions.json"
 config = {
-    "version": 1,
-    "targets": {},
-    "target_defaults": {},
-    "target_globals": {
-        "ctlabel": {
-            "max_bits": 127,
-            "connlabel_conf": "/etc/xtables/connlabel.conf"
-            }
-        },
+    "reprocess_flows": True,
+    "targets": {
+        "block": {
+            "target_type": "nftset",
+            "target_enabled": True,
+            "table_name": "fw4",
+            "table_family": "inet",
+            "size": 65535,
+            "ttl": 900,
+            "set_name": "nfa.blocks",
+            "set_family": "ipv4",
+            "flush_on_create": True,
+            "type": [
+                "local_addr",
+                "ip_proto",
+                "other_port",
+                "other_addr"
+            ]
+        }
+    },
     "actions": {},
     "exemptions": []
 }
@@ -64,7 +75,7 @@ for ex_name in exemptions:
             config["exemptions"].append(criteria)
 
 rcount = 0
-valid_actions = ['block', 'bulk', 'best_effort', 'video', 'voice']
+valid_actions = ['block']
 for section in u.get_all('dpi'):
     if u.get('dpi', section) != 'rule':
         continue
@@ -121,10 +132,6 @@ for section in u.get_all('dpi'):
         "criteria": criteria,
         "targets": [rule['action']],
         "exemptions": rule.get('exemption', [])
-    }
-    config["targets"][rule['action']] = {
-        "target_type": "ctlabel",
-        "labels": [rule['action']]
     }
     rcount = rcount + 1
 

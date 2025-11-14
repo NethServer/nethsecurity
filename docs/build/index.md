@@ -71,20 +71,17 @@ The `build-nethsec.sh` script behavior can be changed by giving the following en
 - `NETHSECURITY_VERSION`: specify what to call the NethSecurity image; **required**
 - `TARGET`: specify the target to build; if not set default is `x86_64`
 - `REPO_CHANNEL`: specify the channel to publish the image to; if not set default is `dev`
-- `NETIFYD_ENABLED`: configure if netifyd plugins should be downloaded and compiled; if not set, default is `0` (disabled)
-- `NETIFYD_ACCESS_TOKEN`: token to download the netifyd plugins; if not set, default is empty, required if `NETIFYD_ENABLED` is set to `1`
 - `USIGN_PUB_KEY` and `USIGN_PRIV_KEY`: see [package signing section](#package-signing)
    with the given keys
 
-The `USIGN_PUB_KEY`, `USIGN_PRIV_KEY` and `NETIFYD_ACCESS_TOKEN` variables are always set as secrets
-inside the CI pipeline, but for [security reasons](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#accessing-secrets)
+The `USIGN_PUB_KEY`, `USIGN_PRIV_KEY` variables are always set as secrets inside the CI pipeline, but 
+for [security reasons](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#accessing-secrets)
 they are not accessible when building pull requests from forks.
 
 ### Build locally for a release
 
 If you need to build some packages locally for a release, make sure the following environment variables are set:
 - `USIGN_PUB_KEY` and `USIGN_PRIV_KEY`: refer to the [package signing section](#package-signing) for more info
-- `NETIFYD_ENABLED` and `NETIFYD_ACCESS_TOKEN`: required to download and compile netifyd closed source plugins
 
 Then execute the build as described in the [Build locally](#build-locally) section.
 
@@ -281,20 +278,6 @@ USIGN_PUB_KEY=$(cat nethsecurity-pub.key) USIGN_PRIV_KEY=$(cat nethsecurity-priv
 Or you can have the keys as two files named `key-build` and `key-build.pub` in the root of the repository. They will be automatically used by the build script.
 
 Builds executed inside CI will sign the packages with the correct key.
-
-### Netifyd plugins
-
-NethSecurity uses two [netifyd](https://gitlab.com/netify.ai/public/netify-agent) proprietary plugins from [Netify](https://www.netify.ai/):
-
-- Netify Flow Actions Plugin (netify-flow-actions)
-- Netify Agent Stats Plugin (netify-plugin-stats)
-
-The plugins should be used with the latest netifyd stable version (4.4.3 at the time of writing).
-To create the files for the build, follow the steps below. Such steps should be needed only after a netifyd/plugin version change.
-
-Both plugins source code is hosted on a private repository at [GitLab](https://gitlab.com).
-To access it, you must set `NETIFYD_ENABLED=1` and provide a personal access token with read access to the private repositories. And then `NETIFYD_ACCESS_TOKEN` environment variable must be set to the token value.
-
 
 ## Self-hosted runner
 

@@ -1,0 +1,14 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+#
+# DPI License Renewal: Add cron job if missing
+#
+
+if ! grep -q '/etc/init.d/dpi-license-update' /etc/crontabs/root; then
+    echo '*/10 * * * * sleep $(( RANDOM % 120 )); /etc/init.d/dpi-license-update start' >> /etc/crontabs/root
+fi

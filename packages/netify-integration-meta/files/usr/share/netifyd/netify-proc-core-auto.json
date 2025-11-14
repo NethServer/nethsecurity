@@ -1,0 +1,12 @@
+{
+    "format": "json",
+    "compressor": "gz",
+    "sinks": {
+        "sink-http-auto": {
+            "informatics-http": {
+                "enable": true,
+                "types": [ "legacy-http" ]
+            }
+        }
+    }
+}
