@@ -128,8 +128,10 @@ def __setup(enabled, set_home_net=False, include_vpn=False, ns_policy='balanced'
 
     # always set the number of threads to the number of CPUs
     # if the hardware changes, a new setup is required
-    uci.set('snort', 'nfq', 'queue_count', str(os.cpu_count()))
-    uci.set('snort', 'nfq', 'thread_count', str(os.cpu_count()))
+    # limit to 16 cores if more than 16 CPUs are available
+    cpu_count = min(os.cpu_count(), 16)
+    uci.set('snort', 'nfq', 'queue_count', str(cpu_count))
+    uci.set('snort', 'nfq', 'thread_count', str(cpu_count))
 
     if set_home_net:
         uci.set('snort', 'snort', 'home_net', get_snort_homenet(uci, include_vpn))
