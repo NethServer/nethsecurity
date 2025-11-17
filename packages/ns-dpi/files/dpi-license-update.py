@@ -19,9 +19,9 @@ from os import environ
 
 # FIXME: use proper server address
 LICENSE_SERVER_ENDPOINT = "http://192.168.100.1:8080"
-LICENSE_FREE_ENDPOINT = "/api/netifyd/licence"
-LICENSE_COMMUNITY_ENDPOINT = "/api/netifyd/community/licence"
-LICENSE_ENTERPRISE_ENDPOINT = "/api/netifyd/enterprise/licence"
+LICENSE_FREE_ENDPOINT = "/api/netifyd/license"
+LICENSE_COMMUNITY_ENDPOINT = "/api/netifyd/community/license"
+LICENSE_ENTERPRISE_ENDPOINT = "/api/netifyd/enterprise/license"
 LICENSE_DISK_LOCATION = "/etc/netifyd"
 LICENSE_NAME = "license.json"
 LICENSE_DEFAULT_LOCATION = LICENSE_DISK_LOCATION + "/" + LICENSE_NAME
