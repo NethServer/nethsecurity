@@ -137,10 +137,8 @@ def __save(pending_changes: bool):
             if pending_dhcp:
                 subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': 'dhcp'})], check=True)
             if pending_firewall:
-                # reload the firewall if changes are there, this is done cause sets are not reloaded correctly after the
-                # commit this 100% needs to be fixed upstream.
-                e_uci.commit('firewall')
-                subprocess.run(['fw4', 'restart'], capture_output=True)
+                subprocess.run(['ubus', 'call', 'uci', 'commit', json.dumps({'config': 'firewall'})], check=True)
+                subprocess.run(['fw4', 'reload-sets'], capture_output=True)
 
 
 def __add_bypass_ipset():
