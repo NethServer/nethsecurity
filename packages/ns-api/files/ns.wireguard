@@ -105,10 +105,7 @@ def get_instance_defaults():
     for i in interfaces:
         interface = interfaces[i]
         if interface.get("proto") == "wireguard":
-            addr = u.get("network", i, "addresses", default="")
-            if addr:
-                net = ipaddress.IPv4Network(addr)
-                used_networks.append(str(net))
+            used_networks.append(u.get("network", i, "ns_network", default=""))
     network = ovpn.random_network()
     while network in used_networks:
         network = ovpn.get_random_network()
@@ -185,7 +182,9 @@ def get_peer_defaults(args):
     peers = __list_peers(args['instance'])
     for peer in peers:
         taken_ips.add(peer['reserved_ip'])
-    taken_ips.add(e_uci.get('network', args['instance'], 'addresses', list=True, dtype=str)[0])
+    addresses = e_uci.get('network', args['instance'], 'addresses', list=True, dtype=str, default=[])
+    for addr in addresses:
+        taken_ips.add(addr.split('/')[0])
     reserved_ip = None
     for ip in server_network.hosts():
         if str(ip) not in taken_ips:
