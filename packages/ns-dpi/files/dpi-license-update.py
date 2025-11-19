@@ -17,8 +17,7 @@ import time
 from os import environ
 
 
-# FIXME: use proper server address
-LICENSE_SERVER_ENDPOINT = "http://192.168.100.1:8080"
+LICENSE_SERVER_ENDPOINT = "https://distfeed.nethesis.it"
 LICENSE_FREE_ENDPOINT = "/api/netifyd/license"
 LICENSE_COMMUNITY_ENDPOINT = "/api/netifyd/community/license"
 LICENSE_ENTERPRISE_ENDPOINT = "/api/netifyd/enterprise/license"
@@ -27,43 +26,20 @@ LICENSE_NAME = "license.json"
 LICENSE_DEFAULT_LOCATION = LICENSE_DISK_LOCATION + "/" + LICENSE_NAME
 
 
-def __license_location() -> str:
-    e_uci = EUci()
-    storage_location = e_uci.get("fstab", "ns_data", "target", default=None, dtype=str)
-    if storage_location is None:
-        location = LICENSE_DEFAULT_LOCATION
-    else:
-        location = storage_location + "/" + LICENSE_NAME
-
-    return location
-
-
 def save_license(content: str) -> None:
-    location = __license_location()
-    logging.debug(f"Storage location: {location}")
-    if os.path.exists(location):
+    if os.path.exists(LICENSE_DEFAULT_LOCATION):
         logging.debug("File exists, checking if update is needed")
-        with open(location, "r") as f:
+        with open(LICENSE_DEFAULT_LOCATION, "r") as f:
             if f.read() == content:
                 logging.debug("License is up to date, no action needed")
                 return
 
-    # if the location is symlink, remove it first
-    if os.path.islink(location):
-        logging.warning("Location is a symlink, removing it first")
-        os.remove(location)
     # save the new license
     license_updated = False
-    with open(location, "w") as f:
+    with open(LICENSE_DEFAULT_LOCATION, "w") as f:
         f.write(content)
         logging.info("License updated")
         license_updated = True
-
-    # If we saved in the storage location, symlink to the default location
-    if location != LICENSE_DEFAULT_LOCATION:
-        if os.path.exists(LICENSE_DEFAULT_LOCATION):
-            os.remove(LICENSE_DEFAULT_LOCATION)
-        os.symlink(location, LICENSE_DEFAULT_LOCATION)
 
     if license_updated:
         logging.debug("Reloading netifyd service")
@@ -99,7 +75,7 @@ def download_license() -> str:
 
 def is_license_valid() -> bool:
     try:
-        with open(__license_location(), "r") as f:
+        with open(LICENSE_DEFAULT_LOCATION, "r") as f:
             json_status = json.load(f)
             issued_to = json_status.get("issued_to", "")
             e_uci = EUci()
