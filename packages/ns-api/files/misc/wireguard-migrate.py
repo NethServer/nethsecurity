@@ -59,6 +59,8 @@ def fix_addresses():
                         fixed_addresses.append(first_address + "/" + str(interface_network.prefixlen))
                     except Exception:
                         fixed_addresses.append(address)
+                else:
+                    fixed_addresses.append(address)
             e_uci.set("network", wg_id, "addresses", fixed_addresses)
 
     e_uci.save("network")
