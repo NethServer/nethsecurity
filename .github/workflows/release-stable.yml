@@ -27,7 +27,7 @@ jobs:
       RCLONE_CONFIG_SPACES_ENDPOINT: ams3.digitaloceanspaces.com
       RCLONE_CONFIG_SPACES_ACL: public-read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Extract versions
         id: versions
         run: |
