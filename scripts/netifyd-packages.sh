@@ -15,9 +15,9 @@ if [ -z "$PACKAGES" ]; then
     exit 1
 fi
 
-FEED="${BASE}/netify-integration-meta"
+FEED="${BASE}/netifyd"
 if [ -d "${FEED}/files" ]; then
-    FEED="${BASE}/netify-integration-meta.new"
+    FEED="${BASE}/netifyd.new"
 fi
 
 mkdir -vp "${FEED}/files"
@@ -37,7 +37,7 @@ DIRS=$(find . -type d | sed -e 's/^\.//' | sort)
 FILES=$(find . -type f | sed -e 's/^\.//' | sort)
 LINKS=$(find . -type l | sed -e 's/^\.//' | sort)
 
-echo -e "\ndefine Package/netify-integration-meta/install"
+echo -e "\ndefine Package/netifyd/install"
 
 for DIR in $DIRS; do
     echo -e "\t\$(INSTALL_DIR) \$(1)$DIR"

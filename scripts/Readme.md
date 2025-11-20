@@ -99,7 +99,7 @@ This script retrieves open issues labeled "testing" from the NethServer/nethsecu
 
 ## netifyd-packages.sh
 
-This scripts pulls the `.ipk` packages from the `netifyd-ipks` directory, unpacks them and puts the files inside the `netify-integration-meta` package. This script is useful when an update of `netifyd` requires changes in the integration meta package.
+This scripts pulls the `.ipk` packages from the `netifyd-ipks` directory, unpacks them and puts the files inside the `netifyd` package. This script is useful when an update of `netifyd` requires changes in the integration meta package.
 
 ### Usage
 
@@ -107,4 +107,4 @@ This scripts pulls the `.ipk` packages from the `netifyd-ipks` directory, unpack
 ./netifyd-packages.sh
 ```
 
-All process will be handled by the script, there will be an output that lists the files that were being copied in the process, this output needs to be copied and pasted inside the `packages/netify-integration-meta/Makefile` file, inside the `define Package/netify-integration-meta/install` section.
+All process will be handled by the script, there will be an output that lists the files that were being copied in the process, this output needs to be copied and pasted inside the `packages/netifyd/Makefile` file, inside the `define Package/netifyd/install` section.
