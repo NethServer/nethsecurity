@@ -1,16 +1,14 @@
-# Netify Integration Meta Package
-
 include $(TOPDIR)/rules.mk
 
-PKG_NAME:=netify-integration-meta
-PKG_VERSION:=1.0.0
+PKG_NAME:=netifyd
+PKG_VERSION:=2025-10-01-v5.1.25
 PKG_RELEASE:=1
 PKG_MAINTAINER:=Darryl Sokoloski <darryl@egloo.ca>
 PKG_LICENSE:=Unlicensed
 
 include $(INCLUDE_DIR)/package.mk
 
-define Package/netify-integration-meta
+define Package/netifyd
 	SECTION:=admin
 	CATEGORY:=Administration
 	TITLE:=Netify Binary Integration Package
@@ -44,7 +42,7 @@ define Package/netify-integration-meta
 	USERID:=netify:netify
 endef
 
-define Package/netify-integration-meta/description
+define Package/netifyd/description
 This is a binary meta package containing precompiled Netify files.
 endef
 
@@ -56,7 +54,7 @@ define Build/Compile
 	true
 endef
 
-define Package/netify-integration-meta/conffiles
+define Package/netifyd/conffiles
 /etc/config/netifyd
 /etc/netifyd.conf
 /etc/netifyd/agent.uuid
@@ -64,7 +62,7 @@ define Package/netify-integration-meta/conffiles
 /etc/netifyd/netify-categories.json
 endef
 
-define Package/netify-integration-meta/install
+define Package/netifyd/install
 	$(INSTALL_DIR) $(1)/etc
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DIR) $(1)/etc/init.d
@@ -131,4 +129,4 @@ define Package/netify-integration-meta/install
 	$(LN) /usr/lib/libnetify-sink-socket.so.0.0.0 $(1)/usr/lib/libnetify-sink-socket.so.0
 endef
 
-$(eval $(call BuildPackage,netify-integration-meta))
+$(eval $(call BuildPackage,netifyd))
