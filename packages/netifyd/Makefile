@@ -15,10 +15,11 @@ define Package/netifyd
 	URL:=https://netify.ai/
 	DEPENDS:= \
 		+ca-bundle \
-		+kmod-nft-bridge \
-		+kmod-nft-queue \
+		+kmod-ipt-conntrack-label \
+		+kmod-ipt-ipset \
 		+libatomic \
 		+libblobmsg-json \
+		+libc \
 		+libcap \
 		+libcurl \
 		+libgcrypt \
@@ -26,7 +27,6 @@ define Package/netifyd
 		+libipset \
 		+libjson-c \
 		+libmnl \
-		+libmosquitto-ssl \
 		+libnetfilter-conntrack \
 		+libnetfilter-queue \
 		+libopenssl \
