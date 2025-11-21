@@ -7,7 +7,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=ns-dpi
-PKG_VERSION:=0.1.0
+PKG_VERSION:=0.2.0
 PKG_RELEASE:=1
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-dpi-$(PKG_VERSION)
@@ -22,8 +22,8 @@ define Package/ns-dpi
 	CATEGORY:=NethSecurity
 	TITLE:=DPI rules
 	URL:=https://github.com/NethServer/nethsecurity/
-	DEPENDS:=+kmod-ipt-conntrack-label \
-		+micrond \
+	DEPENDS:= \
+		+kmod-ipt-conntrack-label \
 		+netifyd
 	PKGARCH:=all
 endef
@@ -35,9 +35,8 @@ endef
 define Package/ns-dpi/postinst
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
-  (. /etc/uci-defaults/20_dpi)
-  rm -f /etc/uci-defaults/20_dpi
   /etc/init.d/cron restart
+  /etc/init.d/dpi-license-update start
 fi
 exit 0
 endef

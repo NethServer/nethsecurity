@@ -36,6 +36,8 @@ def save_license(content: str) -> None:
 
     # save the new license
     license_updated = False
+    if not os.path.exists(LICENSE_DISK_LOCATION):
+        os.makedirs(LICENSE_DISK_LOCATION)
     with open(LICENSE_DEFAULT_LOCATION, "w") as f:
         f.write(content)
         logging.info("License updated")
