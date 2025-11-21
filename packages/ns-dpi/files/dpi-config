@@ -8,6 +8,7 @@
 from euci import EUci
 import json
 import subprocess
+import os
 from nethsec import utils, objects
 
 def get_interface_ips(interface):
@@ -135,5 +136,8 @@ for section in u.get_all('dpi'):
     }
     rcount = rcount + 1
 
+# if directories do not exist, create them
+if not os.path.exists(os.path.dirname(cfg_file)):
+    os.makedirs(os.path.dirname(cfg_file))
 with open(cfg_file, 'w') as fp:
     json.dump(config, fp)

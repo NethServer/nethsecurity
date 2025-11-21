@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=netifyd
-PKG_VERSION:=2025-10-01-v5.1.25
+PKG_VERSION:=2025.10.01-5.1.25
 PKG_RELEASE:=1
 PKG_MAINTAINER:=Darryl Sokoloski <darryl@egloo.ca>
 PKG_LICENSE:=Unlicensed
@@ -43,7 +43,7 @@ define Package/netifyd
 endef
 
 define Package/netifyd/description
-This is a binary meta package containing precompiled Netify files.
+Netifyd meta package compiled for NethSecurity 8.
 endef
 
 define Build/Configure
