@@ -6,10 +6,13 @@
 #
 
 #
-# DPI: remove premium signatures, restore the ones from the rom
+# DPI: remove premium signatures, restore the ones from the rom if there are any
 #
 
 rm -f /etc/netifyd/{netify-categories.json,netify-apps.conf}
-cp /rom/etc/netifyd/{netify-categories.json,netify-apps.conf} /etc/netifyd/
+
+if [ -d /rom/etc/netifyd ]; then
+  cp /rom/etc/netifyd/{netify-categories.json,netify-apps.conf} /etc/netifyd/
+fi
 
 /etc/init.d/netifyd reload
