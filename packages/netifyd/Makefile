@@ -1,122 +1,132 @@
-#
-# Copyright (C) 2016-2022 eGloo Incorporated
-#
-# This is free software, licensed under the GNU General Public License v2.
-
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=netifyd
+PKG_VERSION:=2025.10.01-5.1.25
 PKG_RELEASE:=1
 PKG_MAINTAINER:=Darryl Sokoloski <darryl@egloo.ca>
-PKG_LICENSE:=GPL-3.0-or-later
-
-PKG_BUILD_PARALLEL:=1
-PKG_FIXUP:=autoreconf
-PKG_INSTALL:=1
-PKG_BUILD_FLAGS:=gc-sections
-
-PKG_SOURCE_PROTO:=git
-PKG_SOURCE_URL:=https://gitlab.com/netify.ai/public/netify-agent.git
-PKG_SOURCE_DATE:=2025-08-01
-PKG_SOURCE_VERSION:=4d8d92104e694db3115a1615106022fc28aaed0f
-PKG_MIRROR_HASH:=whatever
-
-PKG_CONFIG_DEPENDS:= \
-	CONFIG_NETIFYD_BUILD_SHARED_LIBRARY \
-	CONFIG_NETIFYD_WITH_LOCAL_LIBGCRYPT
+PKG_LICENSE:=Unlicensed
 
 include $(INCLUDE_DIR)/package.mk
 
 define Package/netifyd
-  SECTION:=net
-  CATEGORY:=Network
-  TITLE:=Netify Agent
-  URL:=http://www.netify.ai/
-  DEPENDS:=+ca-bundle +libatomic +libcurl +libmnl +libnetfilter-conntrack +libpcap +zlib +libpthread @!USE_UCLIBC
-  # Explicitly depend on libstdcpp rather than $(CXX_DEPENDS).  At the moment
-  # std::unordered_map is only available via libstdcpp which is required for
-  # performance reasons.
-  DEPENDS+=+libstdcpp
-  DEPENDS+=+NETIFYD_WITH_LOCAL_LIBGCRYPT:libgcrypt
+	SECTION:=admin
+	CATEGORY:=Administration
+	TITLE:=Netify Binary Integration Package
+	URL:=https://netify.ai/
+	DEPENDS:= \
+		+ca-bundle \
+		+kmod-ipt-conntrack-label \
+		+kmod-ipt-ipset \
+		+libatomic \
+		+libblobmsg-json \
+		+libc \
+		+libcap \
+		+libcurl \
+		+libgcrypt \
+		+libgpg-error \
+		+libipset \
+		+libjson-c \
+		+libmnl \
+		+libnetfilter-conntrack \
+		+libnetfilter-queue \
+		+libopenssl \
+		+libpcap \
+		+libpthread \
+		+libstdcpp \
+		+libubox \
+		+libubus \
+		+libuci \
+		+nftables \
+		+zlib \
+		+zoneinfo-core
+	USERID:=netify:netify
 endef
 
 define Package/netifyd/description
-The Netify Agent is a deep-packet inspection server which detects network
-protocols and applications.  These detections can be saved locally, served over
-a UNIX or TCP socket, and/or "pushed" (via HTTP POSTs) to a remote third-party
-server.  Flow metadata, network statistics, and detection classifications are
-JSON encoded for easy consumption by third-party applications.
+Netifyd meta package compiled for NethSecurity 8.
 endef
 
-define Package/netifyd/config
-	source "$(SOURCE)/Config.in"
+define Build/Configure
+	true
+endef
+
+define Build/Compile
+	true
 endef
 
 define Package/netifyd/conffiles
-/etc/netifyd.conf
 /etc/config/netifyd
-/etc/netify.d/agent.uuid
-/etc/netify.d/serial.uuid
-/etc/netify.d/site.uuid
-endef
-
-TARGET_CFLAGS+=-Wno-psabi
-TARGET_CXXFLAGS+=-std=c++11 -Wno-psabi
-
-CONFIGURE_ARGS+= \
-	$(if $(CONFIG_NETIFYD_BUILD_SHARED_LIBRARY),--enable-shared,--disable-shared) \
-	$(if $(CONFIG_NETIFYD_WITH_LOCAL_LIBGCRYPT),--with-local-libgcrypt,--without-local-libgcrypt) \
-	--sharedstatedir=/var/run \
-	--enable-lean-and-mean \
-	--disable-libtcmalloc \
-	--disable-jemalloc \
-	--without-systemdsystemunitdir \
-	--without-tmpfilesdir
-
-# Disable configuration file-watch support (deprecated feature).
-# Not to be confused with kernel/system-level inotify support.
-CONFIGURE_ARGS+= \
-	--disable-inotify
-
-ifneq ($(CONFIG_LIBCURL_ZLIB),y)
-CONFIGURE_ARGS+= \
-	--without-libcurl-zlib
-endif
-
-define Build/InstallDev
-	$(INSTALL_DIR) $(1)/usr/include/netifyd
-	$(CP) $(PKG_INSTALL_DIR)/usr/include/netifyd/*.h $(1)/usr/include/netifyd
-	$(INSTALL_DIR) $(1)/usr/include/netifyd/pcap-compat
-	$(CP) $(PKG_INSTALL_DIR)/usr/include/netifyd/pcap-compat/*.h $(1)/usr/include/netifyd/pcap-compat
-	$(INSTALL_DIR) $(1)/usr/include/netifyd/nlohmann
-	$(CP) $(PKG_INSTALL_DIR)/usr/include/netifyd/nlohmann/*.hpp $(1)/usr/include/netifyd/nlohmann
-	$(INSTALL_DIR) $(1)/usr/include/netifyd/radix
-	$(CP) $(PKG_INSTALL_DIR)/usr/include/netifyd/radix/*.hpp $(1)/usr/include/netifyd/radix
-	$(INSTALL_DIR) $(1)/usr/include/ndpi
-	$(CP) $(PKG_INSTALL_DIR)/usr/include/ndpi/*.h $(1)/usr/include/ndpi
-	$(INSTALL_DIR) $(1)/usr/lib
-	$(CP) $(PKG_INSTALL_DIR)/usr/lib/libnetifyd.a $(1)/usr/lib
-	$(if $(CONFIG_NETIFYD_BUILD_SHARED_LIBRARY),$(CP) $(PKG_INSTALL_DIR)/usr/lib/libnetifyd.so.* $(1)/usr/lib,)
-	$(INSTALL_DIR) $(1)/usr/lib/pkgconfig
-	$(INSTALL_DATA) $(PKG_INSTALL_DIR)/usr/lib/pkgconfig/libnetifyd.pc $(1)/usr/lib/pkgconfig
+/etc/netifyd.conf
+/etc/netifyd/agent.uuid
+/etc/netifyd/netify-apps.conf
+/etc/netifyd/netify-categories.json
 endef
 
 define Package/netifyd/install
 	$(INSTALL_DIR) $(1)/etc
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/deploy/netifyd.conf $(1)/etc
 	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_CONF) ./files/netifyd.config $(1)/etc/config/netifyd
 	$(INSTALL_DIR) $(1)/etc/init.d
-	$(INSTALL_BIN) ./files/netifyd.init $(1)/etc/init.d/netifyd
-	$(INSTALL_DIR) $(1)/usr/sbin
-	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/sbin/netifyd $(1)/usr/sbin
+	$(INSTALL_DIR) $(1)/etc/netifyd
+	$(INSTALL_DIR) $(1)/etc/netifyd/categories.d
+	$(INSTALL_DIR) $(1)/etc/netifyd/interfaces.d
+	$(INSTALL_DIR) $(1)/etc/netifyd/plugins.d
+	$(INSTALL_DIR) $(1)/etc/netifyd/profiles.d
+	$(INSTALL_DIR) $(1)/etc/uci-defaults
+	$(INSTALL_DIR) $(1)/usr
 	$(INSTALL_DIR) $(1)/usr/lib
-	$(if $(CONFIG_NETIFYD_BUILD_SHARED_LIBRARY),$(CP) $(PKG_INSTALL_DIR)/usr/lib/libnetifyd.so.* $(1)/usr/lib,)
-	$(INSTALL_DIR) $(1)/etc/netify.d
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/deploy/netify-apps.conf $(1)/etc/netify.d
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/deploy/netify-categories.json $(1)/etc/netify.d
+	$(INSTALL_DIR) $(1)/usr/sbin
+	$(INSTALL_DIR) $(1)/usr/share
 	$(INSTALL_DIR) $(1)/usr/share/netifyd
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/deploy/functions.sh $(1)/usr/share/netifyd
+	$(INSTALL_DIR) $(1)/usr/share/netifyd/plugins.d
+	$(INSTALL_DIR) $(1)/usr/share/nftables.d/table-pre
+	$(INSTALL_DATA) ./files/etc/config/netifyd $(1)/etc/config/netifyd
+	$(INSTALL_BIN) ./files/etc/init.d/netifyd $(1)/etc/init.d/netifyd
+	$(INSTALL_DATA) ./files/etc/netifyd.conf $(1)/etc/netifyd.conf
+	$(INSTALL_DATA) ./files/etc/netifyd/interfaces.d/10-example-nfq.conf $(1)/etc/netifyd/interfaces.d/10-example-nfq.conf
+	$(INSTALL_DATA) ./files/etc/netifyd/interfaces.d/10-example-pcap.conf $(1)/etc/netifyd/interfaces.d/10-example-pcap.conf
+	$(INSTALL_DATA) ./files/etc/netifyd/interfaces.d/10-example-tpv3.conf $(1)/etc/netifyd/interfaces.d/10-example-tpv3.conf
+	$(INSTALL_DATA) ./files/etc/netifyd/netify-apps.conf $(1)/etc/netifyd/netify-apps.conf
+	$(INSTALL_DATA) ./files/etc/netifyd/netify-categories.json $(1)/etc/netifyd/netify-categories.json
+	$(INSTALL_DATA) ./files/etc/netifyd/netify-proc-aggregator.json $(1)/etc/netifyd/netify-proc-aggregator.json
+	$(INSTALL_DATA) ./files/etc/netifyd/netify-proc-core.json $(1)/etc/netifyd/netify-proc-core.json
+	$(INSTALL_DATA) ./files/etc/netifyd/netify-proc-flow-actions.json $(1)/etc/netifyd/netify-proc-flow-actions.json
+	$(INSTALL_DATA) ./files/etc/netifyd/netify-sink-http.json $(1)/etc/netifyd/netify-sink-http.json
+	$(INSTALL_DATA) ./files/etc/netifyd/netify-sink-log.json $(1)/etc/netifyd/netify-sink-log.json
+	$(INSTALL_DATA) ./files/etc/netifyd/netify-sink-socket.json $(1)/etc/netifyd/netify-sink-socket.json
+	$(INSTALL_DATA) ./files/etc/netifyd/plugins.d/10-netify-proc-aggregator.conf $(1)/etc/netifyd/plugins.d/10-netify-proc-aggregator.conf
+	$(INSTALL_DATA) ./files/etc/netifyd/plugins.d/10-netify-proc-core.conf $(1)/etc/netifyd/plugins.d/10-netify-proc-core.conf
+	$(INSTALL_DATA) ./files/etc/netifyd/plugins.d/10-netify-proc-flow-actions.conf $(1)/etc/netifyd/plugins.d/10-netify-proc-flow-actions.conf
+	$(INSTALL_DATA) ./files/etc/netifyd/plugins.d/10-netify-sink-http.conf $(1)/etc/netifyd/plugins.d/10-netify-sink-http.conf
+	$(INSTALL_DATA) ./files/etc/netifyd/plugins.d/10-netify-sink-log.conf $(1)/etc/netifyd/plugins.d/10-netify-sink-log.conf
+	$(INSTALL_DATA) ./files/etc/netifyd/plugins.d/10-netify-sink-socket.conf $(1)/etc/netifyd/plugins.d/10-netify-sink-socket.conf
+	$(INSTALL_DATA) ./files/etc/netifyd/profiles.d/00-default.conf $(1)/etc/netifyd/profiles.d/00-default.conf
+	$(INSTALL_BIN) ./files/etc/uci-defaults/99-netify-v4-migrate.uci-default $(1)/etc/uci-defaults/99-netify-v4-migrate
+	$(INSTALL_BIN) ./files/usr/lib/libnetifyd.so.4.0.0 $(1)/usr/lib/libnetifyd.so.4.0.0
+	$(INSTALL_BIN) ./files/usr/lib/libnetify-plm.so.1.0.0 $(1)/usr/lib/libnetify-plm.so.1.0.0
+	$(INSTALL_BIN) ./files/usr/lib/libnetify-proc-aggregator.so.0.0.0 $(1)/usr/lib/libnetify-proc-aggregator.so.0.0.0
+	$(INSTALL_BIN) ./files/usr/lib/libnetify-proc-core.so.0.0.0 $(1)/usr/lib/libnetify-proc-core.so.0.0.0
+	$(INSTALL_BIN) ./files/usr/lib/libnetify-proc-flow-actions.so.0.0.0 $(1)/usr/lib/libnetify-proc-flow-actions.so.0.0.0
+	$(INSTALL_BIN) ./files/usr/lib/libnetify-sink-http.so.0.0.0 $(1)/usr/lib/libnetify-sink-http.so.0.0.0
+	$(INSTALL_BIN) ./files/usr/lib/libnetify-sink-log.so.0.0.0 $(1)/usr/lib/libnetify-sink-log.so.0.0.0
+	$(INSTALL_BIN) ./files/usr/lib/libnetify-sink-socket.so.0.0.0 $(1)/usr/lib/libnetify-sink-socket.so.0.0.0
+	$(INSTALL_BIN) ./files/usr/sbin/netifyd $(1)/usr/sbin/netifyd
+	$(INSTALL_DATA) ./files/usr/share/netifyd/functions.sh $(1)/usr/share/netifyd/functions.sh
+	$(INSTALL_DATA) ./files/usr/share/netifyd/netify-apps.conf $(1)/usr/share/netifyd/netify-apps.conf
+	$(INSTALL_DATA) ./files/usr/share/netifyd/netify-categories.json $(1)/usr/share/netifyd/netify-categories.json
+	$(INSTALL_DATA) ./files/usr/share/netifyd/netify-proc-core-auto.json $(1)/usr/share/netifyd/netify-proc-core-auto.json
+	$(INSTALL_DATA) ./files/usr/share/netifyd/netify-sink-http-auto.json $(1)/usr/share/netifyd/netify-sink-http-auto.json
+	$(INSTALL_DATA) ./files/usr/share/netifyd/plugins.d/99-netify-proc-core-auto.conf $(1)/usr/share/netifyd/plugins.d/99-netify-proc-core-auto.conf
+	$(INSTALL_DATA) ./files/usr/share/netifyd/plugins.d/99-netify-sink-http-auto.conf $(1)/usr/share/netifyd/plugins.d/99-netify-sink-http-auto.conf
+	$(INSTALL_DATA) ./files/usr/share/nftables.d/table-pre/10-netifyd.nft $(1)/usr/share/nftables.d/table-pre/10-netifyd.nft
+	$(LN) /usr/lib/libnetifyd.so.4.0.0 $(1)/usr/lib/libnetifyd.so
+	$(LN) /usr/lib/libnetifyd.so.4.0.0 $(1)/usr/lib/libnetifyd.so.4
+	$(LN) /usr/lib/libnetify-plm.so.1.0.0 $(1)/usr/lib/libnetify-plm.so.1
+	$(LN) /usr/lib/libnetify-proc-aggregator.so.0.0.0 $(1)/usr/lib/libnetify-proc-aggregator.so.0
+	$(LN) /usr/lib/libnetify-proc-core.so.0.0.0 $(1)/usr/lib/libnetify-proc-core.so.0
+	$(LN) /usr/lib/libnetify-proc-flow-actions.so.0.0.0 $(1)/usr/lib/libnetify-proc-flow-actions.so.0
+	$(LN) /usr/lib/libnetify-sink-http.so.0.0.0 $(1)/usr/lib/libnetify-sink-http.so.0
+	$(LN) /usr/lib/libnetify-sink-log.so.0.0.0 $(1)/usr/lib/libnetify-sink-log.so.0
+	$(LN) /usr/lib/libnetify-sink-socket.so.0.0.0 $(1)/usr/lib/libnetify-sink-socket.so.0
 endef
 
 $(eval $(call BuildPackage,netifyd))

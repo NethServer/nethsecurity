@@ -20,8 +20,6 @@ OWRT_VERSION=${OWRT_VERSION:?Missing OWRT_VERSION environment variable}
 NETHSECURITY_VERSION=${NETHSECURITY_VERSION:?Missing NETHSECURITY_VERSION environment variable}
 REPO_CHANNEL=${REPO_CHANNEL:-dev}
 TARGET=${TARGET:-x86_64}
-NETIFYD_ENABLED=${NETIFYD_ENABLED:-0}
-NETIFYD_ACCESS_TOKEN=${NETIFYD_ACCESS_TOKEN}
 
 if [ -f "./key-build" ] && [ -f "./key-build.pub" ]; then
     USIGN_PRIV_KEY="$(cat ./key-build)"
@@ -40,7 +38,6 @@ podman build \
     --build-arg REPO_CHANNEL="$REPO_CHANNEL" \
     --build-arg TARGET="$TARGET" \
     --build-arg NETHSECURITY_VERSION="$NETHSECURITY_VERSION" \
-    --build-arg NETIFYD_ENABLED="$NETIFYD_ENABLED" \
     .
 
 set +e
@@ -49,8 +46,6 @@ status=0
 podman run \
     --env USIGN_PRIV_KEY="$USIGN_PRIV_KEY" \
     --env USIGN_PUB_KEY="$USIGN_PUB_KEY" \
-    --env NETIFYD_ENABLED="$NETIFYD_ENABLED" \
-    --env NETIFYD_ACCESS_TOKEN="$NETIFYD_ACCESS_TOKEN" \
     --name nethsecurity-builder \
     --interactive \
     --tty \

@@ -16,7 +16,7 @@ import configparser
 
 def status():
     uuid = ""
-    if not os.path.exists("/etc/netify.d/agent.uuid"):
+    if not os.path.exists("/etc/netifyd/agent.uuid"):
         # generate the uuid id not exists
         try:
             subprocess.run(["/usr/sbin/netifyd", "-p"], check=True, capture_output=True)
@@ -24,39 +24,28 @@ def status():
             return utils.generic_error("failed_to_generate_uuid")
 
     try:
-        with open("/etc/netify.d/agent.uuid", "r") as f:
+        with open("/etc/netifyd/agent.uuid", "r") as f:
             uuid = f.read().strip()
     except:
         return utils.generic_error("failed_to_read_uuid")
 
     config = configparser.ConfigParser()
     config.read('/etc/netifyd.conf')
-    if not config.has_section('netifyd') or not config.has_option('netifyd', 'enable_sink'):
+    if not config.has_section('netifyd') or not config.has_option('netifyd', 'auto_informatics'):
         return utils.generic_error("failed_to_read_netifyd_conf")
-    enable_sink = config.get('netifyd', 'enable_sink')
+    enable_sink = config.get('netifyd', 'auto_informatics')
     return {"enabled": enable_sink == "yes", "uuid": uuid}
 
 def enable():
-    # set url_sink = https://sink.nt.netify.ai/v1/ under [netifyd] section in /etc/netifyd.conf
-    config = configparser.ConfigParser()
-    config.read('/etc/netifyd.conf')
-    if not config.has_section('netifyd'):
-        return utils.generic_error("failed_to_read_netifyd_conf")
-    if not config.has_option('netifyd', 'url_sink'):
-        config.set('netifyd', 'url_sink', 'https://sink.nt.netify.ai/v1/')
-        # save the config
-        with open('/etc/netifyd.conf', 'w') as configfile:
-            config.write(configfile)
-
     try:
-        subprocess.run(["/usr/sbin/netifyd", "--enable-sink"], check=True, capture_output=True)
+        subprocess.run(["/usr/sbin/netifyd", "--enable-informatics"], check=True, capture_output=True)
     except:
         return utils.generic_error("failed_to_enable_sink")
     return {"result": "success"}
     
 def disable():
     try:
-        subprocess.run(["/usr/sbin/netifyd", "--disable-sink"], check=True, capture_output=True)
+        subprocess.run(["/usr/sbin/netifyd", "--disable-informatics"], check=True, capture_output=True)
     except:
         return utils.generic_error("failed_to_disable_sink")
     return {"result": "success"}
