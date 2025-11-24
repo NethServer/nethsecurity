@@ -75,48 +75,11 @@ def download_license() -> str:
     return response.text
 
 
-def is_license_valid() -> bool:
-    try:
-        with open(LICENSE_DEFAULT_LOCATION, "r") as f:
-            json_status = json.load(f)
-            issued_to = json_status.get("issued_to", "")
-            e_uci = EUci()
-            subscription = e_uci.get(
-                "ns-plug", "config", "type", dtype=str, default=None
-            )
-            if subscription is not None and "Enterprise" not in issued_to:
-                logging.warning(
-                    f"License type mismatch: expected Enterprise, got {issued_to}"
-                )
-                return False
-            elif "Community" not in issued_to:
-                logging.warning(
-                    f"License type mismatch: expected Community, got {issued_to}"
-                )
-                return False
-
-            expire_at = json_status.get("expire_at", {})
-            unix_expiration = expire_at.get("unix", 0)
-            current_time = int(time.time())
-            if unix_expiration > current_time:
-                logging.debug(f"License valid until {time.ctime(unix_expiration)}")
-                return True
-            else:
-                logging.warning("License expired, refresh triggered")
-                return False
-    except FileNotFoundError:
-        logging.warning("License missing, refresh triggered")
-        return False
-
-
 if __name__ == "__main__":
     logger = logging.getLogger()
     logger.setLevel(environ.get("LOGLEVEL", "INFO").upper())
     handler = logging.StreamHandler()
     logger.addHandler(handler)
-
-    if is_license_valid():
-        exit(0)
 
     try:
         upstream_license = download_license()
