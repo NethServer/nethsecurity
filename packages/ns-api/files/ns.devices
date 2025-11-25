@@ -1131,7 +1131,7 @@ def list_zones_for_device_config():
     zones = []
 
     for zone in fw_zones:
-        if zone.get('name') not in ['hotspot', 'openvpn', 'ipsec', 'rwopenvpn']:
+        if zone.get('name') not in ['hotspot', 'openvpn', 'ipsec', 'rwopenvpn'] and zone.get('name').startswith('wg') == False:
             zones.append(zone)
 
     return {'zones': zones}
