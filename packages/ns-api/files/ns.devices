@@ -610,7 +610,7 @@ def get_bonding_values(ip4_addr_cidr, attached_devices, bonding_policy, bond_pri
     return values
 
 
-def set_network_configuration(device_type, interface_name, logical_type, interface_to_edit, protocol, zone, ip4_addr_cidr, ip4_gateway, ip6_enabled, ip6_address, ip6_gateway, attached_devices, bonding_policy, bond_primary_device, pppoe_username, pppoe_password, dhcp_client_id, dhcp_vendor_class, dhcp_hostname_to_send, dhcp_custom_hostname, uci):
+def set_network_configuration(device_type, interface_name, logical_type, interface_to_edit, protocol, zone, ip4_addr_cidr, ip4_gateway, ip6_enabled, ip6_address, ip6_gateway, attached_devices, bonding_policy, bond_primary_device, pppoe_username, pppoe_password, dhcp_client_id, dhcp_vendor_class, dhcp_hostname_to_send, dhcp_custom_hostname, uci, metric: int = None):
     if device_type == 'logical' and logical_type == 'bond':
         values = get_bonding_values(
             ip4_addr_cidr, attached_devices, bonding_policy, bond_primary_device)
@@ -697,9 +697,26 @@ def set_network_configuration(device_type, interface_name, logical_type, interfa
                 if interface_to_edit and delete_dhcp_hostname:
                     uci.delete('network', interface_name, 'hostname')
 
-    # disable "force link" on red interfaces
     if zone == 'wan':
+        # disable "force link" on red interfaces
         values['force_link'] = '0'
+        # assign metric if missing
+        if metric is not None:
+            values["metric"] = metric
+        else:
+            metrics = set()
+            for network in uci.get("firewall", "ns_wan", "network", dtype=str, default=[], list=True):
+                metric = uci.get("network", network, "metric", default=None, dtype=int)
+                if metric is not None:
+                    metrics.add(metric)
+
+            base_metric = 20
+            while base_metric in metrics:
+                base_metric += 10
+            values["metric"] = base_metric
+    else:
+        # remove metric if interface changes zone
+        values['metric'] = ''
 
     for key, value in values.items():
         uci.set('network', interface_name, key, value)
@@ -833,6 +850,7 @@ def configure_device(input_data):
     dhcp_vendor_class = input_data.get('dhcp_vendor_class')
     dhcp_hostname_to_send = input_data.get('dhcp_hostname_to_send')
     dhcp_custom_hostname = input_data.get('dhcp_custom_hostname')
+    metric = input_data.get('metric')
     bridge_device_name = ''
 
     # validate input data
@@ -848,7 +866,7 @@ def configure_device(input_data):
             device_name, device_type, interface_name, protocol, logical_type, bridge_device_name, uci)
 
     set_network_configuration(device_type, interface_name, logical_type, interface_to_edit, protocol, zone, ip4_address, ip4_gateway, ip6_enabled, ip6_address, ip6_gateway,
-                              attached_devices, bonding_policy, bond_primary_device, pppoe_username, pppoe_password, dhcp_client_id, dhcp_vendor_class, dhcp_hostname_to_send, dhcp_custom_hostname, uci)
+                              attached_devices, bonding_policy, bond_primary_device, pppoe_username, pppoe_password, dhcp_client_id, dhcp_vendor_class, dhcp_hostname_to_send, dhcp_custom_hostname, uci, metric)
 
     set_firewall_zone(interface_name, zone, interface_to_edit, uci)
 
