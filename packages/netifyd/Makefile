@@ -68,7 +68,6 @@ define Package/netifyd/install
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/etc/netifyd
 	$(INSTALL_DIR) $(1)/etc/netifyd/categories.d
-	$(INSTALL_DIR) $(1)/etc/netifyd/interfaces.d
 	$(INSTALL_DIR) $(1)/etc/netifyd/plugins.d
 	$(INSTALL_DIR) $(1)/etc/netifyd/profiles.d
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
@@ -82,9 +81,6 @@ define Package/netifyd/install
 	$(INSTALL_DATA) ./files/etc/config/netifyd $(1)/etc/config/netifyd
 	$(INSTALL_BIN) ./files/etc/init.d/netifyd $(1)/etc/init.d/netifyd
 	$(INSTALL_DATA) ./files/etc/netifyd.conf $(1)/etc/netifyd.conf
-	$(INSTALL_DATA) ./files/etc/netifyd/interfaces.d/10-example-nfq.conf $(1)/etc/netifyd/interfaces.d/10-example-nfq.conf
-	$(INSTALL_DATA) ./files/etc/netifyd/interfaces.d/10-example-pcap.conf $(1)/etc/netifyd/interfaces.d/10-example-pcap.conf
-	$(INSTALL_DATA) ./files/etc/netifyd/interfaces.d/10-example-tpv3.conf $(1)/etc/netifyd/interfaces.d/10-example-tpv3.conf
 	$(INSTALL_DATA) ./files/etc/netifyd/netify-apps.conf $(1)/etc/netifyd/netify-apps.conf
 	$(INSTALL_DATA) ./files/etc/netifyd/netify-categories.json $(1)/etc/netifyd/netify-categories.json
 	$(INSTALL_DATA) ./files/etc/netifyd/netify-proc-aggregator.json $(1)/etc/netifyd/netify-proc-aggregator.json
