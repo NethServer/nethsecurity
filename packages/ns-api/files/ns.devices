@@ -1198,6 +1198,7 @@ if cmd == 'list':
             'dhcp_vendor_class': 'string',
             'dhcp_hostname_to_send': 'string',
             'dhcp_custom_hostname': 'string',
+            'metric': 'integer'
         },
         'unconfigure-device': {
             'iface_name': 'string',

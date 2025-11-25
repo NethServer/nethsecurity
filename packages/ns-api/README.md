@@ -5195,7 +5195,8 @@ All parameters:
 - `dhcp_client_id`: Client ID to send when requesting DHCP
 - `dhcp_vendor_class`: Vendor class to send when requesting DHCP
 - `dhcp_hostname_to_send`: Hostname to send when requesting DHCP, can be `deviceHostname`, `doNotSendHostname` or `customHostname`
-- `dhcp_custom_hostname`: Custom hostname to use when `dhcp_hostname_to_send = customHostname`
+- `dhcp_custom_hostname`: Custom hostname to use when `dhcp_hostname_to_send = customHostname
+- `metric`: Routing metric for the interface, if left empty, system will assign an incremental value
 
 ```bash
 api-cli ns.devices configure-device --data '{"device_type": "physical", "interface_name": "myiface", "protocol": "static", "zone": "lan", "ip6_enabled": false, "device_name": "eth2", "ip4_address": "10.20.30.40/24"}'
