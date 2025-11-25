@@ -67,8 +67,10 @@ nethesis-nethbox-z9)
       ucidef_set_network_device_path "eth11" "pci0000:00/0000:00:01.1/0000:01:00.3" # fiber
       ucidef_set_interfaces_lan_wan "eth0" "eth1"
     fi
+  else
+    # unidentified model
+    ucidef_set_interfaces_lan_wan "eth0" "eth1"
   fi
-  ucidef_set_interfaces_lan_wan "eth0" "eth1"
   ;;
 nethesis-nethbox-z7s)
   ucidef_set_network_device_path "eth0" "pci0000:00/0000:00:01.0/0000:01:00.0" # fiber
