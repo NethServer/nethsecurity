@@ -9,7 +9,7 @@
 # DPI: download signatures
 #
 
-OUT_DIR=${OUT_DIR:-"/etc/netify.d"}
+OUT_DIR=${OUT_DIR:-"/etc/netifyd"}
 HOST=${HOST:-"https://__USER__:__PASSWORD__@sp.nethesis.it"}
 TMP_DIR=${TMP_DIR:-"/tmp/signatures-download"}
 

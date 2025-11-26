@@ -1,0 +1,10 @@
+set nfa.blocks.v4 {
+    type ipv4_addr . inet_proto . inet_service . ipv4_addr
+    size 65536
+    timeout 15m
+}
+
+chain netify_block_chain {
+    type filter hook forward priority -10; policy accept;
+    ip saddr . ip protocol . th dport . ip daddr @nfa.blocks.v4 counter drop
+}

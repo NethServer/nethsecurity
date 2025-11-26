@@ -29,7 +29,7 @@ Rule options:
 
 - `criteria`: DPI expression to match the traffic
   - the criteria must terminate with `;` when using complex expressions
-  - use the `"` symbol to enclose strings, double-qoutes will be then translated to `'` inside the plugin configuration file (`/etc/netify.d/netify-flow-actions.json`)
+  - use the `"` symbol to enclose strings, double-qoutes will be then translated to `'` inside the plugin configuration file (`/etc/netifyd/netify-flow-actions.json`)
 - `source`: match all traffic from the given address, it accepts also an object like `<database>/<id>`;  when using an object make sure to not use complex criteria
 - `action`: valid actions are:
   - `block`: matching traffic will be blocked
