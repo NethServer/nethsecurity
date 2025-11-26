@@ -61,11 +61,26 @@ def fix_addresses():
                         fixed_addresses.append(address)
                 else:
                     fixed_addresses.append(address)
-            e_uci.set("network", wg_id, "addresses", fixed_addresses)
+            if fixed_addresses != list(addresses):
+                e_uci.set("network", wg_id, "addresses", fixed_addresses)
 
     e_uci.save("network")
+
+
+def add_metric_to_wans():
+    """
+    Add metric to WAN interfaces if missing. This fixes https://github.com/NethServer/nethsecurity/issues/1428.
+    This logic has been borrowed from https://github.com/NethServer/python3-nethsec/blob/ab7bfb757d602bdbba5aeb2b6e53ef0f3a36d02b/src/nethsec/mwan/__init__.py#L64.
+    """
+    e_uci = EUci()
+    for network in e_uci.get('firewall', 'ns_wan', 'network', dtype=str, default=[], list=True):
+        if e_uci.get('network', network, 'metric', default=None) is None:
+            e_uci.set('network', network, 'metric', 20)
+
+    e_uci.save('network')
 
 
 if __name__ == "__main__":
     migrate_old()
     fix_addresses()
+    add_metric_to_wans()
