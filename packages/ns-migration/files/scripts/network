@@ -298,8 +298,8 @@ for z in data['zones']:
         u.set("firewall", zname, "masq", '1')
         u.set("firewall", zname, "mtu_fix", '1')
     if z["name"].startswith("guest"): # setup DNS and DHCP access for guests
-        firewall.add_template_rule(u, 'ns_guest_dns')
-        firewall.add_template_rule(u, 'ns_guest_dhcp')
+        firewall.add_template_rule(u, 'ns_guest_dns', tags=[])
+        firewall.add_template_rule(u, 'ns_guest_dhcp', tags=[])
 
 # Setup firewall zones for aliases
 for z in alias_zones:

@@ -24,7 +24,7 @@ if data['authorized_keys']:
 
 if data['ssh_from_wan']:
     nsmigration.vprint(f"Allowing SSH access from WAN")
-    firewall.add_service(u, 'ssh', data['ssh']['Port'], 'tcp')
+    firewall.add_service(u, 'ssh', data['ssh']['Port'], 'tcp', tags=[])
     u.commit("firewall")
 
 # Save configuration
