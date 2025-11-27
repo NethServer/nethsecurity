@@ -5,6 +5,11 @@
             "log_path": "/var/run/netifyd",
             "log_name": "aggregator-stats",
             "overwrite": true
+        },
+        "telegraf": {
+            "log_path": "/var/run/netifyd",
+            "log_name": "telegraf",
+            "overwrite": true
         }
     }
 }
