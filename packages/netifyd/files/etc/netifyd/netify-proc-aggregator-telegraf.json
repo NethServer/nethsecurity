@@ -1,0 +1,14 @@
+{
+    "aggregator": 3,
+    "batched_rows": 0,
+    "log_interval": 15,
+    "compressor": "none",
+    "format": "json",
+    "nested_mode": false,
+    "privacy_mode": false,
+    "sinks": {
+        "sink-log": {
+            "telegraf": { }
+        }
+    }
+}
