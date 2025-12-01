@@ -1,0 +1,14 @@
+chain netifyd_queue_input {
+    type filter hook input priority filter + 5; policy accept;
+    iifname != $wan_devices queue flags bypass to 10-29
+}
+
+chain netifyd_queue_forward {
+    type filter hook forward priority filter + 5; policy accept;
+    iifname != $wan_devices queue flags bypass to 10-29
+}
+
+chain netifyd_queue_output {
+    type filter hook output priority filter + 5; policy accept;
+    oifname != $wan_devices queue flags bypass to 10-29
+}
