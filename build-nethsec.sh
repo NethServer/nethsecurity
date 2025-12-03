@@ -18,7 +18,7 @@ set +o allexport
 # Check required environment variables
 OWRT_VERSION=${OWRT_VERSION:?Missing OWRT_VERSION environment variable}
 NETHSECURITY_VERSION=${NETHSECURITY_VERSION:?Missing NETHSECURITY_VERSION environment variable}
-REPO_CHANNEL=${REPO_CHANNEL:-dev}
+REPO_CHANNEL=${REPO_CHANNEL:?Missing REPO_CHANNEL environment variable}
 TARGET=${TARGET:-x86_64}
 NETIFYD_ENABLED=${NETIFYD_ENABLED:-0}
 NETIFYD_ACCESS_TOKEN=${NETIFYD_ACCESS_TOKEN}
@@ -27,7 +27,6 @@ if [ -f "./key-build" ] && [ -f "./key-build.pub" ]; then
     USIGN_PRIV_KEY="$(cat ./key-build)"
     USIGN_PUB_KEY="$(cat ./key-build.pub)"
 fi
-
 
 podman build \
     --force-rm \
@@ -40,6 +39,7 @@ podman build \
     --build-arg REPO_CHANNEL="$REPO_CHANNEL" \
     --build-arg TARGET="$TARGET" \
     --build-arg NETHSECURITY_VERSION="$NETHSECURITY_VERSION" \
+    --build-arg BUILD_METADATA="$BUILD_METADATA" \
     --build-arg NETIFYD_ENABLED="$NETIFYD_ENABLED" \
     .
 

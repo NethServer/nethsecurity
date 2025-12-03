@@ -29,6 +29,9 @@ jobs:
   publish_images:
     name: 'Build NethSecurity image'
     runs-on: self-hosted
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
     outputs:
       NETHSECURITY_VERSION: ${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}
       REPO_CHANNEL: ${{ steps.build_vars.outputs.REPO_CHANNEL }}
@@ -62,20 +65,14 @@ jobs:
           # When pushing a tag, set REPO_CHANNEL to stable
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "REPO_CHANNEL=stable" >> $GITHUB_OUTPUT
-            # save NETHSECURITY_VERSION to env
-            echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.example)" >> $GITHUB_OUTPUT
-
           # When pushing to main branch, set REPO_CHANNEL to dev
           elif [[ "${{ github.ref }}" == refs/heads/main ]]; then
             echo "REPO_CHANNEL=dev" >> $GITHUB_OUTPUT
-            # save NETHSECURITY_VERSION to env and append -dev to it
-            echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.example)-dev+$(git rev-parse --short HEAD).$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
-
+            echo "BUILD_METADATA=-dev-$(date +'%Y%m%d%H%M%S').$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
           # Otherwise, get the branch name of the PR pushing if REPO_CHANNEL is not set
           elif [[ "${{ github.event_name }}" == 'pull_request' && ! -v REPO_CHANNEL ]]; then
             echo "REPO_CHANNEL=${{ github.head_ref }}" >> $GITHUB_OUTPUT
-            # save NETHSECURITY_VERSION to env and append last commit hash to it
-            echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.example)-${{ github.head_ref }}+$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+            echo "BUILD_METADATA=-${{ github.head_ref }}-$(date +'%Y%m%d%H%M%S').$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
           fi
       - name: Build the image
         env:
@@ -84,12 +81,13 @@ jobs:
           REPO_CHANNEL: ${{ steps.build_vars.outputs.REPO_CHANNEL }}
           NETIFYD_ENABLED: ${{ steps.build_vars.outputs.NETIFYD_ENABLED }}
           TARGET: ${{ steps.build_vars.outputs.TARGET }}
+          BUILD_METADATA: ${{ steps.build_vars.outputs.BUILD_METADATA }}
         run: ./build-nethsec.sh
       - name: Update latest_release file
         run: |
           # Create release file pointing to 8-VERSION
-          echo "${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}" > latest_release
-          echo "::notice title='Image published':: ${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}"
+          echo "${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}${{ steps.build_vars.outputs.BUILD_METADATA }}" > latest_release
+          echo "::notice title='Image published':: ${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}${{ steps.build_vars.outputs.BUILD_METADATA }}"
       - uses: actions/upload-artifact@v5
         name: Upload image
         with:
@@ -128,6 +126,12 @@ jobs:
         run: |
           rclone sync bin/ repo:nethsecurity/${{ steps.build_vars.outputs.REPO_CHANNEL }}/${{ steps.build_vars.outputs.NETHSECURITY_VERSION }} --progress --create-empty-src-dirs
           rclone copy latest_release repo:nethsecurity/${{ steps.build_vars.outputs.REPO_CHANNEL }}/ --progress --create-empty-src-dirs
+      - name: Upload SBOM to release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release --repo ${{ github.repository }} upload "${{ github.ref_name }}" bin/targets/**/nethsecurity-*.bom.cdx.json --clobber
 
   tools:
     name: 'Run tools'
