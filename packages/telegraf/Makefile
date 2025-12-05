@@ -48,7 +48,7 @@ define Package/telegraf/description
 endef
 
 define Package/telegraf/conffiles
-/etc/telegraf.conf
+/etc/telegraf/telegraf.d/
 endef
 
 
@@ -56,8 +56,8 @@ define Package/telegraf/install
 	$(call GoPackage/Package/Install/Bin,$(1))
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/telegraf.initd $(1)/etc/init.d/telegraf
-	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_DATA) ./files/telegraf.conf $(1)/etc/telegraf.conf
+	$(INSTALL_DIR) $(1)/etc/telegraf
+	$(INSTALL_DATA) ./files/telegraf.conf $(1)/etc/telegraf/telegraf.conf
 endef
 
 define Package/telegraf/postinst
