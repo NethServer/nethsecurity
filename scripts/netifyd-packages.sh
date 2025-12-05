@@ -1,79 +1,100 @@
 #!/bin/bash
 
 # This is a helper script to extract all Netify IPK packages
-# kindly provided by them, that allows the extraction of the packages
-# into a single meta-package for OpenWrt.
+# into tmp/{arch} directories for analysis and integration
 
-set -eou pipefail
+set -e
 
-BASE="$(realpath "packages")"
-IPKS="$(realpath "scripts/netifyd-ipks")"
-PACKAGES="$(find "$IPKS" -name 'netify*.ipk' | grep -v integration)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+NETIFYD_IPKS_DIR="${SCRIPT_DIR}/netifyd-ipks"
+TMP_DIR="${NETIFYD_IPKS_DIR}/tmp"
 
-if [ -z "$PACKAGES" ]; then
-    echo "No packages found."
-    exit 1
-fi
+# Clean up previous extraction
+echo "Cleaning up previous extractions..."
+rm -rf "${TMP_DIR}"
 
-FEED="${BASE}/netifyd"
-if [ -d "${FEED}/files" ]; then
-    FEED="${BASE}/netifyd.new"
-fi
+# Function to extract IPK package
+extract_ipk() {
+    local ipk_file="$1"
+    local arch="$2"
+    local pkg_name=$(basename "${ipk_file}" .ipk)
+    local temp_extract_dir="${TMP_DIR}/.extract_temp"
 
-mkdir -vp "${FEED}/files"
-pushd "${FEED}/files"
+    echo "Extracting ${pkg_name} (${arch})..."
 
-DEPENDS=
-for PACKAGE in $PACKAGES; do
-    tar -xf "${PACKAGE}" ./data.tar.gz -O | tar -xzf - -C "${FEED}/files/"
-done
+    # Create temporary extraction directory
+    rm -rf "${temp_extract_dir}"
+    mkdir -p "${temp_extract_dir}"
 
-rm -rf lib
-chown -R ${USER}:${USER} .
-find . -type f -print0 | xargs -0 -n 1 chmod a+r
-find . -type d -print0 | xargs -0 -n 1 chmod a+x
+    # Extract IPK package (ar archive) and extract data.tar.gz directly
+    tar -xf "${ipk_file}" ./data.tar.gz -O | tar -xzf - -C "${temp_extract_dir}"
 
-DIRS=$(find . -type d | sed -e 's/^\.//' | sort)
-FILES=$(find . -type f | sed -e 's/^\.//' | sort)
-LINKS=$(find . -type l | sed -e 's/^\.//' | sort)
+    # Process extracted files
+    if [ -d "${temp_extract_dir}" ]; then
+        # Move binaries (usr/lib and usr/sbin) to tmp/bin/{arch}
+        if [ -d "${temp_extract_dir}/usr/lib" ]; then
+            mkdir -p "${TMP_DIR}/bin/${arch}/lib"
+            cp -r "${temp_extract_dir}/usr/lib"/* "${TMP_DIR}/bin/${arch}/lib/"
+        fi
 
-echo -e "\ndefine Package/netifyd/install"
+        if [ -d "${temp_extract_dir}/usr/sbin" ]; then
+            mkdir -p "${TMP_DIR}/bin/${arch}/sbin"
+            cp -r "${temp_extract_dir}/usr/sbin"/* "${TMP_DIR}/bin/${arch}/sbin/"
+        fi
 
-for DIR in $DIRS; do
-    echo -e "\t\$(INSTALL_DIR) \$(1)$DIR"
-done
+        # Move all other files to tmp/config
+        for item in "${temp_extract_dir}"/*; do
+            if [ -e "${item}" ]; then
+                item_name=$(basename "${item}")
+                # Skip usr directory as we already processed binaries
+                if [ "${item_name}" != "usr" ]; then
+                    mkdir -p "${TMP_DIR}/config"
+                    cp -r "${item}" "${TMP_DIR}/config/"
+                fi
+            fi
+        done
 
-for FILE in $FILES; do
-    INSTALL="INSTALL_DATA"
-    if [ -x "./$FILE" ]; then
-        INSTALL="INSTALL_BIN"
-#    elif [[ $FILE =~ \.conf$ ]]; then
-#        INSTALL="INSTALL_CONF"
-#    elif [[ $FILE =~ \.json$ ]]; then
-#        INSTALL="INSTALL_CONF"
-#    elif [[ $FILE =~ etc/config ]]; then
-#        INSTALL="INSTALL_CONF"
+        # Handle remaining usr content (like usr/share)
+        if [ -d "${temp_extract_dir}/usr" ]; then
+            for subitem in "${temp_extract_dir}/usr"/*; do
+                if [ -e "${subitem}" ]; then
+                    subitem_name=$(basename "${subitem}")
+                    # Skip lib and sbin as already processed
+                    if [ "${subitem_name}" != "lib" ] && [ "${subitem_name}" != "sbin" ]; then
+                        mkdir -p "${TMP_DIR}/config/usr"
+                        cp -r "${subitem}" "${TMP_DIR}/config/usr/"
+                    fi
+                fi
+            done
+        fi
     fi
 
-    echo -e "\t\$($INSTALL) ./files${FILE} \$(1)$FILE"
-done
+    # Clean up temporary directory
+    rm -rf "${temp_extract_dir}"
+}
 
-for LINK in $LINKS; do
-    DIR="$(dirname $LINK)"
-    LINK_SRC="$(readlink ./$LINK)"
+# Process all architecture directories
+for arch_dir in "${NETIFYD_IPKS_DIR}"/*; do
+    if [ -d "${arch_dir}" ]; then
+        arch=$(basename "${arch_dir}")
 
-    if [ "$(dirname $LINK_SRC)" == "." ]; then
-        echo -e "\t\$(LN) $DIR/$LINK_SRC \$(1)$LINK"
-    else
-        echo -e "\t\$(LN) $LINK_SRC \$(1)$LINK"
+        # Skip tmp directory
+        if [ "${arch}" = "tmp" ]; then
+            continue
+        fi
+
+        echo "Processing ${arch} packages..."
+        for ipk in "${arch_dir}"/*.ipk; do
+            if [ -f "${ipk}" ]; then
+                extract_ipk "${ipk}" "${arch}"
+            fi
+        done
     fi
-    rm -f ./$LINK
 done
-echo -e "endef\n"
 
-popd
-
-echo "Edit ${FEED}/Makefile"
-echo "and update the 'install' file list."
-
-exit 0
+echo ""
+echo "Extraction complete!"
+echo "Files extracted to: ${TMP_DIR}"
+echo ""
+echo "Directory structure:"
+tree -L 2 "${TMP_DIR}" 2>/dev/null || find "${TMP_DIR}" -maxdepth 2 -type d
