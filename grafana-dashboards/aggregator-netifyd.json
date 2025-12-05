@@ -125,11 +125,24 @@
             "uid": "${datasource}"
           },
           "editorMode": "builder",
-          "expr": "sum by(local_ip) (netifyd_other_bytes)",
+          "expr": "sum by(local_ip) (netifyd_other_bytes{local_origin=\"true\"})",
           "hide": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "builder",
+          "expr": "sum by(local_ip) (netifyd_local_bytes{local_origin=\"false\"})",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "B"
         }
       ],
       "title": "Download",
@@ -225,10 +238,22 @@
             "uid": "${datasource}"
           },
           "editorMode": "builder",
-          "expr": "sum by(local_ip) (netifyd_local_bytes)",
+          "expr": "sum by(local_ip) (netifyd_local_bytes{local_origin=\"true\"})",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "builder",
+          "expr": "sum by(local_ip) (netifyd_other_bytes{local_origin=\"false\"})",
+          "hide": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "B"
         }
       ],
       "title": "Upload",
@@ -337,11 +362,23 @@
             "uid": "${datasource}"
           },
           "editorMode": "builder",
-          "expr": "sum by(detected_application_name) (netifyd_other_bytes)",
+          "expr": "sum by(detected_application_name) (netifyd_other_bytes{local_origin=\"true\"})",
           "hide": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "builder",
+          "expr": "sum by(detected_application_name) (netifyd_local_bytes{local_origin=\"false\"})",
+          "hide": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "B"
         }
       ],
       "title": "Application download",
@@ -437,10 +474,22 @@
             "uid": "${datasource}"
           },
           "editorMode": "builder",
-          "expr": "sum by(detected_application_name) (netifyd_local_bytes)",
+          "expr": "sum by(detected_application_name) (netifyd_local_bytes{local_origin=\"true\"})",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "builder",
+          "expr": "sum by(detected_application_name) (netifyd_other_bytes{local_origin=\"false\"})",
+          "hide": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "B"
         }
       ],
       "title": "Application upload",
@@ -549,11 +598,23 @@
             "uid": "${datasource}"
           },
           "editorMode": "builder",
-          "expr": "sum by(other_ip) (netifyd_other_bytes)",
+          "expr": "sum by(other_ip) (netifyd_other_bytes{local_origin=\"true\"})",
           "hide": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "builder",
+          "expr": "sum by(other_ip) (netifyd_local_bytes{local_origin=\"false\"})",
+          "hide": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "B"
         }
       ],
       "title": "Remote IPs downloaded from",
@@ -650,11 +711,23 @@
           },
           "editorMode": "builder",
           "exemplar": false,
-          "expr": "sum by(other_ip) (netifyd_local_bytes)",
+          "expr": "sum by(other_ip) (netifyd_local_bytes{local_origin=\"true\"})",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "builder",
+          "expr": "sum by(other_ip) (netifyd_other_bytes{local_origin=\"false\"})",
+          "hide": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "B"
         }
       ],
       "title": "Remote IP uploaded to",
@@ -763,12 +836,24 @@
             "uid": "${datasource}"
           },
           "editorMode": "builder",
-          "expr": "sum by(detected_protocol_name) (netifyd_other_bytes)",
+          "expr": "sum by(detected_protocol_name) (netifyd_other_bytes{local_origin=\"true\"})",
           "hide": false,
           "interval": "",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "builder",
+          "expr": "sum by(detected_protocol_name) (netifyd_local_bytes{local_origin=\"false\"})",
+          "hide": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "B"
         }
       ],
       "title": "Protocol Download",
@@ -864,10 +949,22 @@
             "uid": "${datasource}"
           },
           "editorMode": "builder",
-          "expr": "sum by(detected_protocol_name) (netifyd_local_bytes)",
+          "expr": "sum by(detected_protocol_name) (netifyd_local_bytes{local_origin=\"true\"})",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "builder",
+          "expr": "sum by(detected_protocol_name) (netifyd_other_bytes{local_origin=\"false\"})",
+          "hide": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "B"
         }
       ],
       "title": "Protocol uploads",
