@@ -1,0 +1,44 @@
+services:
+  grafana:
+    image: grafana/grafana:12.3
+    restart: on-failure
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_PLUGINS_PREINSTALL=victoriametrics-metrics-datasource
+    volumes:
+      - grafana-data:/var/lib/grafana
+    configs:
+      - source: grafana-datasources
+        target: /etc/grafana/provisioning/datasources/datasource.yml
+      - source: grafana-dashboards
+        target: /etc/grafana/provisioning/dashboards/dashboards.yml
+      - source: netifyd-dashboard
+        target: /var/lib/grafana/dashboards/netifyd.json
+
+volumes:
+  grafana-data: { }
+
+configs:
+  grafana-datasources:
+    content: |
+      apiVersion: 1
+      datasources:
+        - name: VictoriaMetrics - Plugin
+          type: victoriametrics-metrics-datasource
+          access: proxy
+          url: http://10.0.1.1:8428
+          uid: victoriametrics_plugin
+          default: true
+  grafana-dashboards:
+    content: |
+      apiVersion: 1
+      providers:
+        - name: Default
+          type: file
+          options:
+            path: /var/lib/grafana/dashboards
+  netifyd-dashboard:
+    file: ./victoriametrics-netifyd.json
