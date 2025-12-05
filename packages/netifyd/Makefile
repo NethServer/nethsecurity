@@ -7,7 +7,8 @@ PKG_MAINTAINER:=Darryl Sokoloski <darryl@egloo.ca>
 PKG_LICENSE:=Unlicensed
 
 # Base URL for downloads
-NETIFYD_BASE_URL:=https://updates.nethsecurity.nethserver.org/netifyd-dist/netifyd-$(PKG_VERSION)/${ARCH}
+NETIFYD_BASE_URL:=https://updates.nethsecurity.nethserver.org/netifyd-dist/netifyd-$(PKG_VERSION)/$(ARCH)
+DL_DIR:=$(DL_DIR)/netifyd-$(PKG_VERSION)-$(ARCH)
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -53,7 +54,7 @@ define Download/libnetifyd
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetifyd.so.4.0.0
   FILE:=libnetifyd.so.4.0.0
-  HASH:=skip
+  HASH:=bc17464b4efb7c5eef7475695db05642a37b4e941fca961fed3b6066de74657d
 endef
 $(eval $(call Download,libnetifyd))
 
@@ -61,7 +62,7 @@ define Download/libnetify-plm
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetify-plm.so.1.0.0
   FILE:=libnetify-plm.so.1.0.0
-  HASH:=skip
+  HASH:=21967b48ac5cb07fbb73b02b1dd8aac3526d5531a8744c3cec229e4f89c2c091
 endef
 $(eval $(call Download,libnetify-plm))
 
@@ -69,7 +70,7 @@ define Download/libnetify-proc-aggregator
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetify-proc-aggregator.so.0.0.0
   FILE:=libnetify-proc-aggregator.so.0.0.0
-  HASH:=skip
+  HASH:=930fe7b42ce087bab9c3811a134969a0619ccecd6f8f0753c7986f081c8ac6a8
 endef
 $(eval $(call Download,libnetify-proc-aggregator))
 
@@ -77,7 +78,7 @@ define Download/libnetify-proc-core
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetify-proc-core.so.0.0.0
   FILE:=libnetify-proc-core.so.0.0.0
-  HASH:=skip
+  HASH:=38c1c2f05c8e3c0391b1c8ad84ee00fcb30b17718948be621df62f1ac0d515ed
 endef
 $(eval $(call Download,libnetify-proc-core))
 
@@ -85,7 +86,7 @@ define Download/libnetify-proc-flow-actions
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetify-proc-flow-actions.so.0.0.0
   FILE:=libnetify-proc-flow-actions.so.0.0.0
-  HASH:=skip
+  HASH:=e459359172b6742d769600491625fa226b1f06219182b00680b07e5fd9167025
 endef
 $(eval $(call Download,libnetify-proc-flow-actions))
 
@@ -93,7 +94,7 @@ define Download/libnetify-sink-http
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetify-sink-http.so.0.0.0
   FILE:=libnetify-sink-http.so.0.0.0
-  HASH:=skip
+  HASH:=0d94866bc5eebd31d4e5cab2c2bdee54adf6c20084f13117383015e8f4e64a88
 endef
 $(eval $(call Download,libnetify-sink-http))
 
@@ -101,7 +102,7 @@ define Download/libnetify-sink-log
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetify-sink-log.so.0.0.0
   FILE:=libnetify-sink-log.so.0.0.0
-  HASH:=skip
+  HASH:=36bdc8f70f2052ad6a4d7d6de7ea25b95bf9d377a71c42d5b13317d677eb7c75
 endef
 $(eval $(call Download,libnetify-sink-log))
 
@@ -109,17 +110,17 @@ define Download/libnetify-sink-socket
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetify-sink-socket.so.0.0.0
   FILE:=libnetify-sink-socket.so.0.0.0
-  HASH:=skip
+  HASH:=7876b3dd4fd178c7c5fde47fc3e4965bf65d5cb2c83a8e7a4b8eb43dd29265bc
 endef
 $(eval $(call Download,libnetify-sink-socket))
 
-define Download/netifyd-binary
+define Download/netifyd
   URL:=$(NETIFYD_BASE_URL)/usr/sbin
   URL_FILE:=netifyd
-  FILE:=netifyd-$(PKG_VERSION)
-  HASH:=skip
+  FILE:=netifyd
+  HASH:=40ed6d2242b64552d0782ccdc716751ba9cc76fac165510574b03a465a7565f0
 endef
-$(eval $(call Download,netifyd-binary))
+$(eval $(call Download,netifyd))
 
 define Build/Prepare
 	mkdir -p $(PKG_BUILD_DIR)
@@ -131,7 +132,7 @@ define Build/Prepare
 	$(CP) $(DL_DIR)/libnetify-sink-http.so.0.0.0 $(PKG_BUILD_DIR)/
 	$(CP) $(DL_DIR)/libnetify-sink-log.so.0.0.0 $(PKG_BUILD_DIR)/
 	$(CP) $(DL_DIR)/libnetify-sink-socket.so.0.0.0 $(PKG_BUILD_DIR)/
-	$(CP) $(DL_DIR)/netifyd-$(PKG_VERSION) $(PKG_BUILD_DIR)/netifyd
+	$(CP) $(DL_DIR)/netifyd $(PKG_BUILD_DIR)/netifyd
 endef
 
 define Build/Configure
