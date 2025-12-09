@@ -6,6 +6,10 @@
             "legacy": {
                 "enable": true,
                 "types": [ "legacy-socket" ]
+            },
+            "flows": {
+                "enable": true,
+                "types": [ "stream-flows" ]
             }
         }
     }
