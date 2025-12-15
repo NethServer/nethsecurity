@@ -21,11 +21,12 @@ function send {
         # send encrypted backup
         gpg --batch -c --yes --passphrase-file $PASSPHRASE $BACKUP
         remote-backup upload "$BACKUP.gpg"
+        mv $MD5 $MD5_LAST
     else
-        remote-backup upload "$BACKUP"
+        # password not set, abort upload
+        exit 4
     fi
     rm -f "$BACKUP" "$BACKUP.gpg"
-    mv $MD5 $MD5_LAST
     exit $?
 }
 

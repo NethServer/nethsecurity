@@ -170,6 +170,8 @@ elif cmd == 'call':
             print(json.dumps(utils.generic_error(f'remote list failed')))
 
     elif action == 'registered-backup':
+        if os.path.exists(PASSPHRASE_PATH):
+            print(utils.validation_error('passphrase', 'missing'))
         try:
             # create backup
             file_name = create_backup()
