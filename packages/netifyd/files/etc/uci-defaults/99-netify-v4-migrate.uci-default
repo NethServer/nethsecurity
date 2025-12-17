@@ -12,10 +12,12 @@ if [ -d /etc/netify.d ]; then
         mv /etc/netify.d/agent.uuid /etc/netifyd/agent.uuid
     fi
     # migrate netifyd.conf
-    informatics_enabled=$(grep 'enable_sink = yes' /etc/netifyd.conf)
-    mv /rom/etc/netifyd.conf /etc/netifyd.conf
-    if [ -n "$informatics_enabled" ]; then
+    if [ -f /etc/netifyd.conf-opkg ]; then
+      informatics_enabled=$(grep 'enable_sink = yes' /etc/netifyd.conf)
+      mv /etc/netifyd.conf-opkg /etc/netifyd.conf
+      if [ -n "$informatics_enabled" ]; then
         /usr/sbin/netifyd --enable-informatics
+      fi
     fi
     # delete old directory
     rm -rf /etc/netify.d
