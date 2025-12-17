@@ -1,7 +1,7 @@
 services:
   grafana:
     image: grafana/grafana:12.3
-    restart: on-failure
+    restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
