@@ -1,5 +1,7 @@
 chain netifyd_queue_input {
     type filter hook input priority filter + 5; policy accept;
+    ip saddr 127.0.0.1 ip daddr 127.0.0.1 accept
+    ip6 saddr ::1 ip6 daddr ::1 accept
     iifname != $wan_devices queue flags bypass to 10-29
 }
 
@@ -10,5 +12,7 @@ chain netifyd_queue_forward {
 
 chain netifyd_queue_output {
     type filter hook output priority filter + 5; policy accept;
+    ip saddr 127.0.0.1 ip daddr 127.0.0.1 accept
+    ip6 saddr ::1 ip6 daddr ::1 accept
     oifname != $wan_devices queue flags bypass to 10-29
 }
