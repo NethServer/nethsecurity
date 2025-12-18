@@ -21,4 +21,5 @@ if [ -d /etc/netify.d ]; then
     fi
     # delete old directory
     rm -rf /etc/netify.d
+    /usr/sbin/dpi-update
 fi
