@@ -1,0 +1,7 @@
+{
+    "timeout_connect": 30,
+    "timeout_transfer": 300,
+    "tls_verify": true,
+    "tls_version1": false,
+    "channels": { }
+}

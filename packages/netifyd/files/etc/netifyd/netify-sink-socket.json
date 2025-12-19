@@ -1,0 +1,8 @@
+{
+    "channels": {
+        "legacy": {
+            "enable": true,
+            "bind_address": "unix://${path_state_volatile}/netifyd.sock"
+        }
+    }
+}

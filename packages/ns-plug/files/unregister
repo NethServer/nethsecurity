@@ -31,6 +31,7 @@ uci set ns-plug.config.repository_url="https://updates.nethsecurity.nethserver.o
 
 # Save config
 uci commit ns-plug
+reload_config
 
 exit_code=$?
 

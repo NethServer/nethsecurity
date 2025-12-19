@@ -7,7 +7,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=ns-dpi
-PKG_VERSION:=0.1.0
+PKG_VERSION:=0.2.0
 PKG_RELEASE:=1
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-dpi-$(PKG_VERSION)
@@ -22,20 +22,21 @@ define Package/ns-dpi
 	CATEGORY:=NethSecurity
 	TITLE:=DPI rules
 	URL:=https://github.com/NethServer/nethsecurity/
-	DEPENDS:=+netify-flow-actions +kmod-ipt-conntrack-label
+	DEPENDS:= \
+		+kmod-ipt-conntrack-label \
+		+netifyd
 	PKGARCH:=all
 endef
 
-define Package/ns-dpi/description
+define Package/nsLICENSE_DEFAULT_LOCATION-dpi/description
 	Traffic rules for network flows
 endef
 
 define Package/ns-dpi/postinst
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
-  (. /etc/uci-defaults/20_dpi)
-  rm -f /etc/uci-defaults/20_dpi
   /etc/init.d/cron restart
+  /etc/init.d/dpi-license-update start
 fi
 exit 0
 endef
@@ -60,15 +61,16 @@ define Package/ns-dpi/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
-	$(INSTALL_DIR) $(1)/etc/xtables
 	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/unregister
-	$(INSTALL_CONF) ./files/connlabel.conf $(1)/etc/xtables
 	$(INSTALL_BIN) ./files/dpi.init $(1)/etc/init.d/dpi
+	$(INSTALL_BIN) ./files/dpi-license-update.init $(1)/etc/init.d/dpi-license-update
 	$(INSTALL_BIN) ./files/dpi $(1)/usr/sbin/
 	$(INSTALL_BIN) ./files/dpi-nft $(1)/usr/sbin/
 	$(INSTALL_BIN) ./files/dpi-config $(1)/usr/sbin/
 	$(INSTALL_BIN) ./files/dpi-update $(1)/usr/sbin/
+	$(INSTALL_BIN) ./files/dpi-license-update.py $(1)/usr/sbin/dpi-license-update
 	$(INSTALL_CONF) ./files/20_dpi $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/99-dpi-license-update-cron.uci-defaults $(1)/etc/uci-defaults/99-dpi-license-update-cron
 	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/register
 	$(INSTALL_BIN) ./files/70dpi $(1)/usr/share/ns-plug/hooks/unregister/
 	$(LN) /usr/sbin/dpi-update $(1)/usr/share/ns-plug/hooks/register/80dpi-update

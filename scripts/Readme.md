@@ -1,6 +1,6 @@
 # Scripts Documentation
 
-This directory contains scripts used inside GitHub Actions workflows. 
+This directory contains scripts that are useful to both CI and maintenance.
 
 ## update_issue_status.sh
 
@@ -96,3 +96,15 @@ This script retrieves open issues labeled "testing" from the NethServer/nethsecu
 - 0 - Success
 - 1 - Error when sending the message or missing Mattermost webhook URL
 - 2 - Error when loading issues from GitHub
+
+## netifyd-packages.sh
+
+This scripts pulls the `.ipk` packages from the `netifyd-ipks` directory, unpacks them and puts the files inside the `netifyd` package. This script is useful when an update of `netifyd` requires changes in the integration meta package.
+
+### Usage
+
+```bash
+./netifyd-packages.sh
+```
+
+All process will be handled by the script, there will be an output that lists the files that were being copied in the process, this output needs to be copied and pasted inside the `packages/netifyd/Makefile` file, inside the `define Package/netifyd/install` section.
