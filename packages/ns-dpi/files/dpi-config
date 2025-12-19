@@ -40,7 +40,7 @@ config = {
             "ttl": 900,
             "set_name": "nfa.blocks",
             "set_family": "ipv4",
-            "flush_on_create": True,
+            "flush_on_destroy": True,
             "type": [
                 "local_addr",
                 "ip_proto",
