@@ -28,7 +28,7 @@ define Package/ns-dpi
 	PKGARCH:=all
 endef
 
-define Package/nsLICENSE_DEFAULT_LOCATION-dpi/description
+define Package/ns-dpi/description
 	Traffic rules for network flows
 endef
 
