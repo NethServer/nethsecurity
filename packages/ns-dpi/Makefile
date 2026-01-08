@@ -8,7 +8,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=ns-dpi
 PKG_VERSION:=0.2.0
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-dpi-$(PKG_VERSION)
 
@@ -62,6 +62,7 @@ define Package/ns-dpi/install
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/unregister
+	$(INSTALL_CONF) ./files/connlabel.conf $(1)/etc/xtables
 	$(INSTALL_BIN) ./files/dpi.init $(1)/etc/init.d/dpi
 	$(INSTALL_BIN) ./files/dpi-license-update.init $(1)/etc/init.d/dpi-license-update
 	$(INSTALL_BIN) ./files/dpi $(1)/usr/sbin/
