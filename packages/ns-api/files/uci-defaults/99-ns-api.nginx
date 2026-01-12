@@ -1,0 +1,14 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Iterates over the configuration sections to disable server tokens
+servers=$(uci show nginx | grep -Po '^nginx.([A-Za-z0-9_]+)=server$' | cut -d'.' -f2 | cut -d'=' -f1)
+for server in $servers; do
+    if [ -z "$(uci -q get "nginx.${server}.server_tokens")" ]; then
+        uci set "nginx.$server.server_tokens=off"
+    fi
+done
