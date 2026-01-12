@@ -44,6 +44,12 @@ server {
 	ssl_session_timeout 64m;
 	error_log syslog:server=unix:/dev/log,nohostname;
 	access_log syslog:server=unix:/dev/log,nohostname;
+	server_tokens off;
+	add_header X-Content-Type-Options "nosniff";
+	add_header Permissions-Policy "()";
+	add_header Referrer-Policy "no-referrer";
+	add_header Content-Security-Policy "default-src 'self'";
+	add_header Cache-Control "max-age=1800";
 
 	# enable NS UI
 	location / {
