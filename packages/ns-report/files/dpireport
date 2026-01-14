@@ -20,7 +20,7 @@ import traceback
 from datetime import datetime, date
 
 flow_stale_timeout = int(os.environ.get("FLOW_STALE_TIMEOUT", 3600))
-dump_timeout = int(os.environ.get("DUMP_TIMEOUT", 120))
+dump_timeout = int(os.environ.get("DUMP_TIMEOUT", 60))
 last_hour = datetime.now().strftime("%H")
 last_date = datetime.today()
 run = True
