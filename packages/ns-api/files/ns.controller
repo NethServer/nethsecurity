@@ -242,12 +242,22 @@ def dump_dpi_stats():
     ret = []
     for file, timestamp in find_recent_files("/var/run/dpireport", 20):
         # parse the filename to get the date client
-        tmp = file.removeprefix('/var/run/dpireport/').split('/')
+        file_split = file.removeprefix('/var/run/dpireport/').split('/')
+        year = int(file_split[0])
+        month = int(file_split[1])
+        day = int(file_split[2])
+        client_address = file_split[3]
+        hour = int(file_split[4].replace('.json', ''))
+
         with open(file, "r") as f:
             data = json.load(f)
         for key in ("protocol", "host", "application"):
             for el in data.get(key, {}):
-                ret.append({"timestamp": int(timestamp), "client_address": tmp[3], "client_name": reverse_dns(tmp[3]), key: el, "bytes": data[key][el]})
+                ret.append({
+                    "timestamp": int(datetime(year, month, day, hour, 0, 0).timestamp()),
+                    "client_address": client_address, "client_name": reverse_dns(client_address), key: el,
+                    "bytes": data[key][el]
+                })
     return {"data": ret}
 
 def dump_openvpn_connections():
