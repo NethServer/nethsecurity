@@ -32,6 +32,7 @@ nsui_extra_enable=$(uci -q get ns-ui.config.nsui_extra_enable)
 nsui_extra_port=$(uci -q get ns-ui.config.nsui_extra_port)
 crt=$(uci -q get nginx._lan.ssl_certificate)
 key=$(uci -q get nginx._lan.ssl_certificate_key)
+server_tokens=$(uci -q get ns-ui.config.server_tokens)
 if [[ "$nsui_extra_enable" == "1" && "$nsui_extra_port" != "" ]]; then
     cat <<EOF > "$NSUI_EXTRA_FILE"
 server {
@@ -44,6 +45,7 @@ server {
 	ssl_session_timeout 64m;
 	error_log syslog:server=unix:/dev/log,nohostname;
 	access_log syslog:server=unix:/dev/log,nohostname;
+	server_tokens $server_tokens;
 
 	# enable NS UI
 	location / {
