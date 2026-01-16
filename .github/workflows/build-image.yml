@@ -81,24 +81,24 @@ jobs:
           # Create release file pointing to 8-VERSION
           echo "${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}" > latest_release
           echo "::notice title='Image published':: ${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}"
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         name: Upload image
         with:
           name: image
           compression-level: 0
           path: |
             bin/targets/**/nethsecurity-*combined-efi.img.gz
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         name: Upload manifest file
         with:
           name: manifest
           path: bin/targets/**/nethsecurity-*.manifest
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         name: Upload SBOM
         with:
           name: sbom
           path: bin/targets/**/nethsecurity-*.bom.cdx.json
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         if: always()
         name: Upload logs
         with:
