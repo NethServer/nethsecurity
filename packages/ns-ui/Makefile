@@ -8,7 +8,7 @@ include $(TOPDIR)/rules.mk
 PKG_NAME:=ns-ui
 # renovate: datasource=github-releases depName=NethServer/nethsecurity-ui
 PKG_VERSION:=2.8.1
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_SOURCE:=ui-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://nethsecurity.ams3.digitaloceanspaces.com/ui-dist/
@@ -71,6 +71,8 @@ define Package/ns-ui/install
 	$(INSTALL_BIN) ./files/ns-ui $(1)/usr/sbin
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/ns-ui.init $(1)/etc/init.d/ns-ui
+	$(INSTALL_DIR) $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/ns-ui.uci-defaults $(1)/etc/uci-defaults
 	$(CP) $(PKG_BUILD_DIR)/../dist/* $(1)/www-ns
 endef
  
