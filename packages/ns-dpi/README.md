@@ -19,7 +19,7 @@ To enable traffic processing:
 Global options:
 
 - `enabled`: can be `0` or `1`, if set to `1` enable the service
-- `log_blocked`: can be `0` or `1`, if set to `1` blocked connections will be logged
+- `log_blocked`: can be `0` or `1`, if set to `1` blocked connections will be logged inside `/var/log/messages`
 - `firewall_exemption`: can be `0` or `1`, if set to `1` all firewall IP addresses will be
   added to global exemption list and will not match DPI rules
 - `popular_filters`: list of filters that will be returned to from `api-cli ns.dpi list-popular` call.
@@ -42,7 +42,7 @@ Rule options:
 - `application`: list of applications to match, the list can contain application names like `netify.amazon-prime`
 - `enabled`: can be `0` or `1`, if set to `1` the rule will be enabled
 - `log`: can be set to `1` to log matching connections, gives an improved visibility on matched connections; 
-  instead of logging a simple message in `/var/log/messages`, logs are stored in `/var/run/netifyd/dpi-actions-*.json`
+  logs are stored in `/var/run/netifyd/dpi-actions-*.json`
 
 Global exemptions options:
 
