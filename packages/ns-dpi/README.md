@@ -41,6 +41,8 @@ Rule options:
 - `device`: optional device name, if set the rule will be applied only to the given device, example `br-lan`
 - `application`: list of applications to match, the list can contain application names like `netify.amazon-prime`
 - `enabled`: can be `0` or `1`, if set to `1` the rule will be enabled
+- `log`: can be set to `1` to log matching connections, gives an improved visibility on matched connections; 
+  instead of logging a simple message in `/var/log/messages`, logs are stored in `/var/run/netifyd/dpi-actions-*.json`
 
 Global exemptions options:
 
