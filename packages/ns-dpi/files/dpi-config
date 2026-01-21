@@ -47,7 +47,14 @@ config = {
                 "other_port",
                 "other_addr"
             ]
-        }
+        },
+        "log": {
+            "target_type": "log",
+            "target_enabled": True,
+            "interval": 60,
+            "path": "/var/run/netifyd/",
+            "prefix": "dpi-actions",
+        },
     },
     "actions": {},
     "exemptions": []
@@ -127,11 +134,14 @@ for section in u.get_all('dpi'):
         criteria = f'vlan_id == {vlan_id} && {criteria}'
         device = base_if
 
+    targets = [rule['action']]
+    if 'log' in rule and rule['log'] == '1':
+        targets.append('log')
     config["actions"][f"rule{rcount}"] = {
         "enabled": rule['enabled'] == '1',
         "interface": device,
         "criteria": criteria,
-        "targets": [rule['action']],
+        "targets": targets,
         "exemptions": rule.get('exemption', [])
     }
     rcount = rcount + 1
