@@ -4240,18 +4240,56 @@ Response example:
     {
       "id": "ns_81df3995",
       "name": "tun1",
+      "enabled": "1",
+      "status": "ESTABLISHED",
+      "connected": "yes",
+      "children": [
+        {
+          "name": "ns_81df3995_tunnel_1",
+          "installed": true,
+          "local_subnet": [
+            "192.168.100.0/24"
+          ],
+          "remote_subnet": [
+            "192.168.200.0/24"
+          ]
+        },
+        {
+          "name": "ns_81df3995_tunnel_2",
+          "installed": true,
+          "local_subnet": [
+            "192.168.100.0/24"
+          ],
+          "remote_subnet": [
+            "192.168.210.0/24"
+          ]
+        }
+      ],
+      "raw_output": "ns_81df3995: #1, ESTABLISHED, IKEv1, 8aa580a8a0b5edf1_i* e9fd7cd6550ed7a9_r\n  local  'tun1.local' @ 192.168.122.49[500]\n  remote 'tun1.remote' @ 192.168.122.50[500]\n  AES_CBC-256/HMAC_SHA2_256_128/PRF_HMAC_SHA2_256/MODP_2048\n  established 336s ago, rekeying in 3221s\n  ns_81df3995_tunnel_1: #1, reqid 1, INSTALLED, TUNNEL, ESP:AES_CBC-256/HMAC_SHA2_256_128/MODP_2048\n    installed 336s ago, rekeying in 2951s, expires in 3624s\n    in  c08d184d (-|0x00000001),      0 bytes,     0 packets\n    out c35d0c6c (-|0x00000001),      0 bytes,     0 packets\n    local  192.168.100.0/24\n    remote 192.168.200.0/24\n  ns_81df3995_tunnel_2: #2, reqid 2, INSTALLED, TUNNEL, ESP:AES_CBC-256/HMAC_SHA2_256_128/MODP_2048\n    installed 336s ago, rekeying in 3050s, expires in 3624s\n    in  cddc9495 (-|0x00000001),      0 bytes,     0 packets\n    out c019eb7b (-|0x00000001),      0 bytes,     0 packets\n    local  192.168.100.0/24\n    remote 192.168.210.0/24\n",
       "local": [
         "192.168.100.0/24"
       ],
       "remote": [
-        "192.168.200.0/24"
-      ],
-      "enabled": "1",
-      "connected": false
+        "192.168.200.0/24",
+        "192.168.210.0/24"
+      ]
     }
   ]
 }
 ```
+
+Fields:
+- `status`: IKE status from swanctl (e.g., "ESTABLISHED", "CONNECTING", etc.)
+- `connected`: Connection state with three possible values:
+  - `"yes"`: All child tunnels are installed and status is ESTABLISHED
+  - `"warning"`: Not all child tunnels are installed but status is ESTABLISHED
+  - `"no"`: Status is not ESTABLISHED
+- `children`: Array of child SAs with installation status:
+  - `name`: Tunnel identifier
+  - `installed`: `true` if tunnel has INSTALLED child SA, `false` otherwise
+  - `local_subnet`: List of local subnets for this specific tunnel child
+  - `remote_subnet`: List of remote subnets for this specific tunnel child
+- `raw_output`: Raw output from `swanctl --list-sas` for this tunnel, including detailed status of IKE and child SAs (useful for debugging)
 
 ### list-wans
 
@@ -4320,6 +4358,7 @@ Response example:
   },
   "ipcomp": "false",
   "dpdaction": "restart",
+  "closeaction": "trap",
   "remote_subnet": "192.168.200.0/24",
   "local_subnet": "192.168.100.0/24",
   "ns_name": "tun1",
@@ -4337,7 +4376,7 @@ Response example:
 
 Create a tunnel:
 ```
-api-cli ns.ipsectunnel add-tunnel --data '{"ns_name": "tun1", "ike": {"hash_algorithm": "md5", "encryption_algorithm": "3des", "dh_group": "modp1024", "rekeytime": "3600"}, "esp": {"hash_algorithm": "md5", "encryption_algorithm": "3des", "dh_group": "modp1024", "rekeytime": "3600"}, "pre_shared_key": "xxxxxxxxxxxxxxxxxxx", "local_identifier": "@ipsec1.local", "remote_identifier": "@ipsec1.remote", "local_subnet": ["192.168.100.0/24"], "remote_subnet": ["192.168.200.0/24"], "enabled": "1", "local_ip": "192.168.122.49", "keyexchange": "ike", "ipcomp": "false", "dpdaction": "restart", "gateway": "10.10.0.172"}'
+api-cli ns.ipsectunnel add-tunnel --data '{"ns_name": "tun1", "ike": {"hash_algorithm": "md5", "encryption_algorithm": "3des", "dh_group": "modp1024", "rekeytime": "3600"}, "esp": {"hash_algorithm": "md5", "encryption_algorithm": "3des", "dh_group": "modp1024", "rekeytime": "3600"}, "pre_shared_key": "xxxxxxxxxxxxxxxxxxx", "local_identifier": "@ipsec1.local", "remote_identifier": "@ipsec1.remote", "local_subnet": ["192.168.100.0/24"], "remote_subnet": ["192.168.200.0/24"], "enabled": "1", "local_ip": "192.168.122.49", "keyexchange": "ike", "ipcomp": "false", "dpdaction": "restart", "closeaction": "trap", "gateway": "10.10.0.172"}'
 ```
 
 Response example:
@@ -4349,7 +4388,7 @@ Response example:
 
 Edit a tunnel:
 ```
-api-cli ns.ipsectunnel add-tunnel --data '{"id": "ns_81df3995", "ns_name": "tun1", "ike": {"hash_algorithm": "md5", "encryption_algorithm": "3des", "dh_group": "modp1024", "rekeytime": "3600"}, "esp": {"hash_algorithm": "md5", "encryption_algorithm": "3des", "dh_group": "modp1024", "rekeytime": "3600"}, "pre_shared_key": "xxxxxxxxxxxxxxxxxxx", "local_identifier": "@ipsec1.local", "remote_identifier": "@ipsec1.remote", "local_subnet": ["192.168.100.0/24"], "remote_subnet": ["192.168.200.0/24"], "enabled": "1", "local_ip": "192.168.122.49", "keyexchange": "ike", "ipcomp": "false", "dpdaction": "restart", "gateway": "10.10.0.172"}'
+api-cli ns.ipsectunnel edit-tunnel --data '{"id": "ns_81df3995", "ns_name": "tun1", "ike": {"hash_algorithm": "md5", "encryption_algorithm": "3des", "dh_group": "modp1024", "rekeytime": "3600"}, "esp": {"hash_algorithm": "md5", "encryption_algorithm": "3des", "dh_group": "modp1024", "rekeytime": "3600"}, "pre_shared_key": "xxxxxxxxxxxxxxxxxxx", "local_identifier": "@ipsec1.local", "remote_identifier": "@ipsec1.remote", "local_subnet": ["192.168.100.0/24"], "remote_subnet": ["192.168.200.0/24"], "enabled": "1", "local_ip": "192.168.122.49", "keyexchange": "ike", "ipcomp": "false", "dpdaction": "restart", "closeaction": "trap", "gateway": "10.10.0.172"}'
 ```
 
 Response example:
