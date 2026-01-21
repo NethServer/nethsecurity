@@ -128,7 +128,7 @@ def setup_tunnel(u, iname, args):
 
             u.set('ipsec', tunnel, 'rekeytime', args['esp']['rekeytime'])
             u.set('ipsec', tunnel, 'crypto_proposal', [esp_p])
-            u.set('ipsec', tunnel, 'closeaction', 'none')
+            u.set('ipsec', tunnel, 'closeaction', args.get('closeaction', 'trap'))
             u.set('ipsec', tunnel, 'startaction', 'start')
             u.set('ipsec', tunnel, 'if_id', if_id)
             u.set('ipsec', tunnel, 'ns_link', link)
@@ -245,7 +245,7 @@ def edit_tunnel(args):
                 u.set('ipsec', tunnel, 'remote_subnet', [rs])
                 u.set('ipsec', tunnel, 'rekeytime', args['esp']['rekeytime'])
                 u.set('ipsec', tunnel, 'crypto_proposal', [esp_p])
-                u.set('ipsec', tunnel, 'closeaction', 'none')
+                u.set('ipsec', tunnel, 'closeaction', args.get('closeaction', 'trap'))
                 u.set('ipsec', tunnel, 'startaction', 'start')
                 u.set('ipsec', tunnel, 'if_id', if_id)
                 u.set('ipsec', tunnel, 'ns_link', link)
@@ -280,6 +280,7 @@ def edit_tunnel(args):
             for opt in ['ipcomp', 'dpdaction']:
                 u.set('ipsec', t, opt, args[opt])
             u.set('ipsec', t, 'rekeytime', args['esp']['rekeytime'])
+            u.set('ipsec', t, 'closeaction', args.get('closeaction', 'trap'))
     
     # Update remote section
     u.set('ipsec', id, 'ns_name', args['ns_name'])
@@ -378,6 +379,8 @@ def get_tunnel(id):
                     ret['ipcomp'] = u.get('ipsec', t, 'ipcomp', default="")
                 if 'dpdaction' not in ret:
                     ret['dpdaction'] = u.get('ipsec', t, 'dpdaction', default="")
+                if 'closeaction' not in ret:
+                    ret['closeaction'] = u.get('ipsec', t, 'closeaction', default="trap")
                 if 'rekeytime' not in ret['esp']:
                     ret['esp']['rekeytime'] = u.get('ipsec', t, 'rekeytime', default='3600')
                 tmpl = u.get_all('ipsec', t, 'local_subnet')
@@ -468,6 +471,7 @@ if cmd == 'list':
             "keyexchange": "ike", # ike, ikev1, ikev2
             "ipcomp": "false", # compression
             "dpdaction": "restart",
+            "closeaction": "trap", # optional, default trap
             "gateway": "1.2.3.4" # remote server
         },
         "edit-tunnel": {
@@ -485,6 +489,7 @@ if cmd == 'list':
             "keyexchange": "ike", # ike, ikev1, ikev2
             "ipcomp": "false", # compression
             "dpdaction": "restart",
+            "closeaction": "trap", # optional, default trap
             "gateway": "1.2.3.4" # remote server
         },
         "enable-tunnel": {"id": "ns_tun1"},
