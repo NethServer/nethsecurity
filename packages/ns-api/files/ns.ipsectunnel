@@ -181,11 +181,120 @@ def setup_tunnel(u, iname, args):
     return {"id": iname}
 
 def edit_tunnel(args):
-    ret = delete_tunnel(args['id'])
-    if 'result' in ret:
-        return add_tunnel(args)
+    u = EUci()
+    id = args['id']
+    
+    # Verify tunnel exists
+    try:
+        u.get("ipsec", id)
+    except:
+        return utils.validation_error("tunnel_not_found")
+    
+    ike_p = f'{id}_ike'
+    esp_p = f'{id}_esp'
+    tunnel_base = f'{id}_tunnel'
+    link = f'ipsec/{id}'
+    
+    # Update IKE proposal
+    for opt in ['encryption_algorithm', 'hash_algorithm', 'dh_group']:
+        u.set('ipsec', ike_p, opt, args['ike'][opt])
+    
+    # Update ESP proposal
+    for opt in ['encryption_algorithm', 'hash_algorithm', 'dh_group']:
+        u.set('ipsec', esp_p, opt, args['esp'][opt])
+    
+    # Get current subnets and if_id from existing tunnels
+    current_local = set()
+    current_remote = set()
+    if_id = None
+    existing_tunnels = []
+    for t in utils.get_all_by_type(u, 'ipsec', 'tunnel'):
+        if t.startswith(tunnel_base):
+            existing_tunnels.append(t)
+            if if_id is None:
+                if_id = u.get('ipsec', t, 'if_id', default=None)
+            try:
+                tmpl = u.get_all('ipsec', t, 'local_subnet')
+                current_local = current_local | set(tmpl)
+                tmpr = u.get_all('ipsec', t, 'remote_subnet')
+                current_remote = current_remote | set(tmpr)
+            except:
+                continue
+    
+    new_local = set(args['local_subnet'])
+    new_remote = set(args['remote_subnet'])
+    
+    # Check if subnets changed - if so, we need to recreate tunnel sections
+    subnets_changed = (current_local != new_local) or (current_remote != new_remote)
+    
+    if subnets_changed:
+        # Delete old tunnel sections
+        for t in existing_tunnels:
+            u.delete('ipsec', t)
+        
+        # Create new tunnel sections
+        tunnels = []
+        ti = 1
+        for ls in args['local_subnet']:
+            for rs in args['remote_subnet']:
+                tunnel = f'{tunnel_base}_{ti}'
+                u.set('ipsec', tunnel, 'tunnel')
+                for opt in ['ipcomp', 'dpdaction']:
+                    u.set('ipsec', tunnel, opt, args[opt])
+                u.set('ipsec', tunnel, 'local_subnet', [ls])
+                u.set('ipsec', tunnel, 'remote_subnet', [rs])
+                u.set('ipsec', tunnel, 'rekeytime', args['esp']['rekeytime'])
+                u.set('ipsec', tunnel, 'crypto_proposal', [esp_p])
+                u.set('ipsec', tunnel, 'closeaction', 'none')
+                u.set('ipsec', tunnel, 'startaction', 'start')
+                u.set('ipsec', tunnel, 'if_id', if_id)
+                u.set('ipsec', tunnel, 'ns_link', link)
+                tunnels.append(tunnel)
+                ti = ti + 1
+        
+        # Update remote with new tunnel list
+        u.set('ipsec', id, 'tunnel', tunnels)
+        
+        # Update routes in network config
+        dname = f'ipsec{if_id}'
+        # Delete old routes
+        for r in utils.get_all_by_type(u, 'network', 'route'):
+            if u.get('network', r, 'ns_link', default='') == link:
+                u.delete('network', r)
+        
+        # Create new routes
+        subnets = 1
+        for net in args['remote_subnet']:
+            rname = f'{id}_route_{subnets}'
+            u.set('network', rname, 'route')
+            u.set('network', rname, 'target', net)
+            u.set('network', rname, 'interface', dname)
+            u.set('network', rname, 'ns_link', link)
+            u.set('network', rname, 'disabled', '0' if args['enabled'] == '1' else '1')
+            subnets = subnets + 1
+        
+        u.save('network')
     else:
-        return utils.generic_error('cant_edit_tunnel')
+        # Just update tunnel options without recreating
+        for t in existing_tunnels:
+            for opt in ['ipcomp', 'dpdaction']:
+                u.set('ipsec', t, opt, args[opt])
+            u.set('ipsec', t, 'rekeytime', args['esp']['rekeytime'])
+    
+    # Update remote section
+    u.set('ipsec', id, 'ns_name', args['ns_name'])
+    for opt in ['gateway', 'keyexchange', 'local_identifier', 'local_ip', 'enabled', 'remote_identifier', 'pre_shared_key']:
+        u.set('ipsec', id, opt, args[opt])
+    u.set('ipsec', id, 'rekeytime', args['ike']['rekeytime'])
+    
+    # Update network interface tunlink if local_ip changed
+    dname = f'ipsec{if_id}'
+    u.set('network', dname, 'tunlink', get_wan_by_ip(u, args['local_ip']))
+    u.save('network')
+    
+    u.save('ipsec')
+    
+    return {"id": id}
 
 def delete_tunnel(id):
     u = EUci()
