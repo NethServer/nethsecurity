@@ -577,6 +577,14 @@ def get_defaults():
     key = subprocess.run(["openssl", "rand", "-base64", "66"], capture_output=True, text=True).stdout.rstrip().replace('\n','')
     return {"pre_shared_key": key, "local_identifier": local, "remote_identifier": remote, "local_networks": ovpn.get_local_networks(u)}
 
+def restart_swanctl():
+    """Restart the swanctl daemon."""
+    try:
+        subprocess.run(["/etc/init.d/swanctl", "restart"], check=True, capture_output=True, text=True)
+        return {"result": "success"}
+    except:
+        return utils.generic_error("restart_failed")
+
 def list_algs():
     ret = {
        "encryption" : [
@@ -625,6 +633,7 @@ if cmd == 'list':
         "get-defaults": {},
         "list-wans": {},
         "list-algs": {},
+        "restart": {},
         "add-tunnel": {
             "ns_name": "tun1",
             "ike": {"encryption_algorithm": "3des", "hash_algorithm": "md5", "encryption_algorithm": "3des", "dh_group": "mod1024", "rekeytime": "3600"},
@@ -675,6 +684,8 @@ else:
         ret = {"wans": utils.get_all_wan_ips(EUci())}
     elif action == "list-algs":
         ret = list_algs()
+    elif action == "restart":
+        ret = restart_swanctl()
     else:
         args = json.loads(sys.stdin.read())
 
