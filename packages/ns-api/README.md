@@ -4475,6 +4475,24 @@ Result example:
 }
 ```
 
+### restart
+
+Restart the swanctl daemon. Use this endpoint after adding or removing networks from an IPSec tunnel. **Not needed when modifying an existing tunnel's configuration.**
+
+```
+api-cli ns.ipsectunnel restart
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+Error response example:
+```json
+{"error": "restart_failed"}
+```
+
 ## ns.netdata
 
 Configure netdata reporting daemon.
