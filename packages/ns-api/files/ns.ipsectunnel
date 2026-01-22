@@ -126,10 +126,10 @@ def uci_set_if_changed(u, config, section, option, value):
         # Handle list values
         if isinstance(value, list):
             try:
-                current_list = list(u.get_all(config, section, option))
+                current_list = set(sorted(list(u.get_all(config, section, option))))
             except:
                 current_list = None
-            if current_list != value:
+            if current_list != set(sorted(value)):
                 u.set(config, section, option, value)
                 return True
         elif str(current) != str(value):
