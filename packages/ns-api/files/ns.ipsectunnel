@@ -237,7 +237,7 @@ def setup_tunnel(u, iname, args):
 
             u.set('ipsec', tunnel, 'rekeytime', args['esp']['rekeytime'])
             u.set('ipsec', tunnel, 'crypto_proposal', [esp_p])
-            u.set('ipsec', tunnel, 'closeaction', args.get('closeaction', 'trap'))
+            u.set('ipsec', tunnel, 'closeaction', args.get('closeaction', 'none'))
             u.set('ipsec', tunnel, 'startaction', 'start')
             u.set('ipsec', tunnel, 'if_id', if_id)
             u.set('ipsec', tunnel, 'ns_link', link)
@@ -359,7 +359,7 @@ def edit_tunnel(args):
         for opt in ['ipcomp', 'dpdaction']:
             uci_set_if_changed(u, 'ipsec', t, opt, args[opt])
         uci_set_if_changed(u, 'ipsec', t, 'rekeytime', args['esp']['rekeytime'])
-        uci_set_if_changed(u, 'ipsec', t, 'closeaction', args.get('closeaction', 'trap'))
+        uci_set_if_changed(u, 'ipsec', t, 'closeaction', args.get('closeaction', 'none'))
     
     # Reuse tunnel ids when changing subnet pairs: assign existing tunnel sections to new pairs before creating new ones
     available_tunnels = [t for (_idx, t) in ordered_tunnels if t not in [existing_tunnel_map[p] for p in pairs_to_keep]]
@@ -374,7 +374,7 @@ def edit_tunnel(args):
                 uci_set_if_changed(u, 'ipsec', tunnel, opt, args[opt])
             uci_set_if_changed(u, 'ipsec', tunnel, 'rekeytime', args['esp']['rekeytime'])
             uci_set_if_changed(u, 'ipsec', tunnel, 'crypto_proposal', [esp_p])
-            uci_set_if_changed(u, 'ipsec', tunnel, 'closeaction', args.get('closeaction', 'trap'))
+            uci_set_if_changed(u, 'ipsec', tunnel, 'closeaction', args.get('closeaction', 'none'))
             uci_set_if_changed(u, 'ipsec', tunnel, 'startaction', 'start')
             uci_set_if_changed(u, 'ipsec', tunnel, 'if_id', if_id)
             uci_set_if_changed(u, 'ipsec', tunnel, 'ns_link', link)
@@ -391,7 +391,7 @@ def edit_tunnel(args):
             u.set('ipsec', tunnel, 'remote_subnet', [rs])
             u.set('ipsec', tunnel, 'rekeytime', args['esp']['rekeytime'])
             u.set('ipsec', tunnel, 'crypto_proposal', [esp_p])
-            u.set('ipsec', tunnel, 'closeaction', args.get('closeaction', 'trap'))
+            u.set('ipsec', tunnel, 'closeaction', args.get('closeaction', 'none'))
             u.set('ipsec', tunnel, 'startaction', 'start')
             u.set('ipsec', tunnel, 'if_id', if_id)
             u.set('ipsec', tunnel, 'ns_link', link)
@@ -548,7 +548,7 @@ def get_tunnel(id):
                 if 'dpdaction' not in ret:
                     ret['dpdaction'] = u.get('ipsec', t, 'dpdaction', default="")
                 if 'closeaction' not in ret:
-                    ret['closeaction'] = u.get('ipsec', t, 'closeaction', default="trap")
+                    ret['closeaction'] = u.get('ipsec', t, 'closeaction', default="none")
                 if 'rekeytime' not in ret['esp']:
                     ret['esp']['rekeytime'] = u.get('ipsec', t, 'rekeytime', default='3600')
                 tmpl = u.get_all('ipsec', t, 'local_subnet')
@@ -648,7 +648,7 @@ if cmd == 'list':
             "keyexchange": "ike", # ike, ikev1, ikev2
             "ipcomp": "false", # compression
             "dpdaction": "restart",
-            "closeaction": "trap", # optional, default trap
+            "closeaction": "none", # optional, default none
             "gateway": "1.2.3.4" # remote server
         },
         "edit-tunnel": {
@@ -666,7 +666,7 @@ if cmd == 'list':
             "keyexchange": "ike", # ike, ikev1, ikev2
             "ipcomp": "false", # compression
             "dpdaction": "restart",
-            "closeaction": "trap", # optional, default trap
+            "closeaction": "none", # optional, default none
             "gateway": "1.2.3.4" # remote server
         },
         "enable-tunnel": {"id": "ns_tun1"},
