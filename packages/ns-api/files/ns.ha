@@ -158,6 +158,11 @@ def validate_network(lan_interface):
     if proto != 'static':
         errors.append('lan_network_not_static')
 
+    # Maximum length of device name is 15 chars, HA adds 3 chars ':ha'
+    device = uci.get('network', lan_interface, 'device', default='')
+    if len(device) >= 13:
+       errors.append('lan_device_network_too_long')
+
     return errors
 
 def validate_dhcp(lan_interface):
@@ -351,6 +356,8 @@ def add_lan_interface(role, primary_node_ip, backup_node_ip, virtual_ip):
         raise utils.ValidationError(f'{role}_node_ip', 'no_interface_with_static_ip_found')
     if device is None:
         raise utils.ValidationError(f'{role}_node_ip', 'no_device_with_static_ip_found')
+    if len(device) >= 13:
+        raise utils.ValidationError(f'{role}_node_ip', 'device_name_too_long_for_ha')
 
     dhcp_errors = validate_dhcp(interface)
     if len(dhcp_errors) > 0:
