@@ -43,5 +43,16 @@ define Package/ns-monitoring/install
 	$(INSTALL_BIN) ./files/ns-flows.init $(1)/etc/init.d/ns-flows
 endef
 
+define Package/ns-monitoring/postinst
+#!/bin/sh
+if [ -z "$${IPKG_INSTROOT}" ]; then
+	/etc/init.d/ns-flows restart
+	if /etc/init.d/ns-flows enabled; then
+		/etc/init.d/ns-flows enable
+	fi
+fi
+exit 0
+endef
+
 $(eval $(call GoBinPackage,ns-monitoring))
 $(eval $(call BuildPackage,ns-monitoring))
