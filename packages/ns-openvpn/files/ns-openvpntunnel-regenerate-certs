@@ -1,0 +1,27 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2022 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Regenerate server and client certificates for existing tunnel
+instance=$1
+if [ -z "$instance" ]; then
+    exit 1
+fi
+
+cn=$(uci get system.@system[0].hostname | cut -d '.' -f 1)
+if [ -z "$cn" ]; then
+    cn=NethSec
+fi
+
+# Set environment variables for EasyRSA
+export EASYRSA_BATCH=1
+export EASYRSA_CERT_EXPIRE=3650
+
+cd /etc/openvpn/$instance
+
+# regenerate server and client certificates
+EASYRSA_REQ_CN=$cn /usr/bin/easyrsa build-server-full server nopass &>/dev/null
+/usr/bin/easyrsa build-client-full client nopass &>/dev/null

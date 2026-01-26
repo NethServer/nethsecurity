@@ -13,14 +13,13 @@ import pwd
 import grp
 import json
 import os.path
-import socket
-import struct
-import random
 import shutil
 import ipaddress
 import subprocess
 from euci import EUci
 from nethsec import utils, firewall, ovpn
+from datetime import datetime
+import time
 
 # Utils
 
@@ -56,6 +55,30 @@ def setup_firewall(u, name, device, link):
         firewall.add_trusted_zone(u, "openvpn", [ovpn_interface])
     else:
         firewall.add_device_to_zone(u, device, 'openvpn')
+
+def remove_files(file_list):
+    for file_path in file_list:
+        try:
+            os.remove(file_path)
+        except FileNotFoundError:
+            pass
+        except OSError:
+            pass
+
+def get_cert_expiry_ts(cert_path):
+    try:
+        result = subprocess.run(
+            ["openssl", "x509", "-noout", "-enddate", "-in", cert_path],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        # parse output data like "notAfter=Dec 20 23:59:59 2033 GMT"
+        date_str = result.stdout.split("=")[1].strip()
+        # convert to Unix timestamp
+        return int(time.mktime(datetime.strptime(date_str, "%b %d %H:%M:%S %Y %Z").timetuple()))
+    except:
+        return None
 
 # APIs
 
@@ -294,6 +317,11 @@ def list_tunnels():
         if 'ns_auth_mode' in vpn:
             continue
         topology = vpn.get("topology", "subnet")
+        
+        # get certificate expiry timestamp
+        if vpn.get('cert'):
+            cert_expiry_timestamp = get_cert_expiry_ts(vpn.get('cert'))
+        
         record = {
             "id": section,
             "ns_name": vpn.get("ns_name", ""),
@@ -301,6 +329,8 @@ def list_tunnels():
             "enabled": vpn.get("enabled", "0") == "1",
             "connected": False
         }
+        if cert_expiry_timestamp:
+            record["cert_expiry_ts"] = cert_expiry_timestamp
 
         if vpn.get("client", "0") == "1" or vpn.get("ns_client", "0") == "1":
             connected = ovpn.list_connected_clients(section, 'p2p')
@@ -592,7 +622,6 @@ def setup_client(u, iname, args):
 
     olink = f"openvpn/{iname}"
     setup_firewall(u, args['ns_name'], dev_name, olink)
- 
 
 def edit_client(args):
     u = EUci()
@@ -613,7 +642,41 @@ def add_client(args):
     setup_client(u, iname, args)
     return {"id": iname}
 
- 
+def regenerate_tunnel_certs(name):
+    u = EUci()
+    try:
+        vpn = u.get_all("openvpn", name)
+    except:
+        return utils.generic_error("tunnel_not_found")
+    
+    cert_dir = f"/etc/openvpn/{name}/pki/"
+    
+    # only for subnet topology (certificate-based)
+    if vpn.get("topology", "subnet") != "subnet":
+        return utils.generic_error("certs_not_supported_p2p")
+    
+    try:
+        # remove old certificates and request files
+        files_to_remove = [
+            f"{cert_dir}issued/server.crt",
+            f"{cert_dir}private/server.key",
+            f"{cert_dir}reqs/server.req",
+            f"{cert_dir}issued/client.crt",
+            f"{cert_dir}private/client.key",
+            f"{cert_dir}reqs/client.req"
+        ]
+        remove_files(files_to_remove)
+        
+        # regenerate certificates
+        subprocess.run(["/usr/sbin/ns-openvpntunnel-regenerate-certs", name], check=True)
+        
+        # restart openvpn service for this tunnel to load new certificates
+        subprocess.run(["/etc/init.d/openvpn", "restart", name], check=False)
+        
+        return {"result": "success"}
+    except:
+        utils.generic_error("certs_regeneration_failed")
+
 cmd = sys.argv[1]
 if cmd == 'list':
     print(json.dumps({
@@ -632,6 +695,7 @@ if cmd == 'list':
         "delete-tunnel": {"id": "ns_tun1"},
         "get-tunnel-server": {"id": "ns_tun1"},
         "get-tunnel-client": {"id": "ns_tun1"},
+        "regenerate-server-certs": {"id": "ns_tun1"},
     }))
 elif cmd == 'call':
     action =  sys.argv[2]
@@ -669,4 +733,6 @@ elif cmd == 'call':
         ret = get_tunnel_server(args['id'])
     elif action == 'get-tunnel-client':
         ret = get_tunnel_client(args['id'])
+    elif action == 'regenerate-server-certs':
+        ret = regenerate_tunnel_certs(args['id'])
     print(json.dumps(ret))
