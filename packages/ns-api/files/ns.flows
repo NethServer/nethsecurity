@@ -1,0 +1,37 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import sys
+import json
+
+from nethsec.utils import generic_error
+
+INPUT_PATH = "/var/run/netifyd/flows.json"
+
+
+def main() -> None:
+    match sys.argv[1]:
+        case 'list':
+            print(json.dumps({
+                'list': {}
+            }))
+        case 'call':
+            match sys.argv[2]:
+                case 'list':
+                    with open(INPUT_PATH, 'r') as f:
+                        flows = json.load(f)
+                        print(json.dumps({
+                            'data': flows
+                        }))
+                case _:
+                    print(json.dumps(generic_error("Unknown method")))
+        case _:
+            print(json.dumps(generic_error("Unknown command")))
+
+
+if __name__ == "__main__":
+    main()
