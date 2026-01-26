@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #
-# Copyright (C) 2022 Nethesis S.r.l.
+# Copyright (C) 2026 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
@@ -19,9 +19,10 @@ fi
 # Set environment variables for EasyRSA
 export EASYRSA_BATCH=1
 export EASYRSA_CERT_EXPIRE=3650
+EASYRSA_REQ_CN=$cn
 
 cd /etc/openvpn/$instance
 
 # regenerate server and client certificates
-EASYRSA_REQ_CN=$cn /usr/bin/easyrsa build-server-full server nopass &>/dev/null
+/usr/bin/easyrsa build-server-full server nopass &>/dev/null
 /usr/bin/easyrsa build-client-full client nopass &>/dev/null
