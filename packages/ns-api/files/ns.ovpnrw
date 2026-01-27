@@ -238,8 +238,9 @@ def add_instance():
         return utils.validation_error("instance", "instance_already_exists", instance)
 
     tun = f'tunrw{next_instance}'
-    if os.path.isdir(f'/etc/openvpn/{instance}'):
-        return utils.validation_error("instance", "pki_dir_already_exists", instance)
+    if os.path.isdir(f'/etc/openvpn/{instance}') and instance not in instances:
+        # cleanup pki dir: the directory may contain rubbish on some corner cases
+        shutil.rmtree(f"/etc/openvpn/{instance}", ignore_errors=True)
 
     zone_link = ""
     fw_link = f"openvpn/{instance}"
