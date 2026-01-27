@@ -25,7 +25,7 @@ def main() -> None:
                     with open(INPUT_PATH, 'r') as f:
                         flows = json.load(f)
                         print(json.dumps({
-                            'data': flows
+                            'list': flows
                         }))
                 case _:
                     print(json.dumps(generic_error("Unknown method")))
