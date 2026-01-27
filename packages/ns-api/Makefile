@@ -164,6 +164,8 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.wizard.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.ha $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.ha.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.flows $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.flows.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_CONF) files/msmtp.keep $(1)/lib/upgrade/keep.d/msmtp
 	$(INSTALL_CONF) files/nat-helpers.keep $(1)/lib/upgrade/keep.d/nat-helpers
