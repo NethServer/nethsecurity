@@ -7,7 +7,7 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-ui
 # renovate: datasource=github-releases depName=NethServer/nethsecurity-ui
-PKG_VERSION:=flows
+PKG_VERSION:=7c1bf449
 PKG_RELEASE:=1
 
 PKG_SOURCE:=nethsecurity-ui-$(PKG_VERSION).tar.gz
