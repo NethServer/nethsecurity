@@ -11,6 +11,7 @@
 
 UCI_CONF="ns-plug"
 CONFIG_FILE="/usr/share/ns-plug/client.conf"
+RSYSLOG_CONF="/var/etc/rsyslog.ns-plug.conf"
 source /etc/os-release
 
 server=$(uci -q get ${UCI_CONF}.config.server)
@@ -145,18 +146,45 @@ else
     echo "mtu-test" >> ${CONFIG_FILE}
 fi
 
-# Configure rsyslog to send to promtail
-uci set rsyslog.promtail=forwarder
-uci set rsyslog.promtail.source=*.*
-uci set rsyslog.promtail.protocol=tcp
-uci set rsyslog.promtail.port="$(echo "$response" | jq -r .data.promtail_port)"
-uci set rsyslog.promtail.rfc=5424
-uci set rsyslog.promtail.target="$(echo "$response" | jq -r .data.promtail_address)"
-uci commit rsyslog
-# Use FQDN when sending logs #733
-grep -qF '$PreserveFQDN on' /etc/rsyslog.conf || echo '$PreserveFQDN on' >> /etc/rsyslog.conf
+## Configure rsyslog to send to promtail
+cat <<EOF > ${RSYSLOG_CONF}
+# Rsyslog configuration for NethSecurity controller logging
+\$PreserveFQDN on
+
+ruleset(name="forward") {
+    *.* action(
+        type="omfwd"
+        target="$(echo "$response" | jq -r .data.promtail_address)"
+        port="$(echo "$response" | jq -r .data.promtail_port)"
+        protocol="tcp"
+        TCP_Framing="octet-counted"
+        Template="RSYSLOG_SyslogProtocol23Format"
+
+        KeepAlive="on"
+        KeepAlive.Probes="3"
+        KeepAlive.Time="60"
+        KeepAlive.Interval="20"
+
+        action.resumeRetryCount="-1"
+        queue.spoolDirectory="/var/spool"
+        queue.type="linkedList"
+        queue.size="50000"
+        queue.timeoutEnqueue="0"
+        queue.filename="forwardq"
+        queue.saveOnShutdown="on"
+        queue.maxDiskSpace="50000"
+    )
+}
+
+*.* call forward
+EOF
+# check if uci rsyslog.syslog.includes has ${RSYSLOG_CONF}, if not add it
+if ! uci -q get rsyslog.syslog.includes | grep -qF "${RSYSLOG_CONF}"; then
+    uci add_list rsyslog.syslog.includes="${RSYSLOG_CONF}"
+    uci commit rsyslog
+    reload_config
+fi
 /etc/init.d/rsyslog restart
-sleep 5 # wait for rsyslog
 
 # Send data to controller every 15 minutes, only if subscription is enabled
 if [ ! -z "$subscription_type" ]; then
