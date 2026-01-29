@@ -72,7 +72,7 @@ start_service() {
 		cdir="$(uci -q get snort.snort.config_dir)"
 		mkdir -p "${cdir}/rules"
 		find /etc/snort -type f ! -name snort.rules -exec cp '{}' "${cdir}" \;
-		/usr/bin/ns-bypass-config
+		/usr/libexec/ns-snort-bypass-config
 		download_rules
 		setup_tweaks
 	fi
