@@ -1,0 +1,50 @@
+#!/bin/sh
+# Migrate legacy bypass_src_*/bypass_dst_* keys to unified bypass_v4/bypass_v6
+
+# Check if migration has already been done
+if uci -q get snort.nfq.bypass_v4 > /dev/null 2>&1 || uci -q get snort.nfq.bypass_v6 > /dev/null 2>&1; then
+	exit 0
+fi
+
+# Migrate IPv4 bypasses
+# First, add all src bypasses
+grep "^[[:space:]]*list bypass_src_v4" /etc/config/snort 2>/dev/null | sed "s/^[[:space:]]*list bypass_src_v4[[:space:]]*'//" | sed "s/'$//" | while IFS= read -r value; do
+	[ -z "$value" ] || uci add_list snort.nfq.bypass_v4="$value"
+done
+
+# Second, add dst bypasses only if the IP doesn't already exist
+grep "^[[:space:]]*list bypass_dst_v4" /etc/config/snort 2>/dev/null | sed "s/^[[:space:]]*list bypass_dst_v4[[:space:]]*'//" | sed "s/'$//" | while IFS= read -r value; do
+	[ -z "$value" ] && continue
+	ip=$(echo "$value" | cut -d, -f1)
+	# Check if this IP already exists in bypass_v4
+	if ! uci changes snort | grep "snort.nfq.bypass_v4" | sed "s/.*+='\([^,]*\).*/\1/" | grep -Fx "$ip" > /dev/null 2>&1; then
+		uci add_list snort.nfq.bypass_v4="$value"
+	fi
+done
+
+# Migrate IPv6 bypasses
+# First, add all src bypasses
+grep "^[[:space:]]*list bypass_src_v6" /etc/config/snort 2>/dev/null | sed "s/^[[:space:]]*list bypass_src_v6[[:space:]]*'//" | sed "s/'$//" | while IFS= read -r value; do
+	[ -z "$value" ] || uci add_list snort.nfq.bypass_v6="$value"
+done
+
+# Second, add dst bypasses only if the IP doesn't already exist
+grep "^[[:space:]]*list bypass_dst_v6" /etc/config/snort 2>/dev/null | sed "s/^[[:space:]]*list bypass_dst_v6[[:space:]]*'//" | sed "s/'$//" | while IFS= read -r value; do
+	[ -z "$value" ] && continue
+	ip=$(echo "$value" | cut -d, -f1)
+	# Check if this IP already exists in bypass_v6
+	if ! uci changes snort | grep "snort.nfq.bypass_v6" | sed "s/.*+='\([^,]*\).*/\1/" | grep -Fx "$ip" > /dev/null 2>&1; then
+		uci add_list snort.nfq.bypass_v6="$value"
+	fi
+done
+
+# Clean up old keys
+uci -q delete snort.nfq.bypass_src_v6
+uci -q delete snort.nfq.bypass_dst_v6
+uci -q delete snort.nfq.bypass_src_v4
+uci -q delete snort.nfq.bypass_dst_v4
+
+# Save changes
+uci commit snort
+
+exit 0

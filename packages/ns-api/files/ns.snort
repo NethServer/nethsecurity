@@ -150,17 +150,13 @@ def __setup(enabled, set_home_net=False, include_vpn=False, ns_policy='balanced'
 cmd = sys.argv[1]
 
 
-def validate_request(request):
+def validate_bypass_request(request):
     if 'protocol' not in request or request['protocol'] == '':
         raise ValidationError('protocol', 'required')
     if request['protocol'] not in ['ipv4', 'ipv6']:
         raise ValidationError('protocol', 'invalid')
     if 'ip' not in request or request['ip'] == '':
         raise ValidationError('ip', 'required')
-    if 'direction' not in request or request['direction'] == '':
-        raise ValidationError('direction', 'required')
-    if request['direction'] not in ['src', 'dst']:
-        raise ValidationError('direction', 'invalid')
 
 
 def __save_settings():
@@ -207,39 +203,23 @@ def __check_oinkcode():
 
 def __list_bypasses():
     e_uci = EUci()
-    bypasses_src_v4 = e_uci.get('snort', 'nfq', 'bypass_src_v4', list=True, default=[])
-    bypasses_dst_v4 = e_uci.get('snort', 'nfq', 'bypass_dst_v4', list=True, default=[])
-    bypasses_src_v6 = e_uci.get('snort', 'nfq', 'bypass_src_v6', list=True, default=[])
-    bypasses_dst_v6 = e_uci.get('snort', 'nfq', 'bypass_dst_v6', list=True, default=[])
-    # for each bypass, we need to give direction, protocol and ip, also it can contain a comma after the value for the description
+    bypasses_v4 = e_uci.get('snort', 'nfq', 'bypass_v4', list=True, default=[])
+    bypasses_v6 = e_uci.get('snort', 'nfq', 'bypass_v6', list=True, default=[])
+    # for each bypass, we need to give protocol and ip, also it can contain a comma after the value for the description
     bypasses = []
-    for bypass in bypasses_src_v4:
+    for bypass in bypasses_v4:
+        parts = bypass.split(',', 1)
         bypasses.append({
-            "direction": "src",
             "protocol": "ipv4",
-            "ip": bypass.split(',')[0],
-            "description": bypass.split(',')[1] if ',' in bypass else ""
+            "ip": parts[0],
+            "description": parts[1] if len(parts) > 1 else ""
         })
-    for bypass in bypasses_dst_v4:
+    for bypass in bypasses_v6:
+        parts = bypass.split(',', 1)
         bypasses.append({
-            "direction": "dst",
-            "protocol": "ipv4",
-            "ip": bypass.split(',')[0],
-            "description": bypass.split(',')[1] if ',' in bypass else ""
-        })
-    for bypass in bypasses_src_v6:
-        bypasses.append({
-            "direction": "src",
             "protocol": "ipv6",
-            "ip": bypass.split(',')[0],
-            "description": bypass.split(',')[1] if ',' in bypass else ""
-        })
-    for bypass in bypasses_dst_v6:
-        bypasses.append({
-            "direction": "dst",
-            "protocol": "ipv6",
-            "ip": bypass.split(',')[0],
-            "description": bypass.split(',')[1] if ',' in bypass else ""
+            "ip": parts[0],
+            "description": parts[1] if len(parts) > 1 else ""
         })
 
     return bypasses
@@ -247,7 +227,7 @@ def __list_bypasses():
 
 def __create_bypass():
     request = json.load(sys.stdin)
-    validate_request(request)
+    validate_bypass_request(request)
 
     not_ip = False
     not_cidr = False
@@ -275,57 +255,33 @@ def __create_bypass():
         raise ValidationError('ip', 'invalid_ip_address_or_cidr')
 
     e_uci = EUci()
-    if request['direction'] == 'src':
-        if request['protocol'] == 'ipv4':
-            bypasses = list(e_uci.get('snort', 'nfq', 'bypass_src_v4', list=True, default=[]))
-            if any(request['ip'] in bypass for bypass in bypasses):
-                raise ValidationError('ip', 'ip_already_used')
-            bypasses.append(f"{request['ip']},{request.get('description', '')}")
-            e_uci.set('snort', 'nfq', 'bypass_src_v4', bypasses)
-        else:
-            bypasses = list(e_uci.get('snort', 'nfq', 'bypass_src_v6', list=True, default=[]))
-            if any(request['ip'] in bypass for bypass in bypasses):
-                raise ValidationError('ip', 'ip_already_used')
-            bypasses.append(f"{request['ip']},{request.get('description', '')}")
-            e_uci.set('snort', 'nfq', 'bypass_src_v6', bypasses)
+    if request['protocol'] == 'ipv4':
+        bypasses = list(e_uci.get('snort', 'nfq', 'bypass_v4', list=True, default=[]))
+        if any(request['ip'] in bypass for bypass in bypasses):
+            raise ValidationError('ip', 'ip_already_used')
+        bypasses.append(f"{request['ip']},{request.get('description', '')}")
+        e_uci.set('snort', 'nfq', 'bypass_v4', bypasses)
     else:
-        if request['protocol'] == 'ipv4':
-            bypasses = list(e_uci.get('snort', 'nfq', 'bypass_dst_v4', list=True, default=[]))
-            if any(request['ip'] in bypass for bypass in bypasses):
-                raise ValidationError('ip', 'ip_already_used')
-            bypasses.append(f"{request['ip']},{request.get('description', '')}")
-            e_uci.set('snort', 'nfq', 'bypass_dst_v4', bypasses)
-        else:
-            bypasses = list(e_uci.get('snort', 'nfq', 'bypass_dst_v6', list=True, default=[]))
-            if any(request['ip'] in bypass for bypass in bypasses):
-                raise ValidationError('ip', 'ip_already_used')
-            bypasses.append(f"{request['ip']},{request.get('description', '')}")
-            e_uci.set('snort', 'nfq', 'bypass_dst_v6', bypasses)
+        bypasses = list(e_uci.get('snort', 'nfq', 'bypass_v6', list=True, default=[]))
+        if any(request['ip'] in bypass for bypass in bypasses):
+            raise ValidationError('ip', 'ip_already_used')
+        bypasses.append(f"{request['ip']},{request.get('description', '')}")
+        e_uci.set('snort', 'nfq', 'bypass_v6', bypasses)
     e_uci.save('snort')
 
 
 def __delete_bypass():
     request = json.load(sys.stdin)
-    validate_request(request)
+    validate_bypass_request(request)
     e_uci = EUci()
-    if request['direction'] == 'src':
-        if request['protocol'] == 'ipv4':
-            bypasses = list(e_uci.get('snort', 'nfq', 'bypass_src_v4', list=True, default=[]))
-            bypasses = [bypass for bypass in bypasses if bypass.split(',')[0] != request['ip']]
-            e_uci.set('snort', 'nfq', 'bypass_src_v4', bypasses)
-        else:
-            bypasses = list(e_uci.get('snort', 'nfq', 'bypass_src_v6', list=True, default=[]))
-            bypasses = [bypass for bypass in bypasses if bypass.split(',')[0] != request['ip']]
-            e_uci.set('snort', 'nfq', 'bypass_src_v6', bypasses)
+    if request['protocol'] == 'ipv4':
+        bypasses = list(e_uci.get('snort', 'nfq', 'bypass_v4', list=True, default=[]))
+        bypasses = [bypass for bypass in bypasses if bypass.split(',')[0] != request['ip']]
+        e_uci.set('snort', 'nfq', 'bypass_v4', bypasses)
     else:
-        if request['protocol'] == 'ipv4':
-            bypasses = list(e_uci.get('snort', 'nfq', 'bypass_dst_v4', list=True, default=[]))
-            bypasses = [bypass for bypass in bypasses if bypass.split(',')[0] != request['ip']]
-            e_uci.set('snort', 'nfq', 'bypass_dst_v4', bypasses)
-        else:
-            bypasses = list(e_uci.get('snort', 'nfq', 'bypass_dst_v6', list=True, default=[]))
-            bypasses = [bypass for bypass in bypasses if bypass.split(',')[0] != request['ip']]
-            e_uci.set('snort', 'nfq', 'bypass_dst_v6', bypasses)
+        bypasses = list(e_uci.get('snort', 'nfq', 'bypass_v6', list=True, default=[]))
+        bypasses = [bypass for bypass in bypasses if bypass.split(',')[0] != request['ip']]
+        e_uci.set('snort', 'nfq', 'bypass_v6', bypasses)
     e_uci.save('snort')
 
 
@@ -491,8 +447,8 @@ if cmd == 'list':
         "save-settings": {"enabled": True, "ns_policy": "balanced", "oinkcode": "1234567890"},
         "check-oinkcode": {},
         "list-bypasses": {},
-        "create-bypass": {"protocol": "ipv4", "ip": "*.*.*.*", "direction": "src", "description": "Description"},
-        "delete-bypass": {"protocol": "ipv4", "ip": "*.*.*.*", "direction": "src"},
+        "create-bypass": {"protocol": "ipv4", "ip": "*.*.*.*", "description": "Description"},
+        "delete-bypass": {"protocol": "ipv4", "ip": "*.*.*.*"},
         "list-disabled-rules": {},
         "disable-rule": {"gid": 1, "sid": 100000, "description": "Description"},
         "enable-rule": {"gid": 1, "sid": 100000},
