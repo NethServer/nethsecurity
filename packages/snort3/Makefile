@@ -96,9 +96,15 @@ define Package/snort3/install
 		./files/ns-snort-rules \
 		$(1)/usr/bin/
 
+	$(INSTALL_DIR) $(1)/usr/libexec
 	$(INSTALL_BIN) \
-		./files/ns-bypass-config \
-		$(1)/usr/bin/
+		./files/ns-snort-bypass-config \
+		$(1)/usr/libexec/
+
+	$(INSTALL_DIR) $(1)/etc/uci-defaults
+	$(INSTALL_BIN) \
+		./files/99_snort_bypass_migration \
+		$(1)/etc/uci-defaults/
 
 	$(INSTALL_DIR) $(1)/usr/lib/snort
 	$(CP) \

@@ -8025,16 +8025,17 @@ Response example:
 {
   "enabled": true,
   "ns_policy": "balanced",
-  "oinkcode": "123456789"
+  "oinkcode": "123456789",
+  "home_net": ["192.168.1.0/24", "10.0.0.0/8"]
 }
 ```
 
 ### save-settings
 
-Set `snort` configuration
+Set `snort` configuration. The `home_net` field is a list of IPv4 CIDRs representing the protected networks.
 
 ```bash
-api-cli ns.snort save-settings --data '{"enabled": true, "ns_policy": "balanced", "oinkcode": "123456789"}'
+api-cli ns.snort save-settings --data '{"enabled": true, "ns_policy": "balanced", "oinkcode": "123456789", "home_net": ["192.168.1.0/24"]}'
 ```
 
 ### check-oinkcode
@@ -8077,13 +8078,11 @@ Response example:
 {
   "bypasses": [
     {
-      "direction": "src",
       "protocol": "ipv4",
       "ip": "192.168.100.23",
       "description": "Description"
     },
     {
-      "direction": "dst",
       "protocol": "ipv6",
       "ip": "2001:db8::1",
       "description": "Another description"
@@ -8094,10 +8093,10 @@ Response example:
 
 ### create-bypass
 
-Create a new bypass rule for Snort IDS.
+Create a new bypass rule for Snort IDS. Each bypass applies to both source and destination traffic.
 
 ```bash
-api-cli ns.snort create-bypass --data '{"protocol": "ipv4", "ip": "192.168.100.23", "direction": "src", "description": "Description"}'
+api-cli ns.snort create-bypass --data '{"protocol": "ipv4", "ip": "192.168.100.23", "description": "Description"}'
 ```
 
 Response example:
@@ -8113,7 +8112,7 @@ Response example:
 Delete an existing bypass rule for Snort IDS.
 
 ```bash
-api-cli ns.snort delete-bypass --data '{"protocol": "ipv4", "ip": "192.168.100.23", "direction": "src"}'
+api-cli ns.snort delete-bypass --data '{"protocol": "ipv4", "ip": "192.168.100.23"}'
 ```
 
 Response example:

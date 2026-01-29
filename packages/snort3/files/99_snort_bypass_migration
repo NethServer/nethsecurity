@@ -1,0 +1,67 @@
+#!/bin/sh
+# Migrate legacy bypass_src_*/bypass_dst_* keys to unified bypass_v4/bypass_v6
+# This runs once during first boot or package update via uci-defaults mechanism
+
+# Check if migration has already been done
+if uci -q get snort.nfq.bypass_v4 > /dev/null 2>&1 || uci -q get snort.nfq.bypass_v6 > /dev/null 2>&1; then
+	exit 0
+fi
+
+# Migrate IPv4 bypasses
+bypass_v4_list=""
+
+# First, add all src bypasses
+bypass_src_v4=$(uci -q get snort.nfq.bypass_src_v4)
+if [ -n "$bypass_src_v4" ]; then
+	bypass_v4_list="$bypass_src_v4"
+fi
+
+# Second, add dst bypasses if IP doesn't exist in src
+bypass_dst_v4=$(uci -q get snort.nfq.bypass_dst_v4)
+if [ -n "$bypass_dst_v4" ]; then
+	for entry in $bypass_dst_v4; do
+		ip=$(echo "$entry" | cut -d, -f1)
+		if ! echo "$bypass_v4_list" | grep -q "^$ip" && ! echo "$bypass_v4_list" | grep -q " $ip"; then
+			bypass_v4_list="$bypass_v4_list $entry"
+		fi
+	done
+fi
+
+# Set and clean up IPv4
+if [ -n "$bypass_v4_list" ]; then
+	uci set snort.nfq.bypass_v4="$bypass_v4_list"
+fi
+uci delete snort.nfq.bypass_src_v4
+uci delete snort.nfq.bypass_dst_v4
+
+# Migrate IPv6 bypasses
+bypass_v6_list=""
+
+# First, add all src bypasses
+bypass_src_v6=$(uci -q get snort.nfq.bypass_src_v6)
+if [ -n "$bypass_src_v6" ]; then
+	bypass_v6_list="$bypass_src_v6"
+fi
+
+# Second, add dst bypasses if IP doesn't exist in src
+bypass_dst_v6=$(uci -q get snort.nfq.bypass_dst_v6)
+if [ -n "$bypass_dst_v6" ]; then
+	for entry in $bypass_dst_v6; do
+		ip=$(echo "$entry" | cut -d, -f1)
+		if ! echo "$bypass_v6_list" | grep -q "^$ip" && ! echo "$bypass_v6_list" | grep -q " $ip"; then
+			bypass_v6_list="$bypass_v6_list $entry"
+		fi
+	done
+fi
+
+# Set and clean up IPv6
+if [ -n "$bypass_v6_list" ]; then
+	uci set snort.nfq.bypass_v6="$bypass_v6_list"
+fi
+uci delete snort.nfq.bypass_src_v6
+uci delete snort.nfq.bypass_dst_v6
+
+# Save changes
+uci commit snort
+
+exit 0
