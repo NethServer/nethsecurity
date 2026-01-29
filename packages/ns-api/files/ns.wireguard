@@ -36,11 +36,13 @@ def generate_wireguard_keys():
 def list_servers():
     u = EUci()
     ret = []
+    # Fetch active peers once for all servers
+    peers_status = __active_peers()
     interfaces = utils.get_all_by_type(u, "network", "interface")
     for i in interfaces:
         interface = interfaces[i]
         if interface.get("proto") == "wireguard" and interface.get("ns_type", '') == 'server':
-            ret.append(__get_configuration(i))
+            ret.append(__get_server_configuration(u, i, peers_status))
     return ret
 
 
@@ -146,6 +148,16 @@ def __list_peers(interface):
     peers_status = __active_peers()
 
     u = EUci()
+
+    # Pre-compute server data once for all peers
+    server_private_key = u.get('network', interface, 'private_key')
+    server_public_key = subprocess.run(["wg", "pubkey"], input=server_private_key, capture_output=True, text=True).stdout.strip()
+    server_dns = u.get('network', interface, 'ns_dns', dtype=str, list=True, default=[])
+    server_name = u.get('network', interface, 'ns_name')
+    server_network = u.get('network', interface, 'ns_network')
+    server_endpoint = u.get('network', interface, 'ns_public_endpoint')
+    server_port = u.get('network', interface, 'listen_port', dtype=int)
+
     peers = []
     for p in utils.get_all_by_type(u, "network", f"wireguard_{interface}"):
         peer = {
@@ -157,7 +169,10 @@ def __list_peers(interface):
             "remote_networks": u.get('network', p, 'ns_routes', dtype=str, list=True, default=[]),
             "local_networks": u.get('network', p, 'ns_local_routes', dtype=str, list=True, default=[]),
             "reserved_ip": u.get("network", p, "ns_ip", dtype=str),
-            "config": __generate_peer_config(interface, p),
+            "config": __generate_peer_config(
+                u, p, server_public_key, server_dns, server_name,
+                server_network, server_endpoint, server_port
+            ),
         }
         public_key = u.get('network', p, 'public_key', dtype=str, default='')
         if public_key in peers_status:
@@ -495,60 +510,91 @@ def delete_peer(args):
     return {"result": "success"}
 
 
-def __generate_peer_config(server_id, peer_id):
-    e_uci = EUci()
-
+def __generate_peer_config(u, peer_id, server_public_key, server_dns, server_name, server_network, server_endpoint, server_port):
+    """Generate peer config reusing EUci instance and pre-computed server data."""
     config = "[Interface]\n"
-    config += f"# Name = {e_uci.get('network', peer_id, 'ns_name')}\n"
-    config += f"PrivateKey = {e_uci.get('network', peer_id, 'private_key')}\n"
-    config += f"Address = {e_uci.get('network', peer_id, 'ns_ip')}\n"
-    dns_servers = e_uci.get('network', server_id, 'ns_dns', default=[], dtype=str, list=True)
-    if len(dns_servers) > 0:
-        config += f"DNS = {','.join(dns_servers)}\n"
+    config += f"# Name = {u.get('network', peer_id, 'ns_name')}\n"
+    config += f"PrivateKey = {u.get('network', peer_id, 'private_key')}\n"
+    config += f"Address = {u.get('network', peer_id, 'ns_ip')}\n"
+    if len(server_dns) > 0:
+        config += f"DNS = {','.join(server_dns)}\n"
     else:
         config += "# DNS not configured\n"
 
     config += "\n[Peer]\n"
-    config += f"# Name = {e_uci.get('network', server_id, 'ns_name')}\n"
-    server_public_key = subprocess.run(["wg", "pubkey"], input=e_uci.get('network', server_id, 'private_key'), capture_output=True, text=True).stdout.strip()
+    config += f"# Name = {server_name}\n"
     config += f"PublicKey = {server_public_key}\n"
-    if e_uci.get('network', peer_id, 'preshared_key', default='') != '':
-        config += f"PresharedKey = {e_uci.get('network', peer_id, 'preshared_key')}\n"
+    if u.get('network', peer_id, 'preshared_key', default='') != '':
+        config += f"PresharedKey = {u.get('network', peer_id, 'preshared_key')}\n"
     else:
         config += "# PresharedKey not configured\n"
-    if e_uci.get('network', peer_id, 'ns_route_all_traffic', dtype=bool, default=False):
+    if u.get('network', peer_id, 'ns_route_all_traffic', dtype=bool, default=False):
         config += "AllowedIPs = 0.0.0.0/0, ::/0\n"
     else:
-        addresses = list(e_uci.get('network', peer_id, 'ns_local_routes', list=True, dtype=str, default=[]))
-        addresses.append(e_uci.get('network', server_id, 'ns_network', dtype=str))
+        addresses = list(u.get('network', peer_id, 'ns_local_routes', list=True, dtype=str, default=[]))
+        addresses.append(server_network)
         config += f"AllowedIPs = {','.join(addresses)}\n"
-    config += f"Endpoint = {e_uci.get('network', server_id, 'ns_public_endpoint')}:{e_uci.get('network', server_id, 'listen_port')}\n"
-    config += f"PersistentKeepalive = {e_uci.get('network', peer_id, 'persistent_keepalive', default='25')}\n"
+    config += f"Endpoint = {server_endpoint}:{server_port}\n"
+    config += f"PersistentKeepalive = {u.get('network', peer_id, 'persistent_keepalive', default='25')}\n"
 
     return config
 
 
-def __get_configuration(instance):
-    u = EUci()
+def __get_server_configuration(u, instance, peers_status):
+    """Get server configuration with peers, reusing EUci instance and pre-fetched peer status."""
     if u.get('network', instance, default=None) is None:
         return utils.generic_error("instance_not_found")
-    config = u.get('network', dtype=str, list=True, default=[])
+
+    # Get server data once
+    server_name = u.get('network', instance, 'ns_name')
+    server_port = u.get('network', instance, 'listen_port', dtype=int)
+    server_address = u.get('network', instance, 'addresses', dtype=str, list=True, default=None)[0]
+    server_network = u.get('network', instance, 'ns_network')
+    server_endpoint = u.get('network', instance, 'ns_public_endpoint')
+    server_enabled = not u.get('network', instance, 'disabled', dtype=bool, default=False)
+    server_mtu = u.get('network', instance, 'mtu', dtype=int, default=0)
+    server_dns = u.get('network', instance, 'ns_dns', dtype=str, list=True, default=[])
+    server_private_key = u.get('network', instance, 'private_key')
+
+    # Compute server public key once for all peers
+    server_public_key = subprocess.run(["wg", "pubkey"], input=server_private_key, capture_output=True, text=True).stdout.strip()
+
+    # Build peers list
     peers = []
-    for i in config:
-        if i.startswith(f"{instance}_") and i.endswith("_peer"):
-            peers = __list_peers(instance)
+    for p in utils.get_all_by_type(u, "network", f"wireguard_{instance}"):
+        peer = {
+            "id": p,
+            "enabled": not u.get("network", p, "disabled", dtype=bool, default=False),
+            "name": u.get("network", p, "ns_name", default=''),
+            "pre_shared_key": u.get('network', p, "preshared_key", dtype=str, default='') != '',
+            "route_all_traffic": u.get('network', p, "ns_route_all_traffic", dtype=bool, default=False),
+            "remote_networks": u.get('network', p, 'ns_routes', dtype=str, list=True, default=[]),
+            "local_networks": u.get('network', p, 'ns_local_routes', dtype=str, list=True, default=[]),
+            "reserved_ip": u.get("network", p, "ns_ip", dtype=str),
+            "config": __generate_peer_config(
+                u, p, server_public_key, server_dns, server_name,
+                server_network, server_endpoint, server_port
+            ),
+        }
+        public_key = u.get('network', p, 'public_key', dtype=str, default='')
+        if public_key in peers_status:
+            peer["active"] = peers_status[public_key]["active"]
+            if 'latest_handshake' in peers_status[public_key]:
+                peer['latest_handshake'] = peers_status[public_key]['latest_handshake']
+
+        peers.append(peer)
 
     return {
         "id": instance,
-        "name": u.get('network', instance, 'ns_name'),
-        "listen_port": u.get('network', instance, 'listen_port', dtype=int),
-        "address": u.get('network', instance, 'addresses', dtype=str, list=True, default=None)[0],
-        "network": u.get('network', instance, 'ns_network'),
-        "public_endpoint": u.get('network', instance, 'ns_public_endpoint'),
-        "enabled": not u.get('network', instance, 'disabled', dtype=bool, default=False),
+        "name": server_name,
+        "listen_port": server_port,
+        "address": server_address,
+        "network": server_network,
+        "public_endpoint": server_endpoint,
+        "enabled": server_enabled,
         "peers": peers,
-        "mtu": u.get('network', instance, 'mtu', dtype=int, default=0),
-        "dns": u.get('network', instance, 'ns_dns', dtype=str, list=True, default=[])
+        "mtu": server_mtu,
+        "dns": server_dns
     }
 
 
