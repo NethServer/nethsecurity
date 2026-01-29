@@ -9,10 +9,8 @@ from euci import EUci
 from jinja2 import Environment, BaseLoader
 
 CONFIGS = [
-    'bypass_src_v4',
-    'bypass_dst_v4',
-    'bypass_src_v6',
-    'bypass_dst_v6'
+    'bypass_v4',
+    'bypass_v6'
 ]
 
 TEMPLATE = """
