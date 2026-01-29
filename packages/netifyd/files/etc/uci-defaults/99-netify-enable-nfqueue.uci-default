@@ -6,6 +6,9 @@
 #
 
 # Removing the interfaces from netifyd configuration, ignore exit codes
-uci -q del netifyd.@netifyd[0].external_if
-uci -q del netifyd.@netifyd[0].internal_if
-exit 0
+if ! uci -q get netifyd.@netifyd[0].external_if; then
+    uci -q del netifyd.@netifyd[0].external_if
+fi
+if ! uci -q get netifyd.@netifyd[0].internal_if; then
+    uci -q del netifyd.@netifyd[0].internal_if
+fi

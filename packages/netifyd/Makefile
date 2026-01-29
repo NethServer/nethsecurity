@@ -167,7 +167,7 @@ define Package/netifyd/install
 	$(INSTALL_DIR) $(1)/usr/share
 	$(INSTALL_DIR) $(1)/usr/share/netifyd
 	$(INSTALL_DIR) $(1)/usr/share/netifyd/plugins.d
-	$(INSTALL_DIR) $(1)/usr/share/nftables.d/table-pre
+	$(INSTALL_DIR) $(1)/usr/share/nftables.d/ruleset-pre
 
 	# netifyd
 	$(INSTALL_DATA) ./files/etc/config/netifyd $(1)/etc/config/netifyd
@@ -187,7 +187,7 @@ define Package/netifyd/install
 	$(INSTALL_DATA) ./files/usr/share/netifyd/netify-sink-http-auto.json $(1)/usr/share/netifyd/netify-sink-http-auto.json
 	$(INSTALL_DATA) ./files/usr/share/netifyd/plugins.d/99-netify-proc-core-auto.conf $(1)/usr/share/netifyd/plugins.d/99-netify-proc-core-auto.conf
 	$(INSTALL_DATA) ./files/usr/share/netifyd/plugins.d/99-netify-sink-http-auto.conf $(1)/usr/share/netifyd/plugins.d/99-netify-sink-http-auto.conf
-	$(INSTALL_DATA) ./files/usr/share/nftables.d/table-pre/10-netifyd.nft $(1)/usr/share/nftables.d/table-pre/10-netifyd.nft
+	$(INSTALL_DATA) ./files/usr/share/nftables.d/ruleset-pre/netifyd.nft $(1)/usr/share/nftables.d/ruleset-pre/netifyd.nft
 	$(LN) /usr/lib/libnetifyd.so.4.0.0 $(1)/usr/lib/libnetifyd.so
 	$(LN) /usr/lib/libnetifyd.so.4.0.0 $(1)/usr/lib/libnetifyd.so.4
 	# netify-plm
