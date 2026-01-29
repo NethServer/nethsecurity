@@ -8,6 +8,6 @@
 # Generate netify flow actions config file
 /usr/sbin/dpi-config
 # Apply nftables rules
-/usr/sbin/dpi-nft | nft -f -
+/usr/sbin/dpi-nft
 # reload netifyd daemon
 /etc/init.d/netifyd reload

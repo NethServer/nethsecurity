@@ -1,0 +1,5 @@
+chain nfq {
+    type filter hook forward priority filter + 10; policy accept;
+    ct packets > 32 counter return
+    counter queue num 10-19 bypass
+}
