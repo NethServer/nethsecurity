@@ -45,17 +45,16 @@ def netmask_to_cidr_notation(netmask):
     except:
         return None
 
-def scan(device, interface):
+def scan(device):
     ret = []
     u = EUci()
     
-    if interface:
-        netmask = u.get('network', interface, 'netmask')
-        netmask_cidr = netmask_to_cidr_notation(netmask)
-        
-        # block arp-scan if the subnet is /19 or smaller
-        if netmask_cidr is not None and netmask_cidr < 20:
-            return utils.validation_error("subnet_too_large_for_scan")
+    netmask = u.get('network', utils.get_interface_from_device(u, device), 'netmask')
+    netmask_cidr = netmask_to_cidr_notation(netmask)
+    
+    # block arp-scan if the subnet is /19 or smaller
+    if netmask_cidr is not None and netmask_cidr < 20:
+        return utils.validation_error("subnet_too_large_for_scan")
     
     # scan the network using arpscan and add the results to the return value
     try:
@@ -77,11 +76,11 @@ def scan(device, interface):
 cmd = sys.argv[1]
 
 if cmd == 'list':
-    print(json.dumps({"list-interfaces": {}, "scan": {"device": "eth0", "interface": "green"}}))
+    print(json.dumps({"list-interfaces": {}, "scan": {"device": "eth0"}}))
 else:
     action = sys.argv[2]
     if action == "list-interfaces":
         print(json.dumps(list_interfaces()))
     elif action == "scan":
         args = json.loads(sys.stdin.read())
-        print(json.dumps(scan(args['device'], args['interface'])))
+        print(json.dumps(scan(args['device'])))
