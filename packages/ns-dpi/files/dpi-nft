@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
+import os
 import subprocess
 
 from euci import EUci
@@ -12,13 +13,13 @@ from jinja2 import Environment, BaseLoader
 
 CHAIN="""
 chain dpi_blocks {
-    # filter is + 11 to be before the nfq hook at + 10
-    type filter hook forward priority filter + 11; policy accept;
+    type filter hook prerouting priority filter + 10; policy accept;
     
     # init is to allow kernel to set labels
     ct label set netify-init
     ct label netify-block counter {% if log_enabled %}log prefix "DPI block: " limit rate {{ log_limit }} {% endif %}drop
 }
+
 """
 
 
@@ -27,13 +28,16 @@ def generate_dpi():
     template = Environment(loader=BaseLoader()).from_string(CHAIN)
     render = template.render(
         log_enabled=e_uci.get('dpi', 'config', 'log_blocked', dtype=bool, default=False),
-        log_limit=e_uci.get('firewall', 'ns_defaults', 'rule_log_limit', dtype=str, default='1/s')
+        log_limit=e_uci.get('firewall', 'ns_defaults', 'rule_log_limit', dtype=str, default='1/second')
     )
     # save to nftables directory table-pre, only if the file is changed
-    with open('/usr/share/nftables.d/table-pre/dpi_blocks.nft', 'r') as f:
-        current = f.read()
+    file_path = '/usr/share/nftables.d/table-pre/dpi_blocks.nft'
+    current = None
+    if os.path.exists(file_path):
+        with open(file_path, 'r') as f:
+            current = f.read()
     if current != render:
-        with open('/usr/share/nftables.d/table-pre/dpi_blocks.nft', 'w') as f:
+        with open(file_path, 'w') as f:
             f.write(render)
         # reload nftables
         subprocess.run(['fw4', 'reload'], check=True)
