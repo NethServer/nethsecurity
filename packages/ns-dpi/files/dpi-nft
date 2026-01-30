@@ -40,7 +40,7 @@ def generate_dpi():
         with open(file_path, 'w') as f:
             f.write(render)
         # reload nftables
-        subprocess.run(['fw4', 'reload'], check=True)
+        subprocess.run(['fw4', 'reload'], check=True, capture_output=True)
 
 if __name__ == "__main__":
     generate_dpi()
