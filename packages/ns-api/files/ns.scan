@@ -32,22 +32,13 @@ def list_interfaces():
             continue
         try:
             netmask = u.get('network', i, 'netmask') or ""
-            netmask_cidr = netmask_to_cidr_notation(netmask)
+            netmask_cidr = ipaddress.IPv4Network(f'0.0.0.0/{netmask}').prefixlen
         except:
             # manage interfaces without netmask (ex. OpenVPN tunnels)
             netmask_cidr = None
         ret.append({"interface": i, "device": interfaces[i].get('device', ''), "netmask": netmask_cidr})
 
     return {"interfaces": ret}
-
-def netmask_to_cidr_notation(netmask):
-    """Convert a netmask to CIDR notation (ex. 255.255.0.0 -> 16)"""
-    if not netmask:
-        return None
-    try:
-        return ipaddress.IPv4Network(f'0.0.0.0/{netmask}').prefixlen
-    except:
-        return None
 
 def scan(device):
     ret = []
@@ -56,7 +47,7 @@ def scan(device):
     try:
         interface = utils.get_interface_from_device(u, device)
         netmask = u.get('network', interface, 'netmask')
-        netmask_cidr = netmask_to_cidr_notation(netmask)
+        netmask_cidr = ipaddress.IPv4Network(f'0.0.0.0/{netmask}').prefixlen
     except:
         # manage interfaces without netmask (ex. OpenVPN tunnels)
         netmask_cidr = None
