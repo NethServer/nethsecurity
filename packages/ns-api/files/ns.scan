@@ -12,14 +12,41 @@ import sys
 import json
 import socket
 import subprocess
-import ipaddress
 from euci import EUci
 from nethsec import utils
+
+### Utils
+
+def get_devices_info():
+    """Get all network devices information from ip address command"""
+    try:
+        p = subprocess.run(["/sbin/ip", "-j", "address"],
+                         check=True, text=True, capture_output=True)
+        return json.loads(p.stdout)
+    except Exception:
+        return []
+
+def is_scan_enabled(device_name, devices_info):
+    """Determine if scan should be enabled based on netmask"""
+    for device in devices_info:
+        if device.get('ifname') == device_name:
+            addr_info = device.get('addr_info', [])
+            for addr in addr_info:
+                if addr.get('family') == 'inet':
+                    prefixlen = addr.get('prefixlen', 0)
+                    # enable scan for networks with netmask larger than /19
+                    if prefixlen > 19:
+                        return True
+            return False
+    return False
+
+### APIs
 
 def list_interfaces():
     ret = []
     u = EUci()
     wans = []
+    devices_info = get_devices_info()
     interfaces = utils.get_all_by_type(u, 'network', 'interface')
     for device in  utils.get_all_wan_devices(u):
         iname = utils.get_interface_from_device(u, device)
@@ -30,32 +57,18 @@ def list_interfaces():
         # skip loopback, bond devices, wans, aliases, ipsec, tun, tap, wg
         if re.match(r'^(loopback|tun|tap|ipsec|wg)', i) or i in wans or interfaces[i].get('device', '').startswith('@'):
             continue
-        try:
-            netmask = u.get('network', i, 'netmask') or ""
-            netmask_cidr = ipaddress.IPv4Network(f'0.0.0.0/{netmask}').prefixlen
-        except:
-            # manage interfaces without netmask (ex. OpenVPN tunnels)
-            netmask_cidr = None
-        ret.append({"interface": i, "device": interfaces[i].get('device', ''), "netmask": netmask_cidr})
+        device_name = interfaces[i].get('device', '')
+        scan_enabled = is_scan_enabled(device_name, devices_info)
+        ret.append({
+            "interface": i,
+            "device": device_name,
+            "scan_enabled": scan_enabled
+        })
 
     return {"interfaces": ret}
 
 def scan(device):
     ret = []
-    u = EUci()
-    
-    try:
-        interface = utils.get_interface_from_device(u, device)
-        netmask = u.get('network', interface, 'netmask')
-        netmask_cidr = ipaddress.IPv4Network(f'0.0.0.0/{netmask}').prefixlen
-    except:
-        # manage interfaces without netmask (ex. OpenVPN tunnels)
-        netmask_cidr = None
-    
-    # block arp-scan if the subnet is /19 or smaller
-    if netmask_cidr is not None and netmask_cidr < 20:
-        return utils.validation_error("subnet_too_large_for_scan")
-    
     # scan the network using arpscan and add the results to the return value
     try:
         p = subprocess.run(["arp-scan", "-I", device, "-l", "-x", "--macfile=/usr/share/arp-scan/mac-vendor.txt", "--ouifile=/usr/share/arp-scan/ieee-oui.txt"], capture_output=True, check=True, text=True)
