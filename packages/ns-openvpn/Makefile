@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-openvpn
-PKG_VERSION:=1.0.0
+PKG_VERSION:=1.0.1
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-openvpn-$(PKG_VERSION)
@@ -43,6 +43,7 @@ define Package/ns-openvpn/install
 	$(INSTALL_BIN) ./files/ns-openvpnrw-init-pki $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-openvpnrw-extend-crl $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-openvpntunnel-add-client $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/ns-openvpntunnel-regenerate-certs $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/openvpn-connect $(1)/usr/libexec/ns-openvpn/
 	$(INSTALL_BIN) ./files/openvpn-disconnect $(1)/usr/libexec/ns-openvpn/
 	$(INSTALL_BIN) ./files/init-connections-db $(1)/usr/libexec/ns-openvpn/
