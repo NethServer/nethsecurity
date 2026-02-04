@@ -65,20 +65,60 @@ def remove_files(file_list):
         except OSError:
             pass
 
-def get_cert_expiry_ts(cert_path):
+def get_certificates_from_pem(pem_path):
+    """Extract certificate CN and expiration date from PEM file containing one or more certificates"""
     try:
-        result = subprocess.run(
-            ["openssl", "x509", "-noout", "-enddate", "-in", cert_path],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        # parse output data like "notAfter=Dec 20 23:59:59 2033 GMT"
-        date_str = result.stdout.split("=")[1].strip()
-        # convert to Unix timestamp
-        return int(time.mktime(datetime.strptime(date_str, "%b %d %H:%M:%S %Y %Z").timetuple()))
-    except:
-        return None
+        with open(pem_path, 'r') as f:
+            pem_content = f.read()
+
+        certificates = {}
+
+        # Split by certificate boundaries
+        cert_blocks = pem_content.split('-----BEGIN CERTIFICATE-----')
+
+        for block in cert_blocks[1:]:  # Skip the first empty split
+            if '-----END CERTIFICATE-----' not in block:
+                continue
+
+            # Extract the certificate portion
+            cert_data = '-----BEGIN CERTIFICATE-----' + block.split('-----END CERTIFICATE-----')[0] + '-----END CERTIFICATE-----'
+
+            # Get both CN and enddate in single openssl call
+            try:
+                result = subprocess.run(
+                    ["openssl", "x509", "-noout", "-subject", "-nameopt", "RFC2253", "-enddate"],
+                    input=cert_data,
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+
+                lines = result.stdout.strip().split('\n')
+                cn = "Unknown"
+                expiry_ts = None
+                for line in lines:
+                    if line.startswith("subject="):
+                        subject_line = line
+                        if "CN=" in subject_line:
+                            cn = subject_line.split("CN=")[1].split(",")[0]
+                    elif line.startswith("notAfter="):
+                        # Parse output like: notAfter=Feb  2 14:12:21 2036 GMT
+                        date_str = line.split("=")[1].strip()
+                        try:
+                            expiry_ts = int(time.mktime(datetime.strptime(date_str, "%b %d %H:%M:%S %Y %Z").timetuple()))
+                        except:
+                            pass
+
+                # Map NethSec CN to CA
+                if cn == 'NethSec':
+                    cn = 'CA'
+                certificates[cn] = expiry_ts
+            except:
+                pass
+
+        return certificates
+    except Exception as e:
+        return {}
 
 # APIs
 
@@ -317,11 +357,7 @@ def list_tunnels():
         if 'ns_auth_mode' in vpn:
             continue
         topology = vpn.get("topology", "subnet")
-        
-        # get certificate expiry timestamp
-        if vpn.get('cert'):
-            cert_expiry_timestamp = get_cert_expiry_ts(vpn.get('cert'))
-        
+
         record = {
             "id": section,
             "ns_name": vpn.get("ns_name", ""),
@@ -329,8 +365,6 @@ def list_tunnels():
             "enabled": vpn.get("enabled", "0") == "1",
             "connected": False
         }
-        if cert_expiry_timestamp:
-            record["cert_expiry_ts"] = cert_expiry_timestamp
 
         if vpn.get("client", "0") == "1" or vpn.get("ns_client", "0") == "1":
             connected = ovpn.list_connected_clients(section, 'p2p')
@@ -350,6 +384,8 @@ def list_tunnels():
                 "remote_host": vpn.get("remote", ""),
                 "remote_network": remote
             }
+            if vpn.get('cert'):
+                client["certificates"] = get_certificates_from_pem(vpn.get('cert'))
             clients.append(client)
         else:
             connected = ovpn.list_connected_clients(section, topology)
@@ -379,6 +415,16 @@ def list_tunnels():
                 "remote_network": remote,
                 "vpn_network": net,
             }
+
+            certificates = {}
+            if vpn.get('cert'):
+                certificates = get_certificates_from_pem(vpn.get('cert'))
+                client_crt = vpn.get('cert').replace('/issued/server.crt', '/issued/client.crt')
+                certificates.update(get_certificates_from_pem(client_crt))
+            if vpn.get('ca'):
+                certificates.update(get_certificates_from_pem(vpn.get('ca')))
+            server["certificates"] = certificates
+
             servers.append(server)
 
     return {"servers": servers, "clients": clients}
