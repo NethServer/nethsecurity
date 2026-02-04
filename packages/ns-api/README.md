@@ -921,7 +921,12 @@ Response example:
       "port": "1202",
       "local_network": [],
       "remote_network": [],
-      "vpn_network": "10.87.32.1 - 10.87.32.2"
+      "vpn_network": "10.87.32.1 - 10.87.32.2",
+      "certificates": {
+        "server": 2085574867,
+        "client": 2085574868,
+        "CA": 2085574340
+      }
     },
     {
       "id": "ns_tunsubnet",
@@ -935,7 +940,11 @@ Response example:
       "remote_network": [
         "192.168.200.0/24"
       ],
-      "vpn_network": "10.36.125.0/24"
+      "vpn_network": "10.36.125.0/24",
+      "certificates": {
+        "client": 2085574868,
+        "CA": 2085574340
+      }
     }
   ],
   "clients": [
