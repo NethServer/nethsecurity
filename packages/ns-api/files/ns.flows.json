@@ -1,0 +1,13 @@
+{
+  "flows": {
+    "description": "Read flow statistics from netifyd",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.flows": [
+          "*"
+        ]
+      }
+    }
+  }
+}
