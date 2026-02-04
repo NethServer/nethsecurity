@@ -12,12 +12,16 @@ if [ -d /etc/netify.d ]; then
         mv /etc/netify.d/agent.uuid /etc/netifyd/agent.uuid
     fi
     # migrate netifyd.conf
+    informatics_enabled=$(grep 'enable_sink = yes' /etc/netifyd.conf)
     if [ -f /etc/netifyd.conf-opkg ]; then
-      informatics_enabled=$(grep 'enable_sink = yes' /etc/netifyd.conf)
+      # package update, copy the new package config
       mv /etc/netifyd.conf-opkg /etc/netifyd.conf
-      if [ -n "$informatics_enabled" ]; then
-        /usr/sbin/netifyd --enable-informatics
-      fi
+    else
+      # this is not a package update, it's an image upgrade
+      cp /rom/etc/netifyd.conf /etc/netifyd.conf
+    fi
+    if [ -n "$informatics_enabled" ]; then
+      /usr/sbin/netifyd --enable-informatics
     fi
     # delete old directory
     rm -rf /etc/netify.d
