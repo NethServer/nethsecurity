@@ -15,10 +15,38 @@ import subprocess
 from euci import EUci
 from nethsec import utils
 
+### Utils
+
+def get_devices_info():
+    """Get all network devices information from ip address command"""
+    try:
+        p = subprocess.run(["/sbin/ip", "-j", "address"],
+                         check=True, text=True, capture_output=True)
+        return json.loads(p.stdout)
+    except Exception:
+        return []
+
+def is_scan_enabled(device_name, devices_info):
+    """Determine if scan should be enabled based on netmask"""
+    for device in devices_info:
+        if device.get('ifname') == device_name:
+            addr_info = device.get('addr_info', [])
+            for addr in addr_info:
+                if addr.get('family') == 'inet':
+                    prefixlen = addr.get('prefixlen', 0)
+                    # enable scan for networks with netmask larger than /19
+                    if prefixlen > 19:
+                        return True
+            return False
+    return False
+
+### APIs
+
 def list_interfaces():
     ret = []
     u = EUci()
     wans = []
+    devices_info = get_devices_info()
     interfaces = utils.get_all_by_type(u, 'network', 'interface')
     for device in  utils.get_all_wan_devices(u):
         iname = utils.get_interface_from_device(u, device)
@@ -29,7 +57,13 @@ def list_interfaces():
         # skip loopback, bond devices, wans, aliases, ipsec, tun, tap, wg
         if re.match(r'^(loopback|tun|tap|ipsec|wg)', i) or i in wans or interfaces[i].get('device', '').startswith('@'):
             continue
-        ret.append({"interface": i, "device": interfaces[i].get('device', '')})
+        device_name = interfaces[i].get('device', '')
+        scan_enabled = is_scan_enabled(device_name, devices_info)
+        ret.append({
+            "interface": i,
+            "device": device_name,
+            "scan_enabled": scan_enabled
+        })
 
     return {"interfaces": ret}
 
