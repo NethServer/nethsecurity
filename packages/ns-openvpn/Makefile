@@ -44,6 +44,7 @@ define Package/ns-openvpn/install
 	$(INSTALL_BIN) ./files/ns-openvpnrw-extend-crl $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-openvpntunnel-add-client $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-openvpntunnel-regenerate-certs $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/ns-openvpn-renew-ca $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/openvpn-connect $(1)/usr/libexec/ns-openvpn/
 	$(INSTALL_BIN) ./files/openvpn-disconnect $(1)/usr/libexec/ns-openvpn/
 	$(INSTALL_BIN) ./files/init-connections-db $(1)/usr/libexec/ns-openvpn/
