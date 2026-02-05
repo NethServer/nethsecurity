@@ -204,3 +204,15 @@ Each tunnel server must have the following configuration options:
 option client_connect '"/usr/libexec/ns-openvpn/openvpn-connect <tunnel_name>"'
 option client_disconnect '"/usr/libexec/ns-openvpn/openvpn-disconnect <tunnel_name>"'
 ```
+
+## CA renewal
+
+When the CA certificate expires, the whole configuration must be renewed: new CA, server and client certificates must be generated.
+
+To renew the CA certificate, execute the following command the `ns-openvpn-renew-ca <instance>` and restart OpenVPN service. Then, redistribute the new client configuration file to all clients.
+
+Example for RoadWarrior instance:
+```
+ns-openvpn-renew-ca ns_roadwarrior1
+service openvpn restart
+```
