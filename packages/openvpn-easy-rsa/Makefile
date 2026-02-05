@@ -9,11 +9,11 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=openvpn-easy-rsa
 
-PKG_VERSION:=3.0.9
-PKG_RELEASE:=4
+PKG_VERSION:=3.2.1
+PKG_RELEASE:=1
 PKG_SOURCE_URL:=https://codeload.github.com/OpenVPN/easy-rsa/tar.gz/v$(PKG_VERSION)?
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
-PKG_HASH:=42f0dcae88c41fb7951d618404421067fe09fce4360339c49f34d09bb270cbc2
+PKG_HASH:=9b01dba67d811cea1b918ed1a0f146dead31beabc85b96abe4b09ffc75129099
 
 # For git snapshots
 #PKG_SOURCE_PROTO:=git
@@ -35,7 +35,7 @@ define Package/openvpn-easy-rsa
   CATEGORY:=Network
   URL:=http://openvpn.net
   SUBMENU:=VPN
-  DEPENDS:=+openssl-util +coreutils-stty +coreutils-date
+  DEPENDS:=+openssl-util
   PKGARCH:=all
 endef
 
