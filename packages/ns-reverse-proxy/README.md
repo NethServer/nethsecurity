@@ -1,7 +1,7 @@
-# nginx
+# ns-reverse-proxy
 
-This is a fork of the [official OpenWrt nginx package](https://github.com/openwrt/packages/tree/master/net/nginx).
-It adds the location reverse proxy, which is not available in the official package.
+Use nginx to act as a reverse proxy.
+The reverse proxy forwards web requests to another HTTP server and serves responses in behalf of it. 
 
 The reverse proxy supports the following rules:
 
@@ -48,10 +48,9 @@ config location 'ns_location1'
 
 To enable the rule:
 ```
-nginx-proxy-gen
 uci add_list nginx._lan.include='conf.d/_lan.proxy'
 uci commit nginx
-/etc/init.d/nginx restart
+reload_config
 ```
 
 Example of a path rule for a WebSocket inside the `ns_server2` virtual host:
@@ -67,10 +66,9 @@ config location 'ns_server2_location1'
 
 To enable the rule:
 ```
-nginx-proxy-gen
 uci add_list nginx.ns_server2.include='conf.d/ns_server2.proxy'
 uci commit nginx
-/etc/init.d/nginx restart
+reload_config
 ```
 
 ### Host rules
@@ -102,6 +100,5 @@ config server 'ns_server1'
 
 To enable the rule:
 ```
-nginx-proxy-gen
-/etc/init.d/nginx restart
+reload_config
 ```
