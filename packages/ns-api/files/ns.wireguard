@@ -454,7 +454,6 @@ def add_peer(args):
     private_key, public_key = generate_wireguard_keys()
     e_uci.set('network', peer_section, 'public_key', public_key)
     e_uci.set('network', peer_section, 'private_key', private_key)
-    e_uci.set('network', peer_section, 'persistent_keepalive', 25)
     e_uci.set('network', peer_section, 'route_allowed_ips', True)
     e_uci.set('network', peer_section, 'ns_link', f'network/{args["instance"]}')
     e_uci.save('network')
