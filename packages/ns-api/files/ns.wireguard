@@ -449,7 +449,7 @@ def add_peer(args):
         if net != '':
             networks.append(net)
     e_uci.set('network', peer_section, 'ns_routes', networks)
-    e_uci.set('network', peer_section, 'allowed_ips', args['remote_networks'] + [args['reserved_ip'] + '/32'])
+    e_uci.set('network', peer_section, 'allowed_ips', networks + [args['reserved_ip'] + '/32'])
     e_uci.set('network', peer_section, 'ns_ip', args['reserved_ip'])
     private_key, public_key = generate_wireguard_keys()
     e_uci.set('network', peer_section, 'public_key', public_key)
