@@ -27,6 +27,23 @@ def __next_instance():
     return None
 
 
+def __set_list_to_uci(e_uci: EUci, config: str, section: str, option: str, new_value: list):
+    """
+    Set the list to the UCI option only if the new value is different
+    from the current one to avoid unnecessary UCI commits.
+
+    Args:
+        e_uci: EUci instance
+        config: UCI config name
+        section: UCI section name
+        option: UCI option name
+        new_value: The new list value to set
+    """
+    current_value = set(e_uci.get(config, section, option, default=[], list=True, dtype=str))
+    if set(new_value) != current_value:
+        e_uci.set(config, section, option, new_value)
+
+
 def generate_wireguard_keys():
     private_key = subprocess.run(["wg", "genkey"], capture_output=True, text=True).stdout.strip()
     public_key = subprocess.run(["wg", "pubkey"], input=private_key, capture_output=True, text=True).stdout.strip()
@@ -169,6 +186,7 @@ def __list_peers(interface):
             "remote_networks": u.get('network', p, 'ns_routes', dtype=str, list=True, default=[]),
             "local_networks": u.get('network', p, 'ns_local_routes', dtype=str, list=True, default=[]),
             "reserved_ip": u.get("network", p, "ns_ip", dtype=str),
+            "mtu": u.get('network', p, 'ns_mtu', dtype=int, default=0),
             "config": __generate_peer_config(
                 u, p, server_public_key, server_dns, server_name,
                 server_network, server_endpoint, server_port
@@ -326,14 +344,15 @@ def edit_server(args):
     e_uci.set('network', args['instance'], 'listen_port', args['listen_port'])
     interface_network = ipaddress.IPv4Network(args['network'])
     first_ip = str(list(interface_network.hosts())[0])
-    e_uci.set('network', args['instance'], 'addresses', [first_ip + '/'+ str(interface_network.prefixlen)])
+    addresses = [first_ip + '/'+ str(interface_network.prefixlen)]
+    __set_list_to_uci(e_uci, 'network', args['instance'], 'addresses', addresses)
     e_uci.set('network', args['instance'], 'ns_network', args['network'])
     if 'mtu' in args and args['mtu'] != '':
         e_uci.set('network', args['instance'], 'mtu', args['mtu'])
     else:
         e_uci.delete('network', args['instance'], 'mtu')
     filter_dns = list(filter(lambda x: x != "", args.get("dns", [])))
-    e_uci.set('network', args['instance'], 'ns_dns', filter_dns)
+    __set_list_to_uci(e_uci, 'network', args['instance'], 'ns_dns', filter_dns)
     e_uci.set('network', args['instance'], 'ns_public_endpoint', args['public_endpoint'])
     e_uci.set('network', args['instance'], 'ns_name', args['name'])
     e_uci.set('network', args['instance'], 'disabled', not args['enabled'])
@@ -419,6 +438,14 @@ def __validate_peer_data(args):
             ipaddress.ip_network(net)
         except ValueError:
             return utils.validation_error('remote_networks', 'invalid_cidr_v4_address', net)
+    if 'mtu' in args:
+        try:
+            mtu_value = int(args['mtu'])
+            if mtu_value <= 0:
+                return utils.validation_error('mtu', 'invalid', args['mtu'])
+        except ValueError:
+            if args['mtu'] != '':
+                return utils.validation_error('mtu', 'invalid', args['mtu'])
 
     return None
 
@@ -449,12 +476,13 @@ def add_peer(args):
         if net != '':
             networks.append(net)
     e_uci.set('network', peer_section, 'ns_routes', networks)
-    e_uci.set('network', peer_section, 'allowed_ips', args['remote_networks'] + [args['reserved_ip'] + '/32'])
+    e_uci.set('network', peer_section, 'allowed_ips', networks + [args['reserved_ip'] + '/32'])
     e_uci.set('network', peer_section, 'ns_ip', args['reserved_ip'])
+    if 'mtu' in args and args['mtu'] != '':
+        e_uci.set('network', peer_section, 'ns_mtu', args['mtu'])
     private_key, public_key = generate_wireguard_keys()
     e_uci.set('network', peer_section, 'public_key', public_key)
     e_uci.set('network', peer_section, 'private_key', private_key)
-    e_uci.set('network', peer_section, 'persistent_keepalive', 25)
     e_uci.set('network', peer_section, 'route_allowed_ips', True)
     e_uci.set('network', peer_section, 'ns_link', f'network/{args["instance"]}')
     e_uci.save('network')
@@ -484,14 +512,21 @@ def edit_peer(args):
         for net in args['local_networks']:
             if net != '':
                 networks.append(net)
-        e_uci.set('network', args['id'], 'ns_local_routes', networks)
+        __set_list_to_uci(e_uci, 'network', args['id'], 'ns_local_routes', networks)
+    else:
+        e_uci.delete('network', args['id'], 'ns_local_routes')
     networks = []
     for net in args['remote_networks']:
         if net != '':
             networks.append(net)
-    e_uci.set('network', args['id'], 'ns_routes', networks)
-    e_uci.set('network', args['id'], 'allowed_ips', networks + [args['reserved_ip'] + '/32'])
+    __set_list_to_uci(e_uci, 'network', args['id'], 'ns_routes', networks)
+    allowed_ips = networks + [args['reserved_ip'] + '/32']
+    __set_list_to_uci(e_uci, 'network', args['id'], 'allowed_ips', allowed_ips)
     e_uci.set('network', args['id'], 'ns_ip', args['reserved_ip'])
+    if 'mtu' in args and args['mtu'] != '':
+        e_uci.set('network', args['id'], 'ns_mtu', args['mtu'])
+    else:
+        e_uci.delete('network', args['id'], 'ns_mtu')
     e_uci.save('network')
 
     return {"result": "success"}
@@ -516,6 +551,9 @@ def __generate_peer_config(u, peer_id, server_public_key, server_dns, server_nam
     config += f"# Name = {u.get('network', peer_id, 'ns_name')}\n"
     config += f"PrivateKey = {u.get('network', peer_id, 'private_key')}\n"
     config += f"Address = {u.get('network', peer_id, 'ns_ip')}\n"
+    peer_mtu = u.get('network', peer_id, 'ns_mtu', dtype=int, default=0)
+    if peer_mtu > 0:
+        config += f"MTU = {peer_mtu}\n"
     if len(server_dns) > 0:
         config += f"DNS = {','.join(server_dns)}\n"
     else:
@@ -571,6 +609,7 @@ def __get_server_configuration(u, instance, peers_status):
             "remote_networks": u.get('network', p, 'ns_routes', dtype=str, list=True, default=[]),
             "local_networks": u.get('network', p, 'ns_local_routes', dtype=str, list=True, default=[]),
             "reserved_ip": u.get("network", p, "ns_ip", dtype=str),
+            "mtu": u.get('network', p, 'ns_mtu', dtype=int, default=0),
             "config": __generate_peer_config(
                 u, p, server_public_key, server_dns, server_name,
                 server_network, server_endpoint, server_port
@@ -761,7 +800,8 @@ def edit_tunnel(args):
         return utils.validation_error('peer_id', 'invalid', args['peer_id'])
 
     e_uci.set('network', args['id'], 'private_key', args['peer_private_key'])
-    e_uci.set('network', args['id'], 'addresses', [args['reserved_ip']])
+    addresses = [args['reserved_ip']]
+    __set_list_to_uci(e_uci, 'network', args['id'], 'addresses', addresses)
     e_uci.set('network', args['id'], 'ns_name', args['name'])
     e_uci.set('network', args['id'], 'disabled', not args['enabled'])
 
@@ -778,13 +818,13 @@ def edit_tunnel(args):
     else:
         allowed_ips += args["network_routes"]
     e_uci.set('network', args['peer_id'], 'ns_name', args['name'])
-    e_uci.set('network', args['peer_id'], 'allowed_ips', allowed_ips)
+    __set_list_to_uci(e_uci, 'network', args['peer_id'], 'allowed_ips', allowed_ips)
     e_uci.set('network', args['peer_id'], 'reserved_ip', args['reserved_ip'])
     e_uci.set('network', args['peer_id'], 'endpoint_host', args['endpoint'])
     e_uci.set('network', args['peer_id'], 'endpoint_port', args['udp_port'])
     e_uci.set('network', args['peer_id'], 'persistent_keepalive', args.get('persistent_keepalive', '25'))
     if 'dns' in args:
-        e_uci.set('network', args['id'], 'dns', args['dns'])
+        __set_list_to_uci(e_uci, 'network', args['id'], 'dns', args['dns'])
     e_uci.save('network')
 
     return {"result": "success"}
@@ -846,6 +886,7 @@ if cmd == 'list':
             "route_all_traffic": False,
             "local_networks": ["192.168.1.0/24"],
             "remote_networks": [],
+            "mtu": 1420
         },
         "edit-peer": {
             "instance": "wg1",
@@ -857,6 +898,7 @@ if cmd == 'list':
             "route_all_traffic": False,
             "local_networks": ["192.168.1.0/24"],
             "remote_networks": [],
+            "mtu": 1420
         },
         "delete-peer": {"id": "peerid"},
         "list-tunnels": {},
