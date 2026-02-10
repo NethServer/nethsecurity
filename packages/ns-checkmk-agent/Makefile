@@ -44,9 +44,9 @@ define Build/Prepare
 
 	# Download plugin files using shell script loop
 	for plugin in $(PLUGIN_FILES); do \
-		echo "Downloading plugin: $$plugin"; \
-		wget -O $(PKG_BUILD_DIR)/plugins/$$plugin $(PLUGIN_BASE_URL)/$$plugin || \
-		echo "Warning: Failed to download $$plugin"; \
+		echo "Downloading plugin: $plugin"; \
+		wget -O $(PKG_BUILD_DIR)/plugins/$plugin $(PLUGIN_BASE_URL)/$plugin || \
+		echo "Warning: Failed to download $plugin"; \
 	done
 endef
 
@@ -64,7 +64,7 @@ define Package/ns-checkmk-agent/install
 	# Install plugin files
 	if [ -d $(PKG_BUILD_DIR)/plugins ]; then \
 		for plugin in $(PKG_BUILD_DIR)/plugins/*; do \
-			[ -f "$$plugin" ] && $(INSTALL_BIN) $$plugin $(1)/usr/lib/check_mk_agent/plugins/; \
+			[ -f "$plugin" ] && $(INSTALL_BIN) "$plugin" $(1)/usr/lib/check_mk_agent/plugins/; \
 		done; \
 	fi
 endef
