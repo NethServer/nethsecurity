@@ -33,21 +33,25 @@ endef
 CHECKMK_AGENT_URL:=https://raw.githubusercontent.com/Checkmk/checkmk/master/agents/check_mk_agent.openwrt
 PLUGIN_BASE_URL:=https://raw.githubusercontent.com/Coverup20/checkmk-tools/refs/heads/main/script-check-nsec8/full
 
-# List of plugin files to download (add more as needed)
-PLUGIN_FILES:=check_dhcp_leases.sh check_dns_resolution.sh check_firewall_connections.sh check_firewall_rules.sh check_firewall_traffic.sh check_martian_packets.sh check_opkg_packages.sh check_ovpn_host2net.sh check_root_access.sh check_uptime.sh check_vpn_tunnels.sh check_wan_status.sh
-
 define Build/Prepare
 	mkdir -p $(PKG_BUILD_DIR)/plugins
 
 	# Download main Check_MK agent
 	wget -O $(PKG_BUILD_DIR)/check_mk_agent $(CHECKMK_AGENT_URL)
 
-	# Download plugin files using shell script loop
-	for plugin in $(PLUGIN_FILES); do \
-		echo "Downloading plugin: $plugin"; \
-		wget -O $(PKG_BUILD_DIR)/plugins/$plugin $(PLUGIN_BASE_URL)/$plugin || \
-		echo "Warning: Failed to download $plugin"; \
-	done
+	# Download all plugins
+	wget -O $(PKG_BUILD_DIR)/plugins/check_dhcp_leases.sh $(PLUGIN_BASE_URL)/check_dhcp_leases.sh
+	wget -O $(PKG_BUILD_DIR)/plugins/check_dns_resolution.sh $(PLUGIN_BASE_URL)/check_dns_resolution.sh
+	wget -O $(PKG_BUILD_DIR)/plugins/check_firewall_connections.sh $(PLUGIN_BASE_URL)/check_firewall_connections.sh
+	wget -O $(PKG_BUILD_DIR)/plugins/check_firewall_rules.sh $(PLUGIN_BASE_URL)/check_firewall_rules.sh
+	wget -O $(PKG_BUILD_DIR)/plugins/check_firewall_traffic.sh $(PLUGIN_BASE_URL)/check_firewall_traffic.sh
+	wget -O $(PKG_BUILD_DIR)/plugins/check_martian_packets.sh $(PLUGIN_BASE_URL)/check_martian_packets.sh
+	wget -O $(PKG_BUILD_DIR)/plugins/check_opkg_packages.sh $(PLUGIN_BASE_URL)/check_opkg_packages.sh
+	wget -O $(PKG_BUILD_DIR)/plugins/check_ovpn_host2net.sh $(PLUGIN_BASE_URL)/check_ovpn_host2net.sh
+	wget -O $(PKG_BUILD_DIR)/plugins/check_root_access.sh $(PLUGIN_BASE_URL)/check_root_access.sh
+	wget -O $(PKG_BUILD_DIR)/plugins/check_uptime.sh $(PLUGIN_BASE_URL)/check_uptime.sh
+	wget -O $(PKG_BUILD_DIR)/plugins/check_vpn_tunnels.sh $(PLUGIN_BASE_URL)/check_vpn_tunnels.sh
+	wget -O $(PKG_BUILD_DIR)/plugins/check_wan_status.sh $(PLUGIN_BASE_URL)/check_wan_status.sh
 endef
 
 define Build/Compile
@@ -61,12 +65,18 @@ define Package/ns-checkmk-agent/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/check_mk_agent $(1)/usr/bin/check_mk_agent
 	$(INSTALL_BIN) ./files/check_mk_agent.init $(1)/etc/init.d/check_mk_agent
 	
-	# Install plugin files
-	if [ -d $(PKG_BUILD_DIR)/plugins ]; then \
-		for plugin in $(PKG_BUILD_DIR)/plugins/*; do \
-			[ -f "$plugin" ] && $(INSTALL_BIN) "$plugin" $(1)/usr/lib/check_mk_agent/plugins/; \
-		done; \
-	fi
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/plugins/check_dhcp_leases.sh $(1)/usr/lib/check_mk_agent/plugins/check_dhcp_leases.sh
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/plugins/check_dns_resolution.sh $(1)/usr/lib/check_mk_agent/plugins/check_dns_resolution.sh
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/plugins/check_firewall_connections.sh $(1)/usr/lib/check_mk_agent/plugins/check_firewall_connections.sh
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/plugins/check_firewall_rules.sh $(1)/usr/lib/check_mk_agent/plugins/check_firewall_rules.sh
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/plugins/check_firewall_traffic.sh $(1)/usr/lib/check_mk_agent/plugins/check_firewall_traffic.sh
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/plugins/check_martian_packets.sh $(1)/usr/lib/check_mk_agent/plugins/check_martian_packets.sh
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/plugins/check_opkg_packages.sh $(1)/usr/lib/check_mk_agent/plugins/check_opkg_packages.sh
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/plugins/check_ovpn_host2net.sh $(1)/usr/lib/check_mk_agent/plugins/check_ovpn_host2net.sh
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/plugins/check_root_access.sh $(1)/usr/lib/check_mk_agent/plugins/check_root_access.sh
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/plugins/check_uptime.sh $(1)/usr/lib/check_mk_agent/plugins/check_uptime.sh
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/plugins/check_vpn_tunnels.sh $(1)/usr/lib/check_mk_agent/plugins/check_vpn_tunnels.sh
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/plugins/check_wan_status.sh $(1)/usr/lib/check_mk_agent/plugins/check_wan_status.sh
 endef
 
 $(eval $(call BuildPackage,ns-checkmk-agent))
