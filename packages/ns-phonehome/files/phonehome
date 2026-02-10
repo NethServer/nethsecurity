@@ -113,4 +113,12 @@ data = {
         "features": features
     }
 }
+
+info = {}
+for func in dir(inventory):
+    if func.startswith("info_"):
+        method = getattr(inventory, func)
+        info[func.removeprefix('info_')] = method(EUci())
+data['facts'].update(info)
+
 print(json.dumps(data))
