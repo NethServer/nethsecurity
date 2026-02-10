@@ -50,3 +50,9 @@ then
   uci -q set flashstart.global.log_level=warning
   uci commit flashstart
 fi
+
+# Ensure ns-flashstart service is enabled and started at boot
+if ! /etc/init.d/ns-flashstart enabled; then
+  /etc/init.d/ns-flashstart enable
+  /etc/init.d/ns-flashstart start
+fi

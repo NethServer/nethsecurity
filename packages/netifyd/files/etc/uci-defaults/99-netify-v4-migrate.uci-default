@@ -27,3 +27,9 @@ if [ -d /etc/netify.d ]; then
     rm -rf /etc/netify.d
     /usr/sbin/dpi-update
 fi
+
+# Ensure netifyd service is enabled and started at boot
+if ! /etc/init.d/netifyd enabled; then
+  /etc/init.d/netifyd enable
+  /etc/init.d/netifyd start
+fi
