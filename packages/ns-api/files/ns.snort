@@ -187,10 +187,10 @@ def __save_settings():
 def __settings():
     e_uci = EUci()
     try:
-        home_net = e_uci.get('snort', 'snort', 'home_net', default='').split(' ')
+        home_net = e_uci.get('snort', 'snort', 'home_net', default=None).split(' ')
     except:
         home_net = []
-    if not home_net:
+    if len(home_net) < 1:
         home_net = get_snort_homenet(e_uci, include_vpn=False)
 
     return {
