@@ -12,3 +12,9 @@
 if ! grep -q '/etc/init.d/dpi-license-update' /etc/crontabs/root; then
     echo '0 0 * * * sleep $(( RANDOM % 300 )); /etc/init.d/dpi-license-update start' >> /etc/crontabs/root
 fi
+
+# Ensure dpi-license-update service is enabled at boot
+if ! /etc/init.d/dpi-license-update enabled; then
+  /etc/init.d/dpi-license-update enable
+  /etc/init.d/dpi-license-update start
+fi
