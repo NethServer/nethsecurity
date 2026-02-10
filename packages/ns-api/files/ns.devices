@@ -532,6 +532,8 @@ def get_bonding_values(ip4_addr_cidr, attached_devices, bonding_policy, bond_pri
         'clientid': '',
         'vendorid': '',
         'hostname': '',
+        'link_monitoring': 'mii', # default link monitoring mode for bonds - Media Independent Interface
+        'miimon': '100' # default link monitoring interval for bonds - 100ms
     }
 
     # ip4 address and netmask
