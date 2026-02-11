@@ -5,3 +5,5 @@ build-logs
 build.conf
 netify-flow-actions
 netify-agent-stats-plugin
+__pycache__/
+*.pyc
