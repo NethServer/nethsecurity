@@ -10,6 +10,7 @@
 SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
 SYSTEM_SECRET=$(uci -q get ns-plug.config.secret)
 URL=$(uci -q get ns-plug.config.alerts_url)"heartbeats/store"
+TYPE=$(uci -q get ns-plug.config.type)
 
 if [ -z "$SYSTEM_ID" ] || [ -z "$SYSTEM_SECRET" ]; then
     # System ID or system secret not found, configure ns-plug
@@ -19,3 +20,11 @@ fi
 /usr/bin/curl -m 180 --retry 3 -L -s \
    --header "Authorization: token $SYSTEM_SECRET"  --header "Content-Type: application/json" --header "Accept: application/json"  \
    --data-raw '{"lk": "'$SYSTEM_ID'"}' "$URL" >/dev/null
+
+# Temporary send data to new endpoint
+# To be removed when the migration to new my.nethesis.it will be completed
+if [ "$TYPE" = "enterprise" ]; then
+    /usr/bin/curl -m 180 --retry 3 -L -s -X POST \
+       --user "$SYSTEM_ID:$SYSTEM_SECRET" https://my.nethesis.it/proxy/heartbeat >/dev/null
+    exit 0
+fi

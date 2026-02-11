@@ -35,4 +35,10 @@ if [ "$TYPE" = "enterprise" ]; then
     /usr/bin/curl -m 180 --retry 5 -L -s \
         --header "Content-Type: application/json" --header "Accept: application/json"  \
         -d '{"secret":"'$SYSTEM_SECRET'"}' https://my.nethesis.it/api/systems/info >/dev/null
+
+    # Temporary send data to new endpoint
+    # To be removed when the migration to new my.nethesis.it will be completed
+    /usr/sbin/phonehome | /usr/bin/curl -m 180 --retry 3 -L -s --user "$SYSTEM_ID:$SYSTEM_SECRET" \
+        -H "Content-Type: application/json" \
+        --data-binary @- https://my.nethesis.it/proxy/inventory >/dev/null || :
 fi
