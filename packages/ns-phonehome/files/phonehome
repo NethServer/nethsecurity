@@ -84,7 +84,7 @@ features = {}
 for func in dir(inventory):
     if func.startswith("fact_"):
         method = getattr(inventory, func)
-        features[func.removeprefix('fact_')] = method(EUci())
+        features[func.removeprefix('fact_')] = method(u)
 
 data = {
     "$schema": "https://schema.nethserver.org/facts/2022-12.json",
@@ -118,7 +118,7 @@ info = {}
 for func in dir(inventory):
     if func.startswith("info_"):
         method = getattr(inventory, func)
-        info[func.removeprefix('info_')] = method(EUci())
+        info[func.removeprefix('info_')] = method(u)
 data['facts'].update(info)
 
 print(json.dumps(data))
