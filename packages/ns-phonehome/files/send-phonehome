@@ -15,17 +15,24 @@ if [ "$ENABLED" = "0" ] || [ -z "$URL" ]; then
     exit 0
 fi
 
-/usr/sbin/phonehome | curl -m 180 --retry 3 -L -s \
+TMPFILE=$(mktemp) || exit 1
+
+/usr/sbin/phonehome > "$TMPFILE"
+
+curl -m 180 --retry 3 -L -s \
 	-H "Content-type: application/json" -H "Accept: application/json" \
-	--data-binary @- "$URL" > /dev/null
+	--data-binary @"$TMPFILE" "$URL" > /dev/null
 
 # Temporary send data to new endpoint
 # To be removed when the migration to new my.nethesis.it will be completed
 if [ "$TYPE" == "enterprise" ]; then
     SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
     SYSTEM_SECRET=$(uci -q get ns-plug.config.secret)
-    /usr/sbin/phonehome | /usr/bin/curl -m 180 --retry 3 -L -s --user "$SYSTEM_ID:$SYSTEM_SECRET" \
+    /usr/bin/curl -m 180 --retry 3 -L -s --user "$SYSTEM_ID:$SYSTEM_SECRET" \
         -H "Content-Type: application/json" \
-        --data-binary @-  https://my.nethesis.it/proxy/inventory >/dev/null
+        --data-binary @"$TMPFILE" https://my.nethesis.it/proxy/inventory >/dev/null
+    rm -f "$TMPFILE"
     exit 0
 fi
+
+rm -f "$TMPFILE"
