@@ -25,7 +25,7 @@ curl -m 180 --retry 3 -L -s \
 
 # Temporary send data to new endpoint
 # To be removed when the migration to new my.nethesis.it will be completed
-if [ "$TYPE" == "enterprise" ]; then
+if [ "$TYPE" = "enterprise" ]; then
     SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
     SYSTEM_SECRET=$(uci -q get ns-plug.config.secret)
     /usr/bin/curl -m 180 --retry 3 -L -s --user "$SYSTEM_ID:$SYSTEM_SECRET" \
