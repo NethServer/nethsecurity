@@ -3,14 +3,16 @@ bonds=$(uci show network | grep "='bonding'" | cut -d'.' -f2 | cut -d'=' -f1)
 [ -z "$bonds" ] && exit 0
 
 for bond in $bonds; do
-    bond_config=$(uci show network.$bond)
-    
-    echo "$bond_config" | grep -q "\.link_monitoring=" && \
-    echo "$bond_config" | grep -q "\.miimon=" && continue
-    
+    miimon_value="$(uci -q get network.$bond.miimon 2>/dev/null)"
+    link_monitoring_value="$(uci -q get network.$bond.link_monitoring 2>/dev/null)"
+    [ -n "$miimon_value" ] && [ -n "$link_monitoring_value" ] && continue
+    miimon_cmd=""
+    link_monitoring_cmd=""
+    [ -z "$miimon_value" ] && miimon_cmd="set network.$bond.miimon='100'"
+    [ -z "$link_monitoring_value" ] && link_monitoring_cmd="set network.$bond.link_monitoring='mii'"
     uci -q batch << EOI
-$(echo "$bond_config" | grep -q "\.miimon=" || echo "set network.$bond.miimon='100'")
-$(echo "$bond_config" | grep -q "\.link_monitoring=" || echo "set network.$bond.link_monitoring='mii'")
+$miimon_cmd
+$link_monitoring_cmd
 commit network
 EOI
 done
