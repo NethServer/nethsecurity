@@ -64,6 +64,7 @@ define Package/ns-dpi/install
 	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/unregister
 	$(INSTALL_DIR) $(1)/etc/xtables
 	$(INSTALL_CONF) ./files/connlabel.conf $(1)/etc/connlabel.conf
+	$(LN) /etc/connlabel.conf $(1)/etc/xtables/connlabel.conf
 	$(INSTALL_BIN) ./files/dpi.init $(1)/etc/init.d/dpi
 	$(INSTALL_BIN) ./files/dpi-license-update.init $(1)/etc/init.d/dpi-license-update
 	$(INSTALL_BIN) ./files/dpi $(1)/usr/sbin/
