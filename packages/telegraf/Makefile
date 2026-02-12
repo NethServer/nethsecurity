@@ -28,7 +28,25 @@ GO_BUILD_PKG:=github.com/influxdata/telegraf/cmd/$(PKG_NAME)
 GO_PKG_LDFLAGS_X:=github.com/influxdata/telegraf/internal.Version=$(PKG_VERSION)
 GO_PKG_TAGS:= \
 	custom \
+	inputs.bond \
+	inputs.cpu \
+	inputs.disk \
+	inputs.diskio \
+	inputs.ethtool \
 	inputs.file \
+	inputs.iptables \
+	inputs.kernel \
+	inputs.kernel_vmstat \
+	inputs.linux_cpu \
+	inputs.linux_sysctl_fs \
+	inputs.mem \
+	inputs.net \
+	inputs.netstat \
+	inputs.nftables \
+	inputs.nstat \
+	inputs.processes \
+	inputs.sensors \
+	inputs.system \
 	outputs.influxdb \
 	parsers.json_v2
 
