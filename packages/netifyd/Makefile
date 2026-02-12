@@ -195,7 +195,6 @@ define Package/netifyd/install
 	$(LN) /usr/lib/libnetify-plm.so.1.0.0 $(1)/usr/lib/libnetify-plm.so.1
 	# netify-proc-aggregator
 	$(INSTALL_DATA) ./files/etc/netifyd/netify-proc-aggregator.json $(1)/etc/netifyd/netify-proc-aggregator.json
-	$(INSTALL_DATA) ./files/etc/netifyd/netify-proc-aggregator-telegraf.json $(1)/etc/netifyd/netify-proc-aggregator-telegraf.json
 	$(INSTALL_DATA) ./files/etc/netifyd/plugins.d/10-netify-proc-aggregator.conf $(1)/etc/netifyd/plugins.d/10-netify-proc-aggregator.conf
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/libnetify-proc-aggregator.so.0.0.0 $(1)/usr/lib/libnetify-proc-aggregator.so.0.0.0
 	$(LN) /usr/lib/libnetify-proc-aggregator.so.0.0.0 $(1)/usr/lib/libnetify-proc-aggregator.so.0
@@ -224,6 +223,9 @@ define Package/netifyd/install
 	$(INSTALL_DATA) ./files/etc/netifyd/plugins.d/10-netify-sink-http.conf $(1)/etc/netifyd/plugins.d/10-netify-sink-http.conf
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/libnetify-sink-http.so.0.0.0 $(1)/usr/lib/libnetify-sink-http.so.0.0.0
 	$(LN) /usr/lib/libnetify-sink-http.so.0.0.0 $(1)/usr/lib/libnetify-sink-http.so.0
+	# telegraf-flows
+	$(INSTALL_DATA) ./files/etc/netifyd/netify-sink-log-telegraf.json $(1)/etc/netifyd/netify-sink-log-telegraf.json
+	$(INSTALL_DATA) ./files/etc/netifyd/plugins.d/10-netify-telegraf.conf $(1)/etc/netifyd/plugins.d/10-netify-telegraf.conf
 endef
 
 $(eval $(call BuildPackage,netifyd))
