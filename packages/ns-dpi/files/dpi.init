@@ -25,7 +25,6 @@ start_service() {
 
 reload_service()
 {
-    stop
     start
 }
 

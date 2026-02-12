@@ -30,22 +30,17 @@ def get_interface_ips(interface):
 cfg_file = "/etc/netifyd/netify-proc-flow-actions.json"
 config = {
     "reprocess_flows": True,
+    "target_globals": {
+        "ctlabel": {
+            "connlabel_conf": "/etc/connlabel.conf"
+        },
+    },
     "targets": {
         "block": {
-            "target_type": "nftset",
+            "target_type": "ctlabel",
             "target_enabled": True,
-            "table_name": "fw4",
-            "table_family": "inet",
-            "size": 65535,
-            "ttl": 900,
-            "set_name": "nfa.blocks",
-            "set_family": "ipv4",
-            "flush_on_destroy": True,
-            "type": [
-                "local_addr",
-                "ip_proto",
-                "other_port",
-                "other_addr"
+            "labels": [
+                "netify-block"
             ]
         },
         "log": {
