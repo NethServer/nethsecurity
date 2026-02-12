@@ -7,17 +7,75 @@
 
 import sys
 import json
+import re
+import subprocess
 
-from nethsec.utils import generic_error
+from euci import EUci
+from nethsec.utils import generic_error, validation_error
 
 INPUT_PATH = "/var/run/netifyd/flows.json"
+
+
+def get_configuration():
+    """Get ns-flows daemon configuration and status."""
+    u = EUci()
+
+    # Read configuration from UCI
+    config = {
+        'enabled': u.get('ns-flows', 'daemon', 'enabled', default=False, dtype=bool),
+        'expired_persistence': u.get('ns-flows', 'daemon', 'expired_persistence', default='60s')
+    }
+
+    # Check service status
+    try:
+        result = subprocess.run(
+            ["service", "ns-flows", "running"],
+            capture_output=True,
+            check=False
+        )
+        status = result.returncode == 0
+    except Exception:
+        status = False
+
+    return {
+        'configuration': config,
+        'status': status
+    }
+
+
+def set_configuration(data):
+    """Set ns-flows daemon configuration."""
+    u = EUci()
+
+    if 'enabled' not in data:
+        return validation_error('enabled', 'required')
+    if not isinstance(data['enabled'], bool):
+        return validation_error('enabled', 'invalid')
+    if 'expired_persistence' not in data:
+        return validation_error('expired_persistence', 'required')
+
+    # Validate golang duration format (e.g., "300ms", "1.5h", "2h45m")
+    duration_pattern = r'^([0-9]+(\.?[0-9]+)?(ns|us|µs|ms|s|m|h))+$'
+    if not re.match(duration_pattern, data['expired_persistence']):
+        return validation_error('expired_persistence', 'invalid')
+
+    u.set('ns-flows', 'daemon', 'enabled', data['enabled'])
+    u.set('ns-flows', 'daemon', 'expired_persistence', data['expired_persistence'])
+
+    u.save('ns-flows')
+
+    return {
+        "message": "success"
+    }
 
 
 def main() -> None:
     match sys.argv[1]:
         case 'list':
             print(json.dumps({
-                'list': {}
+                'list': {},
+                'get-configuration': {},
+                'set-configuration': {"enabled": True, "expired_persistence": "60s"}
             }))
         case 'call':
             match sys.argv[2]:
@@ -27,6 +85,13 @@ def main() -> None:
                         print(json.dumps({
                             'list': flows
                         }))
+                case 'get-configuration':
+                    result = get_configuration()
+                    print(json.dumps(result))
+                case 'set-configuration':
+                    data = json.load(sys.stdin)
+                    result = set_configuration(data)
+                    print(json.dumps(result))
                 case _:
                     print(json.dumps(generic_error("Unknown method")))
         case _:
