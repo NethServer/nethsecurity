@@ -36,9 +36,17 @@ define Package/ns-monitoring
 	DEPENDS:=$(GO_ARCH_DEPENDS)
 endef
 
+define Package/ns-monitoring/conffiles
+/etc/config/monitoring
+endef
+
 define Package/ns-monitoring/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) $(GO_PKG_BUILD_BIN_DIR)/nethsecurity-monitoring $(1)/usr/sbin/ns-flows
+	$(INSTALL_DIR) $(1)/etc/config
+	$(INSTALL_CONF) ./files/ns-flows.conf $(1)/etc/config/ns-flows
+	$(INSTALL_DIR) $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/monitoring.uci-defaults $(1)/etc/uci-defaults/99-monitoring
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/ns-flows.init $(1)/etc/init.d/ns-flows
 endef
