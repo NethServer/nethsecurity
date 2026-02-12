@@ -35,6 +35,8 @@ def generate_dpi():
     )
     # save to nftables directory table-pre, only if the file is changed
     file_path = '/usr/share/nftables.d/table-pre/dpi_blocks.nft'
+    # ensure directory exists
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
     current = None
     if os.path.exists(file_path):
         with open(file_path, 'r') as f:
