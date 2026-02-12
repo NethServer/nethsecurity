@@ -17,7 +17,10 @@ chain dpi_blocks {
 
     # init is to allow kernel to set labels
     ct label set netify-init
-    ct label netify-block counter {% if log_enabled %}log prefix "DPI block: " limit rate {{ log_limit }} {% endif %}drop
+    {% if log_enabled -%}
+    ct label netify-block counter log prefix "DPI block: " limit rate {{ log_limit }}
+    {% endif -%}
+    ct label netify-block counter drop
 }
 
 """
