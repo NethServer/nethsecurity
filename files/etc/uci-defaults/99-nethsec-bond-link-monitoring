@@ -5,7 +5,11 @@ bonds=$(uci show network | grep "='bonding'" | cut -d'.' -f2 | cut -d'=' -f1)
 for bond in $bonds; do
     miimon_value="$(uci -q get network.$bond.miimon 2>/dev/null)"
     link_monitoring_value="$(uci -q get network.$bond.link_monitoring 2>/dev/null)"
+    arp_interval_value="$(uci -q get network.$bond.arp_interval 2>/dev/null)"
+    
     [ -n "$miimon_value" ] && [ -n "$link_monitoring_value" ] && continue
+    [ -n "$arp_interval_value" ] && continue
+    
     miimon_cmd=""
     link_monitoring_cmd=""
     [ -z "$miimon_value" ] && miimon_cmd="set network.$bond.miimon='100'"
