@@ -147,8 +147,6 @@ define Package/netifyd/conffiles
 /etc/config/netifyd
 /etc/netifyd.conf
 /etc/netifyd/agent.uuid
-/etc/netifyd/netify-apps.conf
-/etc/netifyd/netify-categories.json
 endef
 
 define Package/netifyd/install
@@ -177,6 +175,7 @@ define Package/netifyd/install
 	$(INSTALL_DATA) ./files/etc/netifyd/netify-categories.json $(1)/etc/netifyd/netify-categories.json
 	$(INSTALL_DATA) ./files/etc/netifyd/profiles.d/00-default.conf $(1)/etc/netifyd/profiles.d/00-default.conf
 	$(INSTALL_BIN) ./files/etc/uci-defaults/99-netify-v4-migrate.uci-default $(1)/etc/uci-defaults/99-netify-v4-migrate
+	$(INSTALL_BIN) ./files/etc/uci-defaults/99-netify-enable-nfqueue.uci-default $(1)/etc/uci-defaults/99-netify-enable-nfqueue
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/netifyd $(1)/usr/sbin/netifyd
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/libnetifyd.so.4.0.0 $(1)/usr/lib/libnetifyd.so.4.0.0
 	$(INSTALL_DATA) ./files/usr/share/netifyd/functions.sh $(1)/usr/share/netifyd/functions.sh
