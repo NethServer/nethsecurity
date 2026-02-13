@@ -223,9 +223,6 @@ define Package/netifyd/install
 	$(INSTALL_DATA) ./files/etc/netifyd/plugins.d/10-netify-sink-http.conf $(1)/etc/netifyd/plugins.d/10-netify-sink-http.conf
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/libnetify-sink-http.so.0.0.0 $(1)/usr/lib/libnetify-sink-http.so.0.0.0
 	$(LN) /usr/lib/libnetify-sink-http.so.0.0.0 $(1)/usr/lib/libnetify-sink-http.so.0
-	# telegraf-flows
-	$(INSTALL_DATA) ./files/etc/netifyd/netify-sink-log-telegraf.json $(1)/etc/netifyd/netify-sink-log-telegraf.json
-	$(INSTALL_DATA) ./files/etc/netifyd/plugins.d/10-netify-telegraf.conf $(1)/etc/netifyd/plugins.d/10-netify-telegraf.conf
 endef
 
 $(eval $(call BuildPackage,netifyd))

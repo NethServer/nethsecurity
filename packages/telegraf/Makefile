@@ -58,7 +58,10 @@ define Package/telegraf
 	CATEGORY:=NethServer
 	TITLE:=Telegraf
 	URL:=https://github.com/influxdata/telegraf
-	DEPENDS:=$(GO_ARCH_DEPENDS)
+	DEPENDS:= \
+		$(GO_ARCH_DEPENDS) \
+		+victoria-metrics
+		+netifyd
 endef
  
 define Package/telegraf/description
@@ -76,6 +79,11 @@ define Package/telegraf/install
 	$(INSTALL_BIN) ./files/telegraf.initd $(1)/etc/init.d/telegraf
 	$(INSTALL_DIR) $(1)/etc/telegraf
 	$(INSTALL_DATA) ./files/telegraf.conf $(1)/etc/telegraf/telegraf.conf
+	$(INSTALL_DIR) $(1)/etc/netifyd
+	$(INSTALL_DATA) ./files/netifyd/netify-sink-log-telegraf.json $(1)/etc/netifyd/netify-sink-log-telegraf.json
+	$(INSTALL_DATA) ./files/netifyd/netify-proc-aggregator-telegraf.json $(1)/etc/netifyd/netify-proc-aggregator-telegraf.json
+	$(INSTALL_DIR) $(1)/etc/netifyd/plugins.d
+	$(INSTALL_DATA) ./files/netifyd/plugins.d/10-netify-telegraf.conf $(1)/etc/netifyd/plugins.d/10-netify-telegraf.conf
 endef
 
 define Package/telegraf/postinst
