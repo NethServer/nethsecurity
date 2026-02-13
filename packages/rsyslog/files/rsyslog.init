@@ -15,6 +15,7 @@ UCI_CONF="rsyslog"
 CONFIG_FILE="/var/etc/rsyslog.conf"
 BASE_CONFIG_FILE="/etc/rsyslog.conf"
 
+includes=""
 modules=""
 selectors=""
 forwarders=""
@@ -56,12 +57,17 @@ handle_forwarder() {
 	fi
 }
 
+handle_include() {
+  local file="$1"
+  includes="${includes}include(file=\"${file}\" mode=\"optional\")\n"
+}
 
 expand_config() {
 	local input_t=""
 	local input_u=""
 
 	config_load "${UCI_CONF}"
+	config_list_foreach syslog includes handle_include
 	config_list_foreach syslog modules handle_module
 	config_get_bool tcp_input syslog tcp_input
 	if [ "${tcp_input}" -eq 1 ]; then
@@ -93,6 +99,7 @@ expand_config() {
 	echo "\$ActionFileDefaultTemplate ${template}" >> ${CONFIG_FILE}
 	echo -e "${selectors}" >> ${CONFIG_FILE}
 	echo -e "${forwarders}" >> ${CONFIG_FILE}
+	echo -e "${includes}" >> ${CONFIG_FILE}
 }
 
 handle_module() {

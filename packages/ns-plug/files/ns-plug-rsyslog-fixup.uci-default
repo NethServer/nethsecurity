@@ -1,0 +1,15 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# if $PreserveFQDN on is in /etc/rsyslog.conf, we have to migrate to new config
+if grep -q '^\$PreserveFQDN on' /etc/rsyslog.conf; then
+    sed -i '/^\$PreserveFQDN on/d' /etc/rsyslog.conf
+    if [ "$(uci -q get rsyslog.promtail)" = "forwarder" ]; then
+        uci delete rsyslog.promtail
+        uci commit rsyslog
+    fi
+fi
