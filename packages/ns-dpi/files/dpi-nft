@@ -12,15 +12,18 @@ from euci import EUci
 from jinja2 import Environment, BaseLoader
 
 CHAIN = """
+chain dpi_dummy {
+    # this init is to allow kernel to set labels
+    ct label set netify-init
+ }
+
 chain dpi_blocks {
     type filter hook prerouting priority filter + 10; policy accept;
 
-    # init is to allow kernel to set labels
-    ct label set netify-init
     {% if log_enabled -%}
     ct label netify-block counter log prefix "DPI block: " limit rate {{ log_limit }}
     {% endif -%}
-    ct label netify-block counter drop
+    ct label netify-block counter reject
 }
 
 """

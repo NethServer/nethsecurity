@@ -50,6 +50,13 @@ config = {
             "path": "/var/run/netifyd/",
             "prefix": "dpi-actions",
         },
+        "analyzed": {
+            "target_type": "ctlabel",
+            "target_enabled": True,
+            "labels": [
+                "netify-analyzed"
+            ]
+        }
     },
     "actions": {},
     "exemptions": []
@@ -140,6 +147,14 @@ for section in u.get_all('dpi'):
         "exemptions": rule.get('exemption', [])
     }
     rcount = rcount + 1
+
+# add global analyzed for all flows that are not blocked
+config["actions"]["analyzed"] = {
+    "enabled": True,
+    "criteria": 'detection_guessed || detection_complete;',
+    "targets": ["analyzed"],
+    "exemptions": []
+}
 
 # if directories do not exist, create them
 if not os.path.exists(os.path.dirname(cfg_file)):
