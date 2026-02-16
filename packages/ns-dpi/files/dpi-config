@@ -40,7 +40,7 @@ config = {
             "target_type": "ctlabel",
             "target_enabled": True,
             "labels": [
-                "netify-block"
+                "netify-blocked"
             ]
         },
         "log": {

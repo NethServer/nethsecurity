@@ -21,9 +21,9 @@ chain dpi_actions {
     type filter hook prerouting priority filter + 10; policy accept;
 
     {% if log_enabled -%}
-    ct label netify-block counter log prefix "DPI block: " limit rate {{ log_limit }}
+    ct label netify-blocked counter log prefix "DPI block: " limit rate {{ log_limit }}
     {% endif -%}
-    ct label netify-block counter reject
+    ct label netify-blocked counter reject
     ct label bulk counter ip dscp set cs1 return
     ct label best_effort counter ip dscp set cs0 return
     ct label video counter ip dscp set af41 return
