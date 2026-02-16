@@ -17,13 +17,17 @@ chain dpi_dummy {
     ct label set netify-init
  }
 
-chain dpi_blocks {
+chain dpi_actions {
     type filter hook prerouting priority filter + 10; policy accept;
 
     {% if log_enabled -%}
     ct label netify-block counter log prefix "DPI block: " limit rate {{ log_limit }}
     {% endif -%}
     ct label netify-block counter reject
+    ct label bulk counter ip dscp set cs1 return
+    ct label best_effort counter ip dscp set cs0 return
+    ct label video counter ip dscp set af41 return
+    ct label voice counter ip dscp set cs6 return
 }
 
 """
@@ -37,7 +41,7 @@ def generate_dpi():
         log_limit=e_uci.get('firewall', 'ns_defaults', 'rule_log_limit', dtype=str, default='1/second')
     )
     # save to nftables directory table-pre, only if the file is changed
-    file_path = '/usr/share/nftables.d/table-pre/dpi_blocks.nft'
+    file_path = '/usr/share/nftables.d/table-pre/dpi_actions.nft'
     # ensure directory exists
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     current = None

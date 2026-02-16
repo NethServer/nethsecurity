@@ -85,7 +85,7 @@ for ex_name in exemptions:
             config["exemptions"].append(criteria)
 
 rcount = 0
-valid_actions = ['block']
+valid_actions = ['block', 'bulk', 'best_effort', 'video', 'voice']
 for section in u.get_all('dpi'):
     if u.get('dpi', section) != 'rule':
         continue
