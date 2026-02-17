@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-plug
-PKG_VERSION:=1.0.1
+PKG_VERSION:=1.0.2
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-plug-$(PKG_VERSION)
@@ -43,6 +43,7 @@ if [ -z "$${IPKG_INSTROOT}" ]; then
   /usr/libexec/ns-plug/40_ns-plug_automatic_updates
   /etc/init.d/cron restart
   /usr/libexec/ns-plug/40_ns-plug_mwan_hooks
+  /etc/init.d/ns-plug restart
 fi
 exit 0
 endef
@@ -103,6 +104,7 @@ define Package/ns-plug/install
 	$(INSTALL_BIN) ./files/send-mwan-alert $(1)/usr/libexec/mwan-hooks
 	$(INSTALL_BIN) ./files/backup-encryption-alert $(1)/usr/libexec
 	$(INSTALL_BIN) ./files/mwan-hooks $(1)/usr/libexec/ns-plug
+	$(INSTALL_BIN) ./files/ns-plug-rsyslog-fixup.uci-default $(1)/etc/uci-defaults/rsyslog-fixup
 endef
  
 $(eval $(call BuildPackage,ns-plug))
