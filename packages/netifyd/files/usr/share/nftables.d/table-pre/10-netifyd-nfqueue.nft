@@ -4,18 +4,18 @@ chain nfq_input {
     ip6 saddr ::1 ip6 daddr ::1 accept
 
     ct packets > 32 counter accept
-    # Traffic FROM LAN interfaces -> Queue 10-19
-    iifname != $wan_devices queue flags bypass to 10-19
-    # Traffic FROM WAN interfaces -> Queue 20-29
-    iifname $wan_devices queue flags bypass to 20-29
+    # Traffic FROM LAN interfaces -> Queue 50-53
+    iifname != $wan_devices queue flags bypass to 50-53
+    # Traffic FROM WAN interfaces -> Queue 60-63
+    iifname $wan_devices queue flags bypass to 60-63
 }
 
 chain nfq_forward {
     type filter hook forward priority filter + 10; policy accept;
 
     ct packets > 32 counter accept
-    # Traffic entering from LAN (Upload/LAN-to-LAN) -> Queue 10-19
-    iifname != $wan_devices queue flags bypass to 10-19
-    # Traffic entering from WAN (Download/Port Forwarding) -> Queue 20-29
-    iifname $wan_devices queue flags bypass to 20-29
+    # Traffic entering from LAN (Upload/LAN-to-LAN) -> Queue 50-53
+    iifname != $wan_devices queue flags bypass to 50-53
+    # Traffic entering from WAN (Download/Port Forwarding) -> Queue 60-63
+    iifname $wan_devices queue flags bypass to 60-63
 }
