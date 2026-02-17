@@ -93,6 +93,8 @@ for section in u.get_all('dpi'):
     if rule['action'] not in valid_actions or not rule['enabled']:
         continue
 
+    device = rule.get('device', '*')
+
     if 'criteria' in rule:
         # criteria has precedence over sources, protocol, category and application
         criteria = rule['criteria'].replace('"',"'")
@@ -116,14 +118,14 @@ for section in u.get_all('dpi'):
 
         sources_s = ' or '.join(sources)
         applications_s = ' or '.join(applications)
+        criteria = f'(iface_nfq_src == \'{device}\' or iface_nfq_dst == \'{device}\') && '
         if len(sources) < 1:
-            criteria = f'({applications_s}) ;'
+            criteria += f'({applications_s}) ;'
         elif len(applications) < 1:
-            criteria = f'({sources_s}) ;'
+            criteria += f'({sources_s}) ;'
         else:
-            criteria = f'({sources_s}) && ({applications_s}) ;'
+            criteria += f'({sources_s}) && ({applications_s}) ;'
 
-    device = rule.get('device', '*')
     vlan_id = None
     base_if = None
     for item in utils.get_all_by_type(u, 'network', 'device').values():
@@ -141,7 +143,6 @@ for section in u.get_all('dpi'):
         targets.append('log')
     config["actions"][f"rule{rcount}"] = {
         "enabled": rule['enabled'] == '1',
-        "interface": device,
         "criteria": criteria,
         "targets": targets,
         "exemptions": rule.get('exemption', [])

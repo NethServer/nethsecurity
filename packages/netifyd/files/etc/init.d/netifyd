@@ -113,6 +113,7 @@ start_service() {
 
 	config_load netifyd
 	config_foreach start_netifyd netifyd
+	/etc/init.d/firewall reload >/dev/null
 }
 
 reload_service() {

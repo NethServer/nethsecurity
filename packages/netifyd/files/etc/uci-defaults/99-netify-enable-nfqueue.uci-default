@@ -1,0 +1,14 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Removing the interfaces from netifyd configuration, ignore exit codes
+if uci -q get netifyd.@netifyd[0].external_if > /dev/null; then
+    uci -q del netifyd.@netifyd[0].external_if
+fi
+if uci -q get netifyd.@netifyd[0].internal_if > /dev/null; then
+    uci -q del netifyd.@netifyd[0].internal_if
+fi
