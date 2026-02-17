@@ -165,6 +165,7 @@ define Package/netifyd/install
 	$(INSTALL_DIR) $(1)/usr/share
 	$(INSTALL_DIR) $(1)/usr/share/netifyd
 	$(INSTALL_DIR) $(1)/usr/share/netifyd/plugins.d
+	$(INSTALL_DIR) $(1)/usr/share/nftables.d/table-pre
 
 	# netifyd
 	$(INSTALL_DATA) ./files/etc/config/netifyd $(1)/etc/config/netifyd
