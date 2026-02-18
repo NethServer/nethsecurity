@@ -3,7 +3,7 @@ config netifyd
 	option enabled 1
 
 	# Enable auto-configuration for interfaces (internal/external)
-	option autoconfig 1
+	option autoconfig 0
 
 	# Supplementary options, ex: disable connection tracking thread (-t)
 	#list options '-t'
