@@ -60,7 +60,7 @@ define Package/telegraf
 	URL:=https://github.com/influxdata/telegraf
 	DEPENDS:= \
 		$(GO_ARCH_DEPENDS) \
-		+victoria-metrics
+		+victoria-metrics \
 		+netifyd
 endef
  
