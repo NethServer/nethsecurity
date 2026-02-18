@@ -1,0 +1,9 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Reset autoconfiguration to 0
+uci -q set netifyd.@netifyd[0].autoconfig='0'
