@@ -10,6 +10,8 @@ import json
 import re
 import subprocess
 
+import requests
+
 from euci import EUci
 from nethsec.utils import generic_error, validation_error
 
@@ -72,30 +74,35 @@ def set_configuration(data):
 def main() -> None:
     match sys.argv[1]:
         case 'list':
-            print(json.dumps({
-                'list': {},
+            result = {
+                'list': {
+                    'params': {}
+                },
                 'get-configuration': {},
                 'set-configuration': {"enabled": True, "expired_persistence": "60s"}
-            }))
+            }
         case 'call':
             match sys.argv[2]:
                 case 'list':
-                    with open(INPUT_PATH, 'r') as f:
-                        flows = json.load(f)
-                        print(json.dumps({
-                            'list': flows
-                        }))
+                    data = json.load(sys.stdin)
+                    if 'params' in data and not isinstance(data['params'], dict):
+                        result = validation_error('params', 'invalid')
+                    else:
+                        try:
+                            response = requests.get('http://127.0.0.1:8080/flows', params=data.get('params', {}))
+                            result = response.json()
+                        except requests.ConnectionError:
+                            result = {}
                 case 'get-configuration':
                     result = get_configuration()
-                    print(json.dumps(result))
                 case 'set-configuration':
                     data = json.load(sys.stdin)
                     result = set_configuration(data)
-                    print(json.dumps(result))
                 case _:
-                    print(json.dumps(generic_error("Unknown method")))
+                    result = generic_error("Unknown method")
         case _:
-            print(json.dumps(generic_error("Unknown command")))
+            result = generic_error("Unknown command")
+    print(json.dumps(result))
 
 
 if __name__ == "__main__":
