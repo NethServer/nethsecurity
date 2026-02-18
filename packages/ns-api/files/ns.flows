@@ -1,0 +1,109 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import sys
+import json
+import re
+import subprocess
+
+import requests
+
+from euci import EUci
+from nethsec.utils import generic_error, validation_error
+
+INPUT_PATH = "/var/run/netifyd/flows.json"
+
+
+def get_configuration():
+    """Get ns-flows daemon configuration and status."""
+    u = EUci()
+
+    # Read configuration from UCI
+    config = {
+        'enabled': u.get('ns-flows', 'daemon', 'enabled', default=False, dtype=bool),
+        'expired_persistence': u.get('ns-flows', 'daemon', 'expired_persistence', default='60s')
+    }
+
+    # Check service status
+    try:
+        result = subprocess.run(
+            ["service", "ns-flows", "running"],
+            capture_output=True,
+            check=False
+        )
+        status = result.returncode == 0
+    except Exception:
+        status = False
+
+    return {
+        'configuration': config,
+        'status': status
+    }
+
+
+def set_configuration(data):
+    """Set ns-flows daemon configuration."""
+    u = EUci()
+
+    if 'enabled' not in data:
+        return validation_error('enabled', 'required')
+    if not isinstance(data['enabled'], bool):
+        return validation_error('enabled', 'invalid')
+    if 'expired_persistence' not in data:
+        return validation_error('expired_persistence', 'required')
+
+    # Validate golang duration format (e.g., "300ms", "1.5h", "2h45m")
+    duration_pattern = r'^([0-9]+(\.?[0-9]+)?(ns|us|µs|ms|s|m|h))+$'
+    if not re.match(duration_pattern, data['expired_persistence']):
+        return validation_error('expired_persistence', 'invalid')
+
+    u.set('ns-flows', 'daemon', 'enabled', data['enabled'])
+    u.set('ns-flows', 'daemon', 'expired_persistence', data['expired_persistence'])
+
+    u.save('ns-flows')
+
+    return {
+        "message": "success"
+    }
+
+
+def main() -> None:
+    match sys.argv[1]:
+        case 'list':
+            result = {
+                'list': {
+                    'params': {}
+                },
+                'get-configuration': {},
+                'set-configuration': {"enabled": True, "expired_persistence": "60s"}
+            }
+        case 'call':
+            match sys.argv[2]:
+                case 'list':
+                    data = json.load(sys.stdin)
+                    if 'params' in data and not isinstance(data['params'], dict):
+                        result = validation_error('params', 'invalid')
+                    else:
+                        try:
+                            response = requests.get('http://127.0.0.1:8080/flows', params=data.get('params', {}))
+                            result = response.json()
+                        except requests.ConnectionError:
+                            result = {}
+                case 'get-configuration':
+                    result = get_configuration()
+                case 'set-configuration':
+                    data = json.load(sys.stdin)
+                    result = set_configuration(data)
+                case _:
+                    result = generic_error("Unknown method")
+        case _:
+            result = generic_error("Unknown command")
+    print(json.dumps(result))
+
+
+if __name__ == "__main__":
+    main()
