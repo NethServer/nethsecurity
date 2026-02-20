@@ -135,6 +135,8 @@ def list_dns_feeds(enterprise=False):
 
 def get_confidence(f):
     confidence = -1
+    if not f.startswith('yoroi'):
+        return confidence
     if f.endswith('lvl1') or f.endswith('level1'):
         confidence = 10
     elif f.endswith('lvl2') or f.endswith('level2'):
