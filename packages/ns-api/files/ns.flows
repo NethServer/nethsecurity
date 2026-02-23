@@ -45,6 +45,180 @@ def get_configuration():
     }
 
 
+def sort_flows(flows, sort_by, desc):
+    """Sort flows by the given key.
+
+    Flows that lack the relevant rate/timestamp fields are always placed at the
+    bottom of the result, regardless of the ``desc`` direction.
+    """
+
+    def has_sort_value(flow_item):
+        flow = flow_item.get('flow', {})
+        if sort_by in ('download', 'upload'):
+            return flow.get('local_rate') is not None and flow.get('other_rate') is not None
+        elif sort_by == 'last_seen_at':
+            return flow.get('last_seen_at') is not None
+        elif sort_by == 'duration':
+            return flow.get('last_seen_at') is not None and flow.get('first_seen_at') is not None
+        return True
+
+    def get_sort_key(flow_item):
+        flow = flow_item.get('flow', {})
+        if sort_by == 'download':
+            if flow.get('local_origin', True):
+                return flow.get('other_rate', 0) or 0
+            return flow.get('local_rate', 0) or 0
+        elif sort_by == 'upload':
+            if flow.get('local_origin', True):
+                return flow.get('local_rate', 0) or 0
+            return flow.get('other_rate', 0) or 0
+        elif sort_by == 'last_seen_at':
+            return flow.get('last_seen_at', 0) or 0
+        elif sort_by == 'duration':
+            return (flow.get('last_seen_at', 0) or 0) - (flow.get('first_seen_at', 0) or 0)
+        return 0
+
+    with_value = [f for f in flows if has_sort_value(f)]
+    without_value = [f for f in flows if not has_sort_value(f)]
+
+    return sorted(with_value, key=get_sort_key, reverse=desc) + without_value
+
+
+def get_source(flow_item):
+    """Get the source IP based on flow direction.
+    
+    Uses local_origin to determine which IP is the source:
+    - If local_origin is True, source is local_ip
+    - Otherwise, source is other_ip
+    """
+    flow = flow_item.get('flow', {})
+    if flow.get('local_origin', True):
+        return flow.get('local_ip', '')
+    return flow.get('other_ip', '')
+
+
+def get_destination(flow_item):
+    """Get the destination IP based on flow direction.
+    
+    Uses local_origin to determine which IP is the destination:
+    - If local_origin is True, destination is other_ip
+    - Otherwise, destination is local_ip
+    """
+    flow = flow_item.get('flow', {})
+    if flow.get('local_origin', True):
+        return flow.get('other_ip', '')
+    return flow.get('local_ip', '')
+
+
+def collect_unique_values(flows):
+    """Collect unique values for all filterable fields from the complete flow list.
+    
+    Returns a dict with sorted lists of unique values:
+    - applications: unique detected_application_name values
+    - protocols: unique detected_protocol_name values
+    - sources: unique source IPs (direction-aware)
+    - destinations: unique destination IPs (direction-aware)
+    """
+    applications = set()
+    protocols = set()
+    sources = set()
+    destinations = set()
+
+    for flow_item in flows:
+        flow = flow_item.get('flow', {})
+        
+        # Collect applications
+        app = flow.get('detected_application_name')
+        if app:
+            applications.add(app)
+        
+        # Collect protocols
+        proto = flow.get('detected_protocol_name')
+        if proto:
+            protocols.add(proto)
+        
+        # Collect source/destination IPs
+        src = get_source(flow_item)
+        if src:
+            sources.add(src)
+        
+        dst = get_destination(flow_item)
+        if dst:
+            destinations.add(dst)
+    
+    return {
+        'applications': sorted(list(applications)),
+        'protocols': sorted(list(protocols)),
+        'sources': sorted(list(sources)),
+        'destinations': sorted(list(destinations))
+    }
+
+
+def filter_flows(flows, q=None, application=None, protocol=None, source=None, destination=None):
+    """Filter flows based on multiple criteria.
+    
+    Args:
+        flows: List of flow items
+        q: General text search across all fields (case-insensitive substring)
+        application: List of application names to filter by (case-insensitive exact match)
+        protocol: List of protocol names to filter by (case-insensitive exact match)
+        source: List of source IPs to filter by (case-insensitive exact match)
+        destination: List of destination IPs to filter by (case-insensitive exact match)
+    
+    Returns:
+        Filtered list of flows (multiple values within same filter use OR logic, different filters use AND)
+    """
+    result = []
+    
+    for flow_item in flows:
+        flow = flow_item.get('flow', {})
+        
+        # Apply specific field filters (exact match, case-insensitive)
+        # Multiple values within a filter use OR logic
+        if application:
+            app = (flow.get('detected_application_name') or '').lower()
+            if not any(app == a.lower() for a in application):
+                continue
+        
+        if protocol:
+            proto = (flow.get('detected_protocol_name') or '').lower()
+            if not any(proto == p.lower() for p in protocol):
+                continue
+        
+        if source:
+            src = get_source(flow_item).lower()
+            if not any(src == s.lower() for s in source):
+                continue
+        
+        if destination:
+            dst = get_destination(flow_item).lower()
+            if not any(dst == d.lower() for d in destination):
+                continue
+        
+        # Apply general text search (substring match, case-insensitive)
+        if q:
+            q_lower = q.lower()
+            search_fields = [
+                flow.get('detected_application_name', ''),
+                flow.get('detected_protocol_name', ''),
+                get_source(flow_item),
+                get_destination(flow_item),
+                flow.get('host_server_name', ''),
+                flow.get('dns_host_name', ''),
+                flow.get('local_mac', ''),
+                flow.get('other_mac', ''),
+                flow_item.get('interface', ''),
+                str(flow.get('local_port', '')),
+                str(flow.get('other_port', ''))
+            ]
+            if not any(q_lower in str(field).lower() for field in search_fields):
+                continue
+        
+        result.append(flow_item)
+    
+    return result
+
+
 def set_configuration(data):
     """Set ns-flows daemon configuration."""
     u = EUci()
@@ -76,7 +250,17 @@ def main() -> None:
         case 'list':
             result = {
                 'list': {
-                    'params': {}
+                    'params': {
+                        'per_page': 10,
+                        'page': 1,
+                        'sort_by': 'download',
+                        'desc': True,
+                        'q': '',
+                        'application': '',
+                        'protocol': '',   
+                        'source': '',     
+                        'destination': '' 
+                    }
                 },
                 'get-configuration': {},
                 'set-configuration': {"enabled": True, "expired_persistence": "60s"}
@@ -84,15 +268,66 @@ def main() -> None:
         case 'call':
             match sys.argv[2]:
                 case 'list':
-                    data = json.load(sys.stdin)
-                    if 'params' in data and not isinstance(data['params'], dict):
-                        result = validation_error('params', 'invalid')
-                    else:
-                        try:
-                            response = requests.get('http://127.0.0.1:8080/flows', params=data.get('params', {}))
-                            result = response.json()
-                        except requests.ConnectionError:
-                            result = {}
+                    try:
+                        response = requests.get('http://127.0.0.1:8080/flows')
+                        if "flows" not in response.json():
+                            result = generic_error("Invalid response from ns-flows daemon")
+                        else:
+                            data = json.load(sys.stdin)
+                            flows = response.json()['flows']
+                            per_page = data.get('per_page', 10)
+                            page = data.get('page', 1)
+
+                            sort_by = data.get('sort_by', 'download')
+                            if sort_by not in ['download', 'upload', 'last_seen_at', 'duration']:
+                                result = validation_error('sort_by', 'invalid')
+                            else:
+                                desc = data.get('desc', True)
+
+                                # Collect unique filter values from unfiltered flows
+                                filter_values = collect_unique_values(flows)
+
+                                # Apply filters (normalize to lists)
+                                def to_list(value):
+                                    if value is None:
+                                        return None
+                                    if isinstance(value, list):
+                                        return value if value else None
+                                    if isinstance(value, str):
+                                        return [value] if value else None
+                                    return None
+
+                                q = data.get('q')
+                                application = to_list(data.get('application'))
+                                protocol = to_list(data.get('protocol'))
+                                source = to_list(data.get('source'))
+                                destination = to_list(data.get('destination'))
+                                
+                                filtered_flows = filter_flows(
+                                    flows,
+                                    q=q,
+                                    application=application,
+                                    protocol=protocol,
+                                    source=source,
+                                    destination=destination
+                                )
+
+                                # Sort filtered flows
+                                sorted_flows = sort_flows(filtered_flows, sort_by, desc)
+
+                                # Paginate after sorting
+                                paginated = sorted_flows[(page - 1) * per_page: page * per_page]
+
+                                result = {
+                                    'flows': paginated,
+                                    'total': len(filtered_flows),
+                                    'per_page': per_page,
+                                    'current_page': page,
+                                    'last_page': (len(sorted_flows) + per_page - 1) // per_page,
+                                    'filters': filter_values
+                                }
+                    except requests.ConnectionError:
+                        result = {}
                 case 'get-configuration':
                     result = get_configuration()
                 case 'set-configuration':
