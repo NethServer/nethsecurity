@@ -65,7 +65,7 @@ def remove_files(file_list):
         except OSError:
             pass
 
-def get_certificates_from_pem(pem_path):
+def get_certificates_from_pem(pem_path, role_label=None):
     """Extract certificate CN and expiration date from PEM file containing one or more certificates"""
     try:
         with open(pem_path, 'r') as f:
@@ -109,10 +109,17 @@ def get_certificates_from_pem(pem_path):
                         except:
                             pass
 
-                # Map NethSec CN to CA
-                if cn == 'NethSec':
-                    cn = 'CA'
-                certificates[cn] = expiry_ts
+                # server peer: use role_label for server
+                if role_label:
+                    label = role_label
+                else:
+                    # client peer: use 'client' if CN=client, 'CA' otherwise to client
+                    if cn == 'client':
+                        label = 'client'
+                    else:
+                        label = 'CA'
+                
+                certificates[label] = expiry_ts
             except:
                 pass
 
@@ -418,11 +425,11 @@ def list_tunnels():
 
             certificates = {}
             if vpn.get('cert'):
-                certificates = get_certificates_from_pem(vpn.get('cert'))
+                certificates.update(get_certificates_from_pem(vpn.get('cert'), 'server'))
                 client_crt = vpn.get('cert').replace('/issued/server.crt', '/issued/client.crt')
-                certificates.update(get_certificates_from_pem(client_crt))
+                certificates.update(get_certificates_from_pem(client_crt, 'client'))
             if vpn.get('ca'):
-                certificates.update(get_certificates_from_pem(vpn.get('ca')))
+                certificates.update(get_certificates_from_pem(vpn.get('ca'), 'CA'))
             server["certificates"] = certificates
 
             servers.append(server)
