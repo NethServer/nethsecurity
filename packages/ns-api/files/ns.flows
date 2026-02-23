@@ -318,16 +318,32 @@ def main() -> None:
                                 # Paginate after sorting
                                 paginated = sorted_flows[(page - 1) * per_page: page * per_page]
 
+                                # Calculate last_page, ensuring minimum of 1 when no data
+                                last_page = max(1, (len(sorted_flows) + per_page - 1) // per_page)
+
                                 result = {
                                     'flows': paginated,
                                     'total': len(filtered_flows),
                                     'per_page': per_page,
                                     'current_page': page,
-                                    'last_page': (len(sorted_flows) + per_page - 1) // per_page,
+                                    'last_page': last_page,
                                     'filters': filter_values
                                 }
                     except requests.ConnectionError:
-                        result = {}
+                        # flows daemon is not running or starting up
+                        result = {
+                            'flows': [],
+                            'total': 0,
+                            'per_page': 10,
+                            'current_page': 1,
+                            'last_page': 1,
+                            'filters': {
+                                'applications': [],
+                                'protocols': [],
+                                'sources': [],
+                                'destinations': []
+                            }
+                        }
                 case 'get-configuration':
                     result = get_configuration()
                 case 'set-configuration':
