@@ -330,20 +330,7 @@ def main() -> None:
                                     'filters': filter_values
                                 }
                     except requests.ConnectionError:
-                        # flows daemon is not running or starting up
-                        result = {
-                            'flows': [],
-                            'total': 0,
-                            'per_page': 10,
-                            'current_page': 1,
-                            'last_page': 1,
-                            'filters': {
-                                'applications': [],
-                                'protocols': [],
-                                'sources': [],
-                                'destinations': []
-                            }
-                        }
+                        result = generic_error("Unable to connect to ns-flows daemon")
                 case 'get-configuration':
                     result = get_configuration()
                 case 'set-configuration':
