@@ -2,10 +2,10 @@
     "format": "json",
     "compressor": "none",
     "sinks": {
-        "sink-socket": {
-            "legacy": {
+        "sink-socket-flows": {
+            "flows": {
                 "enable": true,
-                "types": [ "legacy-socket" ]
+                "types": [ "stream-flows" ]
             }
         }
     }
