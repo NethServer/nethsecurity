@@ -21,16 +21,7 @@ define Package/ns-api
 	CATEGORY:=NethSecurity
 	TITLE:=NethSecurity REST API
 	URL:=https://github.com/NethServer/nethsecurity-controller/
-	DEPENDS:=\
-		+coreutils-date \
-		+coreutils-stty \ 
-		+python3-idna \
-		+python3-nethsec \
-		+python3-openssl \
-		+python3-requests \
-		+python3-urllib \
-		+sshpass \
-		+wireguard-tools
+	DEPENDS:=+coreutils-date +coreutils-stty  +python3-idna +python3-nethsec +python3-openssl +python3-requests +python3-urllib +sshpass +wireguard-tools
 	PKGARCH:=all
 endef
 
