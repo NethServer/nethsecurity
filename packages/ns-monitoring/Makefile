@@ -7,12 +7,13 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-monitoring
 # renovate: datasource=github-tags depName=nethserver/nethsecurity-monitoring
-PKG_VERSION:=a9978744f63568e2ea10e225bae901cb7271c7e5
+PKG_VERSION:=0.0.1
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
-PKG_SOURCE_URL:=https://codeload.github.com/nethserver/nethsecurity-monitoring/tar.gz/$(PKG_VERSION)?
-PKG_SOURCE_SUBDIR:=nethsecurity-monitoring-$(PKG_VERSION)
+PKG_SOURCE_VERSION:=badb4039bf3fd5f216154777d8e72413185e8f86
+PKG_SOURCE_URL:=https://codeload.github.com/nethserver/nethsecurity-monitoring/tar.gz/$(PKG_SOURCE_VERSION)?
+PKG_SOURCE_SUBDIR:=nethsecurity-monitoring-$(PKG_SOURCE_VERSION)
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_SOURCE_SUBDIR)
 
 PKG_HASH:=skip
@@ -49,12 +50,17 @@ define Package/ns-monitoring/install
 	$(INSTALL_BIN) ./files/monitoring.uci-defaults $(1)/etc/uci-defaults/99-monitoring
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/ns-flows.init $(1)/etc/init.d/ns-flows
+	$(INSTALL_DIR) $(1)/etc/netifyd
+	$(INSTALL_CONF) ./files/netifyd/plugins.d/10-netify-flows.conf $(1)/etc/netifyd/plugins.d/10-netify-flows.conf
+	$(INSTALL_CONF) ./files/netifyd/netify-sink-socket-flows.json $(1)/etc/netifyd/netify-sink-socket-flows.json
+	$(INSTALL_CONF) ./files/netifyd/netify-proc-core-flows.json $(1)/etc/netifyd/netify-proc-core-flows.json
 endef
 
 define Package/ns-monitoring/postinst
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
 	/etc/init.d/ns-flows restart
+	/etc/init.d/netifyd reload
 	if /etc/init.d/ns-flows enabled; then
 		/etc/init.d/ns-flows enable
 	fi
