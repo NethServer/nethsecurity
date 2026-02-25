@@ -10,6 +10,7 @@ This script generates location entries for nginx, find more info in the README.m
 """
 
 import os
+import subprocess
 from glob import glob
 
 from euci import EUci
@@ -57,3 +58,5 @@ for section in u.get_all('nginx'):
 
 for server in servers:
     write_locations(servers[server], f'/etc/nginx/conf.d/{server}.proxy')
+
+subprocess.run(['/etc/init.d/nginx', 'reload'])
