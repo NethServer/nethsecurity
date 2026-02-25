@@ -51,6 +51,7 @@ define Package/ns-monitoring/install
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/ns-flows.init $(1)/etc/init.d/ns-flows
 	$(INSTALL_DIR) $(1)/etc/netifyd
+	$(INSTALL_DIR) $(1)/etc/netifyd/plugins.d
 	$(INSTALL_CONF) ./files/netifyd/plugins.d/10-netify-flows.conf $(1)/etc/netifyd/plugins.d/10-netify-flows.conf
 	$(INSTALL_CONF) ./files/netifyd/netify-sink-socket-flows.json $(1)/etc/netifyd/netify-sink-socket-flows.json
 	$(INSTALL_CONF) ./files/netifyd/netify-proc-core-flows.json $(1)/etc/netifyd/netify-proc-core-flows.json
