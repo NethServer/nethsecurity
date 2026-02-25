@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 #
-# Copyright (C) 2023 Nethesis S.r.l.
+# Copyright (C) 2026 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
@@ -190,6 +190,30 @@ def hostname():
 def slurp(path):
     with open(path) as fp:
         return fp.read()
+
+def get_certificate_expiration(pem_path, label):
+    """Extract certificate expiration date from PEM file"""
+    try:
+        result = subprocess.run(
+            ["openssl", "x509", "-noout", "-subject", "-nameopt", "RFC2253", "-enddate"],
+            stdin=open(pem_path, 'r'),
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        
+        # Parse notAfter line: notAfter=Feb 21 13:04:51 2036 GMT
+        for line in result.stdout.split('\n'):
+            if line.startswith("notAfter="):
+                date_str = line.split("=")[1].strip()
+                try:
+                    expiry_dt = datetime.strptime(date_str, "%b %d %H:%M:%S %Y %Z")
+                    return {label: int(expiry_dt.timestamp())}
+                except:
+                    pass
+        return {}
+    except:
+        return {}
 
 def instance2number(input_string):
     numbers = re.findall(r'\d+', input_string)
@@ -396,6 +420,19 @@ def get_configuration(ovpninstance):
 
     if 'ns_public_ip' not in ret:
         ret['ns_public_ip'] = ovpn.get_public_addresses(u)
+
+    # add certificate expiration dates
+    certificates = {}
+    ca_path = f'/etc/openvpn/{ovpninstance}/pki/ca.crt'
+    cert_path = f'/etc/openvpn/{ovpninstance}/pki/issued/server.crt'
+    
+    if os.path.exists(ca_path):
+        certificates.update(get_certificate_expiration(ca_path, 'CA'))
+    if os.path.exists(cert_path):
+        certificates.update(get_certificate_expiration(cert_path, 'server'))
+    
+    if certificates:
+        ret['certificates'] = certificates
 
     return ret
 
@@ -1041,6 +1078,24 @@ def connection_history(ovpninstance):
 
     return connections
 
+def renew_server_certificate(ovpninstance):
+    try:
+        subprocess.run(["/usr/sbin/ns-openvpn-renew-server", ovpninstance], check=True)
+        subprocess.run(["/etc/init.d/openvpn", "restart", ovpninstance], check=False)
+    except Exception as e:
+        print(e, file=sys.stderr)
+        return utils.validation_error("instance", "server_certificate_renewal_failed", ovpninstance)
+    return {"result": "success"}
+
+def regenerate_all_certificates(ovpninstance):
+    try:
+        subprocess.run(["/usr/sbin/ns-openvpn-renew-ca", ovpninstance], check=True)
+        subprocess.run(["/etc/init.d/openvpn", "restart", ovpninstance], check=False)
+    except Exception as e:
+        print(e, file=sys.stderr)
+        return utils.validation_error("instance", "certificates_regeneration_failed", ovpninstance)
+    return {"result": "success"}
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
@@ -1088,7 +1143,9 @@ if cmd == 'list':
         "download-user-2fa": {"instance": "roadwarrior1", "username": "myuser"},
         "download_all_user_configurations": {"instance": "roadwarrior1"},
         "connection-history-csv": {"instance": "roadwarrior1", "timezone": "Europe/Rome"},
-        "connection-history": {"instance": "roadwarrior1"}
+        "connection-history": {"instance": "roadwarrior1"},
+        "renew-server-certificate": {"instance": "roadwarrior1"},
+        "regenerate-all-certificates": {"instance": "roadwarrior1"}
         }))
 else:
     action = sys.argv[2]
@@ -1145,5 +1202,9 @@ else:
         ret = connection_history_csv(args['instance'], args['timezone'])
     elif action == "connection-history":
         ret = connection_history(args['instance'])
+    elif action == "renew-server-certificate":
+        ret = renew_server_certificate(args["instance"])
+    elif action == "regenerate-all-certificates":
+        ret = regenerate_all_certificates(args["instance"])
 
     print(json.dumps(ret))
