@@ -14,6 +14,16 @@ from nethsec import utils
 from nethsec.utils import ValidationError
 
 
+def is_wan_interface(e_uci, interface_name):
+    """Check if an interface is a WAN interface"""
+    try:
+        wan_interfaces = e_uci.get('firewall', 'ns_wan', 'network', dtype=str, default=[], list=True)
+        return interface_name in wan_interfaces
+    except:
+        # assume WAN to avoid inverting bandwidth for unknown interfaces
+        return True
+
+
 def validate(data):
     if 'interface' not in data:
         raise ValidationError('name', 'required')
@@ -69,12 +79,19 @@ elif cmd == 'call':
                     device = [item['device'] for config_name, item in network_interfaces if config_name == key][0]
                 except:
                     continue
+                upload = int(interface['bandwidth_up'].removesuffix('mbit'))
+                download = int(interface['bandwidth_down'].removesuffix('mbit'))
+                # invert if not WAN interface
+                if not is_wan_interface(e_uci, key):
+                    temp = upload
+                    upload = download
+                    download = temp
                 result.append({
                     'interface': key,
                     'device': device,
                     'disabled': interface['disabled'] == '1',
-                    'upload': int(interface['bandwidth_up'].removesuffix('mbit')),
-                    'download': int(interface['bandwidth_down'].removesuffix('mbit')),
+                    'upload': upload,
+                    'download': download,
                 })
             print(json.dumps({'rules': result}))
 
@@ -85,6 +102,12 @@ elif cmd == 'call':
                 raise ValidationError('name', 'duplicate')
             if data['interface'] not in utils.get_all_by_type(e_uci, 'network', 'interface').keys():
                 raise ValidationError('name', 'invalid')
+
+            # invert bandwidth for non-WAN interfaces before saving
+            if not is_wan_interface(e_uci, data['interface']):
+                upload = data['upload']
+                data['upload'] = data['download']
+                data['download'] = upload
 
             e_uci.set('qosify', data['interface'], 'interface')
             e_uci.set('qosify', data['interface'], 'name', data['interface'])
@@ -128,6 +151,12 @@ elif cmd == 'call':
             validate(data)
             if data['interface'] not in utils.get_all_by_type(e_uci, 'qosify', 'interface').keys():
                 raise ValidationError('name', 'invalid')
+
+            # invert bandwidth for non-WAN interfaces before saving
+            if not is_wan_interface(e_uci, data['interface']):
+                upload = data['upload']
+                data['upload'] = data['download']
+                data['download'] = upload
 
             e_uci.set('qosify', data['interface'], 'disabled', data['disabled'])
             e_uci.set('qosify', data['interface'], 'bandwidth_up', f'{data["upload"]}mbit')
