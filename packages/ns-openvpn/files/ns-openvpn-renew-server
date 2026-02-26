@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-# Renew CA and all certificates for the specified OpenVPN instance
+# Renew server certificate for the specified OpenVPN instance
 instance=$1
 if [ -z $instance ]; then
     exit 1
@@ -20,18 +20,13 @@ fi
 export EASYRSA_BATCH=1
 export EASYRSA_CERT_EXPIRE=3650
 export EASYRSA_CRL_DAYS=3650
+export EASYRSA_REQ_CN=$cn
 
 if [ -f /etc/openvpn/$instance/pki/ca.crt ]; then
     cd /etc/openvpn/$instance
     (
-        /usr/bin/easyrsa renew-ca
-        /usr/bin/easyrsa revoke-issued server
-        EASYRSA_REQ_CN=$cn /usr/bin/easyrsa build-server-full server nopass
+        /usr/bin/easyrsa revoke server
         /usr/bin/easyrsa gen-crl
-        for f in $(find /etc/openvpn/$instance/pki/issued -name \*.crt ! -name server.crt); do
-            name=$(basename $f | cut -d '.' -f 1)
-            /usr/bin/easyrsa revoke-issued "$name"
-            /usr/bin/easyrsa build-client-full "$name" nopass
-        done
+        /usr/bin/easyrsa build-server-full server nopass
     )
 fi
