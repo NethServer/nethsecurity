@@ -1082,7 +1082,7 @@ def connection_history(ovpninstance):
 def renew_server_certificate(ovpninstance):
     try:
         subprocess.run(["/usr/sbin/ns-openvpn-renew-server", ovpninstance], check=True, capture_output=True)
-        subprocess.run(["/etc/init.d/openvpn", "restart", ovpninstance], check=False)
+        subprocess.run(["/etc/init.d/openvpn", "restart", ovpninstance], check=False, capture_output=True)
     except Exception as e:
         print(e, file=sys.stderr)
         return utils.validation_error("instance", "server_certificate_renewal_failed", ovpninstance)
@@ -1091,7 +1091,7 @@ def renew_server_certificate(ovpninstance):
 def regenerate_all_certificates(ovpninstance):
     try:
         subprocess.run(["/usr/sbin/ns-openvpn-renew-ca", ovpninstance], check=True, capture_output=True)
-        subprocess.run(["/etc/init.d/openvpn", "restart", ovpninstance], check=False)
+        subprocess.run(["/etc/init.d/openvpn", "restart", ovpninstance], check=False, capture_output=True)
     except Exception as e:
         print(e, file=sys.stderr)
         return utils.validation_error("instance", "certificates_regeneration_failed", ovpninstance)
