@@ -83,7 +83,9 @@ elif cmd == 'call':
                 download = int(interface['bandwidth_down'].removesuffix('mbit'))
                 # invert if not WAN interface
                 if not is_wan_interface(e_uci, key):
-                    upload, download = download, upload
+                    temp = upload
+                    upload = download
+                    download = temp
                 result.append({
                     'interface': key,
                     'device': device,
@@ -103,7 +105,9 @@ elif cmd == 'call':
 
             # invert bandwidth for non-WAN interfaces before saving
             if not is_wan_interface(e_uci, data['interface']):
-                data['upload'], data['download'] = data['download'], data['upload']
+                upload = data['upload']
+                data['upload'] = data['download']
+                data['download'] = upload
 
             e_uci.set('qosify', data['interface'], 'interface')
             e_uci.set('qosify', data['interface'], 'name', data['interface'])
@@ -150,7 +154,9 @@ elif cmd == 'call':
 
             # invert bandwidth for non-WAN interfaces before saving
             if not is_wan_interface(e_uci, data['interface']):
-                data['upload'], data['download'] = data['download'], data['upload']
+                upload = data['upload']
+                data['upload'] = data['download']
+                data['download'] = upload
 
             e_uci.set('qosify', data['interface'], 'disabled', data['disabled'])
             e_uci.set('qosify', data['interface'], 'bandwidth_up', f'{data["upload"]}mbit')
