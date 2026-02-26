@@ -584,6 +584,7 @@ def list_users(ovpninstance):
     u = EUci()
     ret = []
     connected = ovpn.list_connected_clients(ovpninstance)
+    connected_lower_case = {k.lower(): v for k, v in connected.items()}
     expirations = list_user_expirations(ovpninstance)
     db = u.get("openvpn", ovpninstance, "ns_user_db", default=None)
     if not db:
@@ -598,18 +599,18 @@ def list_users(ovpninstance):
         # migrated users can have the form <user>@>domain>
         # make sure to duplicate connected info also removing the domain part
         normalized = {}
-        for user in connected:
+        for user in connected_lower_case:
             if '@' in user:
                 nuser = user.split('@')[0]
-                normalized[nuser] = connected[user]
-        connected.update(normalized)
+                normalized[nuser] = connected_lower_case[user]
+        connected_lower_case.update(normalized)
     for user in db_users:
         # exclude users not enabled for OpenVPN
         if "openvpn_enabled" not in user:
             continue
-        if user['name'] in connected:
+        if user['name'].lower() in connected_lower_case:
              user["connected"] = True
-             user = user | connected[user['name']]
+             user = user | connected_lower_case[user['name'].lower()]
         else:
             user["connected"] = False
         user["expiration"] = ""
