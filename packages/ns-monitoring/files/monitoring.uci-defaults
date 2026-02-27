@@ -1,0 +1,15 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+if ! uci -q get ns-flows.daemon > /dev/null; then
+  uci -q import ns-flows << EOI
+config config 'daemon'
+    option enabled '0'
+    option log_level 'info'
+    option expired_persistence '60s'
+EOI
+fi
