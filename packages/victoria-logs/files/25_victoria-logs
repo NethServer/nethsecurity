@@ -1,0 +1,14 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+RSYSLOG_CONF="/etc/rsyslog.d/victoria-logs.conf"
+
+# Register the victoria-logs rsyslog drop-in in rsyslog UCI includes
+if ! uci -q get rsyslog.syslog.includes | grep -qF "${RSYSLOG_CONF}"; then
+    uci add_list rsyslog.syslog.includes="${RSYSLOG_CONF}"
+    uci commit rsyslog
+fi
