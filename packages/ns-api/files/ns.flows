@@ -299,6 +299,34 @@ def compute_tags(flow_item):
     return tags
 
 
+def compute_application_name(flow_item, applications_catalog):
+    """Compute application name for a flow based on detected_application_name and applications catalog.
+    
+    If detected_application_name is present, return it.
+    Otherwise, try to infer application from the catalog based on detected_protocol_name and ports.
+    If no match is found, return 'unknown'.
+    """
+    for app in applications_catalog:
+        if app.get('id') == flow_item.get('flow').get('detected_application'):
+            return app.get('label')
+
+    return flow_item.get('flow').get('detected_application_name')
+
+
+def compute_protocol_name(flow_item, protocols_catalog):
+    """Compute protocol name for a flow based on detected_protocol_name and protocols catalog.
+    
+    If detected_protocol_name is present, return it.
+    Otherwise, try to infer protocol from the catalog based on local_port/other_port and protocol categories.
+    If no match is found, return 'unknown'.
+    """
+    for proto in protocols_catalog:
+        if proto.get('id') == flow_item.get('flow').get('detected_protocol'):
+            return proto.get('label')
+
+    return flow_item.get('flow').get('detected_protocol_name')
+
+
 def main() -> None:
     match sys.argv[1]:
         case 'list':
@@ -331,9 +359,26 @@ def main() -> None:
                             data = json.load(sys.stdin)
                             flows = response.json()['flows']
 
-                            # Augment each flow with computed tags
+                            applications_catalog = []
+                            # load applications catalog if the file exists
+                            try:
+                                with open('/etc/netifyd/netify-application-catalog.json', 'r') as f:
+                                    applications_catalog = json.load(f)
+                            except Exception:
+                                pass
+                            protocols_catalog = []
+                            # load protocols catalog if the file exists
+                            try:
+                                with open('/etc/netifyd/netify-protocol-catalog.json', 'r') as f:
+                                    protocols_catalog = json.load(f)
+                            except Exception:
+                                pass
+
+                            # Augment each flow with additional data
                             for f in flows:
                                 f['tags'] = compute_tags(f)
+                                f['application_label'] = compute_application_name(f, applications_catalog)
+                                f['protocol_label'] = compute_protocol_name(f, protocols_catalog)
 
                             per_page = data.get('per_page', 10)
                             page = data.get('page', 1)

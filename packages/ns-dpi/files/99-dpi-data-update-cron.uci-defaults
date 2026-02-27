@@ -1,0 +1,21 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+#
+# DPI Data Update: Add cron job if missing
+#
+
+if ! grep -q '/etc/init.d/dpi-data-update' /etc/crontabs/root; then
+    echo '0 0 * * * sleep $(( RANDOM % 300 )); /etc/init.d/dpi-data-update start' >> /etc/crontabs/root
+fi
+
+# Ensure dpi-data-update service is enabled at boot
+if ! /etc/init.d/dpi-data-update enabled; then
+  /etc/init.d/dpi-data-update enable
+  /etc/init.d/dpi-data-update start
+fi
+
