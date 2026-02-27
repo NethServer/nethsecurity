@@ -60,6 +60,7 @@ define Package/telegraf
 	URL:=https://github.com/influxdata/telegraf
 	DEPENDS:= \
 		$(GO_ARCH_DEPENDS) \
+		+lm-sensors \
 		+victoria-metrics \
 		+netifyd
 endef

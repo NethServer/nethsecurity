@@ -1,0 +1,41 @@
+#!/bin/sh /etc/rc.common
+
+#
+# Copyright (C) 2023 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# shellcheck disable=SC3043
+
+START=99
+USE_PROCD=1
+
+PROG="/usr/bin/victoria-logs"
+
+start_service() {
+    config_load victoria-logs
+    local storage_path max_disk_usage
+    config_get storage_path main storage_path /var/lib/victoria-logs
+    config_get max_disk_usage main max_disk_usage 50MB
+
+    procd_open_instance
+    procd_set_param stdout 1
+    procd_set_param stderr 1
+    procd_set_param respawn 3600 5 0
+    procd_set_param command $PROG
+    procd_append_param command -storageDataPath="$storage_path"
+    procd_append_param command -retention.maxDiskSpaceUsageBytes="$max_disk_usage"
+    procd_append_param command -syslog.listenAddr.tcp=127.0.0.1:5514
+    procd_close_instance
+}
+
+service_triggers()
+{
+    procd_add_reload_trigger victoria-logs
+}
+
+reload_service()
+{
+    stop
+    start
+}
