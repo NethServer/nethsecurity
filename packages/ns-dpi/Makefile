@@ -24,7 +24,8 @@ define Package/ns-dpi
 	URL:=https://github.com/NethServer/nethsecurity/
 	DEPENDS:= \
 		+kmod-ipt-conntrack-label \
-		+netifyd
+		+netifyd \
+		+python3-jinja2
 	PKGARCH:=all
 endef
 
