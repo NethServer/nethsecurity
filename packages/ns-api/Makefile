@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2022 Nethesis S.r.l.
+# Copyright (C) 2026 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
@@ -179,6 +179,7 @@ define Package/ns-api/install
 	$(INSTALL_BIN) ./files/pre-commit/update-objects.py $(1)/usr/libexec/ns-api/pre-commit
 	$(INSTALL_BIN) ./files/post-commit/reload-ipsets.py $(1)/usr/libexec/ns-api/post-commit
 	$(INSTALL_BIN) ./files/post-commit/restart-cron.py $(1)/usr/libexec/ns-api/post-commit
+	$(INSTALL_BIN) ./files/post-commit/update-timezone.py $(1)/usr/libexec/ns-api/post-commit
 	$(INSTALL_BIN) ./files/post-commit/restart-wireguard.py $(1)/usr/libexec/ns-api/post-commit
 	$(INSTALL_BIN) ./files/pre-commit/clean-network.py $(1)/usr/libexec/ns-api/pre-commit
 	$(INSTALL_BIN) ./files/remove-pppoe-keepalive $(1)/usr/share/ns-api
