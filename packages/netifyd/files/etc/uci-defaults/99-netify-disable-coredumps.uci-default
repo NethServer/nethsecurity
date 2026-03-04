@@ -1,0 +1,11 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Add enable_coredumps = no to netifyd.conf if not already set
+if ! grep -q 'enable_coredumps' /etc/netifyd.conf; then
+    sed -i '/^# vim:/i enable_coredumps = no' /etc/netifyd.conf
+fi
