@@ -81,10 +81,13 @@ with open('/etc/os-release', 'r') as file:
             break
 
 features = {}
+info = {}
 for func in dir(inventory):
+    method = getattr(inventory, func)
     if func.startswith("fact_"):
-        method = getattr(inventory, func)
         features[func.removeprefix('fact_')] = method(EUci())
+    if func.startswith("info_"):
+        features[func.removeprefix('info_')] = method(EUci())
 
 data = {
     "$schema": "https://schema.nethserver.org/facts/2022-12.json",
@@ -113,4 +116,6 @@ data = {
         "features": features
     }
 }
+
+data['facts'].update(info)
 print(json.dumps(data))
