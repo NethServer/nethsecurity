@@ -91,6 +91,7 @@ data = {
     "uuid": sid,
     "installation": "nethsecurity",
     "facts": {
+        "uptime": inventory.info_uptime_seconds(u),
         "distro": {
             "name": "NethSecurity",
             "version": version
