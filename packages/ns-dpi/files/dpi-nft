@@ -21,7 +21,7 @@ chain dpi_actions {
     type filter hook prerouting priority filter + 10; policy accept;
 
     {% if log_enabled -%}
-    ct label netify-blocked counter log prefix "DPI block: " limit rate {{ log_limit }}
+    ct label netify-blocked counter log prefix "DPI block: " limit rate 1/second
     {% endif -%}
     ct label netify-blocked counter reject
     ct label bulk counter ip dscp set cs1 return
@@ -37,8 +37,7 @@ def generate_dpi():
     e_uci = EUci()
     template = Environment(loader=BaseLoader()).from_string(CHAIN)
     render = template.render(
-        log_enabled=e_uci.get('dpi', 'config', 'log_blocked', dtype=bool, default=False),
-        log_limit=e_uci.get('firewall', 'ns_defaults', 'rule_log_limit', dtype=str, default='1/second')
+        log_enabled=e_uci.get('dpi', 'config', 'log_blocked', dtype=bool, default=False)
     )
     # save to nftables directory table-pre, only if the file is changed
     file_path = '/usr/share/nftables.d/table-pre/dpi_actions.nft'
