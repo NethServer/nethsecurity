@@ -1,15 +1,19 @@
+# This is free software, licensed under the GNU General Public License v2.
+# See /LICENSE for more information.
+#
+
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=python-semver
 PKG_VERSION:=2.13.0
 PKG_RELEASE:=1
 
-PKG_MAINTAINER:=Bailetti Tommaso <tommaso.bailetti@nethesis.it>
-PKG_LICENSE:=BSD-3-Clause
-PKG_LICENSE_FILES:=LICENSE.txt
-
 PYPI_NAME:=semver
 PKG_HASH:=fa0fe2722ee1c3f57eac478820c3a5ae2f624af8264cbdf9000c980ff7f75e3f
+
+PKG_MAINTAINER:=Tommaso Bailetti <tommaso.bailetti@nethesis.it>
+PKG_LICENSE:=BSD-3-Clause
+PKG_LICENSE_FILES:=LICENSE.txt
 
 include $(TOPDIR)/feeds/packages/lang/python/pypi.mk
 include $(INCLUDE_DIR)/package.mk
