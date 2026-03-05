@@ -13,6 +13,7 @@ import subprocess
 import requests
 
 from euci import EUci
+from nethsec import conntrack
 from nethsec.utils import generic_error, validation_error
 
 INPUT_PATH = "/var/run/netifyd/flows.json"
@@ -268,16 +269,17 @@ def set_configuration(data):
     }
 
 
-def compute_tags(flow_item):
+def compute_tags(flow_item, blocked_ids=None):
     """Compute tags for a flow based on its type and direction.
     
-    Returns a list of zero or more tags from: 'remote', 'outgoing', 'internal', 'broadcast', 'scanning'.
+    Returns a list of zero or more tags from: 'remote', 'outgoing', 'internal', 'broadcast', 'scanning', 'blocked'.
     Rules:
     - 'remote': local_origin==False AND other_type=='remote'
     - 'outgoing': local_origin==True AND other_type=='remote'
     - 'internal': other_type=='local'
     - 'broadcast': other_type=='broadcast'
     - 'scanning': top-level type=='flow'
+    - 'blocked': flow's conntrack id matches a conntrack entry with the 'netify-blocked' label
     """
     tags = []
     top_level_type = flow_item.get('type')
@@ -304,6 +306,12 @@ def compute_tags(flow_item):
     # Check for scanning
     if top_level_type == 'flow':
         tags.append('scanning')
+
+    # Check for blocked: match against conntrack entries labelled 'netify-blocked'
+    if blocked_ids:
+        ct_id = flow_item.get('flow', {}).get('conntrack', {}).get('id')
+        if ct_id is not None and str(ct_id) in blocked_ids:
+            tags.append('blocked')
 
     return tags
 
@@ -340,9 +348,17 @@ def main() -> None:
                             data = json.load(sys.stdin)
                             flows = response.json()['flows']
 
+                            # Build set of conntrack IDs that carry the 'netify-blocked' label
+                            blocked_ids = set()
+                            try:
+                                for ct in conntrack.list_connections(labels=['netify-blocked']):
+                                    blocked_ids.add(ct['id'])
+                            except Exception:
+                                pass
+
                             # Augment each flow with additional data
                             for f in flows:
-                                f['tags'] = compute_tags(f)
+                                f['tags'] = compute_tags(f, blocked_ids)
 
                             per_page = data.get('per_page', 10)
                             page = data.get('page', 1)
