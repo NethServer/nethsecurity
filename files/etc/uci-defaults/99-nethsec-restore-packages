@@ -1,0 +1,14 @@
+ #!/bin/sh
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Launch extra-packages restore in the background after a system upgrade.
+# The script waits for WAN connectivity before attempting any opkg operations.
+#
+
+if grep -q -E '\w+\s+overlay$' /etc/backup/installed_packages.txt; then
+    /usr/sbin/screen -dmS restore_packages /usr/sbin/ns-restore-extra-packages
+fi
+
+exit 0

@@ -1,0 +1,38 @@
+#!/bin/bash
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Restore extra packages installed by the user after a system upgrade.
+# Waits for WAN connectivity (up to 5 minutes) before attempting to restore.
+#
+
+MAX_WAIT=300   # maximum seconds to wait for WAN (5 minutes)
+INTERVAL=10    # seconds between connectivity checks
+elapsed=0
+
+wait_for_wan() {
+    while [ "$elapsed" -lt "$MAX_WAIT" ]; do
+        if ping -c 1 -W 5 8.8.8.8 >/dev/null 2>&1 || ping -c 1 -W 5 1.1.1.1 >/dev/null 2>&1; then
+            return 0
+        fi
+        sleep "$INTERVAL"
+        elapsed=$((elapsed + INTERVAL))
+    done
+    return 1
+}
+
+if ! wait_for_wan; then
+    logger -t ns-restore-extra-packages "WAN not available after ${MAX_WAIT}s, giving up"
+    exit 1
+fi
+
+opkg update
+if [ $? -ne 0 ]; then
+    logger -t ns-restore-extra-packages "Failed to update package lists, aborting restore"
+    exit 1
+fi
+grep -E '\w+\s+overlay$' /etc/backup/installed_packages.txt | awk '{print $1}' | while read package; do
+    opkg install "$package"
+    logger -t ns-restore-extra-packages "Restored package: $package"
+done
