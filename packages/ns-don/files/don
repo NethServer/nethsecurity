@@ -17,6 +17,8 @@ rsa_key="$base_dir/rsa_key"
 ecdsa_key="$base_dir/ecdsa_key"
 socket="$base_dir/management"
 credentials="$base_dir/credentials"
+session_start="$base_dir/session_start"
+session_extended="$base_dir/session_extended"
 user="nethsupport"
 password=""
 ca=$(uci -q get don.config.ca)
@@ -26,6 +28,18 @@ json_output=0
 if [ "$2" == "-j" ]; then
     json_output=1
 fi
+
+function log_message
+{
+    # Log to /var/log/messages using logger (syslog)
+    logger -t "don" -p daemon.info "$1"
+}
+
+function log_error
+{
+    # Log errors to syslog
+    logger -t "don" -p daemon.err "$1"
+}
 
 function cleanup
 {
@@ -40,19 +54,57 @@ function cleanup
     # destroy ubus sessions
     session=$(ubus call session list | jq -r '.ubus_rpc_session as $parent | .data.username | select(. == "nethsupport") | $parent')
     if [ "$session" != "" ]; then
-        ubus call session destroy '{"ubus_rpc_session": "'$session'"}'
+        ubus call session destroy '{"ubus_rpc_session": "'"$session"'"}'
     fi
+    log_message "Remote support session stopped"
 }
 
-function show_credentials
+function get_session_info
 {
-    if [ "$json_output" == 1 ]; then
-        echo "{\"server_id\": \"$(sed -n '1{p;q}' $credentials)\", \"session_id\": \"$(sed -n '2{p;q}' $credentials)\"}"
+    # Both session_start and credentials must be present for a valid session
+    if [ ! -f "$session_start" ] || [ ! -f "$credentials" ]; then
+        if [ "$json_output" == 1 ]; then
+            echo "null"
+        fi
+        return 1
+    fi
+
+    # Read credentials file into array
+    mapfile -t creds < "$credentials"
+    local server_id="${creds[0]}"
+    local session_id="${creds[1]}"
+    
+    local session_start_time
+    session_start_time=$(cat "$session_start")
+    local session_expiry
+
+    # Use extended expiry if available, otherwise use start + 24 hours
+    if [ -f "$session_extended" ]; then
+        session_expiry=$(cat "$session_extended")
     else
-        echo -n "Server ID:"
-        echo -e "\t"$(sed -n '1{p;q}' $credentials)
-        echo -n "Session ID:"
-        echo -e "\t"$(sed -n '2{p;q}' $credentials)
+        session_expiry=$((session_start_time + 86400))
+    fi
+
+    local current_time
+    current_time=$(date +%s)
+    local time_remaining=$((session_expiry - current_time))
+    local hours_remaining=$((time_remaining / 3600))
+    local minutes_remaining=$(( (time_remaining % 3600) / 60 ))
+
+    if [ "$json_output" == 1 ]; then
+        if [ "$time_remaining" -gt 0 ]; then
+            echo "{\"server_id\": \"$server_id\", \"session_id\": \"$session_id\", \"expires_in_seconds\": $time_remaining, \"expires_in\": \"${hours_remaining}h ${minutes_remaining}m\"}"
+        else
+            echo "{\"server_id\": \"$server_id\", \"session_id\": \"$session_id\", \"status\": \"expired\"}"
+        fi
+    else
+        echo "Server ID:$(printf '\t')$server_id"
+        echo "Session ID:$(printf '\t')$session_id"
+        if [ "$time_remaining" -gt 0 ]; then
+            echo "Session expires in: ${hours_remaining}h ${minutes_remaining}m"
+        else
+            echo "Session EXPIRED"
+        fi
     fi
 }
 
@@ -67,11 +119,13 @@ start)
         system_id=$(uci -q get ns-plug.config.system_id)
     fi
     if [ -z "$system_id" ]; then
+        log_error "Remote support session failed: system_id not configured"
         exit 2
     fi
 
-    cn=$(openssl x509 -noout -subject -in $ca | cut -d= -f 2- | sed 's/ = /=/g')
+    cn=$(openssl x509 -noout -subject -in "$ca" | cut -d= -f 2- | sed 's/ = /=/g')
     if [ -z "$cn" ]; then
+        log_error "Remote support session failed: invalid CA certificate"
         exit 3
     fi
 
@@ -162,38 +216,122 @@ AuthorizedKeysFile $auth_keys
 StrictModes no
 EOF
 
-    mkdir -m 0700 -p /var/empty
-    /usr/sbin/sshd -f $sshd_conf
-    cat $(uci -q get don.config.ssh_key) > $auth_keys
+    mkdir -p /var/empty
+    chmod 700 /var/empty
+    /usr/sbin/sshd -f "$sshd_conf"
+    cat "$(uci -q get don.config.ssh_key)" > "$auth_keys"
 
     # Enable UI access
     uci set rpcd.ns_don=login
     uci set rpcd.ns_don.username=$user
-    uci set rpcd.ns_don.password=$(echo $password | mkpasswd)
+    uci set rpcd.ns_don.password="$(echo "$password" | mkpasswd)"
     uci add_list rpcd.ns_don.read='*'
     uci add_list rpcd.ns_don.write='*'
     # commit rpcd changes
     uci commit rpcd
 
-    show_credentials
+    # Save session start time
+    date +%s > $session_start
+    # Mark as not extended initially
+    rm -f $session_extended
+    log_message "Remote support session started"
+
+    get_session_info
 ;;
 stop)
     cleanup
 ;;
 status)
     if [ -f $credentials ]; then
-        show_credentials
-	exit 0
+        get_session_info
+        exit 0
     else
         if [ "$json_output" == 1 ]; then
             echo null
         else
             echo "don is not running"
         fi
-	exit 1
+        exit 1
     fi
 ;;
+expire)
+    # Check if session has expired - requires both files to be present
+    if [ ! -f "$session_start" ] || [ ! -f "$credentials" ]; then
+        if [ "$json_output" == 1 ]; then
+            echo "{\"status\": \"no_session\"}"
+        else
+            echo "No session running"
+        fi
+        exit 0
+    fi
+
+    session_start_time=$(cat "$session_start")
+    # Use extended expiry if available, otherwise use start + 24 hours
+    if [ -f "$session_extended" ]; then
+        session_expiry=$(cat "$session_extended")
+    else
+        session_expiry=$((session_start_time + 86400))
+    fi
+
+    current_time=$(date +%s)
+    time_remaining=$((session_expiry - current_time))
+
+    if [ $time_remaining -le 0 ]; then
+        # Session has expired - STOP IT NOW
+        if [ "$json_output" == 1 ]; then
+            echo "{\"status\": \"expired\", \"action\": \"stopping\"}"
+        else
+            echo "Session expired - stopping don service"
+        fi
+        log_error "Remote support session expired - auto-disabling"
+        /usr/sbin/don stop
+        exit 0
+    fi
+;;
+extend)
+    # Extend session by 7 days - only if session is not already expired
+    if [ ! -f "$session_start" ] || [ ! -f "$credentials" ]; then
+        echo "No session running"
+        exit 1
+    fi
+    
+    # Validate that session is not already expired before extending
+    session_start_time=$(cat "$session_start")
+    current_time=$(date +%s)
+    
+    if [ -f "$session_extended" ]; then
+        session_expiry=$(cat "$session_extended")
+    else
+        session_expiry=$((session_start_time + 86400))
+    fi
+    
+    time_remaining=$((session_expiry - current_time))
+    if [ $time_remaining -le 0 ]; then
+        echo "Session already expired, cannot extend"
+        exit 1
+    fi
+    
+    # Set expiry to 7 days from now
+    new_expiry=$((current_time + 604800))
+    echo "$new_expiry" > "$session_extended"
+
+    # Log the extension
+    log_message "Remote support session extended by 7 days"
+
+    extension_seconds=604800
+    extension_hours=$((extension_seconds / 3600))
+    extension_minutes=$(( (extension_seconds % 3600) / 60 ))
+
+    if [ "$json_output" == 1 ]; then
+        echo "{\"status\": \"extended\", \"expires_in_seconds\": $extension_seconds, \"expires_in\": \"${extension_hours}h ${extension_minutes}m\"}"
+    else
+        echo "Session extended by 7 days"
+    fi
+    
+    # Show updated session info
+    get_session_info
+;;
 *)
-    echo "Usage: $0 {start|stop|status} [-j]"
+    echo "Usage: $0 {start|stop|status|expire|extend} [-j]"
     exit 2
 esac
