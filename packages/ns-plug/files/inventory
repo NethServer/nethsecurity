@@ -5,171 +5,60 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-import re
 import json
-import subprocess
 import ipaddress
 from euci import EUci
-from struct import pack
-from nethsec import utils, inventory
-from socket import inet_ntoa
+from nethsec import inventory
+from nethsec.inventory import _run
 
-def _run(cmd):
-    try:
-        proc = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True)
-        return proc.stdout.rstrip().lstrip()
-    except:
-        return ''
-
-def _run_json(cmd):
-    try:
-        return json.loads(_run(cmd))
-    except:
-        return None
-
-def _get_cpu_field(field, cpu_info):
-    for f in cpu_info:
-        if f['field'].startswith(field):
-            return f['data']
-
-    return ''
-
-def _get_role(u, interface):
-    for zone in utils.get_all_by_type(u, 'firewall', 'zone'):
-        name = u.get('firewall', zone, 'name')
-        networks = u.get('firewall', zone, 'network', list=True, default=[])
-        if interface in networks:
-            if name == "lan":
-                return "green"
-            elif name == "wan": 
-                return "red"
-            else:
-                return name
-
-def _get_ip(interface):
-    info = _run_json(f"ifstatus {interface}")
-    try:
-        return info['ipv4-address'][0]['address']
-    except:
-        return ''
-
-def _get_mask(interface):
-    info = _run_json(f"ifstatus {interface}")
-    try:
-        m =  info['ipv4-address'][0]['mask']
-        bits = 0xffffffff ^ (1 << 32 - int(m)) - 1
-        mask = inet_ntoa(pack(">I", bits))
-        return mask
-    except:
-        return ''
-
-def _get_gateway(interface):
-    info = _run_json(f"ifstatus {interface}")
-    try:
-        for r in info['route']:
-            if r['target'] == '0.0.0.0':
-                return r['nexthop']
-    except:
-        return ''
-
-def _get_public_ip():
-    # Try ifconfig.co: sometimes the site returns an HTML error page, ignore it
-    address = _run("curl --fail --max-time 5 --retry 2 https://ifconfig.co")
-    try:
-        ipaddress.ip_address(address)
-        return address
-    except:
-        # Fallback to DNS query
-        address = _run("dig +short myip.opendns.com @resolver1.opendns.com")
-
-    try:
-        ipaddress.ip_address(address)
-        return address
-    except:
-        return ''
-
-release = _run('grep VERSION= /etc/os-release | cut -d= -f 2 | tr -d \'"\'')
-cpu_info = _run_json('lscpu -J')['lscpu']
-binfo = _run_json("cat /etc/board.json")
-board = _run("cat /sys/devices/virtual/dmi/id/board_name")
-if not board:
-    try:
-        board = binfo['model']['id']
-    except:
-        board = ""
-product = _run("cat /sys/devices/virtual/dmi/id/product_name")
-if not product:
-    try:
-        product = binfo['model']['name']
-    except:
-        product = ""
-dns = _run("uci get dhcp.@dnsmasq[0].server | tr ' ' ','")
-if not dns:
-  dns = _run("grep nameserver /tmp/resolv.conf.d/resolv.conf.auto | awk '{print $2}' | tr '\n' ','")
-dns = dns.removesuffix(',')
-networks = {}
-u = EUci()
-devices = utils.get_all_by_type(u, 'network', 'device')
-for section in utils.get_all_by_type(u, 'network', 'interface'):
-    if section == "lan6" or section == "wan6": # skip IPv6 for now
-        continue
-    interface = u.get_all('network', section)
-    device = interface.get("device")
-    if not device or device == "lo" or device.startswith("ipsec") or device.startswith("tun"):
-        continue
-    network = {"type": "ethernet", "name": device, "props": { "role": _get_role(u, section), "ipaddr": _get_ip(section), "netmask": _get_mask(section), "gateway": _get_gateway(section)}}
-    # get bridge ports, exclude vlans over bridges
-    is_vlan = bool(re.search(r'\.\d+$', interface['device'])) # check if the device name ends with .<number>
-    if interface['device'].startswith('br') and not is_vlan:
-        network["type"] = "bridge"
-        for d in devices:
-            if u.get('network', d, 'name') == device:
-                network['props']["bridge"] = u.get('network', d, 'ports', default=[])
-    networks[device] = network
+uci = EUci()
+release = inventory.get_version()
+cpu_info = inventory.get_cpu_info()
+product = inventory.get_product()
+dns = inventory.info_dns_servers(uci)
+networks = inventory.get_networks(uci)
+mem_info = inventory.get_memory()
+mount_points = inventory.get_mount_points()
 
 features = {}
 for func in dir(inventory):
     if func.startswith("fact_"):
         method = getattr(inventory, func)
-        features[func.removeprefix('fact_')] = method(EUci())
+        features[func.removeprefix('fact_')] = method(uci)
+# Prevent duplicated info
+del features['network']['configuration']
 
 data = {
     "arp_macs": _run('cat /proc/net/arp | grep -v IP | wc -l'),
-    "dmi": { "product": { "name": product, "uuid": _run("cat /sys/class/dmi/id/product_uuid") }, "bios": { "version": _run("cat /sys/devices/virtual/dmi/id/bios_version"), "vendor": _run("cat /sys/devices/virtual/dmi/id/bios_vendor")}, "board": { "product": board, "manufacturer": _run("cat /sys/devices/virtual/dmi/id/sys_vendor") }},
-    "virtual": _get_cpu_field("Hypervisor vendor", cpu_info) if _get_cpu_field("Hypervisor vendor", cpu_info) else 'physical',
+    "dmi": { "product": { "name": product, "uuid": _run("cat /sys/class/dmi/id/product_uuid") }, "bios": { "version": _run("cat /sys/devices/virtual/dmi/id/bios_version"), "vendor": _run("cat /sys/devices/virtual/dmi/id/bios_vendor")}, "board": { "product": product, "manufacturer": _run("cat /sys/devices/virtual/dmi/id/sys_vendor") }},
+    "virtual": inventory.is_virtual(),
     "kernel": _run('uname'),
     "kernelrelease": _run('uname -r'),
     "networking": { "fqdn": _run('uname -n')},
     "os": { "type": "nethsecurity", "name": "NethSec", "release": { "full": release, "major": 7 }, "family": "OpenWRT" },
-    "processors": { "count": _run("grep processor /proc/cpuinfo  | wc -l"), "models": [  _get_cpu_field("Model name", cpu_info) ], "isa": _get_cpu_field("Architecture", cpu_info)},
+    "processors": { "count": _run("grep processor /proc/cpuinfo  | wc -l"), "models": [  cpu_info["model"] ], "isa": cpu_info["architecture"]},
     "timezone": _run('uci get system.@system[0].zonename'),
     "system_uptime": { "seconds": _run("cat /proc/uptime | awk -F. '{print $1}'") },
     "esmithdb": {
         "networks": list(networks.values()),
         "configuration" : [
             { "name": "sysconfig", "type": "configuration", "props": {"Version": release} },
-            { "name": "dns", "type": "configuration", "props": {"NameServers": dns} },
+            { "name": "dns", "type": "configuration", "props": {"NameServers": ','.join(dns)} },
             { "name" : "SystemName", "type" : _run("uname -n | cut -d'.' -f1") },
             { "name" : "DomainName", "type" : _run("uname -n | cut -d'.' -f2-") }
         ]
     },
     "memory": {
-        "swap": { "used_bytes": 0, "available_bytes": 0, "total_bytes": 0 },
+        "swap": { "used_bytes": mem_info.get('SwapUsed', 0), "available_bytes": mem_info.get('SwapFree', 0), "total_bytes": mem_info.get('SwapTotal', 0) },
         "system": {
-            "used_bytes": int(_run("free | grep 'Mem': | awk '{print $3}'"))*1024,
-            "available_bytes": int(_run("free | grep 'Mem:' | awk '{print $7}'"))*1024,
-            "total_bytes": int(_run("free | grep 'Mem': | awk '{print $7}'"))*1024
+            "used_bytes": mem_info.get('MemUsed', 0),
+            "available_bytes": mem_info.get('MemAvailable', 0),
+            "total_bytes": mem_info.get('MemTotal', 0)
         }
     },
-    "mountpoints": {
-        "/": {
-            "used_bytes": int(_run("df -P | sort | uniq | grep '/$' | awk '{print $3}'"))*1024,
-            "available_bytes": int(_run("df -P | sort | uniq | grep '/$' | awk '{print $4}'"))*1024,
-            "size_bytes": int(_run("df -P | sort | uniq | grep '/$' | awk '{print $2}'"))*1024
-        }
-    },
+    "mountpoints": mount_points,
     "rpms": { "nethserver-firewall-base-ui": _run("opkg status ns-ui | grep Version | awk '{print $2}'") },
-    "public_ip": _get_public_ip(),
+    "public_ip": inventory.info_default_ipv4(uci),
     "features": features
 }
 
