@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2025 Nethesis S.r.l.
+# Copyright (C) 2026 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
@@ -7,7 +7,7 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-monitoring
 # renovate: datasource=github-tags depName=nethserver/nethsecurity-monitoring
-PKG_VERSION:=8b296e83e412f0443158bfae754133f11a0e70d9
+PKG_VERSION:=59b46b9878033f67c2cd22e394304304cac859d5
 PKG_RELEASE:=1
 
 PKG_SOURCE:=nethsecurity-monitoring-$(PKG_VERSION).tar.gz
