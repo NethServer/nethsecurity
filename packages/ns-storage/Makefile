@@ -21,7 +21,7 @@ define Package/ns-storage
 	CATEGORY:=NethSecurity
 	TITLE:=NethSecurity storage manager
 	URL:=https://github.com/NethServer/nethsecurity/
-	DEPENDS:=+parted +block-mount +logrotate +rsync +tune2fs
+	DEPENDS:=+parted +block-mount +logrotate +rsync +tune2fs +blockd
 	PKGARCH:=all
 endef
  
