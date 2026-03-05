@@ -54,7 +54,7 @@ function cleanup
     # destroy ubus sessions
     session=$(ubus call session list | jq -r '.ubus_rpc_session as $parent | .data.username | select(. == "nethsupport") | $parent')
     if [ "$session" != "" ]; then
-        ubus call session destroy '{"ubus_rpc_session": "'$session'"}'
+        ubus call session destroy '{"ubus_rpc_session": "'"$session"'"}'
     fi
     log_message "Remote support session stopped"
 }
@@ -74,7 +74,8 @@ function get_session_info
     local server_id="${creds[0]}"
     local session_id="${creds[1]}"
     
-    local session_start_time=$(cat "$session_start")
+    local session_start_time
+    session_start_time=$(cat "$session_start")
     local session_expiry
 
     # Use extended expiry if available, otherwise use start + 24 hours
@@ -84,7 +85,8 @@ function get_session_info
         session_expiry=$((session_start_time + 86400))
     fi
 
-    local current_time=$(date +%s)
+    local current_time
+    current_time=$(date +%s)
     local time_remaining=$((session_expiry - current_time))
     local hours_remaining=$((time_remaining / 3600))
     local minutes_remaining=$(( (time_remaining % 3600) / 60 ))
@@ -121,7 +123,7 @@ start)
         exit 2
     fi
 
-    cn=$(openssl x509 -noout -subject -in $ca | cut -d= -f 2- | sed 's/ = /=/g')
+    cn=$(openssl x509 -noout -subject -in "$ca" | cut -d= -f 2- | sed 's/ = /=/g')
     if [ -z "$cn" ]; then
         log_error "Remote support session failed: invalid CA certificate"
         exit 3
@@ -214,14 +216,15 @@ AuthorizedKeysFile $auth_keys
 StrictModes no
 EOF
 
-    mkdir -m 0700 -p /var/empty
-    /usr/sbin/sshd -f $sshd_conf
-    cat $(uci -q get don.config.ssh_key) > $auth_keys
+    mkdir -p /var/empty
+    chmod 700 /var/empty
+    /usr/sbin/sshd -f "$sshd_conf"
+    cat "$(uci -q get don.config.ssh_key)" > "$auth_keys"
 
     # Enable UI access
     uci set rpcd.ns_don=login
     uci set rpcd.ns_don.username=$user
-    uci set rpcd.ns_don.password=$(echo $password | mkpasswd)
+    uci set rpcd.ns_don.password="$(echo "$password" | mkpasswd)"
     uci add_list rpcd.ns_don.read='*'
     uci add_list rpcd.ns_don.write='*'
     # commit rpcd changes
