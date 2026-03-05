@@ -11,7 +11,7 @@ PKG_VERSION:=2.14.0-beta
 PKG_RELEASE:=1
 
 PKG_SOURCE:=nethsecurity-ui-$(PKG_VERSION).tar.gz
-PKG_SOURCE_VERSION:=5dd98de26cf11a93b7241dc1e5add11d1b0d4fa8
+PKG_SOURCE_VERSION:=f3bf922a8ad9536c24517ea290ba2d4d0620056a
 PKG_BUILD_DIR=$(BUILD_DIR)/nethsecurity-ui-$(PKG_SOURCE_VERSION)
 PKG_SOURCE_URL:=https://codeload.github.com/nethserver/nethsecurity-ui/tar.gz/$(PKG_SOURCE_VERSION)?
 PKG_HASH:=skip
