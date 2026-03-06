@@ -7,7 +7,7 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-monitoring
 # renovate: datasource=github-tags depName=nethserver/nethsecurity-monitoring
-PKG_VERSION:=59b46b9878033f67c2cd22e394304304cac859d5
+PKG_VERSION:=1.0.0
 PKG_RELEASE:=1
 
 PKG_SOURCE:=nethsecurity-monitoring-$(PKG_VERSION).tar.gz
@@ -45,8 +45,6 @@ define Package/ns-monitoring/install
 	$(INSTALL_BIN) $(GO_PKG_BUILD_BIN_DIR)/nethsecurity-monitoring $(1)/usr/sbin/ns-flows
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/ns-flows.conf $(1)/etc/config/ns-flows
-	$(INSTALL_DIR) $(1)/etc/uci-defaults
-	$(INSTALL_BIN) ./files/monitoring.uci-defaults $(1)/etc/uci-defaults/99-monitoring
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/ns-flows.init $(1)/etc/init.d/ns-flows
 	$(INSTALL_DIR) $(1)/etc/netifyd
@@ -59,11 +57,9 @@ endef
 define Package/ns-monitoring/postinst
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
+	/etc/init.d/ns-flows enable
 	/etc/init.d/ns-flows restart
-	/etc/init.d/netifyd reload
-	if /etc/init.d/ns-flows enabled; then
-		/etc/init.d/ns-flows enable
-	fi
+	/etc/init.d/netifyd restart
 fi
 exit 0
 endef
