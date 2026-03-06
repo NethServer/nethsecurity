@@ -48,6 +48,7 @@ define Package/ns-api/postinst
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
   /etc/init.d/rpcd restart
+  /etc/init.d/ns-restore-extra-packages enable
 fi
 /usr/share/ns-api/remove-pppoe-keepalive
 exit 0
@@ -182,6 +183,9 @@ define Package/ns-api/install
 	$(LN) /usr/bin/msmtp $(1)/usr/sbin/sendmail
 	$(INSTALL_BIN) ./files/load-kernel-modules $(1)/usr/sbin/load-kernel-modules
 	$(INSTALL_BIN) ./files/firewall-apply-default-logging $(1)/usr/sbin/firewall-apply-default-logging
+	$(INSTALL_BIN) ./files/ns-restore-extra-packages $(1)/usr/sbin/ns-restore-extra-packages
+	$(INSTALL_DIR) $(1)/etc/init.d
+	$(INSTALL_BIN) ./files/etc/init.d/ns-restore-extra-packages $(1)/etc/init.d/ns-restore-extra-packages
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/config/ns-api $(1)/etc/config/ns-api
 	$(INSTALL_CONF) ./files/config/ns-wizard $(1)/etc/config/ns-wizard
