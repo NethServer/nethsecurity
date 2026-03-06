@@ -10,8 +10,8 @@ PKG_NAME:=ns-monitoring
 PKG_VERSION:=1.0.0
 PKG_RELEASE:=1
 
-PKG_SOURCE:=nethsecurity-monitoring-$(PKG_VERSION).tar.gz
-PKG_SOURCE_URL:=https://codeload.github.com/nethserver/nethsecurity-monitoring/tar.gz/$(PKG_VERSION)?
+PKG_SOURCE:=nethsecurity-monitoring-v$(PKG_VERSION).tar.gz
+PKG_SOURCE_URL:=https://codeload.github.com/nethserver/nethsecurity-monitoring/tar.gz/v$(PKG_VERSION)?
 PKG_SOURCE_SUBDIR:=nethsecurity-monitoring-$(PKG_VERSION)
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_SOURCE_SUBDIR)
 
