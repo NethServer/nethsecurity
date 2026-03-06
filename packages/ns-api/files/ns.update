@@ -12,6 +12,7 @@ import sys
 import json
 import time
 import subprocess
+import semver
 import requests
 from nethsec import utils
 from urllib.parse import urlparse
@@ -85,7 +86,7 @@ def check_system_update():
         response = requests.get(f"{url}/latest_release", headers={"Accept": "application/json"}, timeout=5)
         response.raise_for_status()
         version = response.text.strip()
-        if current_version != version:
+        if semver.compare(version, current_version) > 0:
             data["lastVersion"] = f'NethSecurity {version}'
     except requests.exceptions.ConnectionError:
         return utils.generic_error("connection_error")
