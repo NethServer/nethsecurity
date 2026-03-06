@@ -56,7 +56,6 @@ function remove_cron_expiration
     # Remove cron job for expiration checking
     if [ -f "$crontab_file" ]; then
         sed -i '\|/usr/sbin/don expire|d' "$crontab_file"
-        log_message "Expiration cron job removed"
     fi
 }
 
@@ -109,16 +108,16 @@ function get_session_info
     local current_time
     current_time=$(date +%s)
     local time_remaining=$((session_expiry - current_time))
-    local hours_remaining=$((time_remaining / 3600))
-    local minutes_remaining=$(( (time_remaining % 3600) / 60 ))
 
     if [ "$json_output" == 1 ]; then
         if [ "$time_remaining" -gt 0 ]; then
-            echo "{\"server_id\": \"$server_id\", \"session_id\": \"$session_id\", \"expires_in_seconds\": $time_remaining, \"expires_in\": \"${hours_remaining}h ${minutes_remaining}m\"}"
+            echo "{\"server_id\": \"$server_id\", \"session_id\": \"$session_id\", \"expires_in_seconds\": $time_remaining}"
         else
             echo "{\"server_id\": \"$server_id\", \"session_id\": \"$session_id\", \"status\": \"expired\"}"
         fi
     else
+        local hours_remaining=$((time_remaining / 3600))
+        local minutes_remaining=$(( (time_remaining % 3600) / 60 ))
         echo "Server ID:$(printf '\t')$server_id"
         echo "Session ID:$(printf '\t')$session_id"
         if [ "$time_remaining" -gt 0 ]; then
@@ -316,8 +315,12 @@ expire)
 extend)
     # Extend session by 7 days
     if [ ! -f "$session_start" ] || [ ! -f "$credentials" ]; then
-        echo "No session running"
-        exit 1
+        if [ "$json_output" == 1 ]; then
+            echo "{\"status\": \"no_session\"}"
+        else
+            echo "No session running"
+        fi
+        exit 0
     fi
     
     # Set expiry to 7 days from now
