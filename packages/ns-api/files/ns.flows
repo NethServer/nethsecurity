@@ -16,8 +16,6 @@ from euci import EUci
 from nethsec import conntrack
 from nethsec.utils import generic_error, validation_error
 
-INPUT_PATH = "/var/run/netifyd/flows.json"
-
 
 def get_configuration():
     """Get ns-flows daemon configuration and status."""
@@ -341,12 +339,14 @@ def main() -> None:
             match sys.argv[2]:
                 case 'list':
                     try:
-                        response = requests.get('http://127.0.0.1:8080/flows')
-                        if "flows" not in response.json():
+                        _resp = requests.get('http://127.0.0.1:8080/flows')
+                        _resp.raise_for_status()
+                        response = _resp.json()
+                        if "flows" not in response:
                             result = generic_error("Invalid response from ns-flows daemon")
                         else:
                             data = json.load(sys.stdin)
-                            flows = response.json()['flows']
+                            flows = response['flows']
 
                             # Build set of conntrack IDs that carry the 'netify-blocked' label
                             blocked_ids = set()
@@ -416,8 +416,10 @@ def main() -> None:
                                     'last_page': last_page,
                                     'filters': filter_values
                                 }
-                    except requests.ConnectionError:
+                    except requests.exceptions.RequestException:
                         result = generic_error("Unable to connect to ns-flows daemon")
+                    except json.JSONDecodeError:
+                        result = generic_error("Invalid response from ns-flows daemon")
                 case 'get-configuration':
                     result = get_configuration()
                 case 'set-configuration':

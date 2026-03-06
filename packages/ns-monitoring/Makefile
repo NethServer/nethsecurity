@@ -37,7 +37,7 @@ define Package/ns-monitoring
 endef
 
 define Package/ns-monitoring/conffiles
-/etc/config/monitoring
+/etc/config/ns-flows
 endef
 
 define Package/ns-monitoring/install

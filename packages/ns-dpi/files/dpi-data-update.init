@@ -22,6 +22,6 @@ reload_service()
 }
 
 service_triggers() {
-    procd_add_reload_trigger "fstab" "dpi"
+    procd_add_reload_trigger "dpi" "ns-flows"
 }
 
