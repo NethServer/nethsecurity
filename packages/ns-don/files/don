@@ -19,6 +19,7 @@ socket="$base_dir/management"
 credentials="$base_dir/credentials"
 session_start="$base_dir/session_start"
 session_extended="$base_dir/session_extended"
+crontab_file="/etc/crontabs/root"
 user="nethsupport"
 password=""
 ca=$(uci -q get don.config.ca)
@@ -41,8 +42,28 @@ function log_error
     logger -t "don" -p daemon.err "$1"
 }
 
+function add_cron_expiration
+{
+    # Add cron job to check expiration every hour
+    if ! grep -q "/usr/sbin/don expire" "$crontab_file" 2>/dev/null; then
+        echo "0 * * * * sleep \$(( RANDOM % 60 )); /usr/sbin/don expire" >> "$crontab_file"
+        log_message "Expiration cron job added"
+    fi
+}
+
+function remove_cron_expiration
+{
+    # Remove cron job for expiration checking
+    if [ -f "$crontab_file" ]; then
+        sed -i '\|/usr/sbin/don expire|d' "$crontab_file"
+        log_message "Expiration cron job removed"
+    fi
+}
+
 function cleanup
 {
+    # Remove expiration cron job
+    remove_cron_expiration
     # stop demons
     [ -f "$sshd_pid" ] && kill "$(cat $sshd_pid)"
     [ -f "$vpn_pid" ] && kill "$(cat $vpn_pid)" && sleep 3 && [ -f "$vpn_pid" ] &&  kill -9 "$(cat $vpn_pid)"
@@ -234,6 +255,10 @@ EOF
     date +%s > $session_start
     # Mark as not extended initially
     rm -f $session_extended
+
+    # Add expiration cron job
+    add_cron_expiration
+
     log_message "Remote support session started"
 
     get_session_info

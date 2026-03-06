@@ -29,11 +29,6 @@ define Package/ns-don/description
 	Connect to a remote Windmill installation
 endef
 
-define Package/ns-don/prerm
-#!/bin/sh
-sed -i '\|/usr/sbin/don expire|d' /etc/crontabs/root
-endef
-
 # this is required, otherwise compile will fail
 define Build/Compile
 endef
@@ -45,7 +40,6 @@ define Package/ns-don/install
 	$(INSTALL_DIR) $(1)/usr/share/nftables.d/chain-pre/input
 	$(INSTALL_BIN) ./files/don $(1)/usr/sbin
 	$(INSTALL_CONF) ./files/20_ns_don $(1)/etc/uci-defaults
-	$(INSTALL_BIN) ./files/30_don-expire $(1)/etc/uci-defaults
 	$(INSTALL_CONF) ./files/nethesis.pub $(1)/etc/don
 	$(INSTALL_CONF) ./files/nethesis.pem $(1)/etc/don
 	$(INSTALL_DATA) ./files/20-don.nft $(1)/usr/share/nftables.d/chain-pre/input
