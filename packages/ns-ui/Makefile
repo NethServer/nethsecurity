@@ -7,13 +7,12 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-ui
 # renovate: datasource=github-releases depName=NethServer/nethsecurity-ui
-PKG_VERSION:=2.14.0-beta
+PKG_VERSION:=2.15.0
 PKG_RELEASE:=1
 
-PKG_SOURCE_VERSION:=ae675b2c5b5f0b689f6bf6904e6199692b9cc312
-PKG_SOURCE:=nethsecurity-ui-$(PKG_SOURCE_VERSION).tar.gz
-PKG_BUILD_DIR=$(BUILD_DIR)/nethsecurity-ui-$(PKG_SOURCE_VERSION)
-PKG_SOURCE_URL:=https://codeload.github.com/nethserver/nethsecurity-ui/tar.gz/$(PKG_SOURCE_VERSION)?
+PKG_SOURCE:=nethsecurity-ui-$(PKG_VERSION).tar.gz
+PKG_BUILD_DIR=$(BUILD_DIR)/nethsecurity-ui-$(PKG_VERSION)
+PKG_SOURCE_URL:=https://codeload.github.com/nethserver/nethsecurity-ui/tar.gz/$(PKG_VERSION)?
 PKG_HASH:=skip
 
 PKG_MAINTAINER:=Giacomo Sanchietti <giacomo.sanchietti@nethesis.it>
