@@ -56,13 +56,45 @@ if cmd == 'list':
         'list-popular': {
             'limit': 32,
             'page': 32
-        }
+        },
+        'list-application-categories': {},
+        'list-application-catalog': {},
+        'list-protocol-categories': {},
+        'list-protocol-catalog': {}
     }))
 elif cmd == 'call':
     action = sys.argv[2]
     e_uci = EUci()
     try:
-        if action == 'list-applications':
+        if action == 'list-application-categories':
+            try:
+                with open('/etc/netifyd/netify-application-categories.json', 'r') as f:
+                    content = json.load(f)
+                print(json.dumps({'values': content}))
+            except Exception:
+                print(json.dumps({}))
+        elif action == 'list-application-catalog':
+            try:
+                with open('/etc/netifyd/netify-application-catalog.json', 'r') as f:
+                    content = json.load(f)
+                print(json.dumps({'values': content}))
+            except Exception:
+                print(json.dumps({}))
+        elif action == 'list-protocol-categories':
+            try:
+                with open('/etc/netifyd/netify-protocol-categories.json', 'r') as f:
+                    content = json.load(f)
+                print(json.dumps({'values': content}))
+            except Exception:
+                print(json.dumps({}))
+        elif action == 'list-protocol-catalog':
+            try:
+                with open('/etc/netifyd/netify-protocol-catalog.json', 'r') as f:
+                    content = json.load(f)
+                print(json.dumps({'values': content}))
+            except Exception:
+                print(json.dumps({}))
+        elif action == 'list-applications':
             data = json.JSONDecoder().decode(sys.stdin.read())
             result = dpi.list_applications(data.get('search', None), data.get('limit', None), data.get('page', 1))
             print(json.dumps({'values': result}))

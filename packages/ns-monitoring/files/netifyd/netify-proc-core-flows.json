@@ -1,0 +1,12 @@
+{
+    "format": "json",
+    "compressor": "none",
+    "sinks": {
+        "sink-socket-flows": {
+            "flows": {
+                "enable": true,
+                "types": [ "stream-flows" ]
+            }
+        }
+    }
+}
