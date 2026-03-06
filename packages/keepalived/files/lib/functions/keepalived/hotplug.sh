@@ -148,20 +148,20 @@ sync_and_restart() {
 
 _notify_master() {
 	if master_and_reload; then
-		log_info "reload service $SERVICE_NAME"
+		log_info "reload service $SERVICE_NAME, reason master_and_reload"
 		_reload_service
 	elif master_and_restart; then
-		log_info "restart service $SERVICE_NAME"
+		log_info "restart service $SERVICE_NAME, reason master_and_restart"
 		_restart_service
 	fi
 }
 
 _notify_backup() {
 	if backup_and_stop; then
-		log_info "stop service $SERVICE_NAME"
+		log_info "stop service $SERVICE_NAME, reason backup_and_stop"
 		_stop_service
 	elif backup_and_reload; then
-		log_info "restart service $SERVICE_NAME"
+		log_info "restart service $SERVICE_NAME, reason backup_and_reload"
 		_restart_service
 	fi
 }
@@ -172,10 +172,10 @@ _notify_fault() {
 
 _notify_sync() {
 	if sync_and_reload; then
-		log_info "reload service $SERVICE_NAME"
+		log_info "reload service $SERVICE_NAME, reason sync_and_reload"
 		_reload_service
 	elif sync_and_restart; then
-		log_info "restart service $SERVICE_NAME"
+		log_info "restart service $SERVICE_NAME, reason sync_and_restart"
 		_restart_service
 	fi
 }
