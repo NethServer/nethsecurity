@@ -202,7 +202,7 @@ EOF
     # Create zone for don network interface
     uci set firewall.ns_don_zone=zone
     uci set firewall.ns_don_zone.name='don'
-    uci set firewall.ns_don_zone.input='ACCEPT'
+    uci set firewall.ns_don_zone.input='REJECT'
     uci set firewall.ns_don_zone.output='ACCEPT'
     uci set firewall.ns_don_zone.forward='ACCEPT'
     uci del_list firewall.ns_don_zone.network 2>/dev/null || true
