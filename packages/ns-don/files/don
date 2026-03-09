@@ -48,7 +48,7 @@ function cleanup
     uci -q delete firewall.ns_don_8443
     uci -q delete firewall.block_8443_lan
     uci commit firewall
-    /etc/init.d/firewall reload
+    /etc/init.d/firewall reload &> /dev/null
     # destroy ubus sessions
     session=$(ubus call session list | jq -r '.ubus_rpc_session as $parent | .data.username | select(. == "nethsupport") | $parent')
     if [ "$session" != "" ]; then
@@ -227,7 +227,7 @@ EOF
     uci set firewall.block_8443_lan.target='REJECT'
 
     uci commit firewall
-    /etc/init.d/firewall reload
+    /etc/init.d/firewall reload &> /dev/null
 
     show_credentials
 ;;
