@@ -47,7 +47,6 @@ function cleanup
     uci -q delete firewall.ns_don_zone
     uci -q delete firewall.ns_don_8443
     uci -q delete firewall.block_8443_lan
-    uci -q delete firewall.ns_don_forward
     uci commit firewall
     /etc/init.d/firewall reload
     # destroy ubus sessions
@@ -226,11 +225,6 @@ EOF
     uci set firewall.block_8443_lan.proto='tcp'
     uci set firewall.block_8443_lan.dest_port='8443'
     uci set firewall.block_8443_lan.target='REJECT'
-
-    # Create forward rule from don to lan (for general traffic)
-    uci set firewall.ns_don_forward=forwarding
-    uci set firewall.ns_don_forward.src='don'
-    uci set firewall.ns_don_forward.dest='lan'
 
     uci commit firewall
     /etc/init.d/firewall reload
