@@ -17,10 +17,6 @@ start_service() {
     procd_close_instance
 }
 
-reload_service() {
-    /usr/sbin/ns-ui
-}
-
 service_triggers()
 {
     procd_add_reload_trigger ns-ui
