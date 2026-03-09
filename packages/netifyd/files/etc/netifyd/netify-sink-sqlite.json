@@ -1,0 +1,90 @@
+{
+    "db_path": "${path_state_persistent}/db",
+    "purge_in_days": 30,
+    "channels": {
+        "default": {
+            "enable": true,
+            "db_name": "stats.db",
+            "data_source": "aggregator",
+            "purge_in_days": 14,
+            "tables": [
+                {
+                    "name": "stats",
+                    "columns": [
+                        {
+                            "name": "application_id",
+                            "mapped": "detected_application",
+                            "type": "INTEGER"
+                        },
+                        {
+                            "name": "protocol_id",
+                            "mapped": "detected_protocol",
+                            "type": "INTEGER"
+                        },
+                        {
+                            "name": "application_category_id",
+                            "mapped": "application_category",
+                            "type": "INTEGER"
+                        },
+                        {
+                            "name": "protocol_category_id",
+                            "mapped": "protocol_category",
+                            "type": "INTEGER"
+                        },
+                        {
+                            "name": "overlay_tags",
+                            "mapped": "tags",
+                            "type": "TEXT"
+                        },
+                        {
+                            "name": "tag",
+                            "mapped": "tags",
+                            "split": 0,
+                            "type": "TEXT"
+                        },
+                        {
+                            "name": "tag_group",
+                            "mapped": "tags",
+                            "split": 1,
+                            "type": "TEXT"
+                        },
+                        {
+                            "name": "download_bytes",
+                            "mapped": "other_bytes",
+                            "type": "INTEGER",
+                            "default": 0
+                        },
+                        {
+                            "name": "download_packets",
+                            "mapped": "other_packets",
+                            "type": "INTEGER",
+                            "default": 0
+                        },
+                        {
+                            "name": "upload_bytes",
+                            "mapped": "local_bytes",
+                            "type": "INTEGER",
+                            "default": 0
+                        },
+                        {
+                            "name": "upload_packets",
+                            "mapped": "local_packets",
+                            "type": "INTEGER",
+                            "default": 0
+                        },
+                        {
+                            "name": "local_ip",
+                            "mapped": "local_ip",
+                            "type": "TEXT"
+                        },
+                        {
+                            "name": "local_mac",
+                            "mapped": "local_mac",
+                            "type": "TEXT"
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}

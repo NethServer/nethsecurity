@@ -1,8 +1,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=netifyd
-PKG_VERSION:=5.1.25
-PKG_RELEASE:=5
+PKG_VERSION:=5.2.6
+PKG_RELEASE:=1
 PKG_MAINTAINER:=Darryl Sokoloski <darryl@egloo.ca>
 PKG_LICENSE:=Unlicensed
 
@@ -36,6 +36,7 @@ define Package/netifyd
 		+libopenssl \
 		+libpcap \
 		+libpthread \
+		+libsqlite3 \
 		+libstdcpp \
 		+libubox \
 		+libubus \
@@ -54,7 +55,7 @@ define Download/libnetifyd
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetifyd.so.4.0.0
   FILE:=libnetifyd.so.4.0.0
-  HASH:=bc17464b4efb7c5eef7475695db05642a37b4e941fca961fed3b6066de74657d
+  HASH:=a7bef78717e200eef177da8ee94557a565828ce796d3fd1a1f078e3f55959dd5
 endef
 $(eval $(call Download,libnetifyd))
 
@@ -62,7 +63,7 @@ define Download/libnetify-plm
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetify-plm.so.1.0.0
   FILE:=libnetify-plm.so.1.0.0
-  HASH:=21967b48ac5cb07fbb73b02b1dd8aac3526d5531a8744c3cec229e4f89c2c091
+  HASH:=b5c8994dc5f497ef1ccf8aae3685c1541702031726bc9f2819489cacfcb67e8f
 endef
 $(eval $(call Download,libnetify-plm))
 
@@ -70,7 +71,7 @@ define Download/libnetify-proc-aggregator
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetify-proc-aggregator.so.0.0.0
   FILE:=libnetify-proc-aggregator.so.0.0.0
-  HASH:=930fe7b42ce087bab9c3811a134969a0619ccecd6f8f0753c7986f081c8ac6a8
+  HASH:=c9e5981fd4410776a1808902fbe284f40882823fc4c711f54e14421c80e94c6b
 endef
 $(eval $(call Download,libnetify-proc-aggregator))
 
@@ -78,15 +79,23 @@ define Download/libnetify-proc-core
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetify-proc-core.so.0.0.0
   FILE:=libnetify-proc-core.so.0.0.0
-  HASH:=38c1c2f05c8e3c0391b1c8ad84ee00fcb30b17718948be621df62f1ac0d515ed
+  HASH:=725415498d05fc29695a6f1fe14aed4c6b5967ff0d7d4703d06b80489c852222
 endef
 $(eval $(call Download,libnetify-proc-core))
+
+define Download/libnetify-proc-dev-discovery
+  URL:=$(NETIFYD_BASE_URL)/usr/lib
+  URL_FILE:=libnetify-proc-dev-discovery.so.0.0.0
+  FILE:=libnetify-proc-dev-discovery.so.0.0.0
+  HASH:=c25c4a497925cc0cf9d48f353de76fd2b5c9aa223390c87f2163feb1b0d61efb
+endef
+$(eval $(call Download,libnetify-proc-dev-discovery))
 
 define Download/libnetify-proc-flow-actions
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetify-proc-flow-actions.so.0.0.0
   FILE:=libnetify-proc-flow-actions.so.0.0.0
-  HASH:=e459359172b6742d769600491625fa226b1f06219182b00680b07e5fd9167025
+  HASH:=06ed65a3ec5d840edff008aaebbe294e4b0f7545ab295b287f6ed286bf28b7d7
 endef
 $(eval $(call Download,libnetify-proc-flow-actions))
 
@@ -94,7 +103,7 @@ define Download/libnetify-sink-http
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetify-sink-http.so.0.0.0
   FILE:=libnetify-sink-http.so.0.0.0
-  HASH:=0d94866bc5eebd31d4e5cab2c2bdee54adf6c20084f13117383015e8f4e64a88
+  HASH:=aaaadb9179f3df215f08d29f3a46db314d3990adafa5f3c4abeff305f4bb9583
 endef
 $(eval $(call Download,libnetify-sink-http))
 
@@ -102,7 +111,7 @@ define Download/libnetify-sink-log
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetify-sink-log.so.0.0.0
   FILE:=libnetify-sink-log.so.0.0.0
-  HASH:=36bdc8f70f2052ad6a4d7d6de7ea25b95bf9d377a71c42d5b13317d677eb7c75
+  HASH:=26d136562f7416ce4fe7c70d8023ae3f578a2d2dff4239791c65ad4289d28765
 endef
 $(eval $(call Download,libnetify-sink-log))
 
@@ -110,15 +119,23 @@ define Download/libnetify-sink-socket
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetify-sink-socket.so.0.0.0
   FILE:=libnetify-sink-socket.so.0.0.0
-  HASH:=7876b3dd4fd178c7c5fde47fc3e4965bf65d5cb2c83a8e7a4b8eb43dd29265bc
+  HASH:=8772335da50b702edd2a1412c98c82e32058dee2158db6e874ba3964ac66590a
 endef
 $(eval $(call Download,libnetify-sink-socket))
+
+define Download/libnetify-sink-sqlite
+  URL:=$(NETIFYD_BASE_URL)/usr/lib
+  URL_FILE:=libnetify-sink-sqlite.so.0.0.0
+  FILE:=libnetify-sink-sqlite.so.0.0.0
+  HASH:=6c2879cb8c9da36d592c85b9f8b4042339f0322fe2ebf335a5d15d06562ec65b
+endef
+$(eval $(call Download,libnetify-sink-sqlite))
 
 define Download/netifyd
   URL:=$(NETIFYD_BASE_URL)/usr/sbin
   URL_FILE:=netifyd
   FILE:=netifyd
-  HASH:=40ed6d2242b64552d0782ccdc716751ba9cc76fac165510574b03a465a7565f0
+  HASH:=02a8647d779f7dc4506fe9dd10295a06f6f1cb7b701edbfe791e6f319c4d7fd3
 endef
 $(eval $(call Download,netifyd))
 
@@ -128,10 +145,12 @@ define Build/Prepare
 	$(CP) $(DL_DIR)/libnetify-plm.so.1.0.0 $(PKG_BUILD_DIR)/
 	$(CP) $(DL_DIR)/libnetify-proc-aggregator.so.0.0.0 $(PKG_BUILD_DIR)/
 	$(CP) $(DL_DIR)/libnetify-proc-core.so.0.0.0 $(PKG_BUILD_DIR)/
+	$(CP) $(DL_DIR)/libnetify-proc-dev-discovery.so.0.0.0 $(PKG_BUILD_DIR)/
 	$(CP) $(DL_DIR)/libnetify-proc-flow-actions.so.0.0.0 $(PKG_BUILD_DIR)/
 	$(CP) $(DL_DIR)/libnetify-sink-http.so.0.0.0 $(PKG_BUILD_DIR)/
 	$(CP) $(DL_DIR)/libnetify-sink-log.so.0.0.0 $(PKG_BUILD_DIR)/
 	$(CP) $(DL_DIR)/libnetify-sink-socket.so.0.0.0 $(PKG_BUILD_DIR)/
+	$(CP) $(DL_DIR)/libnetify-sink-sqlite.so.0.0.0 $(PKG_BUILD_DIR)/
 	$(CP) $(DL_DIR)/netifyd $(PKG_BUILD_DIR)/netifyd
 endef
 
@@ -181,6 +200,8 @@ define Package/netifyd/install
 	$(INSTALL_BIN) ./files/etc/uci-defaults/99-netify-disable-coredumps.uci-default $(1)/etc/uci-defaults/99-netify-disable-coredumps
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/netifyd $(1)/usr/sbin/netifyd
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/libnetifyd.so.4.0.0 $(1)/usr/lib/libnetifyd.so.4.0.0
+	$(LN) /usr/lib/libnetifyd.so.4.0.0 $(1)/usr/lib/libnetifyd.so
+	$(LN) /usr/lib/libnetifyd.so.4.0.0 $(1)/usr/lib/libnetifyd.so.4
 	$(INSTALL_DATA) ./files/usr/share/netifyd/functions.sh $(1)/usr/share/netifyd/functions.sh
 	$(INSTALL_DATA) ./files/usr/share/netifyd/netify-apps.conf $(1)/usr/share/netifyd/netify-apps.conf
 	$(INSTALL_DATA) ./files/usr/share/netifyd/netify-categories.json $(1)/usr/share/netifyd/netify-categories.json
@@ -189,41 +210,58 @@ define Package/netifyd/install
 	$(INSTALL_DATA) ./files/usr/share/netifyd/plugins.d/99-netify-proc-core-auto.conf $(1)/usr/share/netifyd/plugins.d/99-netify-proc-core-auto.conf
 	$(INSTALL_DATA) ./files/usr/share/netifyd/plugins.d/99-netify-sink-http-auto.conf $(1)/usr/share/netifyd/plugins.d/99-netify-sink-http-auto.conf
 	$(INSTALL_DATA) ./files/usr/share/nftables.d/table-pre/10-netifyd-nfqueue.nft $(1)/usr/share/nftables.d/table-pre/10-netifyd-nfqueue.nft
-	$(LN) /usr/lib/libnetifyd.so.4.0.0 $(1)/usr/lib/libnetifyd.so
-	$(LN) /usr/lib/libnetifyd.so.4.0.0 $(1)/usr/lib/libnetifyd.so.4
 	# netify-plm
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/libnetify-plm.so.1.0.0 $(1)/usr/lib/libnetify-plm.so.1.0.0
+	$(LN) /usr/lib/libnetify-plm.so.1.0.0 $(1)/usr/lib/libnetify-plm.so
 	$(LN) /usr/lib/libnetify-plm.so.1.0.0 $(1)/usr/lib/libnetify-plm.so.1
 	# netify-proc-aggregator
 	$(INSTALL_DATA) ./files/etc/netifyd/netify-proc-aggregator.json $(1)/etc/netifyd/netify-proc-aggregator.json
 	$(INSTALL_DATA) ./files/etc/netifyd/plugins.d/10-netify-proc-aggregator.conf $(1)/etc/netifyd/plugins.d/10-netify-proc-aggregator.conf
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/libnetify-proc-aggregator.so.0.0.0 $(1)/usr/lib/libnetify-proc-aggregator.so.0.0.0
+	$(LN) /usr/lib/libnetify-proc-aggregator.so.0.0.0 $(1)/usr/lib/libnetify-proc-aggregator.so
 	$(LN) /usr/lib/libnetify-proc-aggregator.so.0.0.0 $(1)/usr/lib/libnetify-proc-aggregator.so.0
 	# netify-proc-core
 	$(INSTALL_DATA) ./files/etc/netifyd/netify-proc-core.json $(1)/etc/netifyd/netify-proc-core.json
 	$(INSTALL_DATA) ./files/etc/netifyd/plugins.d/10-netify-proc-core.conf $(1)/etc/netifyd/plugins.d/10-netify-proc-core.conf
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/libnetify-proc-core.so.0.0.0 $(1)/usr/lib/libnetify-proc-core.so.0.0.0
+	$(LN) /usr/lib/libnetify-proc-core.so.0.0.0 $(1)/usr/lib/libnetify-proc-core.so
 	$(LN) /usr/lib/libnetify-proc-core.so.0.0.0 $(1)/usr/lib/libnetify-proc-core.so.0
+	# netify-proc-dev-discovery
+	$(INSTALL_DATA) ./files/etc/netifyd/netify-proc-dev-discovery.json $(1)/etc/netifyd/netify-proc-dev-discovery.json
+	$(INSTALL_DATA) ./files/etc/netifyd/plugins.d/10-netify-proc-dev-discovery.conf $(1)/etc/netifyd/plugins.d/10-netify-proc-dev-discovery.conf
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/libnetify-proc-dev-discovery.so.0.0.0 $(1)/usr/lib/libnetify-proc-dev-discovery.so.0.0.0
+	$(LN) /usr/lib/libnetify-proc-dev-discovery.so.0.0.0 $(1)/usr/lib/libnetify-proc-dev-discovery.so
+	$(LN) /usr/lib/libnetify-proc-dev-discovery.so.0.0.0 $(1)/usr/lib/libnetify-proc-dev-discovery.so.0
 	# netify-proc-flow-actions
 	$(INSTALL_DATA) ./files/etc/netifyd/netify-proc-flow-actions.json $(1)/etc/netifyd/netify-proc-flow-actions.json
 	$(INSTALL_DATA) ./files/etc/netifyd/plugins.d/10-netify-proc-flow-actions.conf $(1)/etc/netifyd/plugins.d/10-netify-proc-flow-actions.conf
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/libnetify-proc-flow-actions.so.0.0.0 $(1)/usr/lib/libnetify-proc-flow-actions.so.0.0.0
+	$(LN) /usr/lib/libnetify-proc-flow-actions.so.0.0.0 $(1)/usr/lib/libnetify-proc-flow-actions.so
 	$(LN) /usr/lib/libnetify-proc-flow-actions.so.0.0.0 $(1)/usr/lib/libnetify-proc-flow-actions.so.0
 	# netify-sink-log
 	$(INSTALL_DATA) ./files/etc/netifyd/netify-sink-log.json $(1)/etc/netifyd/netify-sink-log.json
 	$(INSTALL_DATA) ./files/etc/netifyd/plugins.d/10-netify-sink-log.conf $(1)/etc/netifyd/plugins.d/10-netify-sink-log.conf
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/libnetify-sink-log.so.0.0.0 $(1)/usr/lib/libnetify-sink-log.so.0.0.0
+	$(LN) /usr/lib/libnetify-sink-log.so.0.0.0 $(1)/usr/lib/libnetify-sink-log.so
 	$(LN) /usr/lib/libnetify-sink-log.so.0.0.0 $(1)/usr/lib/libnetify-sink-log.so.0
 	# netify-sink-socket
 	$(INSTALL_DATA) ./files/etc/netifyd/netify-sink-socket.json $(1)/etc/netifyd/netify-sink-socket.json
 	$(INSTALL_DATA) ./files/etc/netifyd/plugins.d/10-netify-sink-socket.conf $(1)/etc/netifyd/plugins.d/10-netify-sink-socket.conf
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/libnetify-sink-socket.so.0.0.0 $(1)/usr/lib/libnetify-sink-socket.so.0.0.0
+	$(LN) /usr/lib/libnetify-sink-socket.so.0.0.0 $(1)/usr/lib/libnetify-sink-socket.so
 	$(LN) /usr/lib/libnetify-sink-socket.so.0.0.0 $(1)/usr/lib/libnetify-sink-socket.so.0
 	# netify-sink-http
 	$(INSTALL_DATA) ./files/etc/netifyd/netify-sink-http.json $(1)/etc/netifyd/netify-sink-http.json
 	$(INSTALL_DATA) ./files/etc/netifyd/plugins.d/10-netify-sink-http.conf $(1)/etc/netifyd/plugins.d/10-netify-sink-http.conf
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/libnetify-sink-http.so.0.0.0 $(1)/usr/lib/libnetify-sink-http.so.0.0.0
+	$(LN) /usr/lib/libnetify-sink-http.so.0.0.0 $(1)/usr/lib/libnetify-sink-http.so
 	$(LN) /usr/lib/libnetify-sink-http.so.0.0.0 $(1)/usr/lib/libnetify-sink-http.so.0
+	# netify-sink-sqlite
+	$(INSTALL_DATA) ./files/etc/netifyd/netify-sink-sqlite.json $(1)/etc/netifyd/netify-sink-sqlite.json
+	$(INSTALL_DATA) ./files/etc/netifyd/plugins.d/10-netify-sink-sqlite.conf $(1)/etc/netifyd/plugins.d/10-netify-sink-sqlite.conf
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/libnetify-sink-sqlite.so.0.0.0 $(1)/usr/lib/libnetify-sink-sqlite.so.0.0.0
+	$(LN) /usr/lib/libnetify-sink-sqlite.so.0.0.0 $(1)/usr/lib/libnetify-sink-sqlite.so
+	$(LN) /usr/lib/libnetify-sink-sqlite.so.0.0.0 $(1)/usr/lib/libnetify-sink-sqlite.so.0
 endef
 
 $(eval $(call BuildPackage,netifyd))

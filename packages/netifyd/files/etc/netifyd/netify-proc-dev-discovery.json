@@ -1,0 +1,45 @@
+{
+    "compressor": "gz",
+    "format": "json",
+
+    "max_confidence": 80,
+    "max_devices": 1500,
+    "max_device_age": 4147200,
+    "max_http_user_agents": {
+        "max": 10,
+        "update_min": 10,
+        "update_ttl": 3600
+    },
+    "max_ja4_clients": 10,
+    "max_mdns_services": 10,
+    "max_ssdp_user_agents": 10,
+    "process_all_macs": false,
+    "path_device_cache": "${path_state_persistent}/device-discovery-cache.json",
+    "device_mac_ignore": [
+        "00:00:00:00:00:00",
+        "ff:ff:ff:ff:ff:ff"
+    ],
+    "device_mac_ignore_group": "dev-disc-ignore",
+    "netify_api": {
+      "enable": false,
+      "url": "https://agents.netify.ai/api/v2/device_discovery",
+      "key": "deadbeef-0000-ffff-0000-0123456789ff"
+    },
+    "ubus_api": {
+      "enable": false,
+      "sink": "sink-ubus",
+      "sink_channel": "device_discovery",
+      "ubus_subscribe": "device_discovery",
+      "format": "json"
+    },
+    "sinks": {
+        "sink-log": {
+            "default": {
+                "enable": false,
+                "flush": false,
+                "format": "json",
+                "compressor": "gz"
+            }
+        }
+    }
+}
