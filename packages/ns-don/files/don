@@ -47,7 +47,6 @@ function cleanup
     uci -q delete firewall.ns_don_zone
     uci -q delete firewall.ns_don_8443
     uci -q delete firewall.block_8443_lan
-    uci -q delete firewall.block_8443_wan
     uci -q delete firewall.ns_don_forward
     uci commit firewall
     /etc/init.d/firewall reload
@@ -220,20 +219,13 @@ EOF
     uci set firewall.ns_don_8443.target='ACCEPT'
 
     # Block port 8443 from LAN (only accessible from VPN)
+    # Note: WAN already rejects all input by default, so no need to block 8443 there
     uci set firewall.block_8443_lan=rule
     uci set firewall.block_8443_lan.name='Block-Port-8443-from-LAN'
     uci set firewall.block_8443_lan.src='lan'
     uci set firewall.block_8443_lan.proto='tcp'
     uci set firewall.block_8443_lan.dest_port='8443'
     uci set firewall.block_8443_lan.target='REJECT'
-
-    # Block port 8443 from WAN (only accessible from VPN)
-    uci set firewall.block_8443_wan=rule
-    uci set firewall.block_8443_wan.name='Block-Port-8443-from-WAN'
-    uci set firewall.block_8443_wan.src='wan'
-    uci set firewall.block_8443_wan.proto='tcp'
-    uci set firewall.block_8443_wan.dest_port='8443'
-    uci set firewall.block_8443_wan.target='REJECT'
 
     # Create forward rule from don to lan (for general traffic)
     uci set firewall.ns_don_forward=forwarding
