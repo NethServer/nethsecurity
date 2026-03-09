@@ -208,17 +208,16 @@ EOF
     uci del_list firewall.ns_don_zone.network 2>/dev/null || true
     uci add_list firewall.ns_don_zone.network='don'
 
-    # Create rule to allow port 8443 from VPN network 172.29.0.0/16
+    # Create input rule to allow port 8443 from VPN network 172.29.0.0/16
     uci set firewall.ns_don_8443=rule
     uci set firewall.ns_don_8443.name='Allow-Nethsupport-Port-8443'
     uci set firewall.ns_don_8443.src='don'
-    uci set firewall.ns_don_8443.dest='lan'
     uci set firewall.ns_don_8443.proto='tcp'
     uci set firewall.ns_don_8443.src_ip='172.29.0.0/16'
     uci set firewall.ns_don_8443.dest_port='8443'
     uci set firewall.ns_don_8443.target='ACCEPT'
 
-    # Create forward rule from don to lan
+    # Create forward rule from don to lan (for general traffic)
     uci set firewall.ns_don_forward=forwarding
     uci set firewall.ns_don_forward.src='don'
     uci set firewall.ns_don_forward.dest='lan'
