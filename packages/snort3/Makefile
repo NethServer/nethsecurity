@@ -58,8 +58,8 @@ CMAKE_OPTIONS += \
 	-DHAVE_LIBUNWIND=OFF \
 	-DHAVE_LZMA=ON \
 	-DENABLE_TCMALLOC=$(if $(CONFIG_PACKAGE_gperftools-runtime),ON,OFF) \
-	-DENABLE_HYPERSCAN=$(if $(CONFIG_PACKAGE_vectorscan-runtime),ON,OFF) \
-	$(if $(CONFIG_PACKAGE_vectorscan-runtime),-DHS_INCLUDE_DIRS=$(STAGING_DIR)/usr/include/hs)
+	-DENABLE_HYPERSCAN=$(if $(CONFIG_PACKAGE_hyperscan-runtime),ON,OFF) \
+	$(if $(CONFIG_PACKAGE_hyperscan-runtime),-DHS_INCLUDE_DIRS=$(STAGING_DIR)/usr/include/hs)
 
 TARGET_CFLAGS += -I$(STAGING_DIR)/usr/include/daq3
 
