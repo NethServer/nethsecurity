@@ -46,6 +46,7 @@ define Package/ns-ha/install
 	$(INSTALL_BIN) ./files/ns-ha-export $(1)/usr/libexec/
 	$(INSTALL_BIN) ./files/ns-ha-import $(1)/usr/libexec/
 	$(INSTALL_BIN) ./files/ns-ha-config $(1)/usr/sbin
+	$(INSTALL_DATA) ./files/00-lock $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/10-adjust $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/500-dhcp-force $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/500-nathelpers $(1)/etc/hotplug.d/keepalived
@@ -71,6 +72,7 @@ define Package/ns-ha/install
 	$(INSTALL_DATA) ./files/900-ddns $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/100-conntrackd $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/999-stop-fault $(1)/etc/hotplug.d/keepalived
+	$(INSTALL_DATA) ./files/999-unlock $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/ns.sh $(1)/lib/functions/keepalived
 	$(INSTALL_DATA) ./files/99-ns-ha.sh $(1)/etc/profile.d
 	$(INSTALL_BIN) ./files/conntrackd.sh $(1)/usr/libexec/
