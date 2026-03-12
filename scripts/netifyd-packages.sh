@@ -1,100 +1,57 @@
 #!/bin/bash
 
 # This is a helper script to extract all Netify IPK packages
-# into tmp/{arch} directories for analysis and integration
+# into netifyd-ipks/tmp/{arch} directories for analysis and integration.
+#
+# Usage: ./netifyd-packages.sh
+#
+# Input:  netifyd-ipks/{arch}/*.ipk
+# Output: netifyd-ipks/tmp/{arch}/netifyd/   — merged contents of all IPKs for that arch
+#         netifyd-ipks/tmp/{arch}/{pkg}/     — per-package extraction (intermediate)
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-NETIFYD_IPKS_DIR="${SCRIPT_DIR}/netifyd-ipks"
-TMP_DIR="${NETIFYD_IPKS_DIR}/tmp"
+IPKS_DIR="${SCRIPT_DIR}/netifyd-ipks"
+TMP_DIR="${IPKS_DIR}/tmp"
 
-# Clean up previous extraction
-echo "Cleaning up previous extractions..."
-rm -rf "${TMP_DIR}"
+if [ ! -d "${IPKS_DIR}" ]; then
+    echo "ERROR: IPKs directory not found: ${IPKS_DIR}" >&2
+    exit 1
+fi
 
-# Function to extract IPK package
-extract_ipk() {
-    local ipk_file="$1"
-    local arch="$2"
-    local pkg_name=$(basename "${ipk_file}" .ipk)
-    local temp_extract_dir="${TMP_DIR}/.extract_temp"
+# Iterate over each arch subdirectory
+for arch_dir in "${IPKS_DIR}"/*/; do
+    [ -d "${arch_dir}" ] || continue
+    arch="$(basename "${arch_dir}")"
 
-    echo "Extracting ${pkg_name} (${arch})..."
+    echo "==> Processing arch: ${arch}"
 
-    # Create temporary extraction directory
-    rm -rf "${temp_extract_dir}"
-    mkdir -p "${temp_extract_dir}"
+    output_dir="${TMP_DIR}/${arch}/netifyd"
+    rm -rf "${TMP_DIR:?}/${arch}"
+    mkdir -p "${output_dir}"
 
-    # Extract IPK package (ar archive) and extract data.tar.gz directly
-    tar -xf "${ipk_file}" ./data.tar.gz -O | tar -xzf - -C "${temp_extract_dir}"
+    # Extract each IPK into its own per-package subdirectory, then merge
+    for ipk_file in "${arch_dir}"*.ipk; do
+        [ -f "${ipk_file}" ] || continue
 
-    # Process extracted files
-    if [ -d "${temp_extract_dir}" ]; then
-        # Move binaries (usr/lib and usr/sbin) to tmp/bin/{arch}
-        if [ -d "${temp_extract_dir}/usr/lib" ]; then
-            mkdir -p "${TMP_DIR}/bin/${arch}/lib"
-            cp -r "${temp_extract_dir}/usr/lib"/* "${TMP_DIR}/bin/${arch}/lib/"
-        fi
+        # Derive package name: strip version and arch suffix
+        # e.g. netify-plm_2026-01-01-v1.2.1-r8_x86_64.ipk -> netify-plm
+        filename="$(basename "${ipk_file}" .ipk)"
+        pkg_name="${filename%%_*}"
 
-        if [ -d "${temp_extract_dir}/usr/sbin" ]; then
-            mkdir -p "${TMP_DIR}/bin/${arch}/sbin"
-            cp -r "${temp_extract_dir}/usr/sbin"/* "${TMP_DIR}/bin/${arch}/sbin/"
-        fi
+        # Extract to a temporary directory first to avoid conflicts
+        pkg_extract_dir="${TMP_DIR}/${arch}/.extract-${pkg_name}-$$"
+        mkdir -p "${pkg_extract_dir}"
 
-        # Move all other files to tmp/config
-        for item in "${temp_extract_dir}"/*; do
-            if [ -e "${item}" ]; then
-                item_name=$(basename "${item}")
-                # Skip usr directory as we already processed binaries
-                if [ "${item_name}" != "usr" ]; then
-                    mkdir -p "${TMP_DIR}/config"
-                    cp -r "${item}" "${TMP_DIR}/config/"
-                fi
-            fi
-        done
+        echo "    Extracting ${filename} -> ${pkg_name}/"
+        tar -xf "${ipk_file}" ./data.tar.gz -O | tar -xzf - -C "${pkg_extract_dir}"
 
-        # Handle remaining usr content (like usr/share)
-        if [ -d "${temp_extract_dir}/usr" ]; then
-            for subitem in "${temp_extract_dir}/usr"/*; do
-                if [ -e "${subitem}" ]; then
-                    subitem_name=$(basename "${subitem}")
-                    # Skip lib and sbin as already processed
-                    if [ "${subitem_name}" != "lib" ] && [ "${subitem_name}" != "sbin" ]; then
-                        mkdir -p "${TMP_DIR}/config/usr"
-                        cp -r "${subitem}" "${TMP_DIR}/config/usr/"
-                    fi
-                fi
-            done
-        fi
-    fi
+        # Merge extracted files into the single netifyd output directory
+        cp -a "${pkg_extract_dir}/." "${output_dir}/"
+    done
 
-    # Clean up temporary directory
-    rm -rf "${temp_extract_dir}"
-}
-
-# Process all architecture directories
-for arch_dir in "${NETIFYD_IPKS_DIR}"/*; do
-    if [ -d "${arch_dir}" ]; then
-        arch=$(basename "${arch_dir}")
-
-        # Skip tmp directory
-        if [ "${arch}" = "tmp" ]; then
-            continue
-        fi
-
-        echo "Processing ${arch} packages..."
-        for ipk in "${arch_dir}"/*.ipk; do
-            if [ -f "${ipk}" ]; then
-                extract_ipk "${ipk}" "${arch}"
-            fi
-        done
-    fi
+    echo "    Merged output: tmp/${arch}/netifyd/"
 done
 
-echo ""
-echo "Extraction complete!"
-echo "Files extracted to: ${TMP_DIR}"
-echo ""
-echo "Directory structure:"
-tree -L 2 "${TMP_DIR}" 2>/dev/null || find "${TMP_DIR}" -maxdepth 2 -type d
+echo "Done."
