@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 #
-# Copyright (C) 2024 Nethesis S.r.l.
+# Copyright (C) 2026 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
@@ -261,9 +261,14 @@ def dump_dpi_stats():
     return {"data": ret}
 
 def dump_openvpn_connections():
-    # Parse /var/run/openvpn/connections.db for the last 20 minutes
+    # Parse openvpn connections.db for the last 20 minutes.
+    # If /mnt/data/openvpn exists, read from there, otherwise use /var/openvpn.
     ret = []
-    for db_file in glob.glob('/var/openvpn/*/connections.db'):
+    if os.path.isdir('/mnt/data/openvpn'):
+        pattern = '/mnt/data/openvpn/*/connections.db'
+    else:
+        pattern = '/var/openvpn/*/connections.db'
+    for db_file in glob.glob(pattern):
         instance = db_file.split('/')[-2]
         conn = sqlite3.connect(db_file)
         cursor = conn.cursor()

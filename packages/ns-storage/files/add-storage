@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2023 Nethesis S.r.l.
+# Copyright (C) 2026 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
@@ -45,3 +45,6 @@ uci commit rsyslog
 
 crontab -l | grep -q '/usr/sbin/sync-data' || echo '40 1 * * * /usr/sbin/sync-data' >> /etc/crontabs/root
 /etc/init.d/cron restart
+
+# check for existing OpenVPN RW connection records in /var and merge them into storage if needed
+/usr/libexec/ns-openvpn/openvpn-merge-connections-db
