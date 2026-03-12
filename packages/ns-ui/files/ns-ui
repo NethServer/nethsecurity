@@ -27,17 +27,21 @@ else
     [ -f "$LUCI_FILE" ] && mv -f "$LUCI_FILE" "$LUCI_FILE.disabled"
 fi
 
-# Manage extra ns-ui instance on custom port
-nsui_extra_enable=$(uci -q get ns-ui.config.nsui_extra_enable)
-nsui_extra_port=$(uci -q get ns-ui.config.nsui_extra_port)
 crt=$(uci -q get nginx._lan.ssl_certificate)
 key=$(uci -q get nginx._lan.ssl_certificate_key)
 server_tokens=$(uci -q get ns-ui.config.server_tokens)
-if [[ "$nsui_extra_enable" == "1" && "$nsui_extra_port" != "" ]]; then
-    cat <<EOF > "$NSUI_EXTRA_FILE"
+
+# Function to generate extra ns-ui instances on custom ports
+generate_extra_instance() {
+    local enable=$1
+    local port=$2
+    local config_file=$3
+
+    if [[ "$enable" == "1" && "$port" != "" ]]; then
+        cat <<EOF > "$config_file"
 server {
-	listen $nsui_extra_port ssl default_server;
-	listen [::]:$nsui_extra_port ssl default_server;
+	listen $port ssl default_server;
+	listen [::]:$port ssl default_server;
 	server_name _lan;
 	ssl_certificate $crt;
 	ssl_certificate_key $key;
@@ -62,9 +66,22 @@ server {
 	}
 }
 EOF
-else
-    rm -f "$NSUI_EXTRA_FILE" ||  :
-fi
+    else
+        rm -f "$config_file" || :
+    fi
+}
+
+# Manage extra ns-ui instance on custom port (default 9090)
+nsui_extra_enable=$(uci -q get ns-ui.config.nsui_extra_enable)
+nsui_extra_port=$(uci -q get ns-ui.config.nsui_extra_port)
+NSUI_EXTRA_FILE=/etc/nginx/conf.d/ns-ui.conf
+generate_extra_instance "$nsui_extra_enable" "$nsui_extra_port" "$NSUI_EXTRA_FILE"
+
+# Manage nethsupport instance on port 8443
+nsui_nethsupport_enable=$(uci -q get ns-ui.config.nsui_nethsupport_enable)
+nsui_nethsupport_port=$(uci -q get ns-ui.config.nsui_nethsupport_port)
+NSUI_NETHSUPPORT_FILE=/etc/nginx/conf.d/ns-ui-nethsupport.conf
+generate_extra_instance "$nsui_nethsupport_enable" "$nsui_nethsupport_port" "$NSUI_NETHSUPPORT_FILE"
 
 if /usr/sbin/nginx -c /etc/nginx/uci.conf -T &> /dev/null ; then
     /etc/init.d/nginx restart

@@ -37,6 +37,18 @@ function cleanup
     uci -q delete rpcd.ns_don
     # commit rpcd changes
     uci commit rpcd
+    # disable nethsupport UI on port 8443
+    uci set ns-ui.config.nsui_nethsupport_enable='0'
+    uci commit ns-ui
+    /usr/sbin/ns-ui
+    # Remove network and firewall configuration
+    uci -q delete network.don
+    uci commit network
+    uci -q delete firewall.ns_don_zone
+    uci -q delete firewall.ns_don_8443
+    uci -q delete firewall.block_8443_lan
+    uci commit firewall
+    /etc/init.d/firewall reload &> /dev/null
     # destroy ubus sessions
     session=$(ubus call session list | jq -r '.ubus_rpc_session as $parent | .data.username | select(. == "nethsupport") | $parent')
     if [ "$session" != "" ]; then
@@ -174,6 +186,48 @@ EOF
     uci add_list rpcd.ns_don.write='*'
     # commit rpcd changes
     uci commit rpcd
+
+    # Enable nethsupport UI on port 8443
+    uci set ns-ui.config.nsui_nethsupport_enable='1'
+    uci commit ns-ui
+    /usr/sbin/ns-ui
+
+    # Configure network and firewall for remote access
+    # Declare tunDON as a network interface
+    uci set network.don=interface
+    uci set network.don.proto='none'
+    uci set network.don.ifname='tunDON'
+    uci commit network
+
+    # Create zone for don network interface
+    uci set firewall.ns_don_zone=zone
+    uci set firewall.ns_don_zone.name='don'
+    uci set firewall.ns_don_zone.input='REJECT'
+    uci set firewall.ns_don_zone.output='ACCEPT'
+    uci set firewall.ns_don_zone.forward='ACCEPT'
+    uci del_list firewall.ns_don_zone.network 2>/dev/null || true
+    uci add_list firewall.ns_don_zone.network='don'
+
+    # Create input rule to allow port 8443 from VPN network 172.29.0.0/16
+    uci set firewall.ns_don_8443=rule
+    uci set firewall.ns_don_8443.name='Allow-Nethsupport-Port-8443'
+    uci set firewall.ns_don_8443.src='don'
+    uci set firewall.ns_don_8443.proto='tcp'
+    uci set firewall.ns_don_8443.src_ip='172.29.0.0/16'
+    uci set firewall.ns_don_8443.dest_port='8443'
+    uci set firewall.ns_don_8443.target='ACCEPT'
+
+    # Block port 8443 from LAN (only accessible from VPN)
+    # Note: WAN already rejects all input by default, so no need to block 8443 there
+    uci set firewall.block_8443_lan=rule
+    uci set firewall.block_8443_lan.name='Block-Port-8443-from-LAN'
+    uci set firewall.block_8443_lan.src='lan'
+    uci set firewall.block_8443_lan.proto='tcp'
+    uci set firewall.block_8443_lan.dest_port='8443'
+    uci set firewall.block_8443_lan.target='REJECT'
+
+    uci commit firewall
+    /etc/init.d/firewall reload &> /dev/null
 
     show_credentials
 ;;
