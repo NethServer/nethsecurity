@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-phonehome
-PKG_VERSION:=0.0.8
+PKG_VERSION:=1.0.0
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-phonehome-$(PKG_VERSION)

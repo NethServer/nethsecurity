@@ -6,7 +6,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=python-jinja2
 PKG_VERSION:=3.1.2
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PYPI_NAME:=Jinja2
 PYTHON3_PKG_WHEEL_NAME:=jinja2
