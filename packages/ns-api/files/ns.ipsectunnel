@@ -415,7 +415,8 @@ def edit_tunnel(args):
     current_remote = set(rs for (ls, rs) in existing_pairs)
     new_remote = set(args['remote_subnet'])
     dname = f'ipsec{if_id}'
-    
+    route_disabled = '0' if args['enabled'] == '1' else '1'
+
     if current_remote != new_remote:
         # Build map of existing routes: target -> route_name
         existing_routes = {}
@@ -446,11 +447,16 @@ def edit_tunnel(args):
             u.set('network', rname, 'target', net)
             u.set('network', rname, 'interface', dname)
             u.set('network', rname, 'ns_link', link)
-            u.set('network', rname, 'disabled', '0' if args['enabled'] == '1' else '1')
+            u.set('network', rname, 'disabled', route_disabled)
             ri = ri + 1
-        
-        u.save('network')
-    
+
+    # Sync disabled state on all existing routes
+    for r in utils.get_all_by_type(u, 'network', 'route'):
+        if u.get('network', r, 'ns_link', default='') == link:
+            uci_set_if_changed(u, 'network', r, 'disabled', route_disabled)
+
+    u.save('network')
+
     # Update remote section (only if changed)
     uci_set_if_changed(u, 'ipsec', id, 'ns_name', args['ns_name'])
     for opt in ['gateway', 'keyexchange', 'local_identifier', 'local_ip', 'enabled', 'remote_identifier', 'pre_shared_key']:
