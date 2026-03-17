@@ -68,10 +68,19 @@ def _get_avail_bytes(path):
         return 0
 
 def get_memory():
-    return { 
-            "used_bytes": int(_run("/usr/bin/free | /bin/grep 'Mem': | /usr/bin/awk '{print $3}'"))*1024,
-            "available_bytes": int(_run("/usr/bin/free | /bin/grep 'Mem:' | /usr/bin/awk '{print $7}'"))*1024
-        }
+    mem_info = {}
+    try:
+        with open('/proc/meminfo', 'r') as f:
+            for line in f:
+                if ':' in line:
+                    key, value = line.split(':', 1)
+                    mem_info[key.strip()] = int(value.strip().split()[0]) * 1024
+    except:
+        pass
+    return {
+        "MemTotal": mem_info.get('MemTotal', 0),
+        "MemAvailable": mem_info.get('MemAvailable', 0)
+    }
 
 def get_storage():
     return {
