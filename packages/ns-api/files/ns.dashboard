@@ -56,9 +56,25 @@ def _run(cmd):
         return ''
 
 def get_memory():
-    return { 
-            "used_bytes": int(_run("/usr/bin/free | /bin/grep 'Mem': | /usr/bin/awk '{print $3}'"))*1024,
-            "available_bytes": int(_run("/usr/bin/free | /bin/grep 'Mem:' | /usr/bin/awk '{print $7}'"))*1024
+    try:
+        mem_total = None
+        mem_available = None
+        with open('/proc/meminfo', 'r') as f:
+            for line in f:
+                if line.startswith('MemTotal:'):
+                    mem_total = int(line.split()[1]) * 1024
+                elif line.startswith('MemAvailable:'):
+                    mem_available = int(line.split()[1]) * 1024
+                if mem_total is not None and mem_available is not None:
+                    break
+        return {
+            "mem_total": mem_total if mem_total is not None else 0,
+            "mem_available": mem_available if mem_available is not None else 0
+        }
+    except:
+        return {
+            "mem_total": 0,
+            "mem_available": 0
         }
 
 def get_storage():
