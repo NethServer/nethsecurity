@@ -55,18 +55,6 @@ def _run(cmd):
     except:
         return ''
 
-def _get_used_bytes(path):
-    try:
-        return int(_run("/bin/df -P | /usr/bin/sort | /usr/bin/uniq | /bin/grep '"+path+"$' | /usr/bin/awk '{print $3}'"))*1024
-    except:
-        return 0
-
-def _get_avail_bytes(path):
-    try:
-        return int(_run("/bin/df -P | /usr/bin/sort | /usr/bin/uniq | /bin/grep '"+path+"$' | /usr/bin/awk '{print $4}'"))*1024
-    except:
-        return 0
-
 def get_memory():
     return { 
             "used_bytes": int(_run("/usr/bin/free | /bin/grep 'Mem': | /usr/bin/awk '{print $3}'"))*1024,
@@ -74,21 +62,27 @@ def get_memory():
         }
 
 def get_storage():
-    return {
-        "/": {
-            "used_bytes": _get_used_bytes('/'),
-            "available_bytes": _get_avail_bytes('/')
-        },
-        "/mnt/data": {
-            "used_bytes": _get_used_bytes('/mnt/data'),
-            "available_bytes": _get_avail_bytes('/mnt/data')
-        },
-        "tmpfs": {
-            "used_bytes": _get_used_bytes('/tmp'),
-            "available_bytes": _get_avail_bytes('/tmp')
-        }
-    }
+    try:
+        proc = subprocess.run(["/bin/df", "-P"], capture_output=True, text=True, check=True)
+        lines = proc.stdout.splitlines()[1:]
+    except Exception:
+        lines = []
 
+    def _get_bytes(path):
+        for line in lines:
+            parts = line.split()
+            if len(parts) >= 6 and parts[5] == path:
+                return int(parts[2]) * 1024, int(parts[3]) * 1024
+        return 0, 0
+
+    used, avail = _get_bytes('/')
+    root = {"used_bytes": used, "available_bytes": avail}
+    used, avail = _get_bytes('/mnt/data')
+    mnt_data = {"used_bytes": used, "available_bytes": avail}
+    used, avail = _get_bytes('/tmp')
+    tmpfs = {"used_bytes": used, "available_bytes": avail}
+
+    return {"/": root, "/mnt/data": mnt_data, "tmpfs": tmpfs}
 
 def check_internet():
     success = 0
