@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2025 Nethesis S.r.l.
+# Copyright (C) 2026 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
@@ -23,8 +23,9 @@ PKG_BUILD_DEPENDS:=golang/host
 PKG_BUILD_PARALLEL:=1
 PKG_BUILD_FLAGS:=no-mips16
 
-GO_PKG:=github.com/VictoriaMetrics/VictoriaMetrics/app/$(PKG_NAME)
-GO_BUILD_PKG:=github.com/VictoriaMetrics/VictoriaMetrics/app/$(PKG_NAME)
+GO_PKG:=github.com/VictoriaMetrics/VictoriaMetrics
+GO_PKG_BUILD_PKG:=github.com/VictoriaMetrics/VictoriaMetrics/app/victoria-metrics \
+	github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert
 GO_PKG_GCFLAGS:= \
 	-trimpath \
 	-buildvcs=false
