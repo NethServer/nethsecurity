@@ -69,17 +69,14 @@ define Package/telegraf/description
 	Telegraf is an agent for collecting, processing, aggregating, and writing metrics.
 endef
 
-define Package/telegraf/conffiles
-/etc/telegraf/telegraf.d/
-endef
-
-
 define Package/telegraf/install
 	$(call GoPackage/Package/Install/Bin,$(1))
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/telegraf.initd $(1)/etc/init.d/telegraf
 	$(INSTALL_DIR) $(1)/etc/telegraf
-	$(INSTALL_DATA) ./files/telegraf.conf $(1)/etc/telegraf/telegraf.conf
+	$(INSTALL_DATA) ./files/telegraf.conf $(1)/etc/telegraf.conf
+	$(INSTALL_DIR) $(1)/etc/telegraf.conf.d
+	$(INSTALL_DATA) ./files/telegraf.conf.d/netifyd.conf $(1)/etc/telegraf.conf.d/netifyd.conf
 	$(INSTALL_DIR) $(1)/etc/netifyd
 	$(INSTALL_DATA) ./files/netifyd/netify-sink-log-telegraf.json $(1)/etc/netifyd/netify-sink-log-telegraf.json
 	$(INSTALL_DATA) ./files/netifyd/netify-proc-aggregator-telegraf.json $(1)/etc/netifyd/netify-proc-aggregator-telegraf.json

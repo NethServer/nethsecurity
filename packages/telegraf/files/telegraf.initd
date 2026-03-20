@@ -18,7 +18,7 @@ start_service() {
     procd_set_param stderr 1
     procd_set_param respawn 3600 5 0
     procd_set_param command $PROG
-    procd_append_param command --watch-config notify
+    procd_append_param command --watch-config notify --config /etc/telegraf.conf --config-directory /etc/telegraf.conf.d
     procd_close_instance
 }
 
