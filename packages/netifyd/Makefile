@@ -166,6 +166,10 @@ define Package/netifyd/conffiles
 /etc/config/netifyd
 /etc/netifyd.conf
 /etc/netifyd/agent.uuid
+/etc/netifyd/netify-proc-core-auto.json
+/etc/netifyd/netify-sink-http-auto.json
+/etc/netifyd/plugins.d/99-netify-proc-core-auto.conf
+/etc/netifyd/plugins.d/99-netify-sink-http-auto.conf
 endef
 
 define Package/netifyd/install
