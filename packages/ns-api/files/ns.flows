@@ -270,13 +270,12 @@ def set_configuration(data):
 def compute_tags(flow_item, blocked_ids=None):
     """Compute tags for a flow based on its type and direction.
     
-    Returns a list of zero or more tags from: 'remote', 'outgoing', 'internal', 'broadcast', 'scanning', 'blocked'.
+    Returns a list of zero or more tags from: 'remote', 'outgoing', 'internal', 'broadcast', 'blocked'.
     Rules:
     - 'remote': local_origin==False AND other_type=='remote'
     - 'outgoing': local_origin==True AND other_type=='remote'
     - 'internal': other_type=='local'
     - 'broadcast': other_type=='broadcast'
-    - 'scanning': top-level type=='flow'
     - 'blocked': flow's conntrack id matches a conntrack entry with the 'netify-blocked' label
     """
     tags = []
@@ -300,10 +299,6 @@ def compute_tags(flow_item, blocked_ids=None):
     # Check for broadcast
     if other_type == 'broadcast':
         tags.append('broadcast')
-
-    # Check for scanning
-    if top_level_type == 'flow':
-        tags.append('scanning')
 
     # Check for blocked: match against conntrack entries labelled 'netify-blocked'
     if blocked_ids:
