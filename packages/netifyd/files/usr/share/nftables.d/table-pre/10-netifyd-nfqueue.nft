@@ -1,17 +1,11 @@
 chain nfq_input {
     type filter hook input priority filter + 10; policy accept;
     iifname lo accept
-    
-    # Accept traffic originating from the firewall itself
-    ct direction reply accept
 
     # Netifyd only analyzes the first 32 packets
     ct packets > 32 accept
 
-    # Accept traffic from the WAN -> queues 60-63
-    iifname $wan_devices queue flags bypass to 60-63
-
-    # Traffic originating from LAN -> queues 50-53
+    # Traffic to queues 50-53
     queue flags bypass to 50-53
 }
 
@@ -21,9 +15,6 @@ chain nfq_forward {
     # Netifyd only analyzes the first 32 packets
     ct packets > 32 accept
 
-    # Traffic originating from WAN -> queues 60-63
-    iifname $wan_devices queue flags bypass to 60-63
-
-    # Traffic originating from LAN -> queues 50-53
+    # Traffic to queues 50-53
     queue flags bypass to 50-53
 }
