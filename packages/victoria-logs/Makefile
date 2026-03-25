@@ -18,8 +18,8 @@ PKG_BUILD_DEPENDS:=golang/host
 PKG_BUILD_PARALLEL:=1
 PKG_BUILD_FLAGS:=no-mips16
 
-GO_PKG:=github.com/VictoriaMetrics/VictoriaMetrics/app
-GO_BUILD_PKG:=github.com/VictoriaMetrics/VictoriaMetrics/app/victoria-logs \
+GO_PKG:=github.com/VictoriaMetrics/VictoriaMetrics
+GO_PKG_BUILD_PKG:=github.com/VictoriaMetrics/VictoriaMetrics/app/victoria-logs \
 	github.com/VictoriaMetrics/VictoriaMetrics/app/vlogscli
 GO_PKG_GCFLAGS:= \
 	-trimpath \
@@ -53,9 +53,7 @@ define Package/victoria-logs/conffiles
 endef
 
 define Package/victoria-logs/install
-	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_BIN) $(GO_BUILD_BIN_DIR)/victoria-logs $(1)/usr/bin/victoria-logs
-	$(INSTALL_BIN) $(GO_BUILD_BIN_DIR)/vlogscli $(1)/usr/bin/vlogscli
+	$(call GoPackage/Package/Install/Bin,$(1))
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/victoria-logs.initd $(1)/etc/init.d/victoria-logs
 	$(INSTALL_DIR) $(1)/etc/config
