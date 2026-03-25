@@ -1,35 +1,39 @@
 #
-# Copyright (C) 2025 Nethesis S.r.l.
+# Copyright (C) 2026 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-# 2025-06-30
-FROM debian:12.11 AS base
-ARG SOURCE_DATE_EPOCH=1751241600
+FROM debian:13.1 AS base
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends --no-install-suggests \
+        # openwrt build dependencies https://openwrt.org/docs/guide-developer/toolchain/install-buildsystem#debianubuntumint
         bison \
         build-essential \
-        ca-certificates \
         clang \
-        cmake \
-        curl \
         file \
         flex \
         g++ \
+        g++-multilib \
         gawk \
         gcc-multilib \
         gettext \
         git \
         libncurses5-dev \
         libssl-dev \
-        python3-distutils \
+        python3-setuptools \
         rsync \
-        sudo \
+        swig \
         unzip \
-        vim \
         wget \
-        zlib1g-dev
+        zlib1g-dev \
+        # other dependencies
+        ca-certificates \
+        cmake \
+        curl \
+        less \
+        quilt \
+        sudo \
+        vim
 
 FROM base AS usign_build
 RUN git clone --depth 1 https://git.openwrt.org/project/usign.git /tmp/usign \
@@ -40,7 +44,14 @@ RUN git clone --depth 1 https://git.openwrt.org/project/usign.git /tmp/usign \
 FROM base AS builder
 RUN groupadd -g 1000 'buildbot' \
     && useradd -m -s '/bin/bash' -u 1000 -g 1000 'buildbot' \
-    && echo 'buildbot ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/buildbot
+    && echo 'buildbot ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/buildbot \
+    && echo "QUILT_DIFF_ARGS=--no-timestamps --no-index -p ab --color=auto" \
+        "QUILT_REFRESH_ARGS=--no-timestamps --no-index -p ab" \
+        "QUILT_SERIES_ARGS=--color=auto" \
+        "QUILT_PATCH_OPTS=--unified" \
+        "QUILT_DIFF_OPTS=-p" \
+        "EDITOR=vim" \
+        > /home/buildbot/.quiltrc
 USER buildbot
 WORKDIR /home/buildbot
 # OpenWRT repo
