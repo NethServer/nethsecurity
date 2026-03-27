@@ -5888,9 +5888,8 @@ Configure banip settings:
 
 - `enabled`: disable or enable banip (true or false).
 - `ban_logprerouting`: Log suspicious packets in the prerouting chain (true or false).
-- `ban_loginput`: Log suspicious packets in the WAN-input chain (true or false).
-- `ban_logforwardwan`: Log suspicious packets in the WAN-forward chain (true or false).
-- `ban_logforwardlan`: Log suspicious packets in the LAN-forward chain (true or false).
+- `ban_loginbound`: Log suspicious packets in inbound traffic (WAN-input chain) (true or false).
+- `ban_logoutbound`: Log suspicious packets in outbound traffic (LAN-forward chain) (true or false).
 - `ban_loglimit`: Enable or disable scanning of logfiles (true or false).
 - `ban_logcount`: Specify how many times an IP must appear in the log to be considered suspicious (integer).
 - `ban_logterm`: List of regex entries for logfile parsing (list of strings).
@@ -5901,7 +5900,7 @@ Configure banip settings:
 
 
 ```bash
-api-cli ns.threatshield edit-settings --data '{"enabled": true, "ban_logprerouting": true, "ban_loginput": true, "ban_logforwardwan": true, "ban_logforwardlan": true, "ban_loglimit": false, "ban_logcount": 5, "ban_logterm": ["regex1", "regex2"], "ban_icmplimit": true, "ban_synlimit": true, "ban_udplimit": true, "ban_nftexpiry": "1d"}'
+api-cli ns.threatshield edit-settings --data '{"enabled": true, "ban_logprerouting": true, "ban_loginbound": true, "ban_logoutbound": true, "ban_loglimit": false, "ban_logcount": 5, "ban_logterm": ["regex1", "regex2"], "ban_icmplimit": true, "ban_synlimit": true, "ban_udplimit": true, "ban_nftexpiry": "1d"}'
 ```
 
 Response example:
