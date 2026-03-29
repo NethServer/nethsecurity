@@ -106,13 +106,18 @@ start_tunnel() {
         i=$((i+1))
     done
 
+    local services=$(grep -oP 'Manifest sent with \K[0-9]+' "$log_file" 2>/dev/null | tail -1)
+    services="${services:-0}"
+
     if [ "$json_output" = 1 ]; then
         jq -c -n \
-            --arg url "$url" \
+            --argjson active true \
+            --arg support_url "$url" \
             --arg system_key "$system_key" \
             --argjson connected "$connected" \
+            --argjson services "$services" \
             --argjson pid "$tunnel_pid" \
-            '{url: $url, system_key: $system_key, connected: $connected, pid: $pid}'
+            '{active: $active, support_url: $support_url, system_key: $system_key, connected: $connected, services: $services, pid: $pid}'
     else
         echo "Tunnel started (PID: $tunnel_pid)"
         echo "URL: $url"
@@ -129,12 +134,18 @@ show_status() {
         [ -z "$system_key" ] && system_key=$(uci -q get ns-plug.config.system_id)
         [ -z "$url" ] && url="wss://support.nethesis.it/api/tunnel"
 
+        local services=$(grep -oP 'Manifest sent with \K[0-9]+' "$log_file" 2>/dev/null | tail -1)
+        services="${services:-0}"
+
         if [ "$json_output" = 1 ]; then
             jq -c -n \
-                --arg url "$url" \
+                --argjson active true \
+                --arg support_url "$url" \
                 --arg system_key "$system_key" \
+                --argjson connected true \
+                --argjson services "$services" \
                 --argjson pid "$pid" \
-                '{active: true, url: $url, system_key: $system_key, pid: $pid}'
+                '{active: $active, support_url: $support_url, system_key: $system_key, connected: $connected, services: $services, pid: $pid}'
         else
             echo "Tunnel is running (PID: $pid)"
             echo "URL: $url"
