@@ -18,3 +18,14 @@ chain nfq_forward {
     # Traffic to queues 50-53
     queue flags bypass to 50-53
 }
+
+chain nfq_output {
+    type filter hook output priority filter + 10; policy accept;
+    oifname lo accept
+
+    # Netifyd only analyzes the first 32 packets
+    ct packets > 32 accept
+
+    # Traffic to queues 50-53
+    queue flags bypass to 50-53
+}
