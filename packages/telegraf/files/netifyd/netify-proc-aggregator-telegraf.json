@@ -7,7 +7,7 @@
     "nested_mode": false,
     "privacy_mode": false,
     "sinks": {
-        "sink-log-telegraf": {
+        "sink-http-telegraf": {
             "telegraf": { }
         }
     }
