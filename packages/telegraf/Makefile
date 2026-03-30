@@ -33,7 +33,9 @@ GO_PKG_TAGS:= \
 	inputs.disk \
 	inputs.diskio \
 	inputs.ethtool \
+	inputs.exec \
 	inputs.file \
+	inputs.http_listener_v2 \
 	inputs.iptables \
 	inputs.kernel \
 	inputs.kernel_vmstat \
@@ -47,7 +49,9 @@ GO_PKG_TAGS:= \
 	inputs.processes \
 	inputs.sensors \
 	inputs.system \
+	inputs.tail \
 	outputs.influxdb \
+	parsers.grok \
 	parsers.json_v2
 
 include $(INCLUDE_DIR)/package.mk
@@ -76,6 +80,7 @@ define Package/telegraf/install
 	$(INSTALL_DIR) $(1)/etc/telegraf
 	$(INSTALL_DATA) ./files/telegraf.conf $(1)/etc/telegraf.conf
 	$(INSTALL_DIR) $(1)/etc/telegraf.conf.d
+	$(INSTALL_DATA) ./files/telegraf.conf.d/os.conf $(1)/etc/telegraf.conf.d/os.conf
 	$(INSTALL_DATA) ./files/telegraf.conf.d/netifyd.conf $(1)/etc/telegraf.conf.d/netifyd.conf
 	$(INSTALL_DIR) $(1)/etc/netifyd
 	$(INSTALL_DATA) ./files/netifyd/netify-sink-log-telegraf.json $(1)/etc/netifyd/netify-sink-log-telegraf.json
