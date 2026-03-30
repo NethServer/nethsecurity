@@ -83,7 +83,7 @@ define Package/telegraf/install
 	$(INSTALL_DATA) ./files/telegraf.conf.d/os.conf $(1)/etc/telegraf.conf.d/os.conf
 	$(INSTALL_DATA) ./files/telegraf.conf.d/netifyd.conf $(1)/etc/telegraf.conf.d/netifyd.conf
 	$(INSTALL_DIR) $(1)/etc/netifyd
-	$(INSTALL_DATA) ./files/netifyd/netify-sink-log-telegraf.json $(1)/etc/netifyd/netify-sink-log-telegraf.json
+	$(INSTALL_DATA) ./files/netifyd/netify-sink-http-telegraf.json $(1)/etc/netifyd/netify-sink-http-telegraf.json
 	$(INSTALL_DATA) ./files/netifyd/netify-proc-aggregator-telegraf.json $(1)/etc/netifyd/netify-proc-aggregator-telegraf.json
 	$(INSTALL_DIR) $(1)/etc/netifyd/plugins.d
 	$(INSTALL_DATA) ./files/netifyd/plugins.d/10-netify-telegraf.conf $(1)/etc/netifyd/plugins.d/10-netify-telegraf.conf
