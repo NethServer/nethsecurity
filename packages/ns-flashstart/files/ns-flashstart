@@ -251,6 +251,28 @@ def __sync_pro_plus_profiles():
     # generate bypass firewall set
     __add_bypass_ipset()
     added_ip_sets = ['ns_flashstart_bypass']
+    
+    # create explicit bypass ACCEPT rules for each zone (highest priority)
+    # these ensure bypass IPs are never intercepted by profile rules
+    bypass_redirects = []
+    for zone in e_uci.get('flashstart', 'global', 'zones', default=[], list=True, dtype=str):
+        bypass_redirect_id = f'ns_flashstart_bypass_{zone}'
+        if e_uci.get('firewall', bypass_redirect_id, default=None) is None:
+            logging.debug(f'Creating bypass redirect {bypass_redirect_id}')
+            e_uci.set('firewall', bypass_redirect_id, 'redirect')
+            e_uci.set('firewall', bypass_redirect_id, 'ns_flashstart', True)
+            e_uci.set('firewall', bypass_redirect_id, 'ns_tag', ['automated'])
+        e_uci.set('firewall', bypass_redirect_id, 'name', f'Flashstart-bypass-DNS-from-{zone}')
+        e_uci.set('firewall', bypass_redirect_id, 'src', zone)
+        e_uci.set('firewall', bypass_redirect_id, 'src_dport', 53)
+        e_uci.set('firewall', bypass_redirect_id, 'proto', "tcp udp")
+        e_uci.set('firewall', bypass_redirect_id, 'target', 'ACCEPT')
+        e_uci.set('firewall', bypass_redirect_id, 'ipset', f'flashstart-bypass')
+        bypass_redirects.append(bypass_redirect_id)
+    
+    # prepend all bypass redirects so they have the lowest rule indices (highest priority)
+    added_redirects = bypass_redirects + added_redirects
+    
     # sort the profiles by catch-all, so that the catch-all profile is always the last one
     dhcp_entries = sorted(config['dhcp'], key=lambda entry: entry['catch-all'])
     for profile in dhcp_entries:
@@ -293,7 +315,8 @@ def __sync_pro_plus_profiles():
             added_redirects.append(redirect_id)
         starting_port += 1
 
-    # sort redirects, moving catch all to the end and bypass to the start, added_redirects is already sorted
+    # apply rule ordering: bypass rules first (index 0+), then profile rules, then catch-all last
+    # added_redirects is already sorted: [bypass rules] + [profile rules] + [catch-all rule]
     e_uci.save('firewall')
     index = 0
     for redirect in added_redirects:
