@@ -9,6 +9,7 @@ from euci import EUci
 from requests import HTTPError
 from requests.auth import HTTPBasicAuth
 import hashlib
+import ipaddress
 import requests
 import nethsec.utils
 import nethsec.objects
@@ -31,6 +32,21 @@ CONST_PORT_START = 5300
 
 # this wrapper is more hideous than it looks. UCI config gets read ONLY ONCE WHEN INSTANTIATED, beware of that.
 e_uci = EUci()
+
+def __expand_ip_range(entry: str) -> list:
+    """Expand a dash-separated IP range (e.g. '10.0.0.1-10.0.0.5') into individual IP strings.
+    Single IPs and CIDR networks are returned as-is in a one-element list."""
+    logging.debug(f'Expanding IP entry {entry!r}')
+    if '-' in entry:
+        parts = entry.split('-', 1)
+        try:
+            start = ipaddress.ip_address(parts[0].strip())
+            end = ipaddress.ip_address(parts[1].strip())
+            return [str(ipaddress.ip_address(ip)) for ip in range(int(start), int(end) + 1)]
+        except ValueError:
+            logging.warning(f'Invalid IP range entry: {entry!r}, keeping as-is')
+    return [entry]
+
 
 def __refresh_uci():
     global e_uci
@@ -335,7 +351,8 @@ def __sync_pro_plus_profiles():
             if object_id is None:
                 logging.warning(f'Object {session["username"]} not found, skipping session sync.')
                 continue
-            entries += (nethsec.objects.get_object_ips(e_uci, object_id))
+            for ip in nethsec.objects.get_object_ips(e_uci, object_id):
+                entries.extend(__expand_ip_range(ip))
         else:
             # syncing a user login
             entries.append(session['ip'])
