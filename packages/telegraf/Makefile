@@ -51,6 +51,7 @@ GO_PKG_TAGS:= \
 	inputs.system \
 	inputs.tail \
 	outputs.influxdb \
+	outputs.sql \
 	parsers.grok \
 	parsers.json_v2
 
