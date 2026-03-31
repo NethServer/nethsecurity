@@ -1,0 +1,308 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-3.0-only
+#
+
+import json
+import os
+import platform
+import re
+import signal
+import sys
+import time
+import urllib.parse
+import urllib.request
+import urllib.error
+from datetime import datetime
+
+#-------------------------------- CONFIG --------------------------------#
+
+MESSAGES_FILE = "/var/log/messages"
+OFFSET_FILE = "/var/run/ns-clm/last_offset"
+BATCH_SIZE_THRESHOLD = 16384  # 16 KB
+POLL_INTERVAL = 10  # seconds
+AGENT_VERSION = "1"
+
+try:
+    UUID = os.environ["CLM_UUID"]
+    HOSTNAME = os.environ.get("CLM_HOSTNAME", "nethsecurity")
+    ADDRESS = os.environ.get("CLM_ADDRESS", "https://nar.nethesis.it")
+    TENANT = os.environ.get("CLM_TENANT", "")
+    MACADDR = os.environ.get("CLM_MACADDR", "00:00:00:00:00:00")
+    DEBUG = os.environ.get("CLM_DEBUG", "0") == "1"
+except Exception as exc:
+    print(f"Error reading configuration: {exc}", file=sys.stderr)
+    sys.exit(1)
+
+#------------------------------- GLOBALS --------------------------------#
+
+running = True
+
+#--------------------------------- CODE ---------------------------------#
+
+# Syslog severity name to numeric mapping
+SEVERITY_NAMES = {
+    "emerg": 0,
+    "alert": 1,
+    "crit": 2,
+    "err": 3,
+    "warning": 4,
+    "notice": 5,
+    "info": 6,
+    "debug": 7,
+}
+
+# Numeric severity to CLM LOGTYPE mapping (same as reference)
+SEVERITY_LOGTYPE = {
+    0: "Emergency",
+    1: "Warning",
+    2: "Error",
+    3: "Error",
+    4: "Warning",
+    5: "Information",
+    6: "Information",
+    7: "Debug",
+}
+
+# Regex for standard syslog format: "Mon DD HH:MM:SS hostname facility.severity program[pid]: message"
+# Also handles format without facility.severity prefix
+SYSLOG_RE = re.compile(
+    r"^(?P<month>\w{3})\s+(?P<day>\d{1,2})\s+(?P<time>\d{2}:\d{2}:\d{2})\s+"
+    r"(?P<hostname>\S+)\s+"
+    r"(?:(?P<facility>\w+)\.(?P<severity>\w+)\s+)?"
+    r"(?P<program>[^\[:]+)(?:\[(?P<pid>\d+)\])?:\s+"
+    r"(?P<message>.*)$"
+)
+
+
+def signal_handler(signum, frame):
+    global running
+    running = False
+
+
+def dbg(msg: str):
+    if DEBUG:
+        print(f"[DEBUG] {msg}", file=sys.stderr)
+
+
+def post_form(path: str, payload: dict[str, str], timeout: int = 30) -> str:
+    """POST form data and return the response body as text."""
+    data = urllib.parse.urlencode(payload).encode("utf-8")
+    req = urllib.request.Request(
+        ADDRESS + path,
+        data=data,
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return resp.read().decode("utf-8", errors="replace").strip()
+
+
+def register_host():
+    """Register the local appliance against the CLM endpoint."""
+    dbg(f"Registering host {HOSTNAME} with UUID {UUID} to tenant '{TENANT}' with MAC {MACADDR}")
+    response = post_form(
+        "/adm/api/noauth_lmcheck/",
+        {
+            "LMCHECK": "1",
+            "GUID": UUID,
+            "SITE": TENANT,
+            "MACHINE": HOSTNAME,
+            "MACADDR": MACADDR,
+        },
+    )
+
+    if response == "OK":
+        dbg("Registration accepted by CLM")
+        return
+
+    if response == "KO":
+        raise RuntimeError("This server is not authorized")
+
+    if response == "NOLICENSEAVAIBLE":
+        raise RuntimeError(f"No license available for tenant '{TENANT}'")
+
+    raise RuntimeError(f"Unexpected registration response: {response}")
+
+
+def send_start_event():
+    """Send the lmagent-style startup notification."""
+    log_entry = {
+        "UUID": UUID,
+        "PC": HOSTNAME,
+        "DTA": datetime.now().strftime("%Y-%m-%d"),
+        "TIME": datetime.now().strftime("%H:%M:%S"),
+        "MSG": f"Start Version {AGENT_VERSION} {platform.system()}",
+        "AGENT_VERSION": AGENT_VERSION,
+        "SOURCE": "ns-clm-forwarder",
+        "LOGTYPE": "info",
+        "SITE": TENANT,
+    }
+    dbg("Sending startup event to CLM")
+    send_logs_list([log_entry])
+
+
+def send_logs_list(logs_list: list):
+    """Send log batch to CLM server with retries."""
+    dbg(f"Sending batch of {len(logs_list)} log entries to {ADDRESS}")
+    data = json.dumps(logs_list).encode("utf-8")
+    req = urllib.request.Request(
+        ADDRESS + "/adm/syslog/noauth_put_json/",
+        data=data,
+        method="POST",
+    )
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                dbg(f"Batch sent successfully (HTTP {resp.status})")
+                return
+        except Exception as exc:
+            if attempt < 2:
+                time.sleep(0.5 * (2 ** attempt))
+            else:
+                print(f"Error sending logs: {exc}", file=sys.stderr)
+
+
+def read_offset() -> int:
+    """Read the last known file offset."""
+    try:
+        if os.path.exists(OFFSET_FILE) and os.path.getsize(OFFSET_FILE) > 0:
+            with open(OFFSET_FILE, "r") as f:
+                return int(f.read().strip())
+    except (ValueError, OSError):
+        pass
+    return 0
+
+
+def write_offset(offset: int):
+    """Persist the current file offset."""
+    try:
+        with open(OFFSET_FILE, "w") as f:
+            f.write(str(offset))
+    except OSError as exc:
+        print(f"Error writing offset file: {exc}", file=sys.stderr)
+
+
+def parse_syslog_line(line: str) -> dict | None:
+    """Parse a syslog line and return a CLM-formatted dict, or None if filtered out."""
+    m = SYSLOG_RE.match(line)
+    if not m:
+        return None
+
+    severity_name = (m.group("severity") or "info").lower()
+    severity_num = SEVERITY_NAMES.get(severity_name, 6)
+
+    # Build date from syslog timestamp (syslog doesn't include year, use current)
+    month_str = m.group("month")
+    day_str = m.group("day")
+    time_str = m.group("time")
+    now = datetime.now()
+    try:
+        log_date = datetime.strptime(f"{now.year} {month_str} {day_str}", "%Y %b %d")
+        # Handle December→January year boundary
+        if log_date.month > now.month:
+            log_date = log_date.replace(year=now.year - 1)
+        date_str = log_date.strftime("%Y%m%d")
+    except ValueError:
+        date_str = now.strftime("%Y%m%d")
+
+    program = m.group("program").strip()
+    message = m.group("message")
+    pid = m.group("pid")
+    hostname = m.group("hostname")
+
+    source_display = f"{program}[{pid}]" if pid else program
+    msg_display = f"[{hostname}:{source_display}]: {message}"
+
+    return {
+        "UUID": UUID,
+        "PC": HOSTNAME,
+        "DTA": date_str,
+        "TIME": time_str,
+        "MSG": msg_display,
+        "SOURCE": program,
+        "LOGTYPE": SEVERITY_LOGTYPE.get(severity_num, "Information"),
+        "SITE": TENANT,
+    }
+
+
+def tail_messages():
+    """Main loop: tail /var/log/messages and forward new lines to CLM."""
+    offset = read_offset()
+    dbg(f"Starting at offset {offset}")
+
+    while running:
+        try:
+            # Check if file exists
+            if not os.path.exists(MESSAGES_FILE):
+                time.sleep(POLL_INTERVAL)
+                continue
+
+            file_size = os.path.getsize(MESSAGES_FILE)
+
+            # Detect log rotation: file is smaller than our offset
+            if file_size < offset:
+                dbg(f"Log rotation detected (file_size={file_size} < offset={offset}), resetting offset")
+                offset = 0
+
+            # No new data
+            if file_size == offset:
+                time.sleep(POLL_INTERVAL)
+                continue
+
+            dbg(f"Reading from offset {offset} to {file_size} ({file_size - offset} bytes)")
+            logs_list = []
+            batch_bytes = 0
+
+            with open(MESSAGES_FILE, "r", errors="replace") as f:
+                f.seek(offset)
+                for line in f:
+                    line = line.rstrip("\n")
+                    if not line:
+                        continue
+
+                    log_entry = parse_syslog_line(line)
+                    if log_entry:
+                        logs_list.append(log_entry)
+                        batch_bytes += len(json.dumps(log_entry))
+                    else:
+                        dbg(f"Line filtered/skipped: {line[:80]}")
+
+                    # Flush batch when threshold reached
+                    if batch_bytes >= BATCH_SIZE_THRESHOLD:
+                        dbg(f"Batch threshold reached ({batch_bytes} bytes), flushing")
+                        send_logs_list(logs_list)
+                        logs_list.clear()
+                        batch_bytes = 0
+
+                new_offset = f.tell()
+
+            # Send remaining logs
+            if len(logs_list) > 0:
+                send_logs_list(logs_list)
+                logs_list.clear()
+
+            offset = new_offset
+            dbg(f"Persisting offset {offset}")
+            write_offset(offset)
+
+        except Exception as exc:
+            print(f"Error during loop: {exc}", file=sys.stderr)
+
+        time.sleep(POLL_INTERVAL)
+
+    # Graceful shutdown: persist offset
+    write_offset(offset)
+
+
+if __name__ == "__main__":
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+    try:
+        register_host()
+        send_start_event()
+    except Exception as exc:
+        print(f"Startup failed: {exc}", file=sys.stderr)
+        sys.exit(1)
+    tail_messages()
