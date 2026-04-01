@@ -45,9 +45,9 @@ function log_error
 
 function add_cron_expiration
 {
-    # Add cron job to check expiration every minute
+    # Add cron job to check expiration every 10 minutes
     if ! grep -q "/usr/sbin/don expire" "$crontab_file" 2>/dev/null; then
-        echo "*/5 * * * * /usr/sbin/don expire" >> "$crontab_file"
+        echo "*/10 * * * * /usr/sbin/don expire" >> "$crontab_file"
         [ -x /etc/init.d/cron ] && /etc/init.d/cron restart
         log_message "Expiration cron job added"
     fi
