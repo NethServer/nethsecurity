@@ -35,7 +35,7 @@ done
 [ -n "$(uci -q changes "${config}")" ] && uci -q commit "${config}"
 
 custom_feed="/etc/banip/banip.custom.feeds"
-if grep -q '"rule_4"' "${custom_feed}" 2>/dev/null; then
+if grep -q '"rule_4"' "${custom_feed}"; then
 	mv -f "${custom_feed}" "${custom_feed}.backup.$(date "+%Y%m%d%H%M%S")"
 	: > "${custom_feed}"
 fi
