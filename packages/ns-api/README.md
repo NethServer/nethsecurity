@@ -3029,6 +3029,8 @@ Response example:
 }
 ```
 
+### stop
+
 Stop a support session:
 ```
 api-cli ns.don stop
