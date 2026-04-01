@@ -51,7 +51,7 @@ define Package/banip/install
 	$(INSTALL_BIN) ./files/banip.init $(1)/etc/init.d/banip
 
 	$(INSTALL_DIR) $(1)/usr/lib
-	$(INSTALL_BIN) ./files/banip-functions.sh $(1)/usr/lib
+	$(INSTALL_DATA) ./files/banip-functions.sh $(1)/usr/lib
 
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/banip.conf $(1)/etc/config/banip
