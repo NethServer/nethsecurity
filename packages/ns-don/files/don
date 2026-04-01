@@ -17,8 +17,8 @@ rsa_key="$base_dir/rsa_key"
 ecdsa_key="$base_dir/ecdsa_key"
 socket="$base_dir/management"
 credentials="$base_dir/credentials"
-session_start="$base_dir/session_start"
-session_extended="$base_dir/session_extended"
+session_expiry="$base_dir/session_expiry"
+session_extended_flag="$base_dir/session_extended_flag"
 cleanup_lock="$base_dir/.cleanup_lock"
 crontab_file="/etc/crontabs/root"
 user="nethsupport"
@@ -45,9 +45,9 @@ function log_error
 
 function add_cron_expiration
 {
-    # Add cron job to check expiration every hour
+    # Add cron job to check expiration every 10 minutes
     if ! grep -q "/usr/sbin/don expire" "$crontab_file" 2>/dev/null; then
-        echo "0 * * * * sleep \$(( RANDOM % 60 )); /usr/sbin/don expire" >> "$crontab_file"
+        echo "*/10 * * * * /usr/sbin/don expire" >> "$crontab_file"
         [ -x /etc/init.d/cron ] && /etc/init.d/cron restart
         log_message "Expiration cron job added"
     fi
@@ -92,8 +92,8 @@ function cleanup
 function get_session_info
 {
     local extra_status="$1"
-    # Both session_start and credentials must be present for a valid session
-    if [ ! -f "$session_start" ] || [ ! -f "$credentials" ]; then
+    # Both session_expiry and credentials must be present for a valid session
+    if [ ! -f "$session_expiry" ] || [ ! -f "$credentials" ]; then
         if [ "$json_output" == 1 ]; then
             echo "null"
         fi
@@ -105,44 +105,27 @@ function get_session_info
     local server_id="${creds[0]}"
     local session_id="${creds[1]}"
     
-    local session_start_time
-    session_start_time=$(cat "$session_start")
-    local session_expiry
-
-    # Use extended expiry if available, otherwise use start + 24 hours
-    if [ -f "$session_extended" ]; then
-        local extension_duration
-        extension_duration=$(cat "$session_extended")
-        session_expiry=$((session_start_time + extension_duration))
-    else
-        session_expiry=$((session_start_time + 86400))
-    fi
-
-    local current_time
-    current_time=$(date +%s)
-    local time_remaining=$((session_expiry - current_time))
+    local expiry_time
+    expiry_time=$(cat "$session_expiry")
 
     if [ "$json_output" == 1 ]; then
         local status_field=""
         if [ "$extra_status" == "already_extended" ]; then
             status_field=", \"status\": \"$extra_status\""
         fi
-        if [ "$time_remaining" -gt 0 ]; then
-            echo "{\"server_id\": \"$server_id\", \"session_id\": \"$session_id\", \"expires_in_seconds\": $time_remaining$status_field}"
-        else
-            echo "{\"server_id\": \"$server_id\", \"session_id\": \"$session_id\", \"status\": \"expired\"}"
-        fi
-    else
-        local hours_remaining=$((time_remaining / 3600))
-        local minutes_remaining=$(( (time_remaining % 3600) / 60 ))
-        echo "Server ID:$(printf '\t')$server_id"
-        echo "Session ID:$(printf '\t')$session_id"
-        if [ "$time_remaining" -gt 0 ]; then
-            echo "Session expires in: ${hours_remaining}h ${minutes_remaining}m"
-        else
-            echo "Session EXPIRED"
-        fi
-    fi
+        echo "{\"server_id\": \"$server_id\", \"session_id\": \"$session_id\", \"expiry_time\": $expiry_time$status_field}"
+     else
+         local current_time
+         current_time=$(date +%s)
+         local time_remaining=$((expiry_time - current_time))
+         local hours_remaining=$((time_remaining / 3600))
+         local minutes_remaining=$(( (time_remaining % 3600) / 60 ))
+         local formatted_expiry
+         formatted_expiry=$(date -d "@$expiry_time" -u +"%Y-%m-%d %H:%M:%S UTC" 2>/dev/null || date -u -f "%s" "$expiry_time" +"%Y-%m-%d %H:%M:%S UTC" 2>/dev/null)
+         echo "Server ID:$(printf '\t')$server_id"
+         echo "Session ID:$(printf '\t')$session_id"
+         echo "Expires in: ${hours_remaining}h ${minutes_remaining}m ($formatted_expiry)"
+      fi
 }
 
 # Make sure base system dir exists
@@ -267,10 +250,10 @@ EOF
     # commit rpcd changes
     uci commit rpcd
 
-    # Save session start time
-    date +%s > "$session_start"
-    # Mark as not extended initially
-    rm -f $session_extended
+    # Save session expiry time (absolute UTC timestamp: now + 24 hours)
+    echo "$(($(date +%s) + 86400))" > "$session_expiry"
+    # Remove one-time extension flag
+    rm -f "$session_extended_flag"
 
     # Add expiration cron job
     add_cron_expiration
@@ -296,42 +279,25 @@ status)
     fi
 ;;
 expire)
-    # Check if session has expired - requires both files to be present
-    if [ ! -f "$session_start" ] || [ ! -f "$credentials" ]; then
-        if [ "$json_output" == 1 ]; then
-            echo "{\"status\": \"no_session\"}"
-        else
-            echo "No session running"
-        fi
+    # Check if session has expired - silently clean up if expired
+    if [ ! -f "$session_expiry" ] || [ ! -f "$credentials" ]; then
+        # No session running, nothing to do
         exit 0
     fi
 
-    session_start_time=$(cat "$session_start")
-    # Use extended expiry if available, otherwise use start + 24 hours
-    if [ -f "$session_extended" ]; then
-        extension_duration=$(cat "$session_extended")
-        session_expiry=$((session_start_time + extension_duration))
-    else
-        session_expiry=$((session_start_time + 86400))
-    fi
-
+    expiry_time=$(cat "$session_expiry")
     current_time=$(date +%s)
-    time_remaining=$((session_expiry - current_time))
+    time_remaining=$((expiry_time - current_time))
 
     if [ $time_remaining -le 0 ]; then
-        # Session has expired - STOP IT NOW
-        if [ "$json_output" == 1 ]; then
-            echo "{\"status\": \"expired\", \"action\": \"stopping\"}"
-        else
-            echo "Session expired - stopping don service"
-        fi
+        # Session has expired - silently stop it (replicates don stop)
         log_error "Remote support session expired - auto-disabling"
         cleanup
     fi
 ;;
 extend)
-    # Extend session by 7 days
-    if [ ! -f "$session_start" ] || [ ! -f "$credentials" ]; then
+    # Extend session by 7 days (one-time only)
+    if [ ! -f "$session_expiry" ] || [ ! -f "$credentials" ]; then
         if [ "$json_output" == 1 ]; then
             echo "{\"status\": \"no_session\"}"
         else
@@ -341,7 +307,7 @@ extend)
     fi
 
     # Only extend once: if already extended, do nothing
-    if [ -f "$session_extended" ]; then
+    if [ -f "$session_extended_flag" ]; then
         if [ "$json_output" != 1 ]; then
             echo "Session already extended"
             echo ""
@@ -350,8 +316,12 @@ extend)
         exit $?
     fi
 
-    # Extend: store 24h + 7 days as total duration relative to session_start
-    echo "$((86400 + 604800))" > "$session_extended"
+    # Extend: read current expiry and add 7 days
+    current_expiry=$(cat "$session_expiry")
+    new_expiry=$((current_expiry + 604800))
+    echo "$new_expiry" > "$session_expiry"
+    # Mark as extended (one-time guard)
+    touch "$session_extended_flag"
 
     # Log the extension
     log_message "Remote support session extended by 7 days"
