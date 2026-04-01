@@ -3024,11 +3024,10 @@ Response example:
 ```json
 {
   "server_id": "Axxxxxxx-5xxx-4xx6-8xx4-481xxxxxxxx0",
-  "session_id": "bff8736a-c593-40ed-af90-10faa01abaf9"
+  "session_id": "bff8736a-c593-40ed-af90-10faa01abaf9",
+  "expiry_time": 1704067200
 }
 ```
-
-### stop
 
 Stop a support session:
 ```
@@ -3054,7 +3053,8 @@ Response example if don is running:
 ```json
 {
   "server_id": "Axxxxxxx-5xxx-4xx6-8xx4-481xxxxxxxx0",
-  "session_id": "bff8736a-c593-40ed-af90-10faa01abaf9"
+  "session_id": "bff8736a-c593-40ed-af90-10faa01abaf9",
+  "expiry_time": 1704067200
 }
 ```
 
