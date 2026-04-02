@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=netifyd
 PKG_VERSION:=5.2.6
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 PKG_MAINTAINER:=Darryl Sokoloski <darryl@egloo.ca>
 PKG_LICENSE:=Unlicensed
 
