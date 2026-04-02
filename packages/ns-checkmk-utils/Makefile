@@ -6,6 +6,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=ns-checkmk-utils
+# renovate: datasource=github-tags depName=nethesis/checkmk-tools
 PKG_VERSION:=0.0.2
 PKG_RELEASE:=1
 
@@ -16,7 +17,6 @@ PKG_LICENSE:=GPL-3.0-only
 
 # Base URL for downloads
 NS_CHECKMK_UTILS_BASE_URL:=https://raw.githubusercontent.com/nethesis/checkmk-tools/v$(PKG_VERSION)/script-check-nsec8/full
-DL_DIR:=$(DL_DIR)/ns-checkmk-utils-$(PKG_VERSION)-$(ARCH)
 
 include $(INCLUDE_DIR)/package.mk
 
