@@ -111,11 +111,12 @@ service_data() {
 start_service() {
 	[ ! -d /var/run/netifyd ] && mkdir -p /var/run/netifyd
 
+	/usr/sbin/ns-netifyd-configure
 	config_load netifyd
 	config_foreach start_netifyd netifyd
-	/etc/init.d/firewall reload >/dev/null
 }
 
 reload_service() {
+	/usr/sbin/ns-netifyd-configure
 	procd_send_signal netifyd
 }

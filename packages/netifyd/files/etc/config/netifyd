@@ -16,3 +16,5 @@ config netifyd
 	# Manual configuration of external interfaces and options
 	#list external_if 'eth1'
 	#list external_if 'ppp0 -N eth2'
+
+config ns_config 'config'

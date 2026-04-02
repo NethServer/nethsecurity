@@ -213,7 +213,8 @@ define Package/netifyd/install
 	$(INSTALL_DATA) ./files/usr/share/netifyd/netify-sink-http-auto.json $(1)/usr/share/netifyd/netify-sink-http-auto.json
 	$(INSTALL_DATA) ./files/usr/share/netifyd/plugins.d/99-netify-proc-core-auto.conf $(1)/usr/share/netifyd/plugins.d/99-netify-proc-core-auto.conf
 	$(INSTALL_DATA) ./files/usr/share/netifyd/plugins.d/99-netify-sink-http-auto.conf $(1)/usr/share/netifyd/plugins.d/99-netify-sink-http-auto.conf
-	$(INSTALL_DATA) ./files/usr/share/nftables.d/table-pre/10-netifyd-nfqueue.nft $(1)/usr/share/nftables.d/table-pre/10-netifyd-nfqueue.nft
+	# nethesis additional files
+	$(INSTALL_BIN) ./files/usr/sbin/ns-netifyd-configure.py $(1)/usr/sbin/ns-netifyd-configure
 	# netify-plm
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/libnetify-plm.so.1.0.0 $(1)/usr/lib/libnetify-plm.so.1.0.0
 	$(LN) /usr/lib/libnetify-plm.so.1.0.0 $(1)/usr/lib/libnetify-plm.so
