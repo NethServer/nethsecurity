@@ -1,7 +1,7 @@
 {
     "aggregator": 3,
     "batched_rows": 0,
-    "log_interval": 15,
+    "log_interval": 60,
     "compressor": "none",
     "format": "json",
     "nested_mode": false,
