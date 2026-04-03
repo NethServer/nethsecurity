@@ -9,6 +9,7 @@ from euci import EUci
 from requests import HTTPError
 from requests.auth import HTTPBasicAuth
 import hashlib
+import ipaddress
 import requests
 import nethsec.utils
 import nethsec.objects
@@ -31,6 +32,21 @@ CONST_PORT_START = 5300
 
 # this wrapper is more hideous than it looks. UCI config gets read ONLY ONCE WHEN INSTANTIATED, beware of that.
 e_uci = EUci()
+
+def __expand_ip_range(entry: str) -> list:
+    """Expand a dash-separated IP range (e.g. '10.0.0.1-10.0.0.5') into individual IP strings.
+    Single IPs and CIDR networks are returned as-is in a one-element list."""
+    logging.debug(f'Expanding IP entry {entry!r}')
+    if '-' in entry:
+        parts = entry.split('-', 1)
+        try:
+            start = ipaddress.ip_address(parts[0].strip())
+            end = ipaddress.ip_address(parts[1].strip())
+            return [str(ipaddress.ip_address(ip)) for ip in range(int(start), int(end) + 1)]
+        except ValueError:
+            logging.warning(f'Invalid IP range entry: {entry!r}, keeping as-is')
+    return [entry]
+
 
 def __refresh_uci():
     global e_uci
@@ -251,6 +267,28 @@ def __sync_pro_plus_profiles():
     # generate bypass firewall set
     __add_bypass_ipset()
     added_ip_sets = ['ns_flashstart_bypass']
+    
+    # create explicit bypass ACCEPT rules for each zone (highest priority)
+    # these ensure bypass IPs are never intercepted by profile rules
+    bypass_redirects = []
+    for zone in e_uci.get('flashstart', 'global', 'zones', default=[], list=True, dtype=str):
+        bypass_redirect_id = f'ns_flashstart_bypass_{zone}'
+        if e_uci.get('firewall', bypass_redirect_id, default=None) is None:
+            logging.debug(f'Creating bypass redirect {bypass_redirect_id}')
+            e_uci.set('firewall', bypass_redirect_id, 'redirect')
+            e_uci.set('firewall', bypass_redirect_id, 'ns_flashstart', True)
+            e_uci.set('firewall', bypass_redirect_id, 'ns_tag', ['automated'])
+        e_uci.set('firewall', bypass_redirect_id, 'name', f'Flashstart-bypass-DNS-from-{zone}')
+        e_uci.set('firewall', bypass_redirect_id, 'src', zone)
+        e_uci.set('firewall', bypass_redirect_id, 'src_dport', 53)
+        e_uci.set('firewall', bypass_redirect_id, 'proto', "tcp udp")
+        e_uci.set('firewall', bypass_redirect_id, 'target', 'ACCEPT')
+        e_uci.set('firewall', bypass_redirect_id, 'ipset', f'flashstart-bypass')
+        bypass_redirects.append(bypass_redirect_id)
+    
+    # prepend all bypass redirects so they have the lowest rule indices (highest priority)
+    added_redirects = bypass_redirects + added_redirects
+    
     # sort the profiles by catch-all, so that the catch-all profile is always the last one
     dhcp_entries = sorted(config['dhcp'], key=lambda entry: entry['catch-all'])
     for profile in dhcp_entries:
@@ -293,7 +331,8 @@ def __sync_pro_plus_profiles():
             added_redirects.append(redirect_id)
         starting_port += 1
 
-    # sort redirects, moving catch all to the end and bypass to the start, added_redirects is already sorted
+    # apply rule ordering: bypass rules first (index 0+), then profile rules, then catch-all last
+    # added_redirects is already sorted: [bypass rules] + [profile rules] + [catch-all rule]
     e_uci.save('firewall')
     index = 0
     for redirect in added_redirects:
@@ -312,7 +351,8 @@ def __sync_pro_plus_profiles():
             if object_id is None:
                 logging.warning(f'Object {session["username"]} not found, skipping session sync.')
                 continue
-            entries += (nethsec.objects.get_object_ips(e_uci, object_id))
+            for ip in nethsec.objects.get_object_ips(e_uci, object_id):
+                entries.extend(__expand_ip_range(ip))
         else:
             # syncing a user login
             entries.append(session['ip'])
