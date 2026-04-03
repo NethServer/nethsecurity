@@ -1,20 +1,29 @@
 {
     "db_path": "${path_state_persistent}/db",
-    "purge_in_days": 30,
     "channels": {
         "default": {
             "enable": true,
             "db_name": "stats.db",
             "data_source": "aggregator",
-            "purge_in_days": 14,
+            "purge_in_days": 2,
             "tables": [
                 {
                     "name": "stats",
                     "columns": [
                         {
+                            "name": "application_category_id",
+                            "mapped": "application_category",
+                            "type": "INTEGER"
+                        },
+                        {
                             "name": "application_id",
                             "mapped": "detected_application",
                             "type": "INTEGER"
+                        },
+                        {
+                            "name": "application_name",
+                            "mapped": "detected_application_name",
+                            "type": "TEXT"
                         },
                         {
                             "name": "protocol_id",
@@ -22,55 +31,24 @@
                             "type": "INTEGER"
                         },
                         {
-                            "name": "application_category_id",
-                            "mapped": "application_category",
+                            "name": "protocol_name",
+                            "mapped": "detected_protocol_name",
+                            "type": "TEXT"
+                        },
+                        {
+                          "name": "internal",
+                          "mapped": "internal",
+                          "type": "TEXT"
+                        },
+                        {
+                            "name": "ip_version",
+                            "mapped": "ip_version",
                             "type": "INTEGER"
                         },
                         {
-                            "name": "protocol_category_id",
-                            "mapped": "protocol_category",
-                            "type": "INTEGER"
-                        },
-                        {
-                            "name": "overlay_tags",
-                            "mapped": "tags",
-                            "type": "TEXT"
-                        },
-                        {
-                            "name": "tag",
-                            "mapped": "tags",
-                            "split": 0,
-                            "type": "TEXT"
-                        },
-                        {
-                            "name": "tag_group",
-                            "mapped": "tags",
-                            "split": 1,
-                            "type": "TEXT"
-                        },
-                        {
-                            "name": "download_bytes",
-                            "mapped": "other_bytes",
-                            "type": "INTEGER",
-                            "default": 0
-                        },
-                        {
-                            "name": "download_packets",
-                            "mapped": "other_packets",
-                            "type": "INTEGER",
-                            "default": 0
-                        },
-                        {
-                            "name": "upload_bytes",
+                            "name": "local_bytes",
                             "mapped": "local_bytes",
-                            "type": "INTEGER",
-                            "default": 0
-                        },
-                        {
-                            "name": "upload_packets",
-                            "mapped": "local_packets",
-                            "type": "INTEGER",
-                            "default": 0
+                            "type": "INTEGER"
                         },
                         {
                             "name": "local_ip",
@@ -78,9 +56,34 @@
                             "type": "TEXT"
                         },
                         {
-                            "name": "local_mac",
-                            "mapped": "local_mac",
+                            "name": "local_origin",
+                            "mapped": "local_origin",
                             "type": "TEXT"
+                        },
+                        {
+                            "name": "other_bytes",
+                            "mapped": "other_bytes",
+                            "type": "INTEGER"
+                        },
+                        {
+                            "name": "other_ip",
+                            "mapped": "other_ip",
+                            "type": "TEXT"
+                        },
+                        {
+                            "name": "other_port",
+                            "mapped": "other_port",
+                            "type": "INTEGER"
+                        },
+                        {
+                            "name": "other_type",
+                            "mapped": "other_type",
+                            "type": "TEXT"
+                        },
+                        {
+                            "name": "protocol_category_id",
+                            "mapped": "protocol_category",
+                            "type": "INTEGER"
                         }
                     ]
                 }
