@@ -37,26 +37,19 @@ credentials under `/etc/ns-api-server/<username>/`:
 | `status` | `1` = 2FA active, `0` = 2FA disabled |
 | `codes` | One-time recovery codes (newline-separated) |
 
-### Disable 2FA via API
+### Disable 2FA via the web interface
 
-If the administrator still knows their password they can disable 2FA from an HTTPS call
-(e.g. from another machine or from the firewall itself):
+If the administrator can still log in to the web interface:
 
-```shell
-# 1. Authenticate and get a JWT token (OTP not required at this step)
-TOKEN=$(curl -s -k -H 'Content-Type: application/json' \
-  https://localhost/api/login \
-  --data '{"username": "root", "password": "YOUR_PASSWORD"}' \
-  | jq -r .token)
+1. Click the user icon in the top-right corner and select **Account settings**.
+2. Scroll to the **Two-factor authentication** section.
+3. Click **Revoke 2FA**.
+4. A confirmation dialog appears warning that the security level will be reduced.
+   Click **Revoke 2FA** to confirm.
+5. If prompted, enter your current password to authorize the change.
 
-# 2. Delete the 2FA secret
-curl -s -k -X DELETE \
-  -H "Authorization: Bearer $TOKEN" \
-  https://localhost/api/2fa
-```
-
-A `200` response confirms that 2FA has been removed.  The next login will no longer
-require an OTP.
+After the confirmation the status badge changes to disabled and the next login will no
+longer require an OTP.
 
 ### Disable 2FA from the command line (emergency recovery)
 
