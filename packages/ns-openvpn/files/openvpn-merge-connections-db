@@ -9,8 +9,8 @@
 # Called on storage mount (via add-storage script on /usr/sbin/add-storage)
 
 import os
-import shutil
 import sqlite3
+import subprocess
 import syslog
 
 STORAGE_BASE = '/mnt/data'
@@ -88,7 +88,7 @@ for instance in os.listdir(var_openvpn):
         # db on storage not existing, copy /var DB to storage and clear /var
         log(f"[OpenVPN RW merge script] Instance {instance}: storage DB not found, copying from /var...")
         os.makedirs(storage_dir, exist_ok=True)
-        shutil.copy2(var_db, storage_db)
+        subprocess.run(['cp', '-a', var_db, storage_db], check=True)
         try:
             src = sqlite3.connect(var_db)
             src.execute("DELETE FROM connections")

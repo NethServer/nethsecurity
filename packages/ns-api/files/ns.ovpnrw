@@ -17,16 +17,12 @@ import ipaddress
 import subprocess
 from euci import EUci
 from nethsec import utils, ovpn, firewall, users, objects
-import datetime as _datetime
 from datetime import datetime, timezone
 import tarfile
 import io
 import sqlite3
-import time as _time
-import datetime
 import csv
 from zoneinfo import ZoneInfo
-from datetime import datetime
 
 ## Utils
 
@@ -232,7 +228,7 @@ def get_user_extra_config(u, user_id):
         return {}
 
 def archive_connections_db(instance):
-    timestamp = _datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
     var_db = f'/var/openvpn/{instance}/connections.db'
     storage_db = f'/mnt/data/openvpn/{instance}/connections.db'
     # archive /var DB
@@ -1069,7 +1065,7 @@ def connection_history_csv(ovpninstance, timezone):
     # Return the path of the CSV file
     return {"csv_path": csv_file_path}
 
-def connection_history(ovpninstance, q='', time_range='', accounts=None, page=1, per_page=10, sort_by='startTime', desc=True):
+def connection_history(ovpninstance, q='', start_time=0, accounts=None, page=1, per_page=10, sort_by='startTime', desc=True):
     database_path = get_connections_db_path(ovpninstance)
     
     # map frontend field names to database column names
@@ -1109,30 +1105,9 @@ def connection_history(ovpninstance, q='', time_range='', accounts=None, page=1,
         params = []
 
         # time_range filter
-        now = int(_time.time())
-        if time_range == 'today':
-            start_of_day = int(_datetime.datetime.combine(_datetime.date.today(), _datetime.time.min).timestamp())
+        if start_time > 0:
             conditions.append('start_time >= ?')
-            params.append(start_of_day)
-        elif time_range == 'last_week':
-            conditions.append('start_time >= ?')
-            params.append(now - 7 * 86400)
-        elif time_range == 'last_month':
-            today = _datetime.date.today()
-            first_of_last_month = _datetime.date(today.year if today.month > 1 else today.year - 1, (today.month - 1) if today.month > 1 else 12, 1)
-            conditions.append('start_time >= ?')
-            params.append(int(_datetime.datetime.combine(first_of_last_month, _datetime.time.min).timestamp()))
-        elif time_range == 'last_3_months':
-            today = _datetime.date.today()
-            month = today.month - 3
-            year = today.year
-            if month <= 0:
-                month += 12
-                year -= 1
-            first_of_3_months_ago = _datetime.date(year, month, 1)
-            conditions.append('start_time >= ?')
-            params.append(int(_datetime.datetime.combine(first_of_3_months_ago, _datetime.time.min).timestamp()))
-        # 'all' or empty: no filter
+            params.append(start_time)
 
         # accounts filter
         if accounts:
@@ -1277,7 +1252,7 @@ if cmd == 'list':
         "download-user-2fa": {"instance": "roadwarrior1", "username": "myuser"},
         "download_all_user_configurations": {"instance": "roadwarrior1"},
         "connection-history-csv": {"instance": "roadwarrior1", "timezone": "Europe/Rome"},
-        "connection-history": {"instance": "roadwarrior1", "q": "", "time_range": "all", "accounts": [], "page": 1, "per_page": 10, "sort_by": "startTime", "desc": True},
+        "connection-history": {"instance": "roadwarrior1", "q": "", "start_time": 123456123, "accounts": [], "page": 1, "per_page": 10, "sort_by": "startTime", "desc": True},
         "renew-server-certificate": {"instance": "roadwarrior1"},
         "regenerate-all-certificates": {"instance": "roadwarrior1"}
         }))
@@ -1338,7 +1313,7 @@ else:
         ret = connection_history(
             args['instance'],
             q=args.get('q', ''),
-            time_range=args.get('time_range', ''),
+            start_time=args.get('start_time', 0),
             accounts=args.get('accounts', []),
             page=int(args.get('page', 1)),
             per_page=int(args.get('per_page', 10)),

@@ -260,12 +260,23 @@ def dump_dpi_stats():
                 })
     return {"data": ret}
 
+def get_storage_base():
+    try:
+        u = EUci()
+        target = u.get('fstab', 'ns_data', 'target')
+        if target and os.path.isdir(target):
+            return target
+    except:
+        pass
+    return None
+
 def dump_openvpn_connections():
     # Parse openvpn connections.db for the last 20 minutes.
-    # If /mnt/data/openvpn exists, read from there, otherwise use /var/openvpn.
+    # If storage is configured and mounted, read from there, otherwise use /var/openvpn.
     ret = []
-    if os.path.isdir('/mnt/data/openvpn'):
-        pattern = '/mnt/data/openvpn/*/connections.db'
+    storage = get_storage_base()
+    if storage:
+        pattern = os.path.join(storage, 'openvpn', '*', 'connections.db')
     else:
         pattern = '/var/openvpn/*/connections.db'
     for db_file in glob.glob(pattern):
