@@ -8,13 +8,24 @@
 import os
 import sys
 import sqlite3
+from euci import EUci
 
-STORAGE_BASE = '/mnt/data'
 VAR_BASE = '/var'
 
+def get_storage_base():
+    try:
+        u = EUci()
+        target = u.get('fstab', 'ns_data', 'target')
+        if target and os.path.isdir(target):
+            return target
+    except:
+        pass
+    return None
+
 def get_db_path(instance):
-    if os.path.isdir(STORAGE_BASE):
-        return os.path.join(STORAGE_BASE, 'openvpn', instance, 'connections.db')
+    storage = get_storage_base()
+    if storage:
+        return os.path.join(storage, 'openvpn', instance, 'connections.db')
     return os.path.join(VAR_BASE, 'openvpn', instance, 'connections.db')
 
 conn = sqlite3.connect(get_db_path(sys.argv[1]))
@@ -31,7 +42,7 @@ bytes_sent = int(env.get('bytes_sent', '0'))
 # Update connection data
 c.execute("UPDATE connections SET duration=?, bytes_received=?, bytes_sent=? WHERE common_name=? and start_time=(SELECT MAX(start_time) FROM connections WHERE common_name=?)", (duration, bytes_received, bytes_sent, common_name, common_name))
 
-if c.rowcount == 0 and not os.path.isdir(STORAGE_BASE):
+if c.rowcount == 0 and get_storage_base() is None:
     # disconnection of a client whose connection record has been saved on storage that is not available now
     # insert a new full record with all the data on /var
     start_time = int(env.get('time_unix', '0'))

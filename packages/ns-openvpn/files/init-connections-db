@@ -7,8 +7,17 @@
 
 import sqlite3
 import os
+from euci import EUci
 
-STORAGE_BASE = '/mnt/data'
+def get_storage_base():
+    try:
+        u = EUci()
+        target = u.get('fstab', 'ns_data', 'target')
+        if target and os.path.isdir(target):
+            return target
+    except:
+        pass
+    return None
 
 def create_connections_db():
     conn = sqlite3.connect(database_path)
@@ -46,8 +55,9 @@ else:
         print('[NOTICE] Created roadwarrior connections database {}'.format(database_path))
 
 # if storage is available, check that db already exists or create it
-if os.path.isdir(STORAGE_BASE):
-    storage_dir = os.path.join(STORAGE_BASE, 'openvpn', os.environ["INSTANCE"])
+storage = get_storage_base()
+if storage:
+    storage_dir = os.path.join(storage, 'openvpn', os.environ["INSTANCE"])
     os.makedirs(storage_dir, exist_ok=True)
     database_path = os.path.join(storage_dir, 'connections.db')
     if not os.path.isfile(database_path):

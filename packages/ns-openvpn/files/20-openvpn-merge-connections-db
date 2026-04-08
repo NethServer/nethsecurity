@@ -8,15 +8,28 @@
 
 [ "$ACTION" = "add" ] || exit 0
 [ "$DEVTYPE" = "partition" ] || exit 0
-[ -x /usr/libexec/ns-openvpn/openvpn-merge-connections-db ] || exit 0
 
-# Wait for /mnt/data to be mounted (up to 10 seconds)
+logger -t openvpn-merge-connections-db "Storage device added: $DEVNAME, checking for OpenVPN connections database merge"
+
+# Check if a storage target is configured in UCI
+storage_target=$(uci -q get fstab.ns_data.target)
+if [ -z "$storage_target" ]; then
+    logger -t openvpn-merge-connections-db "No storage configured in fstab.ns_data, skipping merge"
+    exit 0
+fi
+
+# Wait for the configured storage target to be mounted (up to 10 seconds)
 i=0
-while [ $i -lt 10 ] && ! grep -q ' /mnt/data ' /proc/mounts; do
+while [ $i -lt 10 ] && ! awk -v target="${storage_target}" '$2 == target {found=1} END {exit !found}' /proc/mounts; do
     sleep 1
     i=$((i + 1))
 done
 
-grep -q ' /mnt/data ' /proc/mounts || exit 0
+# If the storage target is still not mounted, log a warning and exit. Merge will not be performed
+if ! awk -v target="${storage_target}" '$2 == target {found=1} END {exit !found}' /proc/mounts; then
+    logger -t openvpn-merge-connections-db "Storage target ${storage_target} not mounted after 30 seconds, skipping merge"
+    exit 0
+fi
 
+logger -t openvpn-merge-connections-db "Starting merge of OpenVPN connections database from /var to ${storage_target}"
 /usr/libexec/ns-openvpn/openvpn-merge-connections-db
