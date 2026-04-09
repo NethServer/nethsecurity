@@ -10,8 +10,8 @@
 #
 
 # temporary fix for old cron job, remove if exists
-if grep -q '/usr/bin/dpi-data-update' /etc/crontabs/root; then
-  grep -v '/usr/bin/dpi-data-update' /etc/crontabs/root | sort | uniq | crontab -
+if grep -q '/etc/init.d/dpi-data-update' /etc/crontabs/root; then
+  grep -v '/etc/init.d/dpi-data-update' /etc/crontabs/root | sort | uniq | crontab -
 fi
 
 if ! grep -q '/etc/init.d/dpi-data-update' /etc/crontabs/root; then
