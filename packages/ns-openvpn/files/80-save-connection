@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 #
-# Copyright (C) 2022 Nethesis S.r.l.
+# Copyright (C) 2026 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
@@ -11,6 +11,24 @@ import sys
 import sqlite3
 from euci import EUci
 from nethsec import users
+
+VAR_BASE = '/var'
+
+def get_storage_base():
+    try:
+        u = EUci()
+        target = u.get('fstab', 'ns_data', 'target')
+        if target and os.path.isdir(target):
+            return target
+    except:
+        pass
+    return None
+
+def get_db_path(instance):
+    storage = get_storage_base()
+    if storage:
+        return os.path.join(storage, 'openvpn', instance, 'connections.db')
+    return os.path.join(VAR_BASE, 'openvpn', instance, 'connections.db')
 
 # The certificate of a migrated user is not present inside the index.txt
 def is_migrated(instance, user):
@@ -48,7 +66,7 @@ except:
     pass
 
 try:
-    conn = sqlite3.connect(f'/var/openvpn/{instance}/connections.db')
+    conn = sqlite3.connect(get_db_path(instance))
     c = conn.cursor()
 
     common_name = os.environ.get('common_name')
