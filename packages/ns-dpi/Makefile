@@ -47,7 +47,7 @@ endef
 define Package/ns-dpi/prerm
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
-	crontab -l | grep -v "/usr/sbin/dpi-update" | sort | uniq | crontab -
+	crontab -l | grep -v "/usr/sbin/dpi-update" | grep -v "/etc/init.d/dpi-license-update" | grep -v "/etc/init.d/dpi-data-update" | sort | uniq | crontab -
 fi
 exit 0
 endef
