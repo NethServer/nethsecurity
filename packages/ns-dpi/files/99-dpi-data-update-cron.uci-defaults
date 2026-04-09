@@ -9,6 +9,11 @@
 # DPI Data Update: Add cron job if missing
 #
 
+# temporary fix for old cron job, remove if exists
+if grep -q '/usr/bin/dpi-data-update' /etc/crontabs/root; then
+  grep -v '/usr/bin/dpi-data-update' /etc/crontabs/root | sort | uniq | crontab -
+fi
+
 if ! grep -q '/etc/init.d/dpi-data-update' /etc/crontabs/root; then
   echo '8 4 * * * sleep $(( RANDOM % 1800 )); /etc/init.d/dpi-data-update start' >> /etc/crontabs/root
 fi
