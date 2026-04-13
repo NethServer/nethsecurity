@@ -1,0 +1,12 @@
+{
+    "timeout_connect": 30,
+    "timeout_transfer": 300,
+    "tls_verify": false,
+    "tls_version1": false,
+    "channels": {
+        "default": {
+            "enable": true,
+            "url": "http://127.0.0.1:8081/stats"
+        }
+    }
+}

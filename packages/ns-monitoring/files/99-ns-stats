@@ -1,0 +1,8 @@
+#!/bin/sh
+
+/etc/init.d/ns-flows enable
+/etc/init.d/ns-flows start
+/etc/init.d/ns-stats enable
+/etc/init.d/ns-stats start
+
+exit 0
