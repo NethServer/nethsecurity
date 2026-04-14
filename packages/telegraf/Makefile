@@ -31,16 +31,10 @@ GO_PKG_TAGS:= \
 	inputs.bond \
 	inputs.cpu \
 	inputs.disk \
-	inputs.diskio \
 	inputs.ethtool \
 	inputs.exec \
 	inputs.file \
 	inputs.http_listener_v2 \
-	inputs.iptables \
-	inputs.kernel \
-	inputs.kernel_vmstat \
-	inputs.linux_cpu \
-	inputs.linux_sysctl_fs \
 	inputs.mem \
 	inputs.net \
 	inputs.netstat \
@@ -51,7 +45,6 @@ GO_PKG_TAGS:= \
 	inputs.system \
 	inputs.tail \
 	outputs.influxdb \
-	outputs.sql \
 	parsers.grok \
 	parsers.json_v2
 
