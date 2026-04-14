@@ -22,6 +22,7 @@ import glob
 import socket
 
 AUTHORIZED_KEYS = "/etc/dropbear/authorized_keys"
+DPIREPORT_DB = "/var/run/dpireport/stats.db"
 
 dns_cache = {}
 
@@ -237,27 +238,83 @@ def dump_mwan_events():
     return {"data": ret}
 
 def dump_dpi_stats():
-    # Parse /var/run/dpireport for the last 20 minutes
-    # filename example /var/run/dpireport/2024/08/20/172.25.5.17/15.json
+    # Read the last 20 minutes from the SQLite stats database.
+    # Host is mapped to the remote IP to preserve the output schema.
     ret = []
-    for file, timestamp in find_recent_files("/var/run/dpireport", 20):
-        # parse the filename to get the date client
-        file_split = file.removeprefix('/var/run/dpireport/').split('/')
-        year = int(file_split[0])
-        month = int(file_split[1])
-        day = int(file_split[2])
-        client_address = file_split[3]
-        hour = int(file_split[4].replace('.json', ''))
+    cutoff = int(time.time()) - 1200
 
-        with open(file, "r") as f:
-            data = json.load(f)
-        for key in ("protocol", "host", "application"):
-            for el in data.get(key, {}):
+    def _load_rows(cursor, sql, metric):
+        try:
+            cursor.execute(sql, (cutoff,))
+            for timestamp, client_address, value, bytes_count in cursor.fetchall():
+                if not value:
+                    continue
                 ret.append({
-                    "timestamp": int(datetime(year, month, day, hour, 0, 0).timestamp()),
-                    "client_address": client_address, "client_name": reverse_dns(client_address), key: el,
-                    "bytes": data[key][el]
+                    "timestamp": int(timestamp),
+                    "client_address": client_address,
+                    "client_name": reverse_dns(client_address),
+                    metric: value,
+                    "bytes": bytes_count,
                 })
+        except sqlite3.Error:
+            pass
+
+    try:
+        conn = sqlite3.connect(f'file:{DPIREPORT_DB}?mode=ro', uri=True)
+    except sqlite3.Error:
+        return {"data": ret}
+
+    with conn:
+        cursor = conn.cursor()
+
+        _load_rows(
+            cursor,
+            '''
+SELECT ts.log_time_end,
+       s.local_ip,
+       lower(s.detected_protocol_name) AS protocol,
+       COALESCE(SUM(s.local_bytes + s.other_bytes), 0) AS bytes
+FROM stats s
+JOIN stats_timestamps ts ON ts.id = s.stats_timestamp_id
+WHERE ts.log_time_end >= ? AND s.detected_protocol_name IS NOT NULL AND s.detected_protocol_name != ''
+GROUP BY ts.log_time_end, s.local_ip, protocol
+ORDER BY ts.log_time_end DESC
+''',
+            "protocol",
+        )
+
+        _load_rows(
+            cursor,
+            '''
+SELECT ts.log_time_end,
+       s.local_ip,
+       lower(s.detected_application_name) AS application,
+       COALESCE(SUM(s.local_bytes + s.other_bytes), 0) AS bytes
+FROM stats s
+JOIN stats_timestamps ts ON ts.id = s.stats_timestamp_id
+WHERE ts.log_time_end >= ? AND s.detected_application_name IS NOT NULL AND s.detected_application_name != ''
+GROUP BY ts.log_time_end, s.local_ip, application
+ORDER BY ts.log_time_end DESC
+''',
+            "application",
+        )
+
+        _load_rows(
+            cursor,
+            '''
+SELECT ts.log_time_end,
+       s.local_ip,
+       s.other_ip AS host,
+       COALESCE(SUM(s.local_bytes + s.other_bytes), 0) AS bytes
+FROM stats s
+JOIN stats_timestamps ts ON ts.id = s.stats_timestamp_id
+WHERE ts.log_time_end >= ? AND s.other_ip IS NOT NULL AND s.other_ip != ''
+GROUP BY ts.log_time_end, s.local_ip, s.other_ip
+ORDER BY ts.log_time_end DESC
+''',
+            "host",
+        )
+
     return {"data": ret}
 
 def dump_openvpn_connections():
