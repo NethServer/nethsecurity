@@ -103,6 +103,7 @@ define Package/ns-plug/install
 	$(INSTALL_CONF) files/health_alarm_notify.conf $(1)/etc/netdata
 	$(INSTALL_BIN) ./files/send-mwan-alert $(1)/usr/libexec/mwan-hooks
 	$(INSTALL_BIN) ./files/backup-encryption-alert $(1)/usr/libexec
+	$(INSTALL_BIN) ./files/ns-plug-alert $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/mwan-hooks $(1)/usr/libexec/ns-plug
 	$(INSTALL_BIN) ./files/ns-plug-rsyslog-fixup.uci-default $(1)/etc/uci-defaults/rsyslog-fixup
 endef
