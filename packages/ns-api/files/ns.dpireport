@@ -12,8 +12,9 @@ import json
 import sqlite3
 import socket
 from datetime import date, datetime, timedelta
+from euci import EUci
 
-DB_PATH = '/var/run/dpireport/stats.db'
+DB_PATH = EUci().get('ns-stats', 'daemon', 'db_path', default='/var/run/dpireport/stats.db')
 
 def reverse_dns(ip):
     try:
