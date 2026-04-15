@@ -141,8 +141,37 @@ Alerts are also logged to `/var/log/messages` and are visible within the netdata
 
 Only the following alerts are sent to the remote system:
 
+- all of them repeat every 30 minutes while active
 - disk space occupation
 - WAN down events
+
+To emulate these alerts manually with `ns-plug-alert`, use:
+
+```
+# Disk usage alert
+ns-plug-alert fire --alertname DiskSpaceCritical --severity critical \
+  --labels service=storage mountpoint=/mnt/data \
+  --annotations \
+    "summary_en=Disk space critical" \
+    "summary_it=Spazio disco critico" \
+    "description_en=Disk usage above 90% on /mnt/data" \
+    "description_it=Utilizzo disco sopra 90% su /mnt/data"
+
+ns-plug-alert resolve --alertname DiskSpaceCritical --severity critical \
+  --labels service=storage mountpoint=/mnt/data
+
+# WAN down alert
+ns-plug-alert fire --alertname WanDown --severity critical \
+  --labels service=network interface=wan0 \
+  --annotations \
+    "summary_en=WAN interface is down" \
+    "summary_it=Interfaccia non disponibile" \
+    "description_en=WAN interface wan0 is down. Internet connectivity could be affected." \
+    "description_it=Interfaccia WAN wan0 non disponibile. Connettivita Internet potrebbe essere compromessa."
+
+ns-plug-alert resolve --alertname WanDown --severity critical \
+  --labels service=network interface=wan0
+```
 
 When an alert is resolved, netdata will also send a clear command to remote server.
 
