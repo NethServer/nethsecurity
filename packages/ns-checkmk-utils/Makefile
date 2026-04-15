@@ -7,7 +7,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=ns-checkmk-utils
 # renovate: datasource=github-tags depName=nethesis/checkmk-tools
-PKG_VERSION:=0.0.2
+PKG_VERSION:=0.0.5
 PKG_RELEASE:=1
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-checkmk-utils-$(PKG_VERSION)
@@ -120,7 +120,7 @@ define Download/check_wan_throughput
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_wan_throughput.py
 	FILE:=check_wan_throughput.py
-	HASH:=a5da220c0ecd703b73eb13b9f0ed52451ca16e6dbe8dfeb5b6a063c0e2848b3f
+	HASH:=90b4f106f1a8027cc696217c2da40c35bf6e766aa06b2fc534704824332dfe47
 endef
 $(eval $(call Download,check_wan_throughput))
 
