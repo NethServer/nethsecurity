@@ -37,23 +37,12 @@ def get_cached_report(report_name, cache_timeout=900):
             return json.load(f)
     return None
 
-def get_storage_base():
-    try:
-        u = EUci()
-        target = u.get('fstab', 'ns_data', 'target')
-        if target and os.path.isdir(target):
-            return target
-    except:
-        pass
-    return None
-
 def get_ovpnrw_db_path(instance):
-    storage = get_storage_base()
-    if storage:
-        storage_db = os.path.join(storage, 'openvpn', instance, 'connections.db')
-        if os.path.exists(storage_db):
-            return storage_db
-    return f'/var/openvpn/{instance}/connections.db'
+    u = EUci()
+    base_path = u.get('fstab', 'ns_data', 'target', default='')
+    if not os.path.isdir(base_path):
+        base_path = '/var'
+    return os.path.join(base_path, 'openvpn', instance, 'connections.db')
 
 ## API
 

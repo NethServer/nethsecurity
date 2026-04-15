@@ -12,23 +12,12 @@ import sqlite3
 from euci import EUci
 from nethsec import users
 
-VAR_BASE = '/var'
-
-def get_storage_base():
-    try:
-        u = EUci()
-        target = u.get('fstab', 'ns_data', 'target')
-        if target and os.path.isdir(target):
-            return target
-    except:
-        pass
-    return None
-
 def get_db_path(instance):
-    storage = get_storage_base()
-    if storage:
-        return os.path.join(storage, 'openvpn', instance, 'connections.db')
-    return os.path.join(VAR_BASE, 'openvpn', instance, 'connections.db')
+    u = EUci()
+    base_path = u.get('fstab', 'ns_data', 'target', default='')
+    if not os.path.isdir(base_path):
+        base_path = '/var'
+    return os.path.join(base_path, 'openvpn', instance, 'connections.db')
 
 # The certificate of a migrated user is not present inside the index.txt
 def is_migrated(instance, user):

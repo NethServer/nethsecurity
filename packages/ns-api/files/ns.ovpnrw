@@ -229,29 +229,21 @@ def get_user_extra_config(u, user_id):
 
 def archive_connections_db(instance):
     timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-    var_db = f'/var/openvpn/{instance}/connections.db'
-    storage_db = f'/mnt/data/openvpn/{instance}/connections.db'
-    # archive /var DB
-    if os.path.exists(var_db):
-        archive_path = var_db.replace('connections.db', f'connections-{timestamp}.db')
+    db_path = get_connections_db_path(instance)
+    # archive the currently used database
+    if os.path.exists(db_path):
+        archive_path = db_path.replace('connections.db', f'connections-{timestamp}.db')
         try:
-            shutil.move(var_db, archive_path)
-        except:
-            pass
-    # archive /mnt/data DB if it exists
-    if os.path.exists(storage_db):
-        archive_path = storage_db.replace('connections.db', f'connections-{timestamp}.db')
-        try:
-            shutil.move(storage_db, archive_path)
+            subprocess.run(['mv', db_path, archive_path], check=True)
         except:
             pass
 
 def get_connections_db_path(ovpninstance):
-    storage_db = f'/mnt/data/openvpn/{ovpninstance}/connections.db'
-    var_db = f'/var/openvpn/{ovpninstance}/connections.db'
-    if os.path.isdir('/mnt/data') and os.path.exists(storage_db):
-        return storage_db
-    return var_db
+    u = EUci()
+    base_path = u.get('fstab', 'ns_data', 'target', default='')
+    if not os.path.isdir(base_path):
+        base_path = '/var'
+    return os.path.join(base_path, 'openvpn', ovpninstance, 'connections.db')
 
 ## APIs
 
