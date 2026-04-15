@@ -159,7 +159,7 @@ See the `delete-user` API inside the [ns-api](../ns-api/#nsovpnrw) page.
 
 ### Accounting
 
-Every client connection is tracked inside a SQLite database saved inside `/var/openvpn/<instance>/connections.db`.
+Every client connection is tracked inside a SQLite database saved inside `/var/openvpn/<instance>/connections.db` or inside `/mnt/data/openvpn/<instance>/connections.db` if storage is configured. This allows to maintain the connection history also after a system reboot.
 The database is initialized as soon as the `instance` is up using the `init-connections-db` script.
 
 As default, all logs are sent to `/var/log/messages`.

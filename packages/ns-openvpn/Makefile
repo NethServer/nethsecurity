@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2022 Nethesis S.r.l.
+# Copyright (C) 2026 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
@@ -39,6 +39,7 @@ define Package/ns-openvpn/install
 	$(INSTALL_DIR) $(1)/usr/libexec/ns-openvpn/connect-scripts
 	$(INSTALL_DIR) $(1)/usr/libexec/ns-openvpn/disconnect-scripts
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
+	$(INSTALL_DIR) $(1)/etc/hotplug.d/block
 	$(INSTALL_BIN) ./files/ns-openvpnrw-add $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-openvpnrw-init-pki $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-openvpnrw-extend-crl $(1)/usr/sbin
@@ -49,6 +50,8 @@ define Package/ns-openvpn/install
 	$(INSTALL_BIN) ./files/openvpn-connect $(1)/usr/libexec/ns-openvpn/
 	$(INSTALL_BIN) ./files/openvpn-disconnect $(1)/usr/libexec/ns-openvpn/
 	$(INSTALL_BIN) ./files/init-connections-db $(1)/usr/libexec/ns-openvpn/
+	$(INSTALL_BIN) ./files/openvpn-merge-connections-db $(1)/usr/libexec/ns-openvpn/
+	$(INSTALL_BIN) ./files/20-openvpn-merge-connections-db $(1)/etc/hotplug.d/block/
 	$(INSTALL_BIN) ./files/openvpn-local-auth $(1)/usr/libexec/ns-openvpn/
 	$(INSTALL_BIN) ./files/openvpn-remote-auth $(1)/usr/libexec/ns-openvpn/
 	$(INSTALL_BIN) ./files/openvpn-otp-auth $(1)/usr/libexec/ns-openvpn/

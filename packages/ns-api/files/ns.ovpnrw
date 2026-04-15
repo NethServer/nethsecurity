@@ -21,11 +21,8 @@ from datetime import datetime, timezone
 import tarfile
 import io
 import sqlite3
-import time
-import datetime
 import csv
 from zoneinfo import ZoneInfo
-from datetime import datetime
 
 ## Utils
 
@@ -230,6 +227,24 @@ def get_user_extra_config(u, user_id):
     except:
         return {}
 
+def archive_connections_db(instance):
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+    db_path = get_connections_db_path(instance)
+    # archive the currently used database
+    if os.path.exists(db_path):
+        archive_path = db_path.replace('connections.db', f'connections-{timestamp}.db')
+        try:
+            subprocess.run(['mv', db_path, archive_path], check=True)
+        except:
+            pass
+
+def get_connections_db_path(ovpninstance):
+    u = EUci()
+    base_path = u.get('fstab', 'ns_data', 'target', default='')
+    if not os.path.isdir(base_path):
+        base_path = '/var'
+    return os.path.join(base_path, 'openvpn', ovpninstance, 'connections.db')
+
 ## APIs
 
 def list_bridges():
@@ -356,6 +371,9 @@ def remove_instance(instance):
         remove_tap_from_bridge(u, old_bridge, old_dev)
 
     u.delete("openvpn", instance)
+    
+    # archive connection history databases before removing the instance directory
+    archive_connections_db(instance)
     shutil.rmtree(f"/etc/openvpn/{instance}", ignore_errors=True)
     try:
         # workaround: manually delete config since it's not removed from init script
@@ -665,7 +683,6 @@ def disconnect_user(ovpninstance, username):
         return utils.generic_error("user_disconnect_failed")
     return {"result": "success"}
 
-
 def disable_user(ovpninstance, username):
     u = EUci()
     try:
@@ -966,7 +983,7 @@ def download_user_2fa(ovpninstance, username):
         return utils.validation_error("username", "2fa_download_failed", username)
 
 def connection_history_csv(ovpninstance, timezone):
-    database_path = f'/var/openvpn/{ovpninstance}/connections.db'
+    database_path = get_connections_db_path(ovpninstance)
 
     try:
         conn = sqlite3.connect(database_path)
@@ -1040,9 +1057,32 @@ def connection_history_csv(ovpninstance, timezone):
     # Return the path of the CSV file
     return {"csv_path": csv_file_path}
 
-
-def connection_history(ovpninstance):
-    database_path = f'/var/openvpn/{ovpninstance}/connections.db'
+def connection_history(ovpninstance, q='', start_time=0, accounts=None, page=1, per_page=10, sort_by='startTime', desc=True):
+    database_path = get_connections_db_path(ovpninstance)
+    
+    # map frontend field names to database column names
+    sort_field_mapping = {
+        'account': 'common_name',
+        'startTime': 'start_time',
+        'endTime': 'start_time + duration',
+        'duration': 'duration',
+        'virtualIpAddress': 'virtual_ip_addr',
+        'remoteIpAddress': 'remote_ip_addr'
+    }
+    
+    # default to startTime if sort_by is invalid
+    if sort_by not in sort_field_mapping:
+        sort_by = 'startTime'
+    
+    # determine if we need to sort in Python (for IPs) or SQL (for other fields)
+    sort_manually = sort_by in ['virtualIpAddress', 'remoteIpAddress']
+    
+    if not sort_manually:
+        sort_column = sort_field_mapping[sort_by]
+        sort_order = 'DESC' if desc else 'ASC'
+    else:
+        sort_column = None
+        sort_order = None
 
     try:
         conn = sqlite3.connect(database_path)
@@ -1053,10 +1093,57 @@ def connection_history(ovpninstance):
 
     try:
         c = conn.cursor()
-        # Build SQL query based on whether there's a time constraint
-        rows = c.execute('''SELECT common_name, virtual_ip_addr, remote_ip_addr, start_time, duration, bytes_received, bytes_sent 
-                                FROM connections
-                                ORDER BY start_time DESC''')
+        conditions = []
+        params = []
+
+        # time_range filter
+        if start_time > 0:
+            conditions.append('start_time >= ?')
+            params.append(start_time)
+
+        # accounts filter
+        if accounts:
+            placeholders = ','.join('?' * len(accounts))
+            conditions.append(f'common_name IN ({placeholders})')
+            params.extend(accounts)
+
+        # free text search filter
+        if q:
+            conditions.append('(common_name LIKE ? OR virtual_ip_addr LIKE ? OR remote_ip_addr LIKE ?)')
+            like = f'%{q}%'
+            params.extend([like, like, like])
+
+        where = ('WHERE ' + ' AND '.join(conditions)) if conditions else ''
+
+        total = c.execute(f'SELECT COUNT(*) FROM connections {where}', params).fetchone()[0]
+        total_unfiltered = c.execute('SELECT COUNT(*) FROM connections').fetchone()[0]
+
+        if sort_manually:
+            # fetch all matching records for manual sorting
+            all_rows = c.execute(
+                f'''SELECT common_name, virtual_ip_addr, remote_ip_addr, start_time, duration, bytes_received, bytes_sent
+                    FROM connections {where}''',
+                params
+            ).fetchall()
+            if sort_by == 'virtualIpAddress':
+                all_rows = sorted(all_rows, key=lambda r: ipaddress.ip_address(r[1] or '0.0.0.0'), reverse=desc)
+            elif sort_by == 'remoteIpAddress':
+                all_rows = sorted(all_rows, key=lambda r: ipaddress.ip_address(r[2] or '0.0.0.0'), reverse=desc)
+            
+            # apply pagination
+            offset = (page - 1) * per_page
+            rows = all_rows[offset:offset + per_page]
+        else:
+            # use SQL ORDER BY for non-IP fields
+            offset = (page - 1) * per_page
+            rows = c.execute(
+                f'''SELECT common_name, virtual_ip_addr, remote_ip_addr, start_time, duration, bytes_received, bytes_sent
+                    FROM connections {where}
+                    ORDER BY {sort_column} {sort_order}
+                    LIMIT ? OFFSET ?''',
+                params + [per_page, offset]
+            )
+
         for row in rows:
             common_name, virtual_ip_addr, remote_ip_addr, start_time, duration, bytes_received, bytes_sent = row
             end_time = start_time + duration if duration else None
@@ -1071,13 +1158,28 @@ def connection_history(ovpninstance):
                 'bytesSent': bytes_sent
             })
 
+        # collect unique accounts from the full unfiltered result for the filters field
+        all_accounts = [r[0] for r in c.execute('SELECT DISTINCT common_name FROM connections ORDER BY common_name').fetchall()]
+
     except:
         conn.close()
         return utils.generic_error("database_error")
 
     conn.close()
 
-    return connections
+    last_page = max(1, (total + per_page - 1) // per_page)
+
+    return {
+        'connections': connections,
+        'current_page': page,
+        'last_page': last_page,
+        'per_page': per_page,
+        'total': total_unfiltered,
+        'results': total,
+        'filters': {
+            'accounts': all_accounts
+        }
+    }
 
 def renew_server_certificate(ovpninstance):
     try:
@@ -1142,7 +1244,7 @@ if cmd == 'list':
         "download-user-2fa": {"instance": "roadwarrior1", "username": "myuser"},
         "download_all_user_configurations": {"instance": "roadwarrior1"},
         "connection-history-csv": {"instance": "roadwarrior1", "timezone": "Europe/Rome"},
-        "connection-history": {"instance": "roadwarrior1"},
+        "connection-history": {"instance": "roadwarrior1", "q": "", "start_time": 123456123, "accounts": [], "page": 1, "per_page": 10, "sort_by": "startTime", "desc": True},
         "renew-server-certificate": {"instance": "roadwarrior1"},
         "regenerate-all-certificates": {"instance": "roadwarrior1"}
         }))
@@ -1200,7 +1302,16 @@ else:
     elif action == "connection-history-csv":
         ret = connection_history_csv(args['instance'], args['timezone'])
     elif action == "connection-history":
-        ret = connection_history(args['instance'])
+        ret = connection_history(
+            args['instance'],
+            q=args.get('q', ''),
+            start_time=args.get('start_time', 0),
+            accounts=args.get('accounts', []),
+            page=int(args.get('page', 1)),
+            per_page=int(args.get('per_page', 10)),
+            sort_by=args.get('sort_by', 'startTime'),
+            desc=args.get('desc', True)
+        )
     elif action == "renew-server-certificate":
         ret = renew_server_certificate(args["instance"])
     elif action == "regenerate-all-certificates":

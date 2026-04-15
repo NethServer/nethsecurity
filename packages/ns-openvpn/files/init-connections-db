@@ -1,12 +1,13 @@
 #!/usr/bin/python3
 
 #
-# Copyright (C) 2022 Nethesis S.r.l.
+# Copyright (C) 2026 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
 import sqlite3
 import os
+from euci import EUci
 
 def create_connections_db():
     conn = sqlite3.connect(database_path)
@@ -42,3 +43,31 @@ else:
     if not table_exists:
         create_connections_db()
         print('[NOTICE] Created roadwarrior connections database {}'.format(database_path))
+
+# if storage is available, check that db already exists or create it
+try:
+    u = EUci()
+    storage = u.get('fstab', 'ns_data', 'target')
+    if storage and os.path.isdir(storage):
+        storage_dir = os.path.join(storage, 'openvpn', os.environ["INSTANCE"])
+        os.makedirs(storage_dir, exist_ok=True)
+        database_path = os.path.join(storage_dir, 'connections.db')
+        if not os.path.isfile(database_path):
+            create_connections_db()
+            print('[NOTICE] Created roadwarrior connections database {}'.format(database_path))
+        else:
+            # ensure connections table exists in storage db too
+            conn = sqlite3.connect(database_path)
+            c = conn.cursor()
+            output = c.execute(
+                '''SELECT name FROM sqlite_master WHERE type="table" AND name="connections"''')
+            table_exists = False
+            output = output.fetchone()
+            if output and output[0] == 'connections':
+                table_exists = True
+            if not table_exists:
+                create_connections_db()
+                print('[NOTICE] Created roadwarrior connections database {}'.format(database_path))
+            conn.close()
+except:
+    pass

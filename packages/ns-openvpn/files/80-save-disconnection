@@ -1,27 +1,47 @@
 #!/usr/bin/python3
 
 #
-# Copyright (C) 2022 Nethesis S.r.l.
+# Copyright (C) 2026 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
 import os
 import sys
 import sqlite3
+from euci import EUci
 
-conn = sqlite3.connect(f'/var/openvpn/{sys.argv[1]}/connections.db')
+def get_db_path(instance):
+    u = EUci()
+    base_path = u.get('fstab', 'ns_data', 'target', default='')
+    if not os.path.isdir(base_path):
+        base_path = '/var'
+    return os.path.join(base_path, 'openvpn', instance, 'connections.db')
+
+conn = sqlite3.connect(get_db_path(sys.argv[1]))
 c = conn.cursor()
 
 env = os.environ
 common_name = env.get('common_name')
 if not common_name:
     sys.exit(0)
+start_time = int(env.get('time_unix', '0'))
 duration = int(env.get('time_duration', '0'))
 bytes_received = int(env.get('bytes_received', '0'))
 bytes_sent = int(env.get('bytes_sent', '0'))
 
 # Update connection data
-c.execute("UPDATE connections SET duration=?, bytes_received=?, bytes_sent=? WHERE common_name=? and start_time=(SELECT MAX(start_time) FROM connections WHERE common_name=?)", (duration, bytes_received, bytes_sent, common_name, common_name))
+c.execute("UPDATE connections SET duration=?, bytes_received=?, bytes_sent=? WHERE common_name=? and start_time=?", (duration, bytes_received, bytes_sent, common_name, start_time))
+
+if c.rowcount == 0:
+    # disconnection of a client whose connection record has been saved on storage that is not available now
+    # insert a new full record with all the data on /var
+    virtual_ip_addr = env.get('ifconfig_pool_remote_ip', '')
+    remote_ip_addr = env.get('untrusted_ip', '')
+    c.execute(
+        "INSERT INTO connections (common_name, virtual_ip_addr, remote_ip_addr, start_time, duration, bytes_received, bytes_sent) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (common_name, virtual_ip_addr, remote_ip_addr, start_time, duration, bytes_received, bytes_sent)
+    )
 
 conn.commit()
 conn.close()

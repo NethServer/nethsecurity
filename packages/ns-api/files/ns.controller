@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 #
-# Copyright (C) 2024 Nethesis S.r.l.
+# Copyright (C) 2026 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
@@ -261,9 +261,15 @@ def dump_dpi_stats():
     return {"data": ret}
 
 def dump_openvpn_connections():
-    # Parse /var/run/openvpn/connections.db for the last 20 minutes
-    ret = []
-    for db_file in glob.glob('/var/openvpn/*/connections.db'):
+    # Parse openvpn connections.db for the last 20 minutes.
+    # If storage is configured and mounted, read from there, otherwise use /var/openvpn.
+    ret = []    
+    u = EUci()
+    base_path = u.get('fstab', 'ns_data', 'target', default='')
+    if not os.path.isdir(base_path):
+        base_path = '/var'
+    pattern = os.path.join(base_path, 'openvpn', '*', 'connections.db')
+    for db_file in glob.glob(pattern):
         instance = db_file.split('/')[-2]
         conn = sqlite3.connect(db_file)
         cursor = conn.cursor()

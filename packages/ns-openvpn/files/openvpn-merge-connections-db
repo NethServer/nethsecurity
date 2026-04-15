@@ -1,0 +1,113 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Merge OpenVPN connection records from /var into storage (/mnt/data).
+# Called on storage mount (via add-storage script on /usr/sbin/add-storage)
+
+import os
+import sqlite3
+import subprocess
+import syslog
+
+STORAGE_BASE = '/mnt/data'
+VAR_BASE = '/var'
+
+def log(msg):
+    syslog.syslog(syslog.LOG_INFO, f"openvpn-merge-connections-db: {msg}")
+
+def _merge_var_into_storage(var_db, storage_db):
+    try:
+        src = sqlite3.connect(var_db)
+        dst = sqlite3.connect(storage_db)
+        src_rows = src.execute(
+            "SELECT common_name, virtual_ip_addr, remote_ip_addr, start_time, "
+            "duration, bytes_received, bytes_sent FROM connections"
+        ).fetchall()
+        for (common_name, virtual_ip_addr, remote_ip_addr, start_time,
+             duration, bytes_received, bytes_sent) in src_rows:
+            if not duration:
+                # client still connected
+                dst.execute(
+                    "INSERT INTO connections "
+                    "(common_name, virtual_ip_addr, remote_ip_addr, start_time, "
+                    "duration, bytes_received, bytes_sent) VALUES (?,?,?,?,?,?,?)",
+                    (common_name, virtual_ip_addr, remote_ip_addr, start_time,
+                     duration, bytes_received, bytes_sent)
+                )
+            else:
+                # complete record on /var, could be a client connected from storage or from /var itself
+                # try to make an update on the storage first (client connected from storage and disconnected from /var)
+                dst.execute(
+                    "UPDATE connections SET duration=?, bytes_received=?, bytes_sent=? "
+                    "WHERE common_name=? AND start_time=? AND (duration IS NULL OR duration=0)",
+                    (duration, bytes_received, bytes_sent, common_name, start_time)
+                )
+                if dst.execute("SELECT changes()").fetchone()[0] == 0:
+                    # no record on storage, insert full record copying from /var
+                    dst.execute(
+                        "INSERT INTO connections "
+                        "(common_name, virtual_ip_addr, remote_ip_addr, start_time, "
+                        "duration, bytes_received, bytes_sent) "
+                        "SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS "
+                        "(SELECT 1 FROM connections WHERE common_name=? AND start_time=?)",
+                        (common_name, virtual_ip_addr, remote_ip_addr, start_time,
+                         duration, bytes_received, bytes_sent, common_name, start_time)
+                    )
+        dst.commit()
+        dst.close()
+        src.execute("DELETE FROM connections")
+        src.commit()
+        src.close()
+    except Exception:
+        pass
+
+log("[OpenVPN RW merge script] Script started")
+
+if not os.path.isdir(STORAGE_BASE):
+    log(f"[OpenVPN RW merge script] Storage not available ({STORAGE_BASE} not found), exiting...")
+    raise SystemExit(0)
+
+var_openvpn = os.path.join(VAR_BASE, 'openvpn')
+if not os.path.isdir(var_openvpn):
+    log(f"[OpenVPN RW merge script] {var_openvpn} not found, exiting...")
+    raise SystemExit(0)
+
+for instance in os.listdir(var_openvpn):
+    var_db = os.path.join(var_openvpn, instance, 'connections.db')
+    if not os.path.isfile(var_db):
+        continue
+
+    storage_dir = os.path.join(STORAGE_BASE, 'openvpn', instance)
+    storage_db = os.path.join(storage_dir, 'connections.db')
+
+    if not os.path.exists(storage_db):
+        # db on storage not existing, copy /var DB to storage and clear /var
+        log(f"[OpenVPN RW merge script] Instance {instance}: storage DB not found, copying from /var...")
+        os.makedirs(storage_dir, exist_ok=True)
+        subprocess.run(['cp', '-a', var_db, storage_db], check=True)
+        try:
+            src = sqlite3.connect(var_db)
+            src.execute("DELETE FROM connections")
+            src.commit()
+            src.close()
+        except Exception:
+            pass
+        log(f"[OpenVPN RW merge script] Instance {instance}: copy done")
+    else:
+        # Storage DB exists: merge any /var rows that arrived while storage was absent
+        try:
+            _count_conn = sqlite3.connect(storage_db)
+            _count = _count_conn.execute("SELECT COUNT(*) FROM connections").fetchone()[0]
+            _count_conn.close()
+            log(f"[OpenVPN RW merge script] Instance {instance}: storage DB has {_count} record(s) before merge")
+        except Exception:
+            pass
+        log(f"[OpenVPN RW merge script] Instance {instance}: merging /var into storage")
+        _merge_var_into_storage(var_db, storage_db)
+        log(f"[OpenVPN RW merge script] Instance {instance}: merge done")
+
+log("[OpenVPN RW merge script] Script finished")
