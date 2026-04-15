@@ -48,6 +48,36 @@ def __expand_ip_range(entry: str) -> list:
     return [entry]
 
 
+def __load_bypass_rules() -> list:
+    rules = []
+    for entry in e_uci.get('flashstart', 'global', 'bypass', list=True, dtype=str, default=[]):
+        if entry == '':
+            continue
+        for expanded in __expand_ip_range(entry):
+            try:
+                rules.append(ipaddress.ip_network(expanded, strict=False))
+            except ValueError:
+                try:
+                    rules.append(ipaddress.ip_address(expanded))
+                except ValueError:
+                    logging.warning(f'Ignoring invalid bypass entry: {expanded!r}')
+    return rules
+
+
+def __is_bypassed_entry(entry: str, bypass_rules: list) -> bool:
+    try:
+        addr = ipaddress.ip_address(entry)
+    except ValueError:
+        return False
+
+    for rule in bypass_rules:
+        if isinstance(rule, (ipaddress.IPv4Network, ipaddress.IPv6Network)) and addr in rule:
+            return True
+        if isinstance(rule, (ipaddress.IPv4Address, ipaddress.IPv6Address)) and addr == rule:
+            return True
+    return False
+
+
 def __refresh_uci():
     global e_uci
     e_uci = EUci()
@@ -268,27 +298,6 @@ def __sync_pro_plus_profiles():
     __add_bypass_ipset()
     added_ip_sets = ['ns_flashstart_bypass']
     
-    # create explicit bypass ACCEPT rules for each zone (highest priority)
-    # these ensure bypass IPs are never intercepted by profile rules
-    bypass_redirects = []
-    for zone in e_uci.get('flashstart', 'global', 'zones', default=[], list=True, dtype=str):
-        bypass_redirect_id = f'ns_flashstart_bypass_{zone}'
-        if e_uci.get('firewall', bypass_redirect_id, default=None) is None:
-            logging.debug(f'Creating bypass redirect {bypass_redirect_id}')
-            e_uci.set('firewall', bypass_redirect_id, 'redirect')
-            e_uci.set('firewall', bypass_redirect_id, 'ns_flashstart', True)
-            e_uci.set('firewall', bypass_redirect_id, 'ns_tag', ['automated'])
-        e_uci.set('firewall', bypass_redirect_id, 'name', f'Flashstart-bypass-DNS-from-{zone}')
-        e_uci.set('firewall', bypass_redirect_id, 'src', zone)
-        e_uci.set('firewall', bypass_redirect_id, 'src_dport', 53)
-        e_uci.set('firewall', bypass_redirect_id, 'proto', "tcp udp")
-        e_uci.set('firewall', bypass_redirect_id, 'target', 'ACCEPT')
-        e_uci.set('firewall', bypass_redirect_id, 'ipset', f'flashstart-bypass')
-        bypass_redirects.append(bypass_redirect_id)
-    
-    # prepend all bypass redirects so they have the lowest rule indices (highest priority)
-    added_redirects = bypass_redirects + added_redirects
-    
     # sort the profiles by catch-all, so that the catch-all profile is always the last one
     dhcp_entries = sorted(config['dhcp'], key=lambda entry: entry['catch-all'])
     for profile in dhcp_entries:
@@ -331,8 +340,7 @@ def __sync_pro_plus_profiles():
             added_redirects.append(redirect_id)
         starting_port += 1
 
-    # apply rule ordering: bypass rules first (index 0+), then profile rules, then catch-all last
-    # added_redirects is already sorted: [bypass rules] + [profile rules] + [catch-all rule]
+    # apply rule ordering: profile rules first, then the catch-all last
     e_uci.save('firewall')
     index = 0
     for redirect in added_redirects:
@@ -361,12 +369,15 @@ def __sync_pro_plus_profiles():
             active_sessions[session['dns_code']] = []
         active_sessions[session['dns_code']].extend(entries)
 
+    bypass_rules = __load_bypass_rules()
+
     for ip_set in __fetch_instanced_services('firewall', 'ipset'):
         if ip_set == 'ns_flashstart_bypass':
             continue
         ipset_dns_code = e_uci.get('firewall', ip_set, 'ns_flashstart_dns_code', default='')
         if ipset_dns_code in active_sessions:
             upstream_entries = sorted(list(set(active_sessions.get(ipset_dns_code))))
+            upstream_entries = [entry for entry in upstream_entries if not __is_bypassed_entry(entry, bypass_rules)]
         else:
             upstream_entries = []
         # check if ipset entries are the same
