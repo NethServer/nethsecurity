@@ -47,3 +47,25 @@ payload='{"lk": "'$lk'", "alert_id": "'$alert_id'", "status": "'$status'"}'
 /usr/bin/curl -m 30 --retry 3 -L -s \
     --header "Authorization: token ${secret}"  --header "Content-Type: application/json" --header "Accept: application/json"  \
     --data-raw "${payload}" ${url}
+
+# Also send to MY alertmanager if my_url is configured
+if [ -n "$(uci -q get ns-plug.config.my_url)" ]; then
+    if [ "${status}" == "FAILURE" ]; then
+        /usr/sbin/ns-plug-alert fire \
+            --alertname WanDown \
+            --severity critical \
+            --labels "service=network" "interface=${INTERFACE}" \
+            --annotations \
+                "summary_en=WAN interface ${INTERFACE} is down" \
+                "summary_it=Interfaccia WAN ${INTERFACE} non disponibile" \
+                "description_en=WAN interface ${INTERFACE} is down. Internet connectivity lost." \
+                "description_it=Interfaccia WAN ${INTERFACE} non disponibile. Connettività Internet persa." \
+            2>/dev/null
+    elif [ "${status}" == "OK" ]; then
+        /usr/sbin/ns-plug-alert resolve \
+            --alertname WanDown \
+            --severity critical \
+            --labels "service=network" "interface=${INTERFACE}" \
+            2>/dev/null
+    fi
+fi

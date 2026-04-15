@@ -1,0 +1,457 @@
+#!/usr/bin/env python3
+#
+# Copyright (C) 2025 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+"""
+NethSecurity alertmanager integration for ns-plug.
+
+Reads configuration from /etc/config/ns-plug (UCI):
+  ns-plug.config.my_url           Base URL of the alertmanager proxy
+  ns-plug.config.my_system_key    HTTP Basic Auth username (new-format key)
+  ns-plug.config.my_system_secret HTTP Basic Auth password (new-format secret)
+
+Usage:
+    ns-plug-alert fire --alertname NAME --severity {critical,warning,info}
+                       [--labels k=v ...] [--annotations k=v ...]
+    ns-plug-alert resolve --alertname NAME --severity {critical,warning,info}
+                          [--labels k=v ...]
+    ns-plug-alert list [--state STATE] [--severity SEV]
+    ns-plug-alert netdata --alertname NAME --status STATUS
+                          --chart CHART --family FAMILY [--value VALUE]
+
+Examples:
+    # Fire a critical disk alert
+    ns-plug-alert fire --alertname DiskSpaceCritical --severity critical \\
+        --labels service=storage mountpoint=/data \\
+        --annotations "description_en=Disk usage above 90%"
+
+    # Resolve it
+    ns-plug-alert resolve --alertname DiskSpaceCritical --severity critical \\
+        --labels service=storage mountpoint=/data
+
+    # List all active alerts
+    ns-plug-alert list
+
+    # Called internally from netdata custom_sender (health_alarm_notify.conf)
+    ns-plug-alert netdata --alertname disk_space_usage --status CRITICAL \\
+        --chart disk_space._data --family /data --value 95.2
+"""
+
+import argparse
+import base64
+import json
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+from datetime import datetime, timedelta, timezone
+
+# ---------------------------------------------------------------------------
+# Mapping from netdata alarm names / statuses to the NethSecurity alert catalog.
+# Keys are netdata alarm names (${name} in health_alarm_notify.conf).
+# Each entry maps a netdata status to the corresponding mimir alert definition.
+# ---------------------------------------------------------------------------
+NETDATA_ALERT_MAP = {
+    "disk_space_usage": {
+        "WARNING": {
+            "alertname": "DiskSpaceLow",
+            "service": "storage",
+            "severity": "warning",
+            "summary_en": "Disk space low on {mountpoint}",
+            "summary_it": "Spazio disco in esaurimento su {mountpoint}",
+            "description_en": "Disk usage on {mountpoint} is above 80%. Free space is running low.",
+            "description_it": "Utilizzo del disco su {mountpoint} superiore all'80%. Lo spazio libero sta esaurendosi.",
+        },
+        "CRITICAL": {
+            "alertname": "DiskSpaceCritical",
+            "service": "storage",
+            "severity": "critical",
+            "summary_en": "Disk space critical on {mountpoint}",
+            "summary_it": "Spazio disco critico su {mountpoint}",
+            "description_en": "Disk usage on {mountpoint} is above 90%. Immediate action required.",
+            "description_it": "Utilizzo del disco su {mountpoint} superiore al 90%. Intervento immediato richiesto.",
+        },
+    },
+    "wan_status": {
+        "WARNING": {
+            "alertname": "WanDown",
+            "service": "network",
+            "severity": "warning",
+            "summary_en": "WAN interface {interface} is degraded",
+            "summary_it": "Interfaccia WAN {interface} degradata",
+            "description_en": "WAN interface {interface} score is low. Connectivity may be degraded.",
+            "description_it": "Il punteggio dell'interfaccia WAN {interface} è basso. La connettività potrebbe essere degradata.",
+        },
+        "CRITICAL": {
+            "alertname": "WanDown",
+            "service": "network",
+            "severity": "critical",
+            "summary_en": "WAN interface {interface} is down",
+            "summary_it": "Interfaccia WAN {interface} non disponibile",
+            "description_en": "WAN interface {interface} is down. Internet connectivity lost.",
+            "description_it": "Interfaccia WAN {interface} non disponibile. Connettività Internet persa.",
+        },
+    },
+}
+
+# Netdata statuses that mean the alert is firing
+NETDATA_FIRE_STATUSES = {"WARNING", "CRITICAL"}
+
+# Netdata statuses that mean the alert is resolved
+NETDATA_RESOLVE_STATUSES = {"CLEAR", "REMOVED", "UNDEFINED"}
+
+# Map netdata severity to mimir severity (used for generic/unmapped alerts)
+NETDATA_SEVERITY_MAP = {
+    "WARNING": "warning",
+    "CRITICAL": "critical",
+}
+
+
+# ---------------------------------------------------------------------------
+# UCI / configuration helpers
+# ---------------------------------------------------------------------------
+
+def uci_get(key):
+    """Return the value of a UCI key, or empty string if not set."""
+    try:
+        result = subprocess.run(
+            ["uci", "-q", "get", key],
+            capture_output=True, text=True, timeout=5,
+        )
+        return result.stdout.strip() if result.returncode == 0 else ""
+    except (subprocess.SubprocessError, FileNotFoundError):
+        return ""
+
+
+def load_config(args):
+    """
+    Return (url, key, secret) from UCI config or CLI overrides.
+    CLI overrides (--url / --key / --secret) take precedence over UCI values.
+    """
+    url = getattr(args, "url", None) or uci_get("ns-plug.config.my_url")
+    key = getattr(args, "key", None) or uci_get("ns-plug.config.my_system_key")
+    secret = getattr(args, "secret", None) or uci_get("ns-plug.config.my_system_secret")
+    return url, key, secret
+
+
+# ---------------------------------------------------------------------------
+# HTTP helper
+# ---------------------------------------------------------------------------
+
+def http_request(method, url, data=None, key=None, secret=None):
+    """
+    Perform an HTTP request with Basic Auth.
+    Returns (status_code, response_body_str).
+    Exits with code 1 on connection error.
+    """
+    credentials = base64.b64encode(f"{key}:{secret}".encode()).decode()
+    headers = {
+        "Authorization": f"Basic {credentials}",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+    body = json.dumps(data).encode() if data is not None else None
+    req = urllib.request.Request(url, data=body, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return resp.status, resp.read().decode()
+    except urllib.error.HTTPError as exc:
+        return exc.code, exc.read().decode()
+    except urllib.error.URLError as exc:
+        print(f"Connection error: {exc.reason}", file=sys.stderr)
+        sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
+# Shared helpers
+# ---------------------------------------------------------------------------
+
+def parse_kv(pairs):
+    """Parse ['key=value', ...] into a dict."""
+    result = {}
+    for pair in pairs or []:
+        if "=" not in pair:
+            print(f"Error: invalid key=value pair: {pair!r}", file=sys.stderr)
+            sys.exit(1)
+        k, v = pair.split("=", 1)
+        result[k] = v
+    return result
+
+
+def alerts_endpoint(url):
+    return f"{url.rstrip('/')}/alertmanager/api/v2/alerts"
+
+
+def now_utc():
+    return datetime.now(timezone.utc)
+
+
+def fmt(dt):
+    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+# ---------------------------------------------------------------------------
+# Commands
+# ---------------------------------------------------------------------------
+
+def cmd_fire(args):
+    """Fire an alert."""
+    url, key, secret = load_config(args)
+    if not (url and key and secret):
+        print("Error: my_url, my_system_key and my_system_secret must be configured in ns-plug UCI config.", file=sys.stderr)
+        sys.exit(1)
+
+    labels = {"alertname": args.alertname, "severity": args.severity}
+    labels.update(parse_kv(args.labels))
+
+    annotations = parse_kv(args.annotations)
+
+    payload = [{
+        "labels": labels,
+        "annotations": annotations,
+        "generatorURL": f"http://nethsecurity/alert/{args.alertname}",
+        "startsAt": fmt(now_utc()),
+        "endsAt": "0001-01-01T00:00:00Z",
+    }]
+
+    status, body = http_request("POST", alerts_endpoint(url), data=payload, key=key, secret=secret)
+    if 200 <= status < 300:
+        print(json.dumps({"status": "success", "message": f"Alert '{args.alertname}' fired"}))
+    else:
+        print(f"Failed to fire alert (HTTP {status}): {body}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_resolve(args):
+    """Resolve an alert by sending it with endsAt in the past."""
+    url, key, secret = load_config(args)
+    if not (url and key and secret):
+        print("Error: my_url, my_system_key and my_system_secret must be configured in ns-plug UCI config.", file=sys.stderr)
+        sys.exit(1)
+
+    labels = {"alertname": args.alertname, "severity": args.severity}
+    labels.update(parse_kv(args.labels))
+
+    now = now_utc()
+    annotations = parse_kv(args.annotations) if hasattr(args, "annotations") and args.annotations else {
+        "summary": "resolved",
+        "description": f"Alert {args.alertname} resolved at {fmt(now)}",
+    }
+
+    payload = [{
+        "labels": labels,
+        "annotations": annotations,
+        "generatorURL": f"http://nethsecurity/alert/{args.alertname}",
+        "startsAt": fmt(now - timedelta(hours=1)),
+        "endsAt": fmt(now),
+    }]
+
+    status, body = http_request("POST", alerts_endpoint(url), data=payload, key=key, secret=secret)
+    if 200 <= status < 300:
+        print(json.dumps({"status": "success", "message": f"Alert '{args.alertname}' resolved"}))
+    else:
+        print(f"Failed to resolve alert (HTTP {status}): {body}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_list(args):
+    """List active alerts."""
+    url, key, secret = load_config(args)
+    if not (url and key and secret):
+        print("Error: my_url, my_system_key and my_system_secret must be configured in ns-plug UCI config.", file=sys.stderr)
+        sys.exit(1)
+
+    status, body = http_request("GET", alerts_endpoint(url), key=key, secret=secret)
+    if not (200 <= status < 300):
+        print(f"Failed to list alerts (HTTP {status}): {body}", file=sys.stderr)
+        sys.exit(1)
+
+    alerts = json.loads(body)
+
+    if args.state:
+        alerts = [a for a in alerts if a.get("status", {}).get("state") == args.state]
+    if args.severity:
+        alerts = [a for a in alerts if a.get("labels", {}).get("severity") == args.severity]
+
+    print(json.dumps(alerts, indent=2))
+
+
+def cmd_netdata(args):
+    """
+    Handle a netdata alert notification.
+
+    Called from health_alarm_notify.conf custom_sender with:
+      --alertname  ${name}    (netdata alarm name)
+      --status     ${status}  (CRITICAL, WARNING, CLEAR, REMOVED, ...)
+      --chart      ${chart}   (e.g. disk_space._overlay, mwan.score)
+      --family     ${family}  (e.g. /, /boot, wan0)
+      --value      ${value}   (metric value, may be empty)
+    """
+    url, key, secret = load_config(args)
+    if not (url and key and secret):
+        # Mimir not configured — silently skip so existing flow is unaffected.
+        sys.exit(0)
+
+    netdata_status = (args.status or "").upper()
+    netdata_name = args.alertname or ""
+    family = args.family or ""
+
+    if netdata_status in NETDATA_RESOLVE_STATUSES:
+        _netdata_resolve(url, key, secret, netdata_name, family)
+    elif netdata_status in NETDATA_FIRE_STATUSES:
+        _netdata_fire(url, key, secret, netdata_name, netdata_status, family, args.value)
+    # Any other status (e.g. UNDEFINED at startup) is silently ignored.
+
+
+def _build_netdata_labels_annotations(netdata_name, netdata_status, family, value):
+    """
+    Map a netdata alarm + status to mimir alertname, labels and annotations.
+    Falls back to a generic mapping when the alarm name is not in the catalog.
+    """
+    mapping = NETDATA_ALERT_MAP.get(netdata_name, {}).get(netdata_status, {})
+
+    if mapping:
+        alertname = mapping["alertname"]
+        severity = mapping["severity"]
+        service = mapping.get("service")
+
+        # Build label substitution context
+        ctx = {"mountpoint": family, "interface": family, "value": value or ""}
+        annotations = {}
+        for key in ("summary_en", "summary_it", "description_en", "description_it"):
+            if key in mapping:
+                annotations[key] = mapping[key].format_map(ctx)
+        if value:
+            annotations.setdefault("description_en", annotations.get("description_en", "") + f" Current value: {value}.")
+    else:
+        # Generic fallback: pass the netdata name directly as alertname
+        alertname = netdata_name
+        severity = NETDATA_SEVERITY_MAP.get(netdata_status, "warning")
+        service = None
+        annotations = {
+            "summary": f"Netdata alert {netdata_name} is {netdata_status.lower()}",
+        }
+        if value:
+            annotations["description"] = f"Current value: {value}."
+
+    labels = {"alertname": alertname, "severity": severity}
+    if service:
+        labels["service"] = service
+
+    return alertname, labels, annotations
+
+
+def _netdata_fire(url, key, secret, netdata_name, netdata_status, family, value):
+    alertname, labels, annotations = _build_netdata_labels_annotations(
+        netdata_name, netdata_status, family, value
+    )
+
+    payload = [{
+        "labels": labels,
+        "annotations": annotations,
+        "generatorURL": f"http://nethsecurity/netdata/{netdata_name}",
+        "startsAt": fmt(now_utc()),
+        "endsAt": "0001-01-01T00:00:00Z",
+    }]
+
+    status, body = http_request("POST", alerts_endpoint(url), data=payload, key=key, secret=secret)
+    if not (200 <= status < 300):
+        print(f"Failed to send netdata alert (HTTP {status}): {body}", file=sys.stderr)
+        sys.exit(1)
+
+
+def _netdata_resolve(url, key, secret, netdata_name, family):
+    # Resolve both possible severities for the mapped alertname so that
+    # regardless of which severity was fired, the alert is cleared.
+    mappings = NETDATA_ALERT_MAP.get(netdata_name, {})
+    if mappings:
+        resolved = set()
+        for _status, m in mappings.items():
+            alertname = m["alertname"]
+            severity = m["severity"]
+            service = m.get("service")
+            sig = (alertname, severity)
+            if sig in resolved:
+                continue
+            resolved.add(sig)
+            _send_resolve(url, key, secret, alertname, severity, service, netdata_name)
+    else:
+        # Generic fallback: resolve with both severities to be safe
+        for severity in ("critical", "warning"):
+            _send_resolve(url, key, secret, netdata_name, severity, None, netdata_name)
+
+
+def _send_resolve(url, key, secret, alertname, severity, service, netdata_name):
+    now = now_utc()
+    labels = {"alertname": alertname, "severity": severity}
+    if service:
+        labels["service"] = service
+    annotations = {"summary": "resolved", "description": f"Alert {alertname} cleared by netdata at {fmt(now)}."}
+    payload = [{
+        "labels": labels,
+        "annotations": annotations,
+        "generatorURL": f"http://nethsecurity/netdata/{netdata_name}",
+        "startsAt": fmt(now - timedelta(hours=1)),
+        "endsAt": fmt(now),
+    }]
+    http_request("POST", alerts_endpoint(url), data=payload, key=key, secret=secret)
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="NethSecurity alert management (ns-plug integration)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=__doc__,
+    )
+    # Optional credential overrides (take precedence over UCI config)
+    parser.add_argument("--url", help="Override my_url from UCI config")
+    parser.add_argument("--key", help="Override my_system_key from UCI config")
+    parser.add_argument("--secret", help="Override my_system_secret from UCI config")
+
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    # fire
+    p_send = sub.add_parser("fire", help="Fire an alert")
+    p_send.add_argument("--alertname", required=True, help="Alert name (CamelCase, e.g. DiskSpaceCritical)")
+    p_send.add_argument("--severity", required=True, choices=["critical", "warning", "info"], help="Severity level")
+    p_send.add_argument("--labels", nargs="*", metavar="KEY=VALUE", help="Labels (e.g. service=storage mountpoint=/data)")
+    p_send.add_argument("--annotations", nargs="*", metavar="KEY=VALUE", help="Annotations (e.g. summary_en='...')")
+
+    # resolve
+    p_resolve = sub.add_parser("resolve", help="Resolve an active alert")
+    p_resolve.add_argument("--alertname", required=True, help="Alert name (must match the fired alert)")
+    p_resolve.add_argument("--severity", required=True, choices=["critical", "warning", "info"], help="Severity level")
+    p_resolve.add_argument("--labels", nargs="*", metavar="KEY=VALUE", help="Labels (must match the fired alert)")
+    p_resolve.add_argument("--annotations", nargs="*", metavar="KEY=VALUE", help="Optional resolve annotations")
+
+    # list
+    p_list = sub.add_parser("list", help="List active alerts")
+    p_list.add_argument("--state", help="Filter by state (active, suppressed, unprocessed)")
+    p_list.add_argument("--severity", help="Filter by severity label")
+
+    # netdata (internal, called from health_alarm_notify.conf)
+    p_netdata = sub.add_parser("netdata", help="Handle a netdata alarm notification (internal use)")
+    p_netdata.add_argument("--alertname", required=True, help="Netdata alarm name (${name})")
+    p_netdata.add_argument("--status", required=True, help="Netdata alarm status (${status})")
+    p_netdata.add_argument("--chart", required=True, help="Netdata chart name (${chart})")
+    p_netdata.add_argument("--family", default="", help="Netdata chart family (${family})")
+    p_netdata.add_argument("--value", default="", help="Metric value that triggered the alarm (${value})")
+
+    args = parser.parse_args()
+
+    dispatch = {
+        "fire": cmd_fire,
+        "resolve": cmd_resolve,
+        "list": cmd_list,
+        "netdata": cmd_netdata,
+    }
+    dispatch[args.command](args)
+
+
+if __name__ == "__main__":
+    main()
