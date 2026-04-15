@@ -8,8 +8,8 @@ PKG_MAINTAINER:=Darryl Sokoloski <darryl@egloo.ca>
 PKG_LICENSE:=Unlicensed
 
 # Base URL for downloads
-NETIFYD_BASE_URL:=https://updates.nethsecurity.nethserver.org/netifyd-dist/netifyd-$(NETIFYD_VERSION)/$(ARCH)
-DL_DIR:=$(DL_DIR)/netifyd-$(NETIFYD_VERSION)-$(ARCH)
+NETIFYD_BASE_URL:=https://updates.nethsecurity.nethserver.org/netifyd-dist/netifyd-$(PKG_VERSION)/25.12.2/$(ARCH)
+DL_DIR:=$(DL_DIR)/netifyd-$(PKG_VERSION)-$(ARCH)
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -66,7 +66,7 @@ define Download/libnetifyd
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetifyd.so.4.0.0
   FILE:=libnetifyd.so.4.0.0
-  HASH:=a7bef78717e200eef177da8ee94557a565828ce796d3fd1a1f078e3f55959dd5
+  HASH:=ffbbe5078a2b6575db4c478cf1b4d257f9b7241797c84aa1bcbca17ee1b23f3b
 endef
 $(eval $(call Download,libnetifyd))
 
@@ -74,7 +74,7 @@ define Download/libnetify-plm
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetify-plm.so.1.0.0
   FILE:=libnetify-plm.so.1.0.0
-  HASH:=b5c8994dc5f497ef1ccf8aae3685c1541702031726bc9f2819489cacfcb67e8f
+  HASH:=4320235873539f561238c92094702e74b75b8939a301b694255a5512fa036a00
 endef
 $(eval $(call Download,libnetify-plm))
 
@@ -82,7 +82,7 @@ define Download/libnetify-proc-aggregator
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetify-proc-aggregator.so.0.0.0
   FILE:=libnetify-proc-aggregator.so.0.0.0
-  HASH:=c9e5981fd4410776a1808902fbe284f40882823fc4c711f54e14421c80e94c6b
+  HASH:=736acb4c22d891da66694eee5507ea70679885f0747dec7a07eec8c926dd76fc
 endef
 $(eval $(call Download,libnetify-proc-aggregator))
 
@@ -90,7 +90,7 @@ define Download/libnetify-proc-core
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetify-proc-core.so.0.0.0
   FILE:=libnetify-proc-core.so.0.0.0
-  HASH:=725415498d05fc29695a6f1fe14aed4c6b5967ff0d7d4703d06b80489c852222
+  HASH:=8c9a1f26a498a6d1c88d76e6aa0367749779ca5f44ea3fa614bc1814387258ed
 endef
 $(eval $(call Download,libnetify-proc-core))
 
@@ -98,7 +98,7 @@ define Download/libnetify-proc-dev-discovery
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetify-proc-dev-discovery.so.0.0.0
   FILE:=libnetify-proc-dev-discovery.so.0.0.0
-  HASH:=c25c4a497925cc0cf9d48f353de76fd2b5c9aa223390c87f2163feb1b0d61efb
+  HASH:=756c01e22c3724311eb6952ca6d580c728592771948207b93bab9b9795c38d1c
 endef
 $(eval $(call Download,libnetify-proc-dev-discovery))
 
@@ -106,7 +106,7 @@ define Download/libnetify-proc-flow-actions
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetify-proc-flow-actions.so.0.0.0
   FILE:=libnetify-proc-flow-actions.so.0.0.0
-  HASH:=06ed65a3ec5d840edff008aaebbe294e4b0f7545ab295b287f6ed286bf28b7d7
+  HASH:=1d6f03ead8760e314f98f5fe083515b19bf9c60e720d36bc03f70fa60a9b0d2b
 endef
 $(eval $(call Download,libnetify-proc-flow-actions))
 
@@ -114,7 +114,7 @@ define Download/libnetify-sink-http
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetify-sink-http.so.0.0.0
   FILE:=libnetify-sink-http.so.0.0.0
-  HASH:=aaaadb9179f3df215f08d29f3a46db314d3990adafa5f3c4abeff305f4bb9583
+  HASH:=95d0d6fa2b47b3764318a2f8680441d126c94bb39c84440b3e056767e330991d
 endef
 $(eval $(call Download,libnetify-sink-http))
 
@@ -122,7 +122,7 @@ define Download/libnetify-sink-log
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetify-sink-log.so.0.0.0
   FILE:=libnetify-sink-log.so.0.0.0
-  HASH:=26d136562f7416ce4fe7c70d8023ae3f578a2d2dff4239791c65ad4289d28765
+  HASH:=f9cafc30e150109dc3ab5e57eb203d51525a4ad0241fe76724206edf73c575b1
 endef
 $(eval $(call Download,libnetify-sink-log))
 
@@ -130,7 +130,7 @@ define Download/libnetify-sink-socket
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetify-sink-socket.so.0.0.0
   FILE:=libnetify-sink-socket.so.0.0.0
-  HASH:=8772335da50b702edd2a1412c98c82e32058dee2158db6e874ba3964ac66590a
+  HASH:=7ed9fe8d4d952ccbedca1c2be505fe288080f19c5c60d4db46932078c97d5364
 endef
 $(eval $(call Download,libnetify-sink-socket))
 
@@ -138,7 +138,7 @@ define Download/libnetify-sink-sqlite
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetify-sink-sqlite.so.0.0.0
   FILE:=libnetify-sink-sqlite.so.0.0.0
-  HASH:=6c2879cb8c9da36d592c85b9f8b4042339f0322fe2ebf335a5d15d06562ec65b
+  HASH:=0de0ef72cbd092fedd5cc278a4b57977891650aa10712f5ae0e6381a5a02fa52
 endef
 $(eval $(call Download,libnetify-sink-sqlite))
 
@@ -146,7 +146,7 @@ define Download/netifyd
   URL:=$(NETIFYD_BASE_URL)/usr/sbin
   URL_FILE:=netifyd
   FILE:=netifyd
-  HASH:=02a8647d779f7dc4506fe9dd10295a06f6f1cb7b701edbfe791e6f319c4d7fd3
+  HASH:=a1d8f40f87ba58876c7652dc0f82e699d6f8139793b8ede9d33cea043a693c72
 endef
 $(eval $(call Download,netifyd))
 

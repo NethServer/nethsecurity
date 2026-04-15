@@ -99,7 +99,14 @@ This script retrieves open issues labeled "testing" from the NethServer/nethsecu
 
 ## netifyd-packages.sh
 
-This scripts pulls the `.ipk` packages from the `netifyd-ipks` directory, unpacks them and puts the files inside the `netifyd` package. This script is useful when an update of `netifyd` requires changes in the integration meta package.
+This script extracts Netify `.apk` packages from the `netifyd-apks` directory, unpacks them, and merges the files for analysis and integration. This script is useful when an update of `netifyd` requires changes in the integration meta package.
+
+### Prerequisites
+
+- **apk-tools**: The Alpine package extraction tool must be installed on your system.
+  - On Fedora/RHEL: `dnf install apk-tools`
+  - On Debian/Ubuntu: `apt-get install apk-tools`
+  - On Alpine Linux: Already included
 
 ### Usage
 
@@ -107,4 +114,12 @@ This scripts pulls the `.ipk` packages from the `netifyd-ipks` directory, unpack
 ./netifyd-packages.sh
 ```
 
-All process will be handled by the script, there will be an output that lists the files that were being copied in the process, this output needs to be copied and pasted inside the `packages/netifyd/Makefile` file, inside the `define Package/netifyd/install` section.
+The script will process all `.apk` files in the `netifyd-apks/{arch}/` directories and extract their contents into `netifyd-apks/tmp/{arch}/netifyd/`. The merged files can then be copied into the `packages/netifyd/` directory as needed.
+
+### How It Works
+
+1. Iterates over each architecture subdirectory in `netifyd-apks/`
+2. For each `.apk` file found, extracts its contents to a temporary location
+3. Merges all extracted files into a single `netifyd` output directory per architecture
+4. Skips metadata files (`.PKGINFO`, install scripts, etc.) during extraction
+5. Outputs the merged file structure in `netifyd-apks/tmp/{arch}/netifyd/`
