@@ -7,7 +7,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=ns-dpi
-PKG_VERSION:=0.3.2
+PKG_VERSION:=0.3.3
 PKG_RELEASE:=1
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-dpi-$(PKG_VERSION)
@@ -47,7 +47,7 @@ endef
 define Package/ns-dpi/prerm
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
-	crontab -l | grep -v "/usr/sbin/dpi-update" | sort | uniq | crontab -
+	crontab -l | grep -v "/usr/sbin/dpi-update" | grep -v "/etc/init.d/dpi-license-update" | grep -v "/etc/init.d/dpi-data-update" | sort | uniq | crontab -
 fi
 exit 0
 endef
