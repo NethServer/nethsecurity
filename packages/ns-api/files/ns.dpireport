@@ -9,12 +9,10 @@
 
 import sys
 import json
-import glob
 import sqlite3
 import socket
 from datetime import date, datetime, timedelta
 
-BASE_PATH = '/var/run/dpireport'
 DB_PATH = '/var/run/dpireport/stats.db'
 
 def reverse_dns(ip):
@@ -24,106 +22,22 @@ def reverse_dns(ip):
         return ip
 
 def list_days():
-    ret = list()
-    for day in glob.glob('/var/run/dpireport/*/*/*'):
-        tmp = day.removeprefix('/var/run/dpireport/').split('/')
-        ret.append((tmp[0], tmp[1], tmp[2]))
-    return {"days": ret}
-
-def summary(year, month, day, client="*", limit=10):
-    """
-    Deprecated, please use summary_v2
-    """
-    hours = dict()
-    for i in range(24):
-        hours[f'{i:02}'] = 0
-    ret = {"total": 0, "clients": {}, "hours": hours, "names": {}, "protocol": {}, "host": {}, "application": {}}
-    # prepenad leading zero, if needed
-    month = f'{int(month):02}'
-    day = f'{int(day):02}'
-    for client_f in glob.glob(f'/var/run/dpireport/{year}/{month}/{day}/{client}'):
-        client = client_f.removeprefix(f'/var/run/dpireport/{year}/{month}/{day}/')
-        cdetails = _details(year, month, day, client)
-        ret["clients"][client] = cdetails["total"]
-        ret["names"][client] = cdetails["name"]
-        for hour in cdetails["hours"]:
-            try:
-                ret["hours"][hour] += cdetails["hours"][hour]["total"]
-            except:
-                pass
-        ret["total"] += cdetails["total"]
-
-        for key in ("protocol", "host", "application"):
-            for el in cdetails[key]:
-                if el not in ret[key]:
-                    ret[key][el] = 0
-                ret[key][el] += cdetails[key][el]
     try:
-        tmp_c = sorted(ret['clients'].items(), key=lambda x: x[1], reverse=True)
-    except:
-        tmp_c = list()
-    try:
-        tmp_h = sorted(ret['hours'].items())
-    except:
-        tmp_h = list()
-
-    ret['clients'] = tmp_c
-    ret['hours'] = tmp_h
-
-    for key in ("protocol", "host", "application"):
-        try:
-            tmp = sorted(ret[key].items(), key=lambda x: x[1], reverse=True)
-        except:
-            tmp = list()
-        ret[key] = tmp[0:10]
-
-    return ret
-
-def _details(year, month, day, client):
-    """
-    Deprecated, please use summary_v2
-    """
-    hours = dict()
-    if not client:
-        return ret
-    for i in range(24):
-        hours[f'{i:02}'] = dict()
-    ret = {"hours": hours, "total": 0, "name": reverse_dns(client), "protocol": {}, "host": {}, "application": {}}
-    ddir = f'/var/run/dpireport/{year}/{month}/{day}/{client}/'
-    for hour_f in glob.glob(f'{ddir}??.json'):
-        hour = hour_f.removesuffix(".json").removeprefix(ddir)
-        with open(hour_f, 'r') as fp:
-            ret["hours"][hour] = json.load(fp)
-        for key in ("protocol", "host", "application"):
-            for el in ret["hours"][hour][key]:
-                if el not in ret[key]:
-                    ret[key][el] = 0
-                ret[key][el] += ret["hours"][hour][key][el]
-        ret["total"] += ret["hours"][hour]["total"]
-    return ret
-
-
-def _load_data(year, month, day):
-    search_path = f'{BASE_PATH}/{year}/{month}/{day}/'
-    clients = dict()
-    for client_file in glob.glob(f'{search_path}/*'):
-        client_name = client_file.removeprefix(search_path)
-        client_data = dict()
-        client_hourly = glob.glob(f'{client_file}/*.json')
-        for data_file in client_hourly:
-            time = data_file.removeprefix(f'{client_file}/').removesuffix('.json')
-            client_data[time] = _extract_data(data_file)
-        clients[client_name] = client_data
-
-    return clients
-
-
-def _extract_data(dpi_file: str):
-    try:
-        with open(dpi_file, 'r') as file:
-            return json.load(file)
-    except:
-        return dict()
+        with sqlite3.connect(f'file:{DB_PATH}?mode=ro', uri=True) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                '''
+SELECT DISTINCT
+       strftime('%Y', log_time_end, 'unixepoch', 'localtime') AS year,
+       strftime('%m', log_time_end, 'unixepoch', 'localtime') AS month,
+       strftime('%d', log_time_end, 'unixepoch', 'localtime') AS day
+FROM stats_timestamps
+ORDER BY year DESC, month DESC, day DESC
+'''
+            )
+            return {"days": [tuple(row) for row in cursor.fetchall()]}
+    except sqlite3.Error:
+        return {"days": []}
 
 
 def _day_bounds(year, month, day):
@@ -311,9 +225,6 @@ cmd = sys.argv[1]
 
 if cmd == 'list':
     print(json.dumps({
-        "summary": {"year": "2023", "month": "06", "day": "02", "limit": 10},
-        "summary-by-client": {"year": "2023", "month": "06", "day": "02", "client": "192.168.1.1", "limit": 10},
-        "details": {"year": "2023", "month": "06", "day": "16", "client": "192.168.100.22"},
         "days": {},
         "summary-v2": {"year": "2024", "month": "06", "day": "02", "client": "127.0.0.1", "section": "application",
                        "value": "netify.http", "limit": 20}
@@ -326,15 +237,3 @@ else:
         args = json.loads(sys.stdin.read())
         print(json.dumps(summary_v2(args.get('year'), args.get('month'), args.get('day'), args.get('client'),
                                     args.get('section'), args.get('value'), args.get('limit', 20))))
-    else:
-        args = json.loads(sys.stdin.read())
-        year = args.get('year', f'{date.today().year:02}')
-        month = args.get('month', f'{date.today().month:02}')
-        day = args.get('day', f'{date.today().day:02}')
-        if action == "summary":
-            limit = args.get('limit', 10)
-            print(json.dumps(summary(year, month, day, limit=limit)))
-        elif action == "summary-by-client":
-            client = args.get('client', '*')
-            limit = args.get('limit', 10)
-            print(json.dumps(summary(year, month, day, client, limit=limit)))
