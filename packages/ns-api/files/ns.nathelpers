@@ -58,12 +58,12 @@ DEFAULT_PARAMS = {
 
 def get_nat_helper_names():
     nat_helpers = []
-    proc = subprocess.run("/bin/opkg files kmod-nf-nathelper | grep -e '\.ko$' | cut -d'/' -f 5 | cut -d'.' -f1", shell=True, check=True,
+    proc = subprocess.run("/bin/opkg files kmod-nf-nathelper | grep -e '\\.ko$' | cut -d'/' -f 5 | cut -d'.' -f1", shell=True, check=True,
                           capture_output=True, text=True)
     nat_helpers = proc.stdout.splitlines()
 
     nat_helpers_extra = []
-    proc = subprocess.run("/bin/opkg files kmod-nf-nathelper-extra | grep -e '\.ko$' | cut -d'/' -f 5 | cut -d'.' -f1", shell=True, check=True,
+    proc = subprocess.run("/bin/opkg files kmod-nf-nathelper-extra | grep -e '\\.ko$' | cut -d'/' -f 5 | cut -d'.' -f1", shell=True, check=True,
                           capture_output=True, text=True)
     nat_helpers_extra = proc.stdout.splitlines()
     return nat_helpers + nat_helpers_extra
