@@ -85,7 +85,7 @@ uci commit adblock
 ### Custom categories
 
 To add custom categories, create a file `/etc/adblock/custom.sources.gz` with the list of categories to block.
-If such file is present, the `/usr/share/threat_shield/community-dns.sources.gz` will be ignored.
+If such file is present, the generated `/etc/adblock/adblock.custom.feeds` file will be used by adblock.
 
 ### DNS redirect bypass
 

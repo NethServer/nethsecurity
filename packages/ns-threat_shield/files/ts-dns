@@ -6,9 +6,11 @@
 #
 
 DEST_DIR=/etc/adblock
+BASE_FEEDS=/etc/adblock/adblock.feeds
 NETHESIS_SOURCES=/usr/share/threat_shield/nethesis-dns.sources.gz
 COMMUNITY_SOURCES=/usr/share/threat_shield/community-dns.sources.gz
 CUSTOM_SOURCES=/etc/adblock/custom.sources.gz
+CUSTOM_FEEDS=/etc/adblock/adblock.custom.feeds
 TMP_FILE=/tmp/combined.sources
 
 SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
@@ -17,15 +19,17 @@ TYPE=$(uci -q get ns-plug.config.type)
 TS_ENABLED=$(uci -q get adblock.global.ts_enabled)
 
 if [ "$TS_ENABLED" = 1 ]; then
-    # Setup new blacklist source
-    uci set adblock.global.adb_srcarc="$DEST_DIR"/combined.sources.gz
-
-    # Setup dnsmasq as backend
+    # Keep dnsmasq as backend
     uci set adblock.global.adb_dns='dnsmasq'
     uci set adblock.global.adb_dnsinstance='0'
 
+    # Force DNS for selected zones using upstream nftables support
+    uci set adblock.global.adb_nftforce='1'
+    uci set adblock.global.adb_nftdevforce='lan'
+    uci set adblock.global.adb_nftportforce='53 853'
+
     # Setup wget with compression support
-    uci set adblock.global.adb_fetchutil='wget'
+    uci set adblock.global.adb_fetchcmd='wget'
     uci set adblock.global.adb_fetchparm="--compression=gzip --no-cache --no-cookies --max-redirect=0 --timeout=20 -O"
 
     if [ -f $CUSTOM_SOURCES ]; then
@@ -42,16 +46,24 @@ if [ "$TS_ENABLED" = 1 ]; then
         gunzip -c $NETHESIS_SOURCES | sed -e "s/__USER__/$SYSTEM_ID/" -e "s/__PASSWORD__/$SYSTEM_SECRET/" -e "s/__TYPE__/$TYPE/" >> $TMP_FILE
     fi
 
-    # Merge the source list and compress it to the final file
-    jq -s 'reduce .[] as $item ({}; . * $item)' $TMP_FILE |  gzip -c > "$DEST_DIR"/combined.sources.gz
+    # Merge upstream feeds with the selected threat shield feeds
+    if [ -r "$BASE_FEEDS" ]; then
+        jq -s 'reduce .[] as $item ({}; . * $item)' "$BASE_FEEDS" "$TMP_FILE" > "$CUSTOM_FEEDS"
+    else
+        jq -s 'reduce .[] as $item ({}; . * $item)' "$TMP_FILE" > "$CUSTOM_FEEDS"
+    fi
 
     # Cleanup
     rm -f $TMP_FILE
 else
-    # Reset sources to origin file if threat shield is not enabled
-    uci -q delete adblock.global.adb_srcarc
-    uci -q delete adblock.global.adb_fetchparam
-    uci set adblock.global.adb_fetchutil='curl'
+    # Reset threat shield overrides if threat shield is not enabled
+    uci -q delete adblock.global.ts_enabled
+    uci -q delete adblock.global.adb_fetchparm
+    uci -q delete adblock.global.adb_nftforce
+    uci -q delete adblock.global.adb_nftdevforce
+    uci -q delete adblock.global.adb_nftportforce
+    uci set adblock.global.adb_fetchcmd='curl'
+    rm -f "$CUSTOM_FEEDS"
 fi
 
 # Save changes
