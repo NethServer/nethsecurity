@@ -154,7 +154,7 @@ def check_adblock():
     if not adb_enabled:
         return "disabled"
     pa = subprocess.run(["service", "adblock", "status"], check=False, capture_output=True, text=True)
-    if adb_enabled and re.search('adblock_status\s+:\s+enabled', pa.stdout):
+    if adb_enabled and re.search(r'adblock_status\s+:\s+enabled', pa.stdout):
         return "ok"
     else:
         return "error"
@@ -165,7 +165,7 @@ def check_banip():
     if not bip_enabled:
         return "disabled"
     pa = subprocess.run(["service", "banip", "status"], check=False, capture_output=True, text=True)
-    if bip_enabled and re.search('status\s+:\s+active', pa.stdout):
+    if bip_enabled and re.search(r'status\s+:\s+active', pa.stdout):
         return "ok"
 
 def check_ts_ip():
