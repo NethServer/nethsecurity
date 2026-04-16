@@ -63,8 +63,7 @@ def add_tap_to_bridge(u, bridge, interface):
                     u.save("network")
             except:
                 pass
-            finally:
-                return
+            return
 
 def remove_tap_from_bridge(u, bridge, interface):
     if bridge is None or interface is None:
@@ -85,8 +84,7 @@ def remove_tap_from_bridge(u, bridge, interface):
                     u.save("network")
             except:
                 pass
-            finally:
-                return
+            return
 
 def get_ip_and_mask(bridge):
     u = EUci()
