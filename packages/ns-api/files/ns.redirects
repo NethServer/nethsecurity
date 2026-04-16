@@ -21,7 +21,7 @@ def get_services():
             line = line.strip()
             if not line:
                 continue
-            tmp = re.split("\s+", line)
+            tmp = re.split(r"\s+", line)
             port = tmp[1][0:tmp[1].index("/")]
             services[port] = tmp[0]
     return services
