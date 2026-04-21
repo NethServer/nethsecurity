@@ -100,12 +100,12 @@ define Package/ns-plug/install
 	$(INSTALL_BIN) ./files/disable_automatic_updates $(1)/usr/share/ns-plug/hooks/unregister/60disable_automatic_updates
 	$(INSTALL_CONF) ./files/config $(1)/etc/config/ns-plug
 	$(INSTALL_CONF) files/ns-plug.keep $(1)/lib/upgrade/keep.d/ns-plug
-	$(INSTALL_CONF) files/health_alarm_notify.conf $(1)/etc/netdata
 	$(INSTALL_BIN) ./files/send-mwan-alert $(1)/usr/libexec/mwan-hooks
 	$(INSTALL_BIN) ./files/backup-encryption-alert $(1)/usr/libexec
 	$(INSTALL_BIN) ./files/ns-plug-alert $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/mwan-hooks $(1)/usr/libexec/ns-plug
 	$(INSTALL_BIN) ./files/ns-plug-rsyslog-fixup.uci-default $(1)/etc/uci-defaults/rsyslog-fixup
+	$(INSTALL_DATA) files/health_alarm_notify.conf $(1)/usr/share/ns-plug/
 endef
  
 $(eval $(call BuildPackage,ns-plug))
