@@ -48,30 +48,45 @@ endef
 
 define Package/ns-monitoring/install
 	$(call GoPackage/Package/Install/Bin,$(1))
+	# configuration files
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/ns-flows.conf $(1)/etc/config/ns-flows
 	$(INSTALL_CONF) ./files/ns-stats.conf $(1)/etc/config/ns-stats
+	# init scripts
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/ns-flows.init $(1)/etc/init.d/ns-flows
 	$(INSTALL_BIN) ./files/ns-stats.init $(1)/etc/init.d/ns-stats
+	# startup and crons
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/99-ns-stats $(1)/etc/uci-defaults/99-ns-stats
+	# netifyd configuration
 	$(INSTALL_DIR) $(1)/etc/netifyd
 	$(INSTALL_DIR) $(1)/etc/netifyd/plugins.d
-	# ns-flows
+	## ns-flows
 	$(INSTALL_CONF) ./files/netifyd/plugins.d/10-netify-flows.conf $(1)/etc/netifyd/plugins.d/10-netify-flows.conf
 	$(INSTALL_CONF) ./files/netifyd/netify-sink-socket-flows.json $(1)/etc/netifyd/netify-sink-socket-flows.json
 	$(INSTALL_CONF) ./files/netifyd/netify-proc-core-flows.json $(1)/etc/netifyd/netify-proc-core-flows.json
-	# ns-stats
+	## ns-stats
 	$(INSTALL_CONF) ./files/netifyd/plugins.d/10-ns-stats.conf $(1)/etc/netifyd/plugins.d/10-ns-stats.conf
 	$(INSTALL_CONF) ./files/netifyd/netify-ns-stats-proc.json $(1)/etc/netifyd/netify-ns-stats-proc.json
 	$(INSTALL_CONF) ./files/netifyd/netify-ns-stats-sink.json $(1)/etc/netifyd/netify-ns-stats-sink.json
+	# additional binaries
+	$(INSTALL_DIR) $(1)/usr/bin
+	$(INSTALL_BIN) ./files/dpireport-cleanup $(1)/usr/bin/dpireport-cleanup
 endef
 
 define Package/ns-monitoring/postinst
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
 	/etc/init.d/netifyd restart
+fi
+exit 0
+endef
+
+define Package/ns-monitoring/prerm
+#!/bin/sh
+if [ -z "$${IPKG_INSTROOT}" ]; then
+	crontab -l | grep -v "/usr/bin/dpireport-cleanup" | sort | uniq | crontab -
 fi
 exit 0
 endef

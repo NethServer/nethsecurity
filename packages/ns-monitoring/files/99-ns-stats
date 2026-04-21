@@ -5,4 +5,11 @@
 /etc/init.d/ns-stats enable
 /etc/init.d/ns-stats start
 
+crontab -l | grep -q '/usr/bin/dpireport-cleanup' || echo '04 0 * * * /usr/bin/dpireport-cleanup' >> /etc/crontabs/root
+
+if [ -f /etc/init.d/dpireport ]; then
+    /etc/init.d/dpireport stop
+    /etc/init.d/dpireport disable
+fi
+
 exit 0
