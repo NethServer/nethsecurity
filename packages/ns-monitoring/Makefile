@@ -72,7 +72,7 @@ define Package/ns-monitoring/install
 	$(INSTALL_CONF) ./files/netifyd/netify-ns-stats-sink.json $(1)/etc/netifyd/netify-ns-stats-sink.json
 	# additional binaries
 	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_BIN) ./files/dpireport-cleanup $(1)/usr/bin/dpireport-cleanup
+	$(INSTALL_BIN) ./files/ns-stats-cleanup $(1)/usr/bin/ns-stats-cleanup
 endef
 
 define Package/ns-monitoring/postinst
@@ -86,7 +86,7 @@ endef
 define Package/ns-monitoring/prerm
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
-	crontab -l | grep -v "/usr/bin/dpireport-cleanup" | sort | uniq | crontab -
+	crontab -l | grep -v "/usr/bin/ns-stats-cleanup" | sort | uniq | crontab -
 fi
 exit 0
 endef
