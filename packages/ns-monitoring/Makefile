@@ -7,12 +7,12 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-monitoring
 # renovate: datasource=github-tags depName=nethserver/nethsecurity-monitoring
-PKG_VERSION:=1.0.2
+PKG_VERSION:=1.0.2-stats
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/NethServer/nethsecurity-monitoring.git
-PKG_SOURCE_VERSION:=910167f116fe6862a1bd35a4d93d1faea385ce0f
+PKG_SOURCE_VERSION:=5100a34287ec947e69cdc25d6670ab87c726dc55
 PKG_SOURCE_SUBDIR:=nethsecurity-monitoring-$(PKG_VERSION)
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_SOURCE_SUBDIR)
 
