@@ -10,12 +10,10 @@
 import sys
 import json
 import glob
-import sqlite3
 import socket
-from datetime import date, datetime, timedelta
+from datetime import date
 
 BASE_PATH = '/var/run/dpireport'
-DB_PATH = '/var/run/dpireport/stats.db'
 
 def reverse_dns(ip):
     try:
@@ -126,59 +124,6 @@ def _extract_data(dpi_file: str):
         return dict()
 
 
-def _day_bounds(year, month, day):
-    start = date(int(year), int(month), int(day))
-    end = start + timedelta(days=1)
-    return (
-        int(datetime(start.year, start.month, start.day).timestamp()),
-        int(datetime(end.year, end.month, end.day).timestamp()),
-    )
-
-
-def _append_filter(filters, params, clause, value):
-    filters.append(clause)
-    params.append(value)
-
-
-def _build_where(year, month, day, narrow_client=None, narrow_section=None, narrow_value=None):
-    start_ts, end_ts = _day_bounds(year, month, day)
-    filters = ["ts.log_time_end >= ?", "ts.log_time_end < ?"]
-    params = [start_ts, end_ts]
-
-    if narrow_client is not None:
-        _append_filter(filters, params, "s.local_ip = ?", narrow_client)
-
-    if narrow_section == 'application':
-        _append_filter(filters, params, "lower(s.detected_application_name) = lower(?)", narrow_value)
-    elif narrow_section == 'protocol':
-        _append_filter(filters, params, "lower(s.detected_protocol_name) = lower(?)", narrow_value)
-    elif narrow_section == 'host':
-        _append_filter(filters, params, "s.other_ip = ?", narrow_value)
-
-    return " AND ".join(filters), params
-
-
-def _query_rows(cursor, sql, params):
-    cursor.execute(sql, params)
-    return cursor.fetchall()
-
-
-def _base_query(where_clause):
-    return f'''
-FROM stats s
-JOIN stats_timestamps ts ON ts.id = s.stats_timestamp_id
-WHERE {where_clause}
-'''
-
-
-def _empty_summary_response():
-    return {
-        'total_traffic': 0,
-        'hourly_traffic': [{'id': f'{i:02}', 'traffic': 0} for i in range(24)],
-        'clients': [],
-    }
-
-
 def summary_v2(year=None, month=None, day=None, narrow_client=None, narrow_section=None, narrow_value=None, limit=20):
     if year is None:
         year = f'{date.today().year:02}'
@@ -186,108 +131,93 @@ def summary_v2(year=None, month=None, day=None, narrow_client=None, narrow_secti
         month = f'{date.today().month:02}'
     if day is None:
         day = f'{date.today().day:02}'
-    where_clause, params = _build_where(year, month, day, narrow_client, narrow_section, narrow_value)
+    data = _load_data(year, month, day)
 
     total_traffic = 0
-    final_hourly_traffic = []
-    final_clients = []
-    final_applications = []
-    final_remote_hosts = []
-    final_protocols = []
+    raw_hourly_traffic = dict[str, int]()
+    for i in range(24):
+        raw_hourly_traffic[f'{i:02}'] = 0
+    raw_applications = dict[str, int]()
+    raw_clients = list[dict]()
+    raw_remote_hosts = dict[str, int]()
+    raw_protocols = dict[str, int]()
 
-    try:
-        conn = sqlite3.connect(f'file:{DB_PATH}?mode=ro', uri=True)
-    except sqlite3.Error:
-        return _empty_summary_response()
+    for client in data:
+        if narrow_client is not None and narrow_client != client:
+            continue
+        resolved_client = reverse_dns(client)
+        raw_client_total_traffic = 0
 
-    with conn:
-        cursor = conn.cursor()
+        for time in data[client]:
+            for application in data[client][time]['application']:
+                if narrow_section == 'application' and application != narrow_value:
+                    continue
+                elif narrow_section is not None and narrow_section != 'application':
+                    break
+                if application not in raw_applications:
+                    raw_applications[application] = 0
+                raw_applications[application] += data[client][time]['application'][application]
+            for host in data[client][time]['host']:
+                if narrow_section == 'host' and host != narrow_value:
+                    continue
+                elif narrow_section is not None and narrow_section != 'host':
+                    break
+                if host not in raw_remote_hosts:
+                    raw_remote_hosts[host] = 0
+                raw_remote_hosts[host] += data[client][time]['host'][host]
+            for protocol in data[client][time]['protocol']:
+                if narrow_section == 'protocol' and protocol != narrow_value:
+                    continue
+                elif narrow_section is not None and narrow_section != 'protocol':
+                    break
+                if protocol not in raw_protocols:
+                    raw_protocols[protocol] = 0
+                raw_protocols[protocol] += data[client][time]['protocol'][protocol]
 
-        row = cursor.execute(
-            f'''SELECT COALESCE(SUM(s.local_bytes + s.other_bytes), 0) {_base_query(where_clause)}''',
-            params,
-        ).fetchone()
-        total_traffic = row[0] if row and row[0] is not None else 0
+            match narrow_section:
+                case 'host':
+                    if narrow_value not in data[client][time]['host']:
+                        continue
+                    total_traffic += data[client][time]['host'][narrow_value]
+                    raw_hourly_traffic[time] += data[client][time]['host'][narrow_value]
+                    raw_client_total_traffic += data[client][time]['host'][narrow_value]
+                case 'protocol':
+                    if narrow_value not in data[client][time]['protocol']:
+                        continue
+                    total_traffic += data[client][time]['protocol'][narrow_value]
+                    raw_hourly_traffic[time] += data[client][time]['protocol'][narrow_value]
+                    raw_client_total_traffic += data[client][time]['protocol'][narrow_value]
+                case 'application':
+                    if narrow_value not in data[client][time]['application']:
+                        continue
+                    total_traffic += data[client][time]['application'][narrow_value]
+                    raw_hourly_traffic[time] += data[client][time]['application'][narrow_value]
+                    raw_client_total_traffic += data[client][time]['application'][narrow_value]
+                case _:
+                    total_traffic += data[client][time]['total']
+                    raw_hourly_traffic[time] += data[client][time]['total']
+                    raw_client_total_traffic += data[client][time]['total']
 
-        hourly_rows = _query_rows(
-            cursor,
-            f'''
-SELECT strftime('%H', ts.log_time_end, 'unixepoch', 'localtime') AS hour,
-       COALESCE(SUM(s.local_bytes + s.other_bytes), 0) AS traffic
-{_base_query(where_clause)}
-GROUP BY hour
-ORDER BY hour
-''',
-            params,
-        )
-        hourly_map = {f'{i:02}': 0 for i in range(24)}
-        for hour, traffic in hourly_rows:
-            if hour is not None:
-                hourly_map[hour] = traffic
-        final_hourly_traffic = [{'id': hour, 'traffic': hourly_map[hour]} for hour in hourly_map]
+        # append client
+        raw_clients.append({
+            'id': client,
+            'label': resolved_client,
+            'traffic': raw_client_total_traffic
+        })
 
-        client_rows = _query_rows(
-            cursor,
-            f'''
-SELECT s.local_ip, COALESCE(SUM(s.local_bytes + s.other_bytes), 0) AS traffic
-{_base_query(where_clause)}
-GROUP BY s.local_ip
-ORDER BY traffic DESC, s.local_ip ASC
-LIMIT ?
-''',
-            params + [limit],
-        )
-        final_clients = [
-            {'id': client, 'label': reverse_dns(client), 'traffic': traffic}
-            for client, traffic in client_rows
-        ]
+    # do not display empty values when seeing details
+    if narrow_section and narrow_value:
+        raw_clients = [client for client in raw_clients if client['traffic'] > 0]
+    raw_clients.sort(key=lambda x: x['traffic'], reverse=True)
+    final_clients = raw_clients[:limit]
 
-        if narrow_section is None:
-            application_rows = _query_rows(
-                cursor,
-                f'''
-SELECT lower(s.detected_application_name) AS application,
-       COALESCE(SUM(s.local_bytes + s.other_bytes), 0) AS traffic
-{_base_query(where_clause)}
-GROUP BY application
-ORDER BY traffic DESC, application ASC
-LIMIT ?
-''',
-                params + [limit],
-            )
-            for application, traffic in application_rows:
-                label = 'Unknown' if application == 'unknown' else application.removeprefix('netify.').capitalize()
-                final_applications.append({'id': application, 'label': label, 'traffic': traffic})
-
-            host_rows = _query_rows(
-                cursor,
-                f'''
-SELECT s.other_ip, COALESCE(SUM(s.local_bytes + s.other_bytes), 0) AS traffic
-{_base_query(where_clause)}
-GROUP BY s.other_ip
-ORDER BY traffic DESC, s.other_ip ASC
-LIMIT ?
-''',
-                params + [limit],
-            )
-            final_remote_hosts = [{'id': host, 'traffic': traffic} for host, traffic in host_rows]
-
-            protocol_rows = _query_rows(
-                cursor,
-                f'''
-SELECT lower(s.detected_protocol_name) AS protocol,
-       COALESCE(SUM(s.local_bytes + s.other_bytes), 0) AS traffic
-{_base_query(where_clause)}
-GROUP BY protocol
-ORDER BY traffic DESC, protocol ASC
-LIMIT ?
-''',
-                params + [limit],
-            )
-            final_protocols = [
-                {'id': protocol, 'label': protocol.upper(), 'traffic': traffic}
-                for protocol, traffic in protocol_rows
-            ]
+    final_hourly_traffic = list()
+    for item in raw_hourly_traffic:
+        final_hourly_traffic.append({
+            'id': item,
+            'traffic': raw_hourly_traffic[item]
+        })
+    final_hourly_traffic.sort(key=lambda x: x['id'])
 
     response = {
         'total_traffic': total_traffic,
@@ -295,14 +225,42 @@ LIMIT ?
         'clients': final_clients,
     }
 
-    if narrow_section is None and len(final_applications) > 0:
-        response['applications'] = final_applications
+    if len(raw_applications) > 0:
+        final_applications = list()
+        for item in raw_applications:
+            label = item
+            if item == 'unknown':
+                label = 'Unknown'
+            else:
+                label = label.removeprefix('netify.').capitalize()
+            final_applications.append({
+                'id': item,
+                'label': label,
+                'traffic': raw_applications[item]
+            })
+        final_applications.sort(key=lambda x: x['traffic'], reverse=True)
+        response['applications'] = final_applications[:limit]
 
-    if narrow_section is None and len(final_remote_hosts) > 0:
-        response['remote_hosts'] = final_remote_hosts
+    if len(raw_remote_hosts) > 0:
+        final_remote_hosts = list()
+        for item in raw_remote_hosts:
+            final_remote_hosts.append({
+                'id': item,
+                'traffic': raw_remote_hosts[item]
+            })
+        final_remote_hosts.sort(key=lambda x: x['traffic'], reverse=True)
+        response['remote_hosts'] = final_remote_hosts[:limit]
 
-    if narrow_section is None and len(final_protocols) > 0:
-        response['protocols'] = final_protocols
+    if len(raw_protocols) > 0:
+        final_protocols = list()
+        for item in raw_protocols:
+            final_protocols.append({
+                'id': item,
+                'label': item.upper(),
+                'traffic': raw_protocols[item]
+            })
+        final_protocols.sort(key=lambda x: x['traffic'], reverse=True)
+        response['protocols'] = final_protocols[:limit]
 
     return response
 
