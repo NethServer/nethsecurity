@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Collect procd service status via ubus.
+#
+# Monitored services: fixed whitelist of NethSecurity services.
+# Services with no instances are ignored because they are disabled or not
+# configured.
+#
+# Usage:
+#   /usr/libexec/telegraf-services
+#
+# Output metric: procd_service
+#   Tags:   service, instance
+#   Fields: running (int 0/1), pid (int), exit_code (int)
+#
+# Prints a JSON array to stdout, consumed by telegraf inputs.exec with
+# data_format = "json_v2" (parsers.json_v2 build tag).
+#
+import json
+import subprocess
+import sys
+MONITORED_SERVICES = {
+    "banip",
+    "conntrackd",
+    "cron",
+    "dedalo",
+    "dedalo_users_auth",
+    "dnsmasq",
+    "dropbear",
+    "keepalived",
+    "mwan3",
+    "netifyd",
+    "nginx",
+    "ns-api-server",
+    "ns-clm",
+    "ns-flashstart",
+    "ns-flows",
+    "ns-plug",
+    "ns-plug-alert-proxy",
+    "ns-stats",
+    "ns-ui",
+    "odhcpd",
+    "openvpn",
+    "qosify",
+    "rpcd",
+    "rsyslog",
+    "snort",
+    "swanctl",
+    "sysntpd",
+    "telegraf",
+    "victoria-metrics",
+    "vmalert",
+}
+
+# Excluded service: adblock
+
+def get_service_list():
+    result = subprocess.run(
+        ["ubus", "call", "service", "list"],
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    if result.returncode != 0:
+        print(f"Error calling ubus: {result.stderr}", file=sys.stderr)
+        sys.exit(1)
+    return json.loads(result.stdout)
+
+
+def sanitize_tag(value):
+    # InfluxDB line protocol: tag values must not contain commas, spaces or equals
+    return value.replace(",", "_").replace(" ", "_").replace("=", "_")
+
+
+def build_records(data):
+    """Return a list of dicts, one per configured monitored service instance."""
+    records = []
+
+    for svc_name in sorted(MONITORED_SERVICES):
+        svc_body = data.get(svc_name)
+        instances = (svc_body or {}).get("instances") or {}
+        if not instances:
+            continue
+
+        for inst_name, inst in instances.items():
+            records.append(
+                {
+                    "service": sanitize_tag(svc_name),
+                    "instance": sanitize_tag(inst_name),
+                    "running": 1 if inst.get("running", False) else 0,
+                    "pid": inst.get("pid", 0),
+                    "exit_code": inst.get("exit_code", 0),
+                }
+            )
+    return records
+
+
+def main():
+    data = get_service_list()
+    records = build_records(data)
+
+    # JSON array — consumed by telegraf inputs.exec with data_format=json_v2
+    print(json.dumps(records))
+
+
+if __name__ == "__main__":
+    main()
