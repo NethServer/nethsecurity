@@ -1,0 +1,176 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+"""
+Alert proxy: receives Alertmanager-like notifications from vmalert and
+forwards selected alerts to the legacy my.nethesis.it / my.nethserver.com
+monitoring portals.
+
+Only the following alerts are forwarded:
+  - WanDown                   → wan:<interface>:down
+  - DiskSpaceCritical         → df:root:percent_bytes:free  (path=/)
+                                 df:boot:percent_bytes:free  (path=/boot)
+  - BackupEncryptionDisabled  → backup:config:notencrypted
+  - StorageStatus             → storage:status
+
+All other alerts are silently dropped.
+If the machine is not registered (no system_id/secret in UCI), all alerts
+are silently dropped.
+
+Firing/resolved state is determined from the Alertmanager-standard endsAt
+field: if endsAt is in the future (or zero/missing) the alert is FAILURE;
+if endsAt is in the past the alert is OK.
+"""
+
+import json
+import re
+import sys
+import time
+import urllib.request
+from datetime import datetime, timezone
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from socketserver import ThreadingMixIn
+from euci import EUci
+
+LISTEN_ADDR = "127.0.0.1"
+LISTEN_PORT = 9095
+
+_DISK_PATH_MAP = {
+    "/": "df:root:percent_bytes:free",
+    "/boot": "df:boot:percent_bytes:free",
+}
+
+_ZERO_TIME = "0001-01-01T00:00:00Z"
+# vmalert uses nanosecond precision; strip to microseconds for Python parsing
+_NANO_RE = re.compile(r"(\.\d{6})\d+(Z|[+-]\d{2}:\d{2})$")
+
+
+def _is_firing(alert):
+    """Return True if the alert is currently firing based on endsAt."""
+    ends_at_str = alert.get("endsAt", "")
+    if not ends_at_str or ends_at_str == _ZERO_TIME:
+        return True
+    ends_at_str = _NANO_RE.sub(r"\1\2", ends_at_str)
+    ends_at_str = ends_at_str.replace("Z", "+00:00")
+    try:
+        ends_at = datetime.fromisoformat(ends_at_str)
+        return ends_at > datetime.now(timezone.utc)
+    except Exception:
+        return True
+
+
+def _map_alert_id(alert_name, labels):
+    """Return the legacy alert_id string, or None if the alert is not mapped."""
+    if alert_name == "WanDown":
+        iface = labels.get("interface", "unknown")
+        return f"wan:{iface}:down"
+    if alert_name == "DiskSpaceCritical":
+        path = labels.get("path", "")
+        return _DISK_PATH_MAP.get(path)
+    if alert_name == "BackupEncryptionDisabled":
+        return "backup:config:notencrypted"
+    if alert_name == "StorageStatus":
+        return "storage:status"
+    return None
+
+
+def _send_alert(system_id, secret, alerts_url, alert_id, status, retry=3):
+    url = alerts_url.rstrip("/") + "/alerts/store"
+    payload = json.dumps(
+        {"lk": system_id, "alert_id": alert_id, "status": status}
+    ).encode()
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        method="POST",
+        headers={
+            "Authorization": f"token {secret}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            print(f"Alert sent: {alert_id} {status} → {resp.status}", file=sys.stderr)
+    except Exception as ex:
+        if retry > 0:
+            print(
+                f"Alert send failed: {alert_id} {ex} — retrying in 20s", file=sys.stderr
+            )
+            time.sleep(20)
+            _send_alert(system_id, secret, alerts_url, alert_id, status, retry - 1)
+        else:
+            print(f"Alert send aborted: {alert_id} {ex}", file=sys.stderr)
+
+
+class _AlertHandler(BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        # Suppress access log
+        pass
+
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+
+    def do_POST(self):
+        if self.system_id is None or self.secret is None or self.alerts_url is None:
+            # Just drop the alert if not configured
+            self.send_response(200)
+            self.end_headers()
+            return
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length)
+            data = json.loads(body)
+        except Exception as ex:
+            self.send_response(400)
+            self.end_headers()
+            self.wfile.write(str(ex).encode())
+            return
+
+        if type(data) is list:
+            alerts = data
+        else:
+            alerts = data.get("alerts", [])
+        for alert in alerts:
+            labels = alert.get("labels", {})
+            alert_name = labels.get("alertname", "")
+            legacy_status = "FAILURE" if _is_firing(alert) else "OK"
+
+            alert_id = _map_alert_id(alert_name, labels)
+            if not alert_id:
+                print(
+                    f"Alert dropped (no mapping): {alert_name} {labels}",
+                    file=sys.stderr,
+                )
+                continue
+
+            _send_alert(self.system_id, self.secret, self.alerts_url, alert_id, legacy_status)
+
+        self.send_response(200)
+        self.end_headers()
+
+    def __init__(self, *args, **kwargs):
+        uci = EUci()
+        self.system_id = uci.get("ns-plug", "config", "system_id", default=None)
+        self.secret = uci.get("ns-plug", "config", "secret", default=None)
+        self.alerts_url = uci.get("ns-plug", "config", "alerts_url", default=None)
+        super().__init__(*args, **kwargs)
+
+
+class _ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
+    daemon_threads = True
+
+
+def main():
+    server = _ThreadingHTTPServer((LISTEN_ADDR, LISTEN_PORT), _AlertHandler)
+    print(f"alert-proxy listening on {LISTEN_ADDR}:{LISTEN_PORT}", file=sys.stderr)
+    server.serve_forever()
+
+
+if __name__ == "__main__":
+    main()
