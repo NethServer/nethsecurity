@@ -69,6 +69,10 @@ the system as follow:
 - rsyslog will write logs also inside `/mnt/data/logs/messages` file
 - logrotate will rotate `/mnt/data/logs/messages` once a week (see `/etc/logrotate/data.conf` for more info)
 
+### Storage status alert
+
+The storage health check is exported to Telegraf by `/usr/libexec/telegraf-storage-status` and evaluated by vmalert as `StorageStatus`.
+
 ## Data sync customization
 
 Every night the cron will run a script named `sync-data` to sync data from in-memory

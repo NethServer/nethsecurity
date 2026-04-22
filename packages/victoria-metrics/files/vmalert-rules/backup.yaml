@@ -1,0 +1,20 @@
+# Victoria Metrics Alert Rules for backup encryption monitoring
+#
+# Monitors whether /etc/backup.pass is present and non-empty via the
+# backup_encryption_encrypted metric collected by Telegraf.
+
+groups:
+  - name: "backup"
+    interval: "60s"
+    rules:
+      - alert: BackupEncryptionDisabled
+        expr: 'backup_encryption_encrypted == 0'
+        for: "2m"
+        labels:
+          severity: "warning"
+          service: "backup"
+        annotations:
+          summary_en: "Backup encryption is disabled"
+          summary_it: "La cifratura dei backup e disattivata"
+          description_en: "The backup passphrase file /etc/backup.pass is missing or empty. If the firewall has a subscription, the backup will not be sent to the remote storage server."
+          description_it: "Il file della passphrase dei backup /etc/backup.pass manca o e vuoto. Se il firewall ha una subscription, i backup non verranno inviati al server di archiviazione remoto."
