@@ -21,6 +21,19 @@ function send {
         # send encrypted backup
         gpg --batch -c --yes --passphrase-file $PASSPHRASE $BACKUP
         remote-backup upload "$BACKUP.gpg"
+
+        # Temporary dual-send to new my.nethesis.it via the translation
+        # proxy, same pattern used by send-heartbeat / send-inventory.
+        # To be removed once the migration is complete.
+        if [ "$TYPE" = "enterprise" ]; then
+            /usr/bin/curl -m 900 --retry 3 -L -s -X POST \
+                --user "$SYSTEM_ID:$SYSTEM_SECRET" \
+                -H "Content-Type: application/octet-stream" \
+                -H "X-Filename: $(basename $BACKUP.gpg)" \
+                --data-binary "@$BACKUP.gpg" \
+                https://my.nethesis.it/proxy/backup >/dev/null || :
+        fi
+
         mv $MD5 $MD5_LAST
     else
         # password not set, abort upload
@@ -32,6 +45,7 @@ function send {
 
 SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
 SYSTEM_SECRET=$(uci -q get ns-plug.config.secret)
+TYPE=$(uci -q get ns-plug.config.type)
 
 if [ -z "$SYSTEM_ID" ] || [ -z "$SYSTEM_SECRET" ]; then
     # System ID and System secret not found, configure ns-plug to enable it
