@@ -1,0 +1,25 @@
+# Victoria Metrics Alert Rules for mwan3 WAN Monitoring
+#
+# Monitors WAN interface connectivity via the mwan_interface_online metric
+# collected by /usr/libexec/telegraf-mwan.
+#
+# The metric is sourced from /var/run/mwan3/iface_state/<name> which mwan3
+# writes as "online" or "offline" based on its tracking probes.
+# Only interfaces present in that directory are monitored — interfaces
+# not managed by mwan3 are not included.
+
+groups:
+  - name: "mwan"
+    interval: "60s"
+    rules:
+      - alert: WanDown
+        expr: 'mwan_interface_online == 0'
+        for: "2m"
+        labels:
+          severity: "critical"
+          service: "network"
+        annotations:
+          summary_en: "WAN interface {{ $labels.interface }} is offline"
+          summary_it: "L'interfaccia WAN {{ $labels.interface }} non è raggiungibile"
+          description_en: "WAN interface {{ $labels.interface }} is down. Internet connectivity lost."
+          description_it: "L'interfaccia WAN {{ $labels.interface }} non è raggiungibile. Connettività Internet persa."

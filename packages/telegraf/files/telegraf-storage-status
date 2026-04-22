@@ -1,0 +1,21 @@
+#!/bin/sh
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Export the storage health state for Telegraf.
+#
+# The metric is 1 when storage-status reports "error", otherwise 0.
+
+if storage_status=$(/usr/sbin/storage-status 2>/dev/null); then
+    if [ "$storage_status" = "error" ]; then
+        error=1
+    else
+        error=0
+    fi
+else
+    error=1
+fi
+
+printf '[{"error":%s}]\n' "$error"
