@@ -54,6 +54,17 @@ case "$cmd" in
            exit_error "No file specified"
        fi
        curl $curl_args $base_url --upload-file $file
+       rc=$?
+       # Temporary dual-send to new my.nethesis.it via the translation
+       # proxy, same pattern used by send-heartbeat / send-inventory.
+       # To be removed once the migration is complete.
+       if [ "$TYPE" = "enterprise" ]; then
+           curl $curl_args -X POST \
+               -H "Content-Type: application/octet-stream" \
+               -H "X-Filename: $(basename "$file")" \
+               --data-binary "@$file" https://my.nethesis.it/proxy/backup >/dev/null || :
+       fi
+       exit $rc
        ;;
    delete)
        file=$2
