@@ -1,0 +1,22 @@
+# Victoria Metrics Alert Rules for Service Monitoring
+#
+# Monitors configured procd-managed services via the procd_service_* metrics
+# collected by /usr/libexec/telegraf-services.
+#
+# Services with no instances are ignored by the collector.
+
+groups:
+  - name: "services"
+    interval: "60s"
+    rules:
+      - alert: ServiceDown
+        expr: 'procd_service_running == 0 and procd_service_exit_code != 0'
+        for: "2m"
+        labels:
+          severity: "critical"
+          alertgroup: "services"
+        annotations:
+          summary_en: "Service {{ $labels.service }} is down"
+          summary_it: "Il servizio {{ $labels.service }} non è attivo"
+          description_en: "Service {{ $labels.service }} (instance {{ $labels.instance }}) has been down for more than 2 minutes"
+          description_it: "Il servizio {{ $labels.service }} (istanza {{ $labels.instance }}) non è attivo da più di 2 minuti"

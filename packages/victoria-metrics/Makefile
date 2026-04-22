@@ -52,19 +52,25 @@ endef
 
 define Package/victoria-metrics/conffiles
 /etc/config/victoria-metrics
+/etc/config/vmalert
 endef
 
 define Package/victoria-metrics/install
 	$(call GoPackage/Package/Install/Bin,$(1))
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/victoria-metrics.initd $(1)/etc/init.d/victoria-metrics
+	$(INSTALL_BIN) ./files/vmalert.initd $(1)/etc/init.d/vmalert
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DATA) ./files/victoria-metrics.conf $(1)/etc/config/victoria-metrics
+	$(INSTALL_DATA) ./files/vmalert.conf $(1)/etc/config/vmalert
+	$(INSTALL_DIR) $(1)/etc/vmalert/rules
+	$(INSTALL_DATA) ./files/vmalert-rules/*.yaml $(1)/etc/vmalert/rules/
 endef
 
 define Package/victoria-metrics/postinst
 #!/bin/sh
 [ -z "$${IPKG_INSTROOT}" ] && /etc/init.d/victoria-metrics restart
+[ -z "$${IPKG_INSTROOT}" ] && /etc/init.d/vmalert restart
 exit 0
 endef
 

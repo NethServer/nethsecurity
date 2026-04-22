@@ -1,0 +1,96 @@
+# Victoria Metrics Alert Rules for Host and Hardware Monitoring
+# 
+# Based on: https://samber.github.io/awesome-prometheus-alerts/rules/basic-resource-monitoring/host-and-hardware/
+# Adapted for Telegraf metrics names
+
+groups:
+  - name: "host_and_hardware"
+    interval: "30s"
+    rules:
+      # CPU Monitoring
+      - alert: HighCpuUsage
+        expr: 'round(100 - avg(cpu_usage_idle), 0.1) > 70 unless round(100 - avg(cpu_usage_idle), 0.1) > 85'
+        for: "5m"
+        labels:
+          severity: "info"
+          service: "host"
+        annotations:
+          summary_en: "High CPU usage detected"
+          summary_it: "Utilizzo elevato di CPU rilevato"
+          description_en: "CPU usage is {{ $value }}%"
+          description_it: "Utilizzo della CPU è {{ $value }}%"
+
+      - alert: CriticalCpuUsage
+        expr: 'round(100 - avg(cpu_usage_idle), 0.1) > 85'
+        for: "2m"
+        labels:
+          severity: "warning"
+          service: "host"
+        annotations:
+          summary_en: "Critical CPU usage detected"
+          summary_it: "Utilizzo critico di CPU rilevato"
+          description_en: "CPU usage is {{ $value }}%"
+          description_it: "Utilizzo della CPU è {{ $value }}%"
+
+      # Memory Monitoring
+      - alert: HighMemoryUsage
+        expr: 'round((mem_used / mem_total) * 100, 0.1) > 80 unless round((mem_used / mem_total) * 100, 0.1) > 90'
+        for: "5m"
+        labels:
+          severity: "info"
+          service: "host"
+        annotations:
+          summary_en: "High memory usage detected"
+          summary_it: "Utilizzo elevato di memoria rilevato"
+          description_en: "Memory usage is {{ $value }}%"
+          description_it: "Utilizzo della memoria è {{ $value }}%"
+
+      - alert: CriticalMemoryUsage
+        expr: 'round((mem_used / mem_total) * 100, 0.1) > 90'
+        for: "2m"
+        labels:
+          severity: "warning"
+          service: "host"
+        annotations:
+          summary_en: "Critical memory usage detected"
+          summary_it: "Utilizzo critico di memoria rilevato"
+          description_en: "Memory usage is {{ $value }}%"
+          description_it: "Utilizzo della memoria è {{ $value }}%"
+
+      # Disk Space Monitoring
+      - alert: DiskSpaceWarning
+        expr: 'round((disk_used / disk_total) * 100, 0.1) > 80 unless round((disk_used / disk_total) * 100, 0.1) > 90'
+        for: "5m"
+        labels:
+          severity: "warning"
+          service: "storage"
+        annotations:
+          summary_en: "Disk space low on {{ $labels.path }}"
+          summary_it: "Spazio disco in esaurimento su {{ $labels.path }}"
+          description_en: "Disk usage is {{ $value }}% on {{ $labels.path }}"
+          description_it: "Utilizzo del disco è {{ $value }}% su {{ $labels.path }}"
+
+      - alert: DiskSpaceCritical
+        expr: 'round((disk_used / disk_total) * 100, 0.1) > 90'
+        for: "2m"
+        labels:
+          severity: "critical"
+          service: "storage"
+        annotations:
+          summary_en: "Disk space critical on {{ $labels.path }}"
+          summary_it: "Spazio disco critico su {{ $labels.path }}"
+          description_en: "Disk usage is {{ $value }}% on {{ $labels.path }}"
+          description_it: "Utilizzo del disco è {{ $value }}% su {{ $labels.path }}"
+
+      # System Load Monitoring
+      - alert: HighSystemLoad
+        expr: 'system_load1 / system_n_cpus > 2'
+        for: "5m"
+        labels:
+          severity: "warning"
+          service: "host"
+        annotations:
+          summary_en: "High system load detected"
+          summary_it: "Carico di sistema elevato rilevato"
+          description_en: "System load is {{ $value }}"
+          description_it: "Carico di sistema è {{ $value }}"

@@ -1,0 +1,18 @@
+# Storage status monitoring
+#
+# The alert is driven by the Telegraf storage_status_error metric.
+
+groups:
+  - name: "storage"
+    interval: "30s"
+    rules:
+      - alert: StorageStatus
+        expr: 'storage_status_error == 1'
+        labels:
+          severity: "critical"
+          service: "storage"
+        annotations:
+          summary_en: "Storage is in error state"
+          summary_it: "Lo storage è in stato di errore"
+          description_en: "The configured data storage is not mounted or is otherwise in error."
+          description_it: "Lo storage dati configurato non è montato o è in errore."
