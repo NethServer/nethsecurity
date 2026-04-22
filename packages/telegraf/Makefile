@@ -76,8 +76,19 @@ define Package/telegraf/install
 	$(INSTALL_DATA) ./files/telegraf.conf $(1)/etc/telegraf.conf
 	$(INSTALL_DIR) $(1)/etc/telegraf.conf.d
 	$(INSTALL_DATA) ./files/telegraf.conf.d/os.conf $(1)/etc/telegraf.conf.d/os.conf
+	$(INSTALL_DATA) ./files/telegraf.conf.d/backup.conf $(1)/etc/telegraf.conf.d/backup.conf
+	$(INSTALL_DATA) ./files/telegraf.conf.d/storage.conf $(1)/etc/telegraf.conf.d/storage.conf
+	$(INSTALL_DATA) ./files/telegraf.conf.d/services.conf $(1)/etc/telegraf.conf.d/services.conf
+	$(INSTALL_DATA) ./files/telegraf.conf.d/mwan.conf $(1)/etc/telegraf.conf.d/mwan.conf
+	$(INSTALL_DATA) ./files/telegraf.conf.d/ping.conf $(1)/etc/telegraf.conf.d/ping.conf
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/telegraf-config $(1)/usr/sbin/telegraf-config
+	$(INSTALL_DIR) $(1)/usr/libexec
+	$(INSTALL_BIN) ./files/telegraf-services $(1)/usr/libexec/telegraf-services
+	$(INSTALL_BIN) ./files/telegraf-backup-encryption $(1)/usr/libexec/telegraf-backup-encryption
+	$(INSTALL_BIN) ./files/telegraf-storage-status $(1)/usr/libexec/telegraf-storage-status
+	$(INSTALL_BIN) ./files/telegraf-services $(1)/usr/libexec/telegraf-services
+	$(INSTALL_BIN) ./files/telegraf-mwan $(1)/usr/libexec/telegraf-mwan
 endef
 
 define Package/telegraf/postinst

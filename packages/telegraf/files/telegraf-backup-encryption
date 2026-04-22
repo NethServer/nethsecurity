@@ -1,0 +1,17 @@
+#!/bin/sh
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Export backup encryption state for Telegraf.
+#
+# The metric is 1 when /etc/backup.pass exists and is non-empty, otherwise 0.
+
+if [ -s /etc/backup.pass ]; then
+    encrypted=1
+else
+    encrypted=0
+fi
+
+printf '[{"encrypted":%s}]\n' "$encrypted"

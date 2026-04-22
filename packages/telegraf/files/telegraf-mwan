@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Collect mwan3 WAN interface status from /var/run/mwan3/iface_state/.
+#
+# Each file in that directory is named after an mwan3 interface and contains
+# a single word: "online" or "offline".  The directory is managed by mwan3
+# and only exists when the daemon is running.
+#
+# Output metric: mwan_interface
+#   Tags:   interface
+#   Fields: online (int 0/1)
+#
+# Prints a JSON array to stdout, consumed by telegraf inputs.exec with
+# data_format = "json_v2" (parsers.json_v2 build tag).
+
+import json
+import os
+
+IFACE_STATE_DIR = "/var/run/mwan3/iface_state"
+
+
+def build_records():
+    """Return one record per mwan3 interface found in the state directory."""
+    if not os.path.isdir(IFACE_STATE_DIR):
+        return []
+
+    records = []
+    for name in sorted(os.listdir(IFACE_STATE_DIR)):
+        path = os.path.join(IFACE_STATE_DIR, name)
+        if not os.path.isfile(path):
+            continue
+        try:
+            status = open(path).read().strip()
+        except OSError:
+            continue
+        records.append(
+            {
+                "interface": name,
+                "online": 1 if status == "online" else 0,
+            }
+        )
+    return records
+
+
+def main():
+    records = build_records()
+    print(json.dumps(records))
+
+
+if __name__ == "__main__":
+    main()
