@@ -31,7 +31,12 @@ if [ -z "$secret" ]; then
     exit_error "Invalid secret"
 fi
 
-# Setup URLs
+# Resolve the system identity from the pasted secret.
+#
+# Enterprise uses the my collect registration API directly — the
+# unit lands on the new my with its native credentials and never
+# needs the /proxy/credentials rotation helper. Community keeps
+# using my.nethserver.com as before.
 case "$type" in
     community)
         url="https://my.nethserver.com/api/"
@@ -42,11 +47,13 @@ case "$type" in
         "${url}machine/info" | jq -r ".uuid" 2>/dev/null)
         ;;
     enterprise)
-        url="https://my.nethesis.it/api/"
+        url="https://my.nethesis.it/backend/api/"
 
-        system_id=$(curl -s -m $timeout --retry 3 -L \
+        register_resp=$(curl -s -m $timeout --retry 3 -L \
         -H "Content-Type: application/json" -H "Accept: application/json" \
-        -d '{"secret": "'$secret'"}' "${url}systems/info" | jq -r ".uuid" 2>/dev/null)
+        -d '{"system_secret": "'$secret'"}' "${url}systems/register")
+
+        system_id=$(echo "$register_resp" | jq -r '.data.system_key // empty' 2>/dev/null)
         ;;
     *)
         exit_error "Invalid type '$type'"
@@ -68,9 +75,12 @@ case "$type" in
         ;;
     enterprise)
         uci set ns-plug.config.type="enterprise"
-        uci set ns-plug.config.alerts_url="https://my.nethesis.it/isa/"
         uci set ns-plug.config.api_url="$url"
-        uci set ns-plug.config.inventory_url="https://my.nethesis.it/isa/inventory/store/"
+        uci set ns-plug.config.collect_url="https://my.nethesis.it/collect/api/systems"
+        # Native my register: no legacy credentials to rotate, so
+        # mark the unit as already migrated. migrate-to-my will be a
+        # no-op on every subsequent run.
+        uci set ns-plug.config.migrated="1"
         ;;
 esac
 
