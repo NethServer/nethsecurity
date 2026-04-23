@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Collect mwan3 WAN interface status from /var/run/mwan3/iface_state/.
+#
+# Each file in that directory is named after an mwan3 interface and contains
+# a single word: "online" or "offline".  The directory is managed by mwan3
+# and only exists when the daemon is running.
+#
+# Modes:
+#   (default)  Print a JSON array to stdout — used by telegraf inputs.exec with
+#              data_format = "json_v2" (parsers.json_v2 build tag).
+#
+#   --push     POST metrics in InfluxDB line protocol directly to the Victoria
+#              Metrics write API. Use when running standalone or from cron.
+#              The destination URL is read from VM_WRITE_URL env var, or defaults
+#              to http://127.0.0.1:8428/write?db=os-metrics
+#
+# Output metric: mwan_interface
+#   Tags:   interface
+#   Fields: online (int 0/1)
+
+import json
+import os
+import sys
+import time
+import urllib.request
+
+IFACE_STATE_DIR = '/var/run/mwan3/iface_state'
+
+
+def build_records():
+    """Return one record per mwan3 interface found in the state directory."""
+    if not os.path.isdir(IFACE_STATE_DIR):
+        return []
+
+    records = []
+    for name in sorted(os.listdir(IFACE_STATE_DIR)):
+        path = os.path.join(IFACE_STATE_DIR, name)
+        if not os.path.isfile(path):
+            continue
+        try:
+            status = open(path).read().strip()
+        except OSError:
+            continue
+        records.append({
+            'interface': name,
+            'online':    1 if status == 'online' else 0,
+        })
+    return records
+
+
+def to_line_protocol(records, timestamp):
+    """Convert records to InfluxDB line protocol strings."""
+    lines = []
+    for r in records:
+        lines.append(
+            f"mwan_interface,"
+            f"interface={r['interface']} "
+            f"online={r['online']}i "
+            f"{timestamp}"
+        )
+    return lines
+
+
+def push_to_vm(records):
+    timestamp = int(time.time()) * 10**9  # nanoseconds
+    url = os.environ.get(
+        'VM_WRITE_URL', 'http://127.0.0.1:8428/write?db=os-metrics'
+    )
+    body = '\n'.join(to_line_protocol(records, timestamp)).encode('utf-8')
+    req = urllib.request.Request(
+        url, data=body, method='POST',
+        headers={'Content-Type': 'application/octet-stream'},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            if resp.status not in (200, 204):
+                print(f'VM write error: HTTP {resp.status}', file=sys.stderr)
+                sys.exit(1)
+    except Exception as e:
+        print(f'VM write error: {e}', file=sys.stderr)
+        sys.exit(1)
+
+
+def main():
+    push_mode = '--push' in sys.argv
+    records = build_records()
+
+    if push_mode:
+        if records:
+            push_to_vm(records)
+    else:
+        print(json.dumps(records))
+
+
+if __name__ == '__main__':
+    main()

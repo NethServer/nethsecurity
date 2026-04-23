@@ -119,8 +119,7 @@ disconnected() {
 		LOG notice "Interface $INTERFACE ($DEVICE) is offline"
 		env -i ACTION="disconnected" INTERFACE="$INTERFACE" DEVICE="$DEVICE" /sbin/hotplug-call iface
 	else
-		LOG notice "Skip disconnected event for $INTERFACE ($DEVICE), but sending alert"
-		env -i ACTION="disconnected" INTERFACE="$INTERFACE" DEVICE="$DEVICE" /usr/libexec/mwan-hooks/send-mwan-alert
+		LOG notice "Skip disconnected event for $INTERFACE ($DEVICE)"
 	fi
 }
 

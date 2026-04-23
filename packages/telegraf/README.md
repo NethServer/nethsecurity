@@ -10,8 +10,9 @@ This package provides **Telegraf**, the metrics collection agent. It collects ho
 procd / ubus
      │
      ▼
-/usr/libexec/telegraf-services   ← service status via ubus
-/proc filesystem                 ← CPU, memory, disk, network
+/usr/libexec/telegraf-services       ← service status via ubus
+/var/run/mwan3/iface_state/          ← WAN interface status via mwan3 state files
+/proc filesystem                     ← CPU, memory, disk, network
      │
      ▼
   Telegraf (inputs.exec, inputs.cpu, inputs.mem, …)
@@ -30,6 +31,7 @@ Victoria Metrics (http://127.0.0.1:8428)
 | `/etc/telegraf.conf` | Main Telegraf agent configuration and InfluxDB output |
 | `/etc/telegraf.conf.d/os.conf` | CPU, memory, disk, network, process metrics |
 | `/etc/telegraf.conf.d/services.conf` | Procd service status via `inputs.exec` |
+| `/etc/telegraf.conf.d/mwan.conf` | mwan3 WAN interface status via `inputs.exec` |
 
 ## Collected Metrics
 
@@ -59,6 +61,16 @@ All metrics are tagged `influxdb_db=os-metrics`.
 | `procd_service` | `service`, `instance`, `has_respawn` | `running`, `pid`, `exit_code` | Procd service health |
 
 See [Service Monitoring](#service-monitoring) below for full details.
+
+### WAN Interface Status (`mwan.conf`)
+
+All metrics are tagged `influxdb_db=os-metrics`.
+
+| Telegraf Measurement | Tags | Fields | Description |
+|----------------------|------|--------|-------------|
+| `mwan_interface` | `interface` | `online` | mwan3 WAN link state |
+
+See [WAN Monitoring](#wan-monitoring) below for full details.
 
 ## Service Monitoring
 
@@ -151,7 +163,7 @@ Defined in `/etc/vmalert/rules/services.yaml`:
 | Condition | `procd_service_running{has_respawn="true"} == 0` |
 | For | 2 minutes |
 | Severity | `critical` |
-| Service label | `host` |
+| alertgroup | `services` |
 
 The 2-minute window allows procd time to attempt its configured respawn retries before the alert fires.
 
@@ -163,6 +175,94 @@ curl -s http://127.0.0.1:8082/api/v1/alerts | jq '.data[] | select(.name=="Servi
 ### Manual Testing
 
 See [Testing Service Monitoring](#testing-service-monitoring) below for full test procedures.
+
+## WAN Monitoring
+
+### How It Works
+
+Every 60 seconds, `/usr/libexec/telegraf-mwan` reads `/var/run/mwan3/iface_state/`. mwan3 maintains one file per configured WAN interface in that directory; the file content is the single word `online` or `offline`, updated in real time by mwan3's tracking probes.
+
+```
+/var/run/mwan3/iface_state/wan   → "online"
+/var/run/mwan3/iface_state/wan2  → "offline"
+```
+
+The script emits one record per interface:
+
+```
+mwan_interface,interface=wan   online=1i
+mwan_interface,interface=wan2  online=0i  ← WAN down
+```
+
+In Victoria Metrics the metric is stored as:
+```
+mwan_interface_online{interface="wan",  db="os-metrics"} = 1
+mwan_interface_online{interface="wan2", db="os-metrics"} = 0
+```
+
+If mwan3 is not running, the state directory does not exist and the script outputs an empty array — no metrics, no alerts.
+
+### Querying WAN Metrics
+
+```bash
+# All WAN interfaces and their current state
+curl -s 'http://127.0.0.1:8428/api/v1/query?query=mwan_interface_online' \
+  | jq -r '.data.result[] | "\(.metric.interface) status=\(.metric.status) online=\(.value[1])"'
+
+# Interfaces currently offline
+curl -s 'http://127.0.0.1:8428/api/v1/query?query=mwan_interface_online==0' \
+  | jq -r '.data.result[].metric.interface'
+
+# Run the collection script manually
+/usr/libexec/telegraf-mwan
+```
+
+### WAN Down Alert (`WanDown`)
+
+Defined in `/etc/vmalert/rules/mwan.yaml`:
+
+| Field | Value |
+|-------|-------|
+| Condition | `mwan_interface_online == 0` |
+| For | 2 minutes |
+| Severity | `critical` |
+| service | `network` |
+
+The `interface` and `status` labels on the alert come directly from the metric, so each WAN interface fires its own distinct alert.
+
+Check alert status:
+```bash
+curl -s http://127.0.0.1:8082/api/v1/alerts | jq '.data.alerts[] | select(.name=="WanDown")'
+```
+
+### Manual Testing
+
+Simulate a WAN going offline by writing `offline` to its state file (mwan3 will overwrite this when it next evaluates the interface, so the window is short — use `--push` for an immediate metric update):
+
+```bash
+# 1. Check baseline — both WANs should be online
+curl -s 'http://127.0.0.1:8428/api/v1/query?query=mwan_interface_online' \
+  | jq -r '.data.result[] | "\(.metric.interface): \(.value[1])"'
+
+# 2. Simulate wan2 going offline
+echo "offline" > /var/run/mwan3/iface_state/wan2
+
+# 3. Push the metric immediately (or wait up to 60s for telegraf)
+/usr/libexec/telegraf-mwan --push
+
+# 4. Verify metric dropped to 0
+curl -s 'http://127.0.0.1:8428/api/v1/query?query=mwan_interface_online{interface="wan2"}' \
+  | jq -r '.data.result[0].value[1]'
+# Expected: 0
+
+# 5. After 2 minutes: WANDown alert fires
+curl -s http://127.0.0.1:8082/api/v1/alerts \
+  | jq '.data.alerts[] | select(.name=="WanDown")'
+
+# 6. Restore
+echo "online" > /var/run/mwan3/iface_state/wan2
+/usr/libexec/telegraf-mwan --push
+```
 
 ## Starting and Managing Telegraf
 
@@ -312,6 +412,23 @@ curl -s http://127.0.0.1:8082/api/v1/alerts | jq '.data'
 
 # Manually evaluate the alert expression against Victoria Metrics
 curl -s 'http://127.0.0.1:8428/api/v1/query?query=procd_service_running{has_respawn="true"}==0' | jq .
+```
+
+### WANDown alert not firing
+
+```bash
+# Confirm the rule is loaded
+curl -s http://127.0.0.1:8082/api/v1/rules \
+  | jq '.data.groups[] | select(.name=="mwan") | .rules[] | {name, state, expr}'
+
+# Check if any WANs are in pending/firing state
+curl -s http://127.0.0.1:8082/api/v1/alerts | jq '.data.alerts[] | select(.name=="WANDown")'
+
+# Manually evaluate the alert expression
+curl -s 'http://127.0.0.1:8428/api/v1/query?query=mwan_interface_online==0' | jq .
+
+# Check mwan3 state files directly
+ls -la /var/run/mwan3/iface_state/ && cat /var/run/mwan3/iface_state/*
 ```
 
 ### ethtool errors in logs
