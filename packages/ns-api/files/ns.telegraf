@@ -1,0 +1,383 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Read and set ping configuration for telegraf, and expose metrics history from VictoriaMetrics
+
+import os
+import sys
+import json
+import subprocess
+import re
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from euci import EUci
+
+ping_conf_file = "/etc/telegraf.conf.d/ping.conf"
+
+
+def _read_ping_hosts():
+    """Read the list of monitored ping hosts from the telegraf config file."""
+    if not os.path.exists(ping_conf_file):
+        return []
+    try:
+        with open(ping_conf_file) as fp:
+            match = re.search(r"urls\s*=\s*(\[[^\]]*\])", fp.read())
+            if match:
+                return json.loads(match.group(1))
+    except Exception:
+        pass
+    return []
+
+
+def get_config():
+    return {"hosts": _read_ping_hosts()}
+
+
+def set_config(config):
+    try:
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(ping_conf_file), exist_ok=True)
+
+        # Create the telegraf ping configuration
+        with open(ping_conf_file, "w") as fp:
+            fp.write("# Ping input plugin configuration\n")
+            fp.write("[[inputs.ping]]\n")
+            if len(config["hosts"]) > 0:
+                # Format hosts as TOML array
+                hosts_str = json.dumps(config["hosts"])
+                fp.write(f"  urls = {hosts_str}\n")
+                fp.write('  method = "native"\n')
+                fp.write("  count = 5\n")
+                fp.write("  ping_interval = 1.0\n")
+                fp.write("  deadline = 10\n")
+                fp.write("  [inputs.ping.tags]\n")
+                fp.write('    influxdb_db = "ping-metrics"\n')
+            else:
+                # Write empty config to disable
+                fp.write("  urls = []\n")
+
+        # Restart telegraf service
+        subprocess.run(["/etc/init.d/telegraf", "restart"], check=True)
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+VM_URL = "http://127.0.0.1:8428/api/v1/query_range"
+VM_ALERTS_URL = "http://127.0.0.1:8082/api/v1/alerts"
+
+
+def _get_interface_to_zone_map():
+    """Map physical interface names to firewall zone names and devices.
+    Returns: {"eth1": {"zone": "wan", "device": "eth1"}, "br-lan": {"zone": "lan", "device": "br-lan"}}
+    """
+    interface_map = {}
+    try:
+        u = EUci()
+        zones = u.get("firewall")
+        networks = u.get("network")
+
+        if not zones or not networks:
+            return interface_map
+
+        # First, build a map of network names to devices
+        network_to_device = {}
+        for net_name, net_config in networks.items():
+            if isinstance(net_config, dict):
+                device = net_config.get("device") or net_config.get("ifname")
+                if device:
+                    network_to_device[net_name] = device
+
+        # Now map zones to networks and then to devices
+        for zone_name, zone_config in zones.items():
+            if isinstance(zone_config, dict) and "name" in zone_config:
+                zone_label = zone_config.get("name", zone_name)
+                networks_list = zone_config.get("network", ())
+
+                # Convert to list if needed
+                if isinstance(networks_list, str):
+                    networks_list = [networks_list]
+                elif not isinstance(networks_list, (list, tuple)):
+                    networks_list = []
+
+                for network in networks_list:
+                    network = str(network).strip()
+                    if network in network_to_device:
+                        device = network_to_device[network]
+                        interface_map[device] = {"zone": zone_label, "device": device}
+    except Exception:
+        pass
+
+    return interface_map
+
+
+def _vm_query(expr, start, end, step):
+    """Execute a single PromQL range query against VictoriaMetrics."""
+    params = urllib.parse.urlencode(
+        {"query": expr, "start": start, "end": end, "step": step}
+    )
+    with urllib.request.urlopen(f"{VM_URL}?{params}", timeout=10) as resp:
+        data = json.loads(resp.read())
+    return data.get("data", {}).get("result", [])
+
+
+def _single_series(results):
+    """Extract timestamps and values from a single-series result."""
+    if not results:
+        return {"labels": [], "data": []}
+    values = results[0].get("values", [])
+    return {
+        "labels": [int(ts) for ts, _ in values],
+        "data": [float(v) for _, v in values],
+    }
+
+
+def list_alerts():
+    try:
+        with urllib.request.urlopen(VM_ALERTS_URL, timeout=10) as resp:
+            data = json.loads(resp.read())
+    except (TimeoutError, urllib.error.URLError):
+        return {"error": "cannot_retrieve_alerts"}
+    except json.JSONDecodeError:
+        return {"error": "invalid_alerts_response"}
+
+    alerts = data.get("data", {}).get("alerts")
+    if not isinstance(alerts, list):
+        return {"error": "invalid_alerts_response"}
+
+    return {"alerts": alerts}
+
+
+def metrics_history(args):
+    now = int(time.time())
+    start = int(args.get("start", now - 86400))
+    end = int(args.get("end", now))
+    step = int(args.get("step", 300))
+
+    def q(expr):
+        try:
+            return _vm_query(expr, start, end, step)
+        except Exception:
+            return []
+
+    def single(expr):
+        return _single_series(q(expr))
+
+    # Connections (conntrack)
+    s = single("conntrack_ip_conntrack_count")
+    connections = {
+        "labels": s["labels"],
+        "datasets": [{"label": "Connections", "data": s["data"]}],
+    }
+
+    # Traffic per interface – exclude loopback and intermediate functional blocks (ifb*)
+    # Organize traffic by interface with zone name labels
+    interface_map = _get_interface_to_zone_map()
+    recv_results = q('rate(net_bytes_recv{interface!~"lo|ifb.*"}[5m])')
+    sent_results = q('rate(net_bytes_sent{interface!~"lo|ifb.*"}[5m])')
+
+    traffic_labels: list = []
+    for r in recv_results + sent_results:
+        if r.get("values"):
+            traffic_labels = [int(ts) for ts, _ in r["values"]]
+            break
+
+    # Build traffic data organized by interface
+    traffic_by_interface = {}
+    for r in recv_results:
+        iface = r.get("metric", {}).get("interface", "unknown")
+        iface_info = interface_map.get(iface, {"zone": iface, "device": iface})
+        zone_key = f"{iface_info['zone']}|{iface_info['device']}"  # Use composite key
+        if zone_key not in traffic_by_interface:
+            traffic_by_interface[zone_key] = {
+                "labels": traffic_labels,
+                "datasets": [],
+                "zone": iface_info["zone"],
+                "device": iface_info["device"],
+            }
+        traffic_by_interface[zone_key]["datasets"].append(
+            {"label": "Download", "data": [float(v) for _, v in r.get("values", [])]}
+        )
+
+    for r in sent_results:
+        iface = r.get("metric", {}).get("interface", "unknown")
+        iface_info = interface_map.get(iface, {"zone": iface, "device": iface})
+        zone_key = f"{iface_info['zone']}|{iface_info['device']}"
+        if zone_key not in traffic_by_interface:
+            traffic_by_interface[zone_key] = {
+                "labels": traffic_labels,
+                "datasets": [],
+                "zone": iface_info["zone"],
+                "device": iface_info["device"],
+            }
+        traffic_by_interface[zone_key]["datasets"].append(
+            {"label": "Upload", "data": [float(v) for _, v in r.get("values", [])]}
+        )
+
+    # CPU usage (%)
+    s = single('100 - (avg(cpu_usage_idle{cpu="cpu-total"}))')
+    cpu = {"labels": s["labels"], "datasets": [{"label": "CPU (%)", "data": s["data"]}]}
+
+    # System load (1m / 5m / 15m)
+    s1 = single("system_load1")
+    s5 = single("system_load5")
+    s15 = single("system_load15")
+    load = {
+        "labels": s1["labels"],
+        "datasets": [
+            {"label": "1m", "data": s1["data"]},
+            {"label": "5m", "data": s5["data"]},
+            {"label": "15m", "data": s15["data"]},
+        ],
+    }
+
+    # Disk I/O – sum across all non-loop block devices
+    s_read = single('sum(rate(diskio_read_bytes{name!~"loop.*"}[5m]))')
+    s_write = single('sum(rate(diskio_write_bytes{name!~"loop.*"}[5m]))')
+    diskio = {
+        "labels": s_read["labels"],
+        "datasets": [
+            {"label": "Read", "data": s_read["data"]},
+            {"label": "Write", "data": s_write["data"]},
+        ],
+    }
+
+    # Disk usage per real partition (exclude virtual filesystems)
+    disk_results = q(
+        'disk_used_percent{fstype!~"tmpfs|cgroup2|devtmpfs|sysfs|proc|overlay|squashfs"}'
+    )
+    if disk_results:
+        disk_labels = [int(ts) for ts, _ in disk_results[0].get("values", [])]
+        disk_datasets = [
+            {
+                "label": r.get("metric", {}).get("path", "unknown"),
+                "data": [float(v) for _, v in r.get("values", [])],
+            }
+            for r in disk_results
+        ]
+        disk = {"labels": disk_labels, "datasets": disk_datasets}
+    else:
+        disk = {"labels": [], "datasets": []}
+
+    # Total processes
+    s = single("processes_total")
+    processes = {
+        "labels": s["labels"],
+        "datasets": [{"label": "Processes", "data": s["data"]}],
+    }
+
+    # RAM usage: Used and Free (MB)
+    s_used = single("mem_used / 1048576")
+    s_free = single("mem_free / 1048576")
+    memory = {
+        "labels": s_used["labels"],
+        "datasets": [
+            {"label": "Used", "data": s_used["data"]},
+            {"label": "Free", "data": s_free["data"]},
+        ],
+    }
+
+    # Packets Rx/Tx – sum across all interfaces
+    s_rx = single("sum(rate(net_packets_recv[5m]))")
+    s_tx = single("sum(rate(net_packets_sent[5m]))")
+    packets = {
+        "labels": s_rx["labels"],
+        "datasets": [
+            {"label": "Rx", "data": s_rx["data"]},
+            {"label": "Tx", "data": s_tx["data"]},
+        ],
+    }
+
+    # Latency and quality reports for monitored hosts
+    latency_quality = latency_and_quality_report(start, end, step)
+
+    return {
+        "connections": connections,
+        "traffic": traffic_by_interface,
+        "cpu": cpu,
+        "load": load,
+        "diskio": diskio,
+        "disk": disk,
+        "processes": processes,
+        "memory": memory,
+        "packets": packets,
+        "latency_quality": latency_quality,
+    }
+
+
+def latency_and_quality_report(start, end, step):
+    """Fetch latency and packet loss data for monitored hosts."""
+
+    def q_values(expr):
+        try:
+            result = _vm_query(expr, start, end, step)
+            return result[0].get("values", []) if result else []
+        except Exception:
+            return []
+
+    ret = {}
+    for host in _read_ping_hosts():
+        latency_data = {"labels": [], "datasets": []}
+        quality_data = {"labels": [], "datasets": []}
+
+        try:
+            min_values = q_values(f'ping_minimum_response_ms{{url="{host}"}}')
+            max_values = q_values(f'ping_maximum_response_ms{{url="{host}"}}')
+            avg_values = q_values(f'ping_average_response_ms{{url="{host}"}}')
+            loss_values = q_values(
+                f'100 - ping_percent_packet_loss{{url="{host}"}} or 100 - ping_percent_reply_loss{{url="{host}"}}'
+            )
+
+            if min_values and max_values and avg_values:
+                labels = [int(ts) for ts, _ in min_values]
+                latency_data["labels"] = labels
+                latency_data["datasets"] = [
+                    {"label": "Min", "data": [float(v) for _, v in min_values]},
+                    {"label": "Avg", "data": [float(v) for _, v in avg_values]},
+                    {"label": "Max", "data": [float(v) for _, v in max_values]},
+                ]
+
+            if loss_values:
+                quality_data["labels"] = [int(ts) for ts, _ in loss_values]
+                quality_data["datasets"] = [
+                    {"label": "Delivery %", "data": [float(v) for _, v in loss_values]},
+                ]
+        except Exception:
+            pass
+
+        ret[host] = {"latency": latency_data, "quality": quality_data}
+
+    return ret
+
+
+cmd = sys.argv[1]
+
+if cmd == "list":
+    print(
+        json.dumps(
+            {
+                "get-configuration": {},
+                "set-hosts": {"hosts": ["1.1.1.1", "google.com"]},
+                "metrics-history": {"start": 0, "end": 0, "step": 300},
+                "list-alerts": {},
+            }
+        )
+    )
+else:
+    action = sys.argv[2]
+    if action == "get-configuration":
+        print(json.dumps(get_config()))
+    elif action == "set-hosts":
+        args = json.loads(sys.stdin.read())
+        print(json.dumps(set_config(args)))
+    elif action == "metrics-history":
+        args = json.loads(sys.stdin.read())
+        print(json.dumps(metrics_history(args)))
+    elif action == "list-alerts":
+        print(json.dumps(list_alerts()))
