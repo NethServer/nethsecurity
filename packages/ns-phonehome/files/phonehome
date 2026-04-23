@@ -36,6 +36,15 @@ for func in dir(inventory):
     if func.startswith("info_"):
         info[func.removeprefix('info_')] = method(EUci())
 
+# Migration fingerprint. Populated only on enterprise units that went
+# through migrate-to-my or the native my register — my uses this to
+# track which units have already rotated off the translation proxy
+# and decide when the proxy can be decommissioned.
+migration = {
+    "from_legacy_system_id": u.get('ns-plug', 'config', 'legacy_system_id', default='') or None,
+    "migrated_at": u.get('ns-plug', 'config', 'migrated_at', default='') or None,
+}
+
 data = {
     "$schema": "https://schema.nethserver.org/facts/2022-12.json",
     "uuid": sid,
@@ -61,7 +70,8 @@ data = {
         },
         "pci": list(pci.values()),
         "mountpoints": mount_points,
-        "features": features
+        "features": features,
+        "migration": migration
     }
 }
 

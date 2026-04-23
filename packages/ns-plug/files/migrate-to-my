@@ -1,0 +1,91 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+#
+# Idempotent one-shot migration from legacy my.nethesis.it / backupd
+# credentials to the my collect native credentials, so the unit can
+# authenticate directly against the my collect endpoints.
+#
+# Only enterprise units are migrated. Community (my.nethserver.com)
+# has its own infrastructure and keeps using the legacy send-*
+# endpoints — no credential rotation is applicable there.
+#
+# ns-plug.config.migrated='1' is the persistent marker. It is written
+# by this script after a successful rotation, and also by
+# /usr/sbin/register when it registers a fresh unit directly against
+# the my collect endpoint (so a brand new install never triggers the
+# rotation path and never hits /proxy/credentials with unmapped
+# credentials).
+#
+# On the first successful invocation the script:
+#   1. Calls the my translation proxy's /proxy/credentials endpoint
+#      with the legacy Basic-Auth pair and retrieves the mapped my
+#      system key / secret.
+#   2. Writes the new credentials to ns-plug.config.system_id / secret
+#      and preserves the legacy pair under legacy_system_id /
+#      legacy_secret (for audit and manual rollback).
+#   3. Re-asserts ns-plug.config.collect_url, because /etc/config/
+#      ns-plug is a conffile: on registered units opkg keeps the
+#      user-modified copy across upgrades, so a new default alone
+#      would not reach them.
+#   4. Sets the migrated='1' marker.
+#
+# The uci commit is atomic — a partial write cannot leave the unit in
+# an inconsistent half-migrated state.
+#
+
+# Marker: set only after a successful rotation or a native my register.
+[ "$(uci -q get ns-plug.config.migrated)" = "1" ] && exit 0
+
+# Community units stay on the legacy my.nethserver.com infrastructure.
+TYPE=$(uci -q get ns-plug.config.type)
+if [ "$TYPE" != "enterprise" ]; then
+    exit 0
+fi
+
+SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
+SYSTEM_SECRET=$(uci -q get ns-plug.config.secret)
+if [ -z "$SYSTEM_ID" ] || [ -z "$SYSTEM_SECRET" ]; then
+    # Unregistered unit — nothing to migrate yet.
+    exit 0
+fi
+
+# Fetch the mapped my credentials via the translation proxy.
+resp=$(/usr/bin/curl --silent --location-trusted --fail-with-body \
+    --max-time 30 --retry 2 \
+    --user "$SYSTEM_ID:$SYSTEM_SECRET" \
+    https://my.nethesis.it/proxy/credentials 2>/dev/null) || {
+    logger -t migrate-to-my "credential fetch failed; will retry on next run"
+    exit 0
+}
+
+new_key=$(echo "$resp" | jq -r '.data.system_key // empty' 2>/dev/null)
+new_secret=$(echo "$resp" | jq -r '.data.system_secret // empty' 2>/dev/null)
+if [ -z "$new_key" ] || [ -z "$new_secret" ]; then
+    logger -t migrate-to-my "credentials missing in response"
+    exit 0
+fi
+
+# Timestamp the rotation so phonehome can publish the event and my
+# can plot the fleet migration curve / decide when the translation
+# proxy can be decommissioned.
+migrated_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+# Rotate atomically; legacy pair preserved for audit / rollback.
+uci -q batch <<EOI
+set ns-plug.config.legacy_system_id=$SYSTEM_ID
+set ns-plug.config.legacy_secret=$SYSTEM_SECRET
+set ns-plug.config.system_id=$new_key
+set ns-plug.config.secret=$new_secret
+set ns-plug.config.collect_url=https://my.nethesis.it/collect/api/systems
+set ns-plug.config.migrated=1
+set ns-plug.config.migrated_at=$migrated_at
+commit ns-plug
+EOI
+
+logger -t migrate-to-my "migrated to my collect credentials"
+exit 0
