@@ -170,8 +170,14 @@ elif cmd == 'call':
             print(json.dumps(utils.generic_error(f'remote list failed')))
 
     elif action == 'registered-backup':
-        if os.path.exists(PASSPHRASE_PATH):
-            print(utils.validation_error('passphrase', 'missing'))
+        if not os.path.exists(PASSPHRASE_PATH):
+            # Refuse the call before running sysupgrade/uploading, and emit
+            # valid JSON so the HTTP API wraps it as a 422 ValidationError
+            # the UI can render (the previous form printed a Python dict
+            # repr, which was silently dropped upstream and caused the run
+            # modal to stay open after a successful upload).
+            print(json.dumps(utils.validation_error('passphrase', 'missing')))
+            sys.exit(0)
         try:
             # create backup
             file_name = create_backup()
@@ -225,10 +231,12 @@ elif cmd == 'call':
     elif action == 'registered-delete-backup':
         try:
             data = json.load(sys.stdin)
-            p = subprocess.run(['/usr/sbin/remote-backup', 'delete', data['id']],
+            subprocess.run(['/usr/sbin/remote-backup', 'delete', data['id']],
                            check=True, capture_output=True, text=True)
-            # return content
-            print(p.stdout)
+            # The remote side returns a structured JSON response; the UI
+            # only needs a success flag, matching the pattern of the
+            # other registered-* handlers (backup, restore).
+            print(json.dumps({'message': 'success'}))
         except subprocess.CalledProcessError as error:
             print(json.dumps(utils.generic_error('remote backup delete failed')))
         except KeyError as error:
