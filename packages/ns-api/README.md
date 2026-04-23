@@ -150,6 +150,124 @@ Response:
 }
 ```
 
+## ns.telegraf
+
+Read and update Telegraf ping monitoring targets, query historical metrics stored in VictoriaMetrics, and list the current alerts evaluated by vmalert.
+
+### get-configuration
+
+Get the current list of hosts monitored by the Telegraf ping input:
+```
+api-cli ns.telegraf get-configuration
+```
+
+Output example:
+```json
+{
+  "hosts": [
+    "1.1.1.1",
+    "google.com"
+  ]
+}
+```
+
+### set-hosts
+
+Set the list of hosts monitored by the Telegraf ping input and restart Telegraf:
+```
+api-cli ns.telegraf set-hosts --data '{"hosts": ["1.1.1.1", "8.8.8.8"]}'
+```
+
+Parameters:
+- `hosts`: array of hostnames or IP addresses to monitor
+
+Output example:
+```json
+{
+  "success": true
+}
+```
+
+### metrics-history
+
+Return historical system and network metrics collected by Telegraf and stored in VictoriaMetrics:
+```
+api-cli ns.telegraf metrics-history --data '{"start": 1746607800, "end": 1746608400, "step": 60}'
+```
+
+Parameters:
+- `start`: start of the time range as Unix timestamp
+- `end`: end of the time range as Unix timestamp
+- `step`: sampling interval in seconds
+
+Output example:
+```json
+{
+  "connections": {
+    "labels": [1746608100],
+    "datasets": [{ "label": "Connections", "data": [123] }]
+  },
+  "traffic": {},
+  "cpu": {
+    "labels": [1746608100],
+    "datasets": [{ "label": "CPU (%)", "data": [14.2] }]
+  },
+  "load": {
+    "labels": [1746608100],
+    "datasets": [
+      { "label": "1m", "data": [0.12] },
+      { "label": "5m", "data": [0.08] },
+      { "label": "15m", "data": [0.05] }
+    ]
+  },
+  "diskio": { "labels": [], "datasets": [] },
+  "disk": { "labels": [], "datasets": [] },
+  "processes": { "labels": [], "datasets": [] },
+  "memory": { "labels": [], "datasets": [] },
+  "packets": { "labels": [], "datasets": [] },
+  "latency_quality": {}
+}
+```
+
+### list-alerts
+
+List the current pending and firing alerts evaluated by vmalert:
+```
+api-cli ns.telegraf list-alerts
+```
+
+Output example:
+```json
+{
+  "alerts": [
+    {
+      "state": "firing",
+      "name": "BackupEncryptionDisabled",
+      "value": "0",
+      "labels": {
+        "alertgroup": "backup",
+        "alertname": "BackupEncryptionDisabled",
+        "severity": "warning",
+        "service": "backup"
+      },
+      "annotations": {
+        "summary_en": "Backup encryption is disabled",
+        "summary_it": "La cifratura dei backup e disattivata",
+        "description_en": "The backup passphrase file /etc/backup.pass is missing or empty.",
+        "description_it": "Il file della passphrase dei backup /etc/backup.pass manca o e vuoto."
+      },
+      "activeAt": "2026-05-07T09:18:00Z",
+      "expression": "backup_encryption_encrypted == 0",
+      "source": "http://NethSec:8082/vmalert/alert?group_id=10212661952842894290&alert_id=4214684507782533109"
+    }
+  ]
+}
+```
+
+Possible errors:
+- `cannot_retrieve_alerts`
+- `invalid_alerts_response`
+
 ## ns.firewall
 
 ### list-forward-rules
@@ -2436,7 +2554,10 @@ Response example:
 
 ### traffic-interface
 
-Return an array of point describing the network traffic in the last hour:
+Return an array of points describing the network traffic in the last hour.
+Data is sourced from Victoria Metrics using `net_bytes_recv` and `net_bytes_sent` Telegraf counters,
+converted to kb/s (kilobits per second). Labels are Unix timestamps in descending order (newest first),
+with one point every 20 seconds (~180 points total).
 ```
 api-cli ns.dashboard interface-traffic --data  '{"interface": "eth0"}'
 ```
@@ -7932,7 +8053,7 @@ Output example:
 
 ### latency-and-quality-report
 
-Report latency metrics (minimum, maximum and average) and connectivy quality data (packet delivery rate) for every host configured in Netdata fping configuration file, located at `/etc/netdata/fping.conf`.
+Report latency metrics (minimum, maximum and average) and connectivity quality data (packet loss percentage) for every host configured in the Telegraf ping plugin configuration file, located at `/etc/telegraf.conf.d/ping.conf`.
 Usage example:
 ```
 api-cli ns.report latency-and-quality-report
@@ -7982,7 +8103,7 @@ Output example:
         ],
         [
           1731485262,
-          99.8152174
+          100
         ],
         [
           1731484894,
@@ -8032,7 +8153,7 @@ Output example:
         ],
         [
           1731485262,
-          99.8152174
+          100
         ],
         [
           1731484894,
