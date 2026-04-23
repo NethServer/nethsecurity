@@ -17,8 +17,6 @@ Usage:
     ns-plug-alert resolve --alertname NAME --severity {critical,warning,info}
                           [--labels k=v ...]
     ns-plug-alert list [--state STATE] [--severity SEV]
-    ns-plug-alert netdata --alertname NAME --status STATUS
-                          --chart CHART --family FAMILY [--value VALUE]
 
 Examples:
     # Fire a critical disk alert
@@ -32,10 +30,6 @@ Examples:
 
     # List all active alerts
     ns-plug-alert list
-
-    # Called internally from netdata custom_sender (health_alarm_notify.conf)
-    ns-plug-alert netdata --alertname disk_space_usage --status CRITICAL \\
-        --chart disk_space._data --family /data --value 95.2
 """
 
 import argparse
@@ -46,47 +40,6 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from euci import EUci
-
-
-# ---------------------------------------------------------------------------
-# Mapping from netdata alarm names / statuses to the NethSecurity alert catalog.
-# Keys are netdata alarm names (${name} in health_alarm_notify.conf).
-# Each entry maps a netdata status to the corresponding mimir alert definition.
-# ---------------------------------------------------------------------------
-NETDATA_ALERT_MAP = {
-    "disk_space_usage": {
-        "WARNING": {
-            "alertname": "DiskSpaceLow",
-            "service": "storage",
-            "severity": "warning",
-            "summary_en": "Disk space low on {mountpoint}",
-            "summary_it": "Spazio disco in esaurimento su {mountpoint}",
-            "description_en": "Disk usage on {mountpoint} is above 80%. Free space is running low.",
-            "description_it": "Utilizzo del disco su {mountpoint} superiore all'80%. Lo spazio libero sta esaurendosi.",
-        },
-        "CRITICAL": {
-            "alertname": "DiskSpaceCritical",
-            "service": "storage",
-            "severity": "critical",
-            "summary_en": "Disk space critical on {mountpoint}",
-            "summary_it": "Spazio disco critico su {mountpoint}",
-            "description_en": "Disk usage on {mountpoint} is above 90%. Immediate action required.",
-            "description_it": "Utilizzo del disco su {mountpoint} superiore al 90%. Intervento immediato richiesto.",
-        },
-    }
-}
-
-# Netdata statuses that mean the alert is firing
-NETDATA_FIRE_STATUSES = {"WARNING", "CRITICAL"}
-
-# Netdata statuses that mean the alert is resolved
-NETDATA_RESOLVE_STATUSES = {"CLEAR", "REMOVED", "UNDEFINED"}
-
-# Map netdata severity to mimir severity (used for generic/unmapped alerts)
-NETDATA_SEVERITY_MAP = {
-    "WARNING": "warning",
-    "CRITICAL": "critical",
-}
 
 
 # ---------------------------------------------------------------------------
@@ -247,127 +200,6 @@ def cmd_list(args):
     print(json.dumps(alerts, indent=2))
 
 
-def cmd_netdata(args):
-    """
-    Handle a netdata alert notification.
-
-    Called from health_alarm_notify.conf custom_sender with:
-      --alertname  ${name}    (netdata alarm name)
-      --status     ${status}  (CRITICAL, WARNING, CLEAR, REMOVED, ...)
-      --chart      ${chart}   (e.g. disk_space._overlay, mwan.score)
-      --family     ${family}  (e.g. /, /boot, wan0)
-      --value      ${value}   (metric value, may be empty)
-    """
-    url, key, secret = load_config()
-    if not (url and key and secret):
-        # Mimir not configured — silently skip so existing flow is unaffected.
-        sys.exit(0)
-
-    netdata_status = (args.status or "").upper()
-    netdata_name = args.alertname or ""
-    family = args.family or ""
-
-    if netdata_status in NETDATA_RESOLVE_STATUSES:
-        _netdata_resolve(url, key, secret, netdata_name, family)
-    elif netdata_status in NETDATA_FIRE_STATUSES:
-        _netdata_fire(url, key, secret, netdata_name, netdata_status, family, args.value)
-    # Any other status (e.g. UNDEFINED at startup) is silently ignored.
-
-
-def _build_netdata_labels_annotations(netdata_name, netdata_status, family, value):
-    """
-    Map a netdata alarm + status to mimir alertname, labels and annotations.
-    Falls back to a generic mapping when the alarm name is not in the catalog.
-    """
-    mapping = NETDATA_ALERT_MAP.get(netdata_name, {}).get(netdata_status, {})
-
-    if mapping:
-        alertname = mapping["alertname"]
-        severity = mapping["severity"]
-        service = mapping.get("service")
-
-        # Build label substitution context
-        ctx = {"mountpoint": family, "interface": family, "value": value or ""}
-        annotations = {}
-        for key in ("summary_en", "summary_it", "description_en", "description_it"):
-            if key in mapping:
-                annotations[key] = mapping[key].format_map(ctx)
-        if value:
-            annotations.setdefault("description_en", annotations.get("description_en", "") + f" Current value: {value}.")
-    else:
-        # Generic fallback: pass the netdata name directly as alertname
-        alertname = netdata_name
-        severity = NETDATA_SEVERITY_MAP.get(netdata_status, "warning")
-        service = None
-        annotations = {
-            "summary": f"Netdata alert {netdata_name} is {netdata_status.lower()}",
-        }
-        if value:
-            annotations["description"] = f"Current value: {value}."
-
-    labels = {"alertname": alertname, "severity": severity}
-    if service:
-        labels["service"] = service
-
-    return alertname, labels, annotations
-
-
-def _netdata_fire(url, key, secret, netdata_name, netdata_status, family, value):
-    alertname, labels, annotations = _build_netdata_labels_annotations(
-        netdata_name, netdata_status, family, value
-    )
-
-    payload = [{
-        "labels": labels,
-        "annotations": annotations,
-        "generatorURL": f"http://nethsecurity/netdata/{netdata_name}",
-        "startsAt": fmt(now_utc()),
-        "endsAt": "0001-01-01T00:00:00Z",
-    }]
-
-    status, body = http_request("POST", alerts_endpoint(url), data=payload, key=key, secret=secret)
-    if not (200 <= status < 300):
-        print(f"Failed to send netdata alert (HTTP {status}): {body}", file=sys.stderr)
-        sys.exit(1)
-
-
-def _netdata_resolve(url, key, secret, netdata_name, family):
-    # Resolve both possible severities for the mapped alertname so that
-    # regardless of which severity was fired, the alert is cleared.
-    mappings = NETDATA_ALERT_MAP.get(netdata_name, {})
-    if mappings:
-        resolved = set()
-        for _status, m in mappings.items():
-            alertname = m["alertname"]
-            severity = m["severity"]
-            service = m.get("service")
-            sig = (alertname, severity)
-            if sig in resolved:
-                continue
-            resolved.add(sig)
-            _send_resolve(url, key, secret, alertname, severity, service, netdata_name)
-    else:
-        # Generic fallback: resolve with both severities to be safe
-        for severity in ("critical", "warning"):
-            _send_resolve(url, key, secret, netdata_name, severity, None, netdata_name)
-
-
-def _send_resolve(url, key, secret, alertname, severity, service, netdata_name):
-    now = now_utc()
-    labels = {"alertname": alertname, "severity": severity}
-    if service:
-        labels["service"] = service
-    annotations = {"summary": "resolved", "description": f"Alert {alertname} cleared by netdata at {fmt(now)}."}
-    payload = [{
-        "labels": labels,
-        "annotations": annotations,
-        "generatorURL": f"http://nethsecurity/netdata/{netdata_name}",
-        "startsAt": fmt(now - timedelta(hours=1)),
-        "endsAt": fmt(now),
-    }]
-    http_request("POST", alerts_endpoint(url), data=payload, key=key, secret=secret)
-
-
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
@@ -404,21 +236,12 @@ def main():
     p_list.add_argument("--state", help="Filter by state (active, suppressed, unprocessed)")
     p_list.add_argument("--severity", help="Filter by severity label")
 
-    # netdata (internal, called from health_alarm_notify.conf)
-    p_netdata = sub.add_parser("netdata", help="Handle a netdata alarm notification (internal use)")
-    p_netdata.add_argument("--alertname", required=True, help="Netdata alarm name (${name})")
-    p_netdata.add_argument("--status", required=True, help="Netdata alarm status (${status})")
-    p_netdata.add_argument("--chart", required=True, help="Netdata chart name (${chart})")
-    p_netdata.add_argument("--family", default="", help="Netdata chart family (${family})")
-    p_netdata.add_argument("--value", default="", help="Metric value that triggered the alarm (${value})")
-
     args = parser.parse_args()
 
     dispatch = {
         "fire": cmd_fire,
         "resolve": cmd_resolve,
         "list": cmd_list,
-        "netdata": cmd_netdata,
     }
     dispatch[args.command](args)
 

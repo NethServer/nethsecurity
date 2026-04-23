@@ -133,19 +133,10 @@ remote-backup download $(remote-backup list | jq -r .[0].file) - | gpg --batch -
 
 ## Alerts
 
-All system alerts, except MultiWAN ones, are handled by netdata, including those from the multiwan monitoring.
-Alerts are disabled by default and enabled only if the machine has a valid subscription.
-In this case, alerts are automatically sent to the remote server (either my.nethesis.it or my.nethserver.com) using a
-custom sender (`/etc/netdata/health_alarm_notify.conf`).
-Alerts are also logged to `/var/log/messages` and are visible within the netdata UI.
+System alerts are handled by vmalert (running on the system) via Telegraf metrics and VictoriaMetrics time-series storage.
+When the system has a valid subscription, alerts are automatically forwarded to the remote server (my.nethesis.it or my.nethserver.com) using `ns-plug-alert`.
 
-Only the following alerts are sent to the remote system:
-
-- all of them repeat every 30 minutes while active
-- disk space occupation
-- WAN down events
-
-To emulate these alerts manually with `ns-plug-alert`, use:
+To fire an alert manually:
 
 ```
 # Disk usage alert
@@ -172,8 +163,6 @@ ns-plug-alert fire --alertname WanDown --severity critical \
 ns-plug-alert resolve --alertname WanDown --severity critical \
   --labels service=network interface=wan0
 ```
-
-When an alert is resolved, netdata will also send a clear command to remote server.
 
 ### MultiWAN alerts
 

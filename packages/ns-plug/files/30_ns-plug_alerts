@@ -1,39 +1,26 @@
 #!/bin/sh
 
-# Custom disk alerts
-disks_f="/etc/netdata/health.d/disks.conf"
-cat << EOF > "$disks_f"
-template: disk_space_usage
-       on: disk.space
-    class: Utilization
-     type: System
-component: Disk
-       os: linux freebsd
-    hosts: *
- families: !/dev !/dev/* !/run !/run/* !/overlay *
-      calc: \$used * 100 / (\$avail + \$used)
-     units: %
-     every: 1m
-      warn: \$this > ((\$status >= \$WARNING ) ? (80) : (90))
-      crit: \$this > ((\$status == \$CRITICAL) ? (90) : (98))
-     delay: up 1m down 15m multiplier 1.5 max 1h
-      info: disk \$family space utilization
-        to: sysadmin
-  repeat: critical 5m warning 5m
-EOF
+# Disable all netdata health checks and alerts
+# (Alerts are now handled by vmalert via Telegraf → VictoriaMetrics)
 
-# Disable unwanted alerts
+# Disable the health module in netdata.conf
+sed -i 's/enabled = yes/enabled = no/' /etc/netdata/netdata.conf 2>/dev/null
+sed -i '/^\[health\]/,/^\[/ { s/enabled = .*/enabled = no/ }' /etc/netdata/netdata.conf 2>/dev/null
+
+# Empty all health.d configuration files to disable all alerts
 files="cpu disks entropy ipc load memory net netfilter processes ram softnet tcp_conn tcp_listen tcp_mem tcp_orphans tcp_resets timex udp_errors"
 for f in $files
 do
     file="/etc/netdata/health.d/${f}.conf"
-    if [ ! -f $file ]; then
-        > $file
-    fi
+    > "$file" 2>/dev/null || true
 done
 
-# Enable some python plugins
-sed -i 's/python.d = no/python.d = yes/' /etc/netdata/netdata.conf
+# Remove the health_alarm_notify.conf file from running system
+# (in case it was copied from a previous version)
+rm -f /etc/netdata/health_alarm_notify.conf
+
+# Enable python plugins for non-alerting metrics (fping latency, etc)
+sed -i 's/python.d = no/python.d = yes/' /etc/netdata/netdata.conf 2>/dev/null
 python_f="/etc/netdata/python.d.conf"
 if [ ! -f "$python_f" ]; then
     cat << EOF > "$python_f"
@@ -50,6 +37,3 @@ logind: no
 nginx_log: no
 EOF
 fi
-
-# Update netdata notification script
-cp /usr/share/ns-plug/health_alarm_notify.conf /etc/netdata/health_alarm_notify.conf

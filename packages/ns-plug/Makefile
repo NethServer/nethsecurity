@@ -68,7 +68,6 @@ define Package/ns-plug/install
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
-	$(INSTALL_DIR) $(1)/etc/netdata
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_DIR) $(1)/usr/libexec/ns-plug
 	$(INSTALL_DIR) $(1)/usr/libexec/mwan-hooks
@@ -94,8 +93,6 @@ define Package/ns-plug/install
 	$(INSTALL_BIN) ./files/40_ns-plug_automatic_updates $(1)/usr/libexec/ns-plug
 	$(INSTALL_BIN) ./files/40_ns-plug_mwan_hooks $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/40_ns-plug_mwan_hooks $(1)/usr/libexec/ns-plug
-	$(INSTALL_BIN) ./files/netadata_enable_alerts $(1)/usr/share/ns-plug/hooks/register/70netadata_enable_alerts
-	$(INSTALL_BIN) ./files/netadata_disable_alerts $(1)/usr/share/ns-plug/hooks/unregister/70netadata_disable_alerts
 	$(INSTALL_BIN) ./files/enable_automatic_updates $(1)/usr/share/ns-plug/hooks/register/60enable_automatic_updates
 	$(INSTALL_BIN) ./files/disable_automatic_updates $(1)/usr/share/ns-plug/hooks/unregister/60disable_automatic_updates
 	$(INSTALL_CONF) ./files/config $(1)/etc/config/ns-plug
@@ -105,7 +102,6 @@ define Package/ns-plug/install
 	$(INSTALL_BIN) ./files/ns-plug-alert $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/mwan-hooks $(1)/usr/libexec/ns-plug
 	$(INSTALL_BIN) ./files/ns-plug-rsyslog-fixup.uci-default $(1)/etc/uci-defaults/rsyslog-fixup
-	$(INSTALL_DATA) files/health_alarm_notify.conf $(1)/usr/share/ns-plug/
 endef
  
 $(eval $(call BuildPackage,ns-plug))
