@@ -15,6 +15,7 @@ import subprocess
 from datetime import datetime
 from collections import defaultdict
 from nethsec import utils
+import urllib.parse
 import urllib.request
 from euci import EUci
 
@@ -324,41 +325,69 @@ def ovpnrw_bytes_by_hour_and_user(instance, day, user):
     return {"hours": hours_bytes}
 
 
-def get_fping_hosts():
-    # read fping hosts from /etc/netdata/fping.conf
-    try:
-        with open("/etc/netdata/fping.conf", 'r') as fp:
-            line = fp.readline()
-            line = line[7:-2]
-            hosts = line.split(" ")
-            return hosts
-    except:
-       return []
-    
+def get_ping_hosts():
+    # read ping hosts from telegraf configuration
+    ping_conf_file = "/etc/telegraf.conf.d/ping.conf"
+    hosts = []
+    if os.path.exists(ping_conf_file):
+        try:
+            with open(ping_conf_file, 'r') as fp:
+                content = fp.read()
+                # Find the urls line in TOML format: urls = ["host1", "host2"]
+                match = re.search(r'urls\s*=\s*(\[[^\]]*\])', content)
+                if match:
+                    urls_str = match.group(1)
+                    # Parse JSON array
+                    hosts = json.loads(urls_str)
+        except Exception:
+            pass
+    return hosts
 
-def get_netdata_chart_data(chart_name):
-    ret = {"labels": [], "data": []}
-    # retrieve chart data from netdata
-    url = f'http://127.0.0.1:19999/api/v1/data?chart={chart_name}&after=-3600&points=180&options=abs'
+
+def get_victoria_metrics_ping_data(host):
+    """
+    Query Victoria Metrics for ping metrics.
+    Returns: {"latency": {"labels": [...], "data": [...]}, "quality": {"labels": [...], "data": [...]}}
+    """
+    ret_latency = {"labels": ["time", "minimum", "maximum", "average"], "data": []}
+    ret_quality = {"labels": ["time", "returned"], "data": []}
+
+    vm_url = "http://127.0.0.1:8428/api/v1/query_range"
+    now = int(time.time())
+    one_hour_ago = now - 3600
+    timeout = 5
+
+    def vm_query(metric_expr):
+        params = urllib.parse.urlencode({'query': metric_expr, 'start': one_hour_ago, 'end': now, 'step': 20})
+        with urllib.request.urlopen(f"{vm_url}?{params}", timeout=timeout) as resp:
+            data = json.loads(resp.read())
+        result = data.get('data', {}).get('result', [])
+        return result[0].get('values', []) if result else []
+
     try:
-        with urllib.request.urlopen(url, timeout=10) as fu:
-            data = json.loads(fu.read())
-    except:
-        return ret
-    return data
+        min_values = vm_query(f'ping_minimum_response_ms{{url="{host}"}}')
+        max_values = vm_query(f'ping_maximum_response_ms{{url="{host}"}}')
+        avg_values = vm_query(f'ping_average_response_ms{{url="{host}"}}')
+
+        ret_latency["data"] = [
+            [int(ts), float(mn), float(mx), float(av)]
+            for (ts, mn), (_, mx), (_, av) in zip(min_values, max_values, avg_values)
+        ]
+
+        loss_values = vm_query(f'100 - ping_percent_packet_loss{{url="{host}"}} or 100 - ping_percent_reply_loss{{url="{host}"}}')
+        ret_quality["data"] = [[int(ts), float(val)] for ts, val in loss_values]
+
+    except Exception as e:
+        print(f"Error querying Victoria Metrics for {host}: {str(e)}", file=sys.stderr)
+
+    return {"latency": ret_latency, "quality": ret_quality}
 
 
 def latency_and_quality_report():
-    hosts = get_fping_hosts()
+    hosts = get_ping_hosts()
     ret = {}
     for host in hosts:
-        host_replaced = host.replace('.', '_')
-        latency_chart_data = get_netdata_chart_data(f'fping.{host_replaced}_latency')
-        quality_chart_data = get_netdata_chart_data(f'fping.{host_replaced}_quality')
-        ret[host] = {
-            "latency": latency_chart_data,
-            "quality": quality_chart_data
-        }
+        ret[host] = get_victoria_metrics_ping_data(host)
     return ret
 
 
