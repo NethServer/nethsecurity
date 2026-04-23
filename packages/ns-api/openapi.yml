@@ -188,3 +188,80 @@ paths:
                         example: success
                   - $ref: "#/components/schemas/ValidationError"
                   - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.telegraf/list-alerts:
+    post:
+      summary: List current monitoring alerts
+      operationId: ns.telegraf.list-alerts
+      tags:
+        - telegraf
+      responses:
+        "200":
+          description: Current pending and firing alerts evaluated by vmalert
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required:
+                      - alerts
+                    properties:
+                      alerts:
+                        type: array
+                        items:
+                          type: object
+                          required:
+                            - state
+                            - name
+                            - labels
+                            - annotations
+                            - activeAt
+                          properties:
+                            state:
+                              type: string
+                              description: Alert state reported by vmalert
+                              example: firing
+                            name:
+                              type: string
+                              description: Alert name
+                              example: BackupEncryptionDisabled
+                            value:
+                              type: string
+                              description: Evaluated expression value
+                              example: "0"
+                            labels:
+                              type: object
+                              description: Alert labels emitted by vmalert
+                              additionalProperties:
+                                type: string
+                            annotations:
+                              type: object
+                              description: Localized summaries and descriptions emitted by vmalert
+                              additionalProperties:
+                                type: string
+                            activeAt:
+                              type: string
+                              format: date-time
+                              description: Time when the alert became active
+                              example: "2026-05-07T09:18:00Z"
+                            id:
+                              type: string
+                              description: Alert instance identifier
+                            rule_id:
+                              type: string
+                              description: Alert rule identifier
+                            group_id:
+                              type: string
+                              description: Alert group identifier
+                            expression:
+                              type: string
+                              description: Alert rule expression
+                            source:
+                              type: string
+                              description: vmalert source URL for the alert
+                            restored:
+                              type: boolean
+                              description: True when the alert is being restored
+                            stabilizing:
+                              type: boolean
+                              description: True when the alert is stabilizing
+                  - $ref: "#/components/schemas/Error"

@@ -28,19 +28,26 @@ GO_BUILD_PKG:=github.com/influxdata/telegraf/cmd/$(PKG_NAME)
 GO_PKG_LDFLAGS_X:=github.com/influxdata/telegraf/internal.Version=$(PKG_VERSION)
 GO_PKG_TAGS:= \
 	custom \
-    inputs.bond \
-    inputs.cpu \
-    inputs.disk \
-    inputs.ethtool \
-    inputs.mem \
-    inputs.net \
-    inputs.netstat \
-    inputs.nstat \
-    inputs.processes \
-    inputs.sensors \
-    inputs.system \
-    outputs.influxdb \
-    outputs.prometheus_client
+	inputs.bond \
+	inputs.cpu \
+	inputs.disk \
+	inputs.ethtool \
+	inputs.exec \
+	inputs.file \
+	inputs.http_listener_v2 \
+	inputs.mem \
+	inputs.net \
+	inputs.netstat \
+	inputs.nftables \
+	inputs.nstat \
+	inputs.ping \
+	inputs.processes \
+	inputs.sensors \
+	inputs.system \
+	inputs.tail \
+	outputs.influxdb \
+	parsers.grok \
+	parsers.json_v2
 
 include $(INCLUDE_DIR)/package.mk
 include $(TOPDIR)/feeds/packages/lang/golang/golang-package.mk
