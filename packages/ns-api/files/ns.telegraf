@@ -45,7 +45,7 @@ def set_config(config):
                 hosts_str = json.dumps(config['hosts'])
                 fp.write(f'  urls = {hosts_str}\n')
                 fp.write('  method = "native"\n')
-                fp.write('  count = 1\n')
+                fp.write('  count = 5\n')
                 fp.write('  ping_interval = 1.0\n')
                 fp.write('  deadline = 10\n')
                 fp.write('  [inputs.ping.tags]\n')

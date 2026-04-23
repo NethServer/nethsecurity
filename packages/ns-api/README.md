@@ -2436,7 +2436,10 @@ Response example:
 
 ### traffic-interface
 
-Return an array of point describing the network traffic in the last hour:
+Return an array of points describing the network traffic in the last hour.
+Data is sourced from Victoria Metrics using `net_bytes_recv` and `net_bytes_sent` Telegraf counters,
+converted to kb/s (kilobits per second). Labels are Unix timestamps in descending order (newest first),
+with one point every 20 seconds (~180 points total).
 ```
 api-cli ns.dashboard interface-traffic --data  '{"interface": "eth0"}'
 ```
@@ -7931,7 +7934,7 @@ Output example:
 
 ### latency-and-quality-report
 
-Report latency metrics (minimum, maximum and average) and connectivy quality data (packet delivery rate) for every host configured in Netdata fping configuration file, located at `/etc/netdata/fping.conf`.
+Report latency metrics (minimum, maximum and average) and connectivity quality data (packet loss percentage) for every host configured in the Telegraf ping plugin configuration file, located at `/etc/telegraf.conf.d/ping.conf`.
 Usage example:
 ```
 api-cli ns.report latency-and-quality-report
@@ -7981,7 +7984,7 @@ Output example:
         ],
         [
           1731485262,
-          99.8152174
+          100
         ],
         [
           1731484894,
@@ -8031,7 +8034,7 @@ Output example:
         ],
         [
           1731485262,
-          99.8152174
+          100
         ],
         [
           1731484894,
