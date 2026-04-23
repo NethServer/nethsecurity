@@ -1,0 +1,73 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Read and set ping configuration for telegraf
+
+import os
+import sys
+import json
+import subprocess
+import re
+
+ping_conf_file = "/etc/telegraf.conf.d/ping.conf"
+
+def get_config():
+    hosts = []
+    if os.path.exists(ping_conf_file):
+        try:
+            with open(ping_conf_file, 'r') as fp:
+                content = fp.read()
+                # Find the urls line in TOML format: urls = ["host1", "host2"]
+                match = re.search(r'urls\s*=\s*(\[[^\]]*\])', content)
+                if match:
+                    urls_str = match.group(1)
+                    # Parse JSON array
+                    hosts = json.loads(urls_str)
+        except Exception:
+            pass
+    return {"hosts": hosts}
+
+def set_config(config):
+    try:
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(ping_conf_file), exist_ok=True)
+        
+        # Create the telegraf ping configuration
+        with open(ping_conf_file, 'w') as fp:
+            fp.write('# Ping input plugin configuration\n')
+            fp.write('[[inputs.ping]]\n')
+            if len(config['hosts']) > 0:
+                # Format hosts as TOML array
+                hosts_str = json.dumps(config['hosts'])
+                fp.write(f'  urls = {hosts_str}\n')
+                fp.write('  method = "native"\n')
+                fp.write('  count = 1\n')
+                fp.write('  ping_interval = 1.0\n')
+                fp.write('  deadline = 10\n')
+                fp.write('  [inputs.ping.tags]\n')
+                fp.write('    influxdb_db = "ping-metrics"\n')
+            else:
+                # Write empty config to disable
+                fp.write('  urls = []\n')
+        
+        # Restart telegraf service
+        subprocess.run(["/etc/init.d/telegraf", "restart"], check=True)
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+cmd = sys.argv[1]
+
+if cmd == 'list':
+    print(json.dumps({"get-configuration": {}, "set-hosts": {"hosts": ["1.1.1.1", "google.com"]}}))
+else:
+    action = sys.argv[2]
+    if action == "get-configuration":
+        print(json.dumps(get_config()))
+    elif action == "set-hosts":
+        args = json.loads(sys.stdin.read())
+        print(json.dumps(set_config(args)))
