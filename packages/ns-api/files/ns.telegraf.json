@@ -1,0 +1,13 @@
+{
+  "telegraf-manager": {
+    "description": "Read and set telegraf ping monitor configuration",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.telegraf": [
+          "*"
+        ]
+      }
+    }
+  }
+}

@@ -118,8 +118,10 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.mwan.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.dpi $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.dpi.json $(1)/usr/share/rpcd/acl.d/
-	$(INSTALL_BIN) ./files/ns.netdata $(1)/usr/libexec/rpcd/
-	$(INSTALL_DATA) ./files/ns.netdata.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.telegraf $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.telegraf.json $(1)/usr/share/rpcd/acl.d/
+	$(LN) ns.telegraf $(1)/usr/libexec/rpcd/ns.netdata
+	$(LN) ns.telegraf.json $(1)/usr/share/rpcd/acl.d/ns.netdata.json
 	$(INSTALL_BIN) ./files/ns.storage $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.storage.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.account $(1)/usr/libexec/rpcd/
