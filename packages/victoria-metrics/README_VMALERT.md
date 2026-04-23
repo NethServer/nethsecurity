@@ -90,18 +90,18 @@ curl 'http://127.0.0.1:8081/api/v1/rules?type=alert' | jq '.data.groups[0].rules
 The default rules monitor:
 
 1. **CPU Usage**
-   - HighCpuUsage: CPU > 70% for 5 minutes (warning)
+   - HighCpuUsage: CPU > 70% for 5 minutes (warning) — suppressed when CriticalCpuUsage fires
    - CriticalCpuUsage: CPU > 85% for 2 minutes (critical)
 
 2. **Memory Usage**
-   - HighMemoryUsage: RAM > 80% (warning)
+   - HighMemoryUsage: RAM > 80% (warning) — suppressed when CriticalMemoryUsage fires
    - CriticalMemoryUsage: RAM > 90% (critical)
    - HighSwapUsage: Swap > 50% (warning)
 
 3. **Disk Space**
-   - DiskSpaceWarning: Usage > 80% (warning)
+   - DiskSpaceWarning: Usage > 80% (warning) — suppressed when DiskSpaceCritical fires
    - DiskSpaceCritical: Usage > 90% (critical)
-   - DiskInodesWarning: Inodes > 80% (warning)
+   - DiskInodesWarning: Inodes > 80% (warning) — suppressed when DiskInodesCritical fires
    - DiskInodesCritical: Inodes > 90% (critical)
 
 4. **System Load**
@@ -114,6 +114,17 @@ The default rules monitor:
 6. **Processes**
    - ProcessesZombiesAlert: Zombie processes > 5 (warning)
    - ProcessesBlockedAlert: Blocked processes > 10 (warning)
+
+> **Alert suppression**: Warning alerts use `unless` clauses so they are automatically silenced when their corresponding critical alert is already firing, reducing notification noise.
+
+### Included Rules (services.yaml)
+
+Service health monitoring via procd/ubus:
+
+7. **Service Status**
+   - ServiceDown: A persistent procd service (with respawn configured) has been down for more than 2 minutes (critical)
+
+See the [Telegraf README](../telegraf/README.md) for the full list of monitored services and query examples.
 
 ## Integration with ns-plug (Mimir)
 

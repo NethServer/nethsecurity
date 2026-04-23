@@ -74,6 +74,9 @@ define Package/telegraf/install
 	$(INSTALL_DATA) ./files/telegraf.conf $(1)/etc/telegraf.conf
 	$(INSTALL_DIR) $(1)/etc/telegraf.conf.d
 	$(INSTALL_DATA) ./files/telegraf.conf.d/os.conf $(1)/etc/telegraf.conf.d/os.conf
+	$(INSTALL_DATA) ./files/telegraf.conf.d/services.conf $(1)/etc/telegraf.conf.d/services.conf
+	$(INSTALL_DIR) $(1)/usr/libexec
+	$(INSTALL_BIN) ./files/telegraf-services $(1)/usr/libexec/telegraf-services
 endef
 
 define Package/telegraf/postinst

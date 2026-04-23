@@ -1,0 +1,172 @@
+#!/usr/bin/env python3
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Collect procd service status via ubus.
+#
+# Modes:
+#   (default)  Print a JSON array to stdout — used by telegraf inputs.exec with
+#              data_format = "json_v2" (parsers.json_v2 build tag).
+#
+#   --push     POST metrics in InfluxDB line protocol directly to the Victoria
+#              Metrics write API. Use when running standalone (e.g. from cron)
+#              without relying on telegraf parsing.
+#              The destination URL is read from VM_WRITE_URL env var, or defaults
+#              to http://127.0.0.1:8428/write?db=os-metrics
+#
+# Output metric: procd_service
+#   Tags:   service, instance, has_respawn
+#   Fields: running (int 0/1), pid (int), exit_code (int)
+#
+# State file: /var/run/telegraf-services-known.json
+#   Tracks which persistent services (has_respawn=true) have been seen so far.
+#   When a known persistent service disappears from the ubus list (e.g. stopped
+#   by an admin or failed to restart after a crash), running=0 is still emitted
+#   so VictoriaMetrics retains visibility and vmalert can fire an alert.
+#   The file lives in /var/run (tmpfs) and is rebuilt automatically after a
+#   reboot, once all services are running again.
+
+import json
+import os
+import subprocess
+import sys
+import time
+import urllib.request
+
+STATE_FILE = '/var/run/telegraf-services-known.json'
+
+
+def get_service_list():
+    result = subprocess.run(
+        ["ubus", "call", "service", "list"],
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    if result.returncode != 0:
+        print(f"Error calling ubus: {result.stderr}", file=sys.stderr)
+        sys.exit(1)
+    return json.loads(result.stdout)
+
+
+def sanitize_tag(value):
+    # InfluxDB line protocol: tag values must not contain commas, spaces or equals
+    return value.replace(",", "_").replace(" ", "_").replace("=", "_")
+
+
+def load_known_services():
+    """Load the set of persistent service keys (service/instance) seen so far."""
+    try:
+        with open(STATE_FILE) as f:
+            return set(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return set()
+
+
+def save_known_services(known):
+    """Persist the set of known persistent service keys."""
+    try:
+        with open(STATE_FILE, 'w') as f:
+            json.dump(sorted(known), f)
+    except OSError as e:
+        print(f"Warning: could not save state file: {e}", file=sys.stderr)
+
+
+def build_records(data):
+    """Return a list of dicts, one per service instance.
+
+    Persistent services (has_respawn=true) that disappear from the ubus list
+    are still emitted with running=0 so VictoriaMetrics never loses track of
+    them between the crash and the vmalert evaluation window.
+    """
+    known = load_known_services()
+    records = []
+    seen = set()
+
+    for svc_name, svc_body in sorted(data.items()):
+        for inst_name, inst in svc_body.get("instances", {}).items():
+            has_respawn = "respawn" in inst
+            key = f"{svc_name}/{inst_name}"
+            seen.add(key)
+
+            if has_respawn:
+                known.add(key)
+
+            records.append({
+                "service":     sanitize_tag(svc_name),
+                "instance":    sanitize_tag(inst_name),
+                "has_respawn": "true" if has_respawn else "false",
+                "running":     1 if inst.get("running", False) else 0,
+                "pid":         inst.get("pid", 0),
+                "exit_code":   inst.get("exit_code", 0),
+            })
+
+    # Emit running=0 for known persistent services that disappeared from ubus
+    for key in sorted(known - seen):
+        svc_name, inst_name = key.split("/", 1)
+        records.append({
+            "service":     sanitize_tag(svc_name),
+            "instance":    sanitize_tag(inst_name),
+            "has_respawn": "true",
+            "running":     0,
+            "pid":         0,
+            "exit_code":   -1,
+        })
+
+    save_known_services(known)
+    return records
+
+
+def to_line_protocol(records, timestamp):
+    """Convert records to InfluxDB line protocol strings."""
+    lines = []
+    for r in records:
+        lines.append(
+            f"procd_service,"
+            f"service={r['service']},"
+            f"instance={r['instance']},"
+            f"has_respawn={r['has_respawn']} "
+            f"running={r['running']}i,"
+            f"pid={r['pid']}i,"
+            f"exit_code={r['exit_code']}i "
+            f"{timestamp}"
+        )
+    return lines
+
+
+def push_to_vm(records):
+    timestamp = int(time.time()) * 10**9  # nanoseconds
+    url = os.environ.get(
+        "VM_WRITE_URL", "http://127.0.0.1:8428/write?db=os-metrics"
+    )
+    body = "\n".join(to_line_protocol(records, timestamp)).encode("utf-8")
+    req = urllib.request.Request(
+        url, data=body, method="POST",
+        headers={"Content-Type": "application/octet-stream"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            if resp.status not in (200, 204):
+                print(f"VM write error: HTTP {resp.status}", file=sys.stderr)
+                sys.exit(1)
+    except Exception as e:
+        print(f"VM write error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def main():
+    push_mode = "--push" in sys.argv
+
+    data = get_service_list()
+    records = build_records(data)
+
+    if push_mode:
+        push_to_vm(records)
+    else:
+        # JSON array — consumed by telegraf inputs.exec with data_format=json_v2
+        print(json.dumps(records))
+
+
+if __name__ == "__main__":
+    main()
