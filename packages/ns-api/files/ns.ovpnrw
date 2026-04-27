@@ -626,9 +626,10 @@ def list_users(ovpninstance):
         # exclude users not enabled for OpenVPN
         if "openvpn_enabled" not in user:
             continue
-        if user['name'].lower() in connected_lower_case:
-             user["connected"] = True
-             user = user | connected_lower_case[user['name'].lower()]
+        is_enabled = user.get('openvpn_enabled', '0') == '1'
+        if is_enabled and user['name'].lower() in connected_lower_case:
+            user["connected"] = True
+            user = user | connected_lower_case[user['name'].lower()]
         else:
             user["connected"] = False
         user["expiration"] = ""
@@ -678,8 +679,7 @@ def disconnect_user(ovpninstance, username):
 
     try:
         subprocess.run(["/usr/bin/openvpn-kill", f'/var/run/openvpn_{ovpninstance}.socket', username], capture_output=True, check=True)
-    except Exception as e:
-        print(e, file=sys.stderr)
+    except:
         return utils.generic_error("user_disconnect_failed")
     return {"result": "success"}
 
