@@ -1,0 +1,92 @@
+---
+openapi: 3.1.0
+info:
+  title: NethSecurity RPCD APIs
+  description: |
+    Complete OpenAPI 3.1.0 specification for all `ns.*` RPCD API methods.
+    
+    ## How RPCD Methods Are Called
+    
+    Methods use the **ubus call convention** but are accessed through the nethsecurity-api Go server:
+    
+    1. **Device-side (direct ubus)**:
+       ```bash
+       ubus call ns.firewall list-zones '{"filter": "all"}'
+       ```
+    
+    2. **Remote clients (via HTTP with JWT)**:
+       ```bash
+       POST /api/ubus/call
+       {"path": "ns.firewall", "method": "list-zones", "payload": {"filter": "all"}}
+       ```
+    
+    3. **OpenAPI paths**: `POST /ubus/{ns.name}/{method}`
+    
+    ## Error Handling
+    
+    All responses are HTTP 200, even for errors. The response JSON body indicates success or failure:
+    - **Success**: `{data...}`
+    - **API error**: `{"error": "error_code"}`
+    - **Validation error**: `{"validation": {"errors": [...]}}`
+  version: 3.5.3
+
+servers:
+  - url: "https://{host}/api"
+    description: "Remote API (with JWT auth via nethsecurity-api)"
+    variables:
+      host:
+        default: "192.168.1.1"
+  - url: "http://localhost"
+    description: "Local ubus calls (device-side)"
+
+components:
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Error code (lowercase, snake_case)
+          example: invalid_filter
+
+    ValidationErrorDetail:
+      type: object
+      required: [parameter, message, value]
+      properties:
+        parameter:
+          type: string
+          description: Name of the parameter that failed validation
+          example: filter
+        message:
+          type: string
+          description: Validation error code (lowercase, snake_case)
+          example: invalid_regex
+        value:
+          description: The value that failed validation
+          example: example
+
+    ValidationError:
+      type: object
+      required: [validation]
+      properties:
+        validation:
+          type: object
+          required: [errors]
+          properties:
+            errors:
+              type: array
+              items:
+                $ref: "#/components/schemas/ValidationErrorDetail"
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /api/login
+
+security:
+  - BearerAuth: []
+
+paths:
