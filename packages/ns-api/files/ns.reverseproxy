@@ -11,12 +11,102 @@ import re
 import shutil
 import subprocess
 import sys
+from datetime import datetime
 
 from euci import EUci
 from nethsec import reverse_proxy
 from nethsec import utils
 from nethsec.utils import ValidationError
 
+
+
+
+def __validate_certificate_pem(cert_path):
+    """
+    Validates that the certificate file is a valid PEM X.509 certificate.
+    Raises ValidationError if validation fails.
+    """
+    result = subprocess.run(
+        ['openssl', 'x509', '-noout', '-in', cert_path],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        raise ValidationError('certificate_path', 'invalid_format', cert_path)
+
+
+def __validate_key_pem(key_path):
+    """
+    Validates that the key file is a valid PEM private key.
+    Raises ValidationError if validation fails.
+    """
+    result = subprocess.run(
+        ['openssl', 'pkey', '-noout', '-in', key_path],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        raise ValidationError('key_path', 'invalid_format', key_path)
+
+
+def __validate_chain_pem(chain_path):
+    """
+    Validates that the chain file is a valid PEM certificate.
+    Raises ValidationError if validation fails.
+    """
+    result = subprocess.run(
+        ['openssl', 'x509', '-noout', '-in', chain_path],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        raise ValidationError('chain_path', 'invalid_format', chain_path)
+
+
+def __validate_key_certificate_match(cert_path, key_path):
+    """
+    Validates that the certificate and private key are a matching pair.
+    Compares the public key from both files.
+    Raises ValidationError if they don't match.
+    """
+    cert_pubkey = subprocess.run(
+        ['openssl', 'x509', '-noout', '-pubkey', '-in', cert_path],
+        capture_output=True, text=True
+    )
+    if cert_pubkey.returncode != 0:
+        raise ValidationError('certificate_path', 'invalid_format', cert_path)
+
+    key_pubkey = subprocess.run(
+        ['openssl', 'pkey', '-pubout', '-in', key_path],
+        capture_output=True, text=True
+    )
+    if key_pubkey.returncode != 0:
+        raise ValidationError('key_path', 'invalid_format', key_path)
+
+    if cert_pubkey.stdout.strip() != key_pubkey.stdout.strip():
+        raise ValidationError('key_path', 'key_mismatch', key_path)
+
+
+def __validate_certificate_expiry(cert_path):
+    """
+    Validates that the certificate has not expired.
+    Raises ValidationError if the certificate is expired.
+    """
+    result = subprocess.run(
+        ['openssl', 'x509', '-noout', '-enddate', '-in', cert_path],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        raise ValidationError('certificate_path', 'invalid_format', cert_path)
+
+    # Parse output like: notAfter=Feb  2 14:12:21 2036 GMT
+    enddate_line = result.stdout.strip()
+    if enddate_line.startswith('notAfter='):
+        date_str = enddate_line.split('=')[1].strip()
+        try:
+            expiry_dt = datetime.strptime(date_str, "%b %d %H:%M:%S %Y %Z")
+            if datetime.utcnow() > expiry_dt:
+                raise ValidationError('certificate_path', 'expired', cert_path)
+        except ValueError:
+            # If we can't parse the date, let it through
+            pass
 
 def __parse_proxy_pass(e_uci, location):
     """
@@ -187,6 +277,14 @@ elif cmd == 'call':
                 raise ValidationError('key_path', 'invalid', data['key_path'])
             if 'chain_path' in data and os.path.isfile(data['chain_path']) is False:
                 raise ValidationError('chain_path', 'invalid', data['chain_path'])
+
+            # Cryptographic validation
+            __validate_certificate_pem(data['certificate_path'])
+            __validate_key_pem(data['key_path'])
+            __validate_key_certificate_match(data['certificate_path'], data['key_path'])
+            __validate_certificate_expiry(data['certificate_path'])
+            if 'chain_path' in data:
+                __validate_chain_pem(data['chain_path'])
 
             # store certificate
             with open(data['certificate_path'], 'r') as cert_file:
