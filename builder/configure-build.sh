@@ -12,6 +12,13 @@ nethsecurity_version=${NETHSECURITY_VERSION:?Missing NETHSECURITY_VERSION enviro
 repo_channel=${REPO_CHANNEL:?Missing REPO_CHANNEL environment variable}
 target=${TARGET:?Missing TARGET environment variable}
 owrt_version=${OWRT_VERSION:?Missing OWRT_VERSION environment variable}
+build_semver_suffix=${BUILD_SEMVER_SUFFIX:-}
+
+if [ -n "$build_semver_suffix" ]; then
+    image_version="${nethsecurity_version}${build_semver_suffix}"
+else
+    image_version="${nethsecurity_version}"
+fi
 
 # For each file inside the config directory, cat the content into a .config file
 for file in config/*.conf; do
@@ -31,7 +38,7 @@ CONFIG_VERSION_DIST="NethSecurity"
 CONFIG_VERSION_HOME_URL="https://github.com/nethserver/nethsecurity"
 CONFIG_VERSION_MANUFACTURER="Nethesis"
 CONFIG_VERSION_MANUFACTURER_URL="https://www.nethesis.it"
-CONFIG_VERSION_NUMBER="${nethsecurity_version}"
+CONFIG_VERSION_NUMBER="${image_version}"
 CONFIG_VERSION_CODE="${owrt_version}"
 CONFIG_VERSION_PRODUCT="NethSecurity"
 CONFIG_VERSION_REPO="https://updates.nethsecurity.nethserver.org/${repo_channel}/${nethsecurity_version}"

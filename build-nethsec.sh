@@ -7,10 +7,16 @@
 
 set -e
 
-# Source build files if it exists
+# Source versioned defaults first
 set -o allexport
+if [ -f build.conf.defaults ]; then
+    echo "Loading build.conf.defaults..."
+    . ./build.conf.defaults
+fi
+
+# Source local overrides second (can override anything)
 if [ -f build.conf ]; then
-    echo "Loading build.conf file..."
+    echo "Loading build.conf (local overrides)..."
     . ./build.conf
 fi
 set +o allexport
@@ -20,6 +26,7 @@ OWRT_VERSION=${OWRT_VERSION:?Missing OWRT_VERSION environment variable}
 NETHSECURITY_VERSION=${NETHSECURITY_VERSION:?Missing NETHSECURITY_VERSION environment variable}
 REPO_CHANNEL=${REPO_CHANNEL:-dev}
 TARGET=${TARGET:-x86_64}
+BUILD_SEMVER_SUFFIX=${BUILD_SEMVER_SUFFIX:-}
 
 if [ -f "./key-build" ] && [ -f "./key-build.pub" ]; then
     USIGN_PRIV_KEY="$(cat ./key-build)"
@@ -38,6 +45,7 @@ podman build \
     --build-arg REPO_CHANNEL="$REPO_CHANNEL" \
     --build-arg TARGET="$TARGET" \
     --build-arg NETHSECURITY_VERSION="$NETHSECURITY_VERSION" \
+    --build-arg BUILD_SEMVER_SUFFIX="$BUILD_SEMVER_SUFFIX" \
     .
 
 set +e
