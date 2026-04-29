@@ -6,6 +6,16 @@
 
 ---
 
+## Skills Activation
+
+This project has domain-specific skills available. You MUST activate the relevant skill whenever you work in that domain—don't wait until you're stuck.
+
+- `ns-api` — **ACTIVATE** when writing, modifying, or reviewing Python RPCD API scripts. Triggers: creating or updating `ns.*` RPCD API endpoints, handling UCI configuration changes, managing pre/post-commit hooks, defining ACL permissions, documenting methods in OpenAPI 3.1.0, or when user mentions ns-api, API endpoints, hooks, or references `/usr/libexec/rpcd/ns.` files. Covers stdin/stdout JSON protocol, error handling, naming conventions, code style, and spec file updates.
+- `openwrt-package` — **ACTIVATE** when creating or modifying OpenWrt `ns-*` packages. Triggers: building new packages for NethSecurity, managing package dependencies, patching upstream feeds, modifying Makefiles, or when user mentions Makefile, package structure, config fragments, or upstream patches. Covers naming conventions, required Makefile fields, architecture selection, external version management, and patch workflows.
+- `python-nethsecurity` — **ACTIVATE** when writing or modifying Python scripts for NethSecurity packages. Triggers: creating new Python scripts, configuring package build systems, writing utilities, or when user mentions Python code in packages/ns-* or references Python scripts in the NethSecurity package tree. Covers shebang, license headers, extension handling, ruff compliance, available modules, and UCI commit conventions.
+
+---
+
 ## Build System
 
 **Do not commit `build.conf`** — it is git-ignored. Copy from `build.conf.example` and populate locally.
