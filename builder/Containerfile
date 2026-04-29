@@ -74,6 +74,7 @@ COPY --chown=buildbot:buildbot config config
 ARG REPO_CHANNEL
 ARG TARGET
 ARG NETHSECURITY_VERSION
+ARG BUILD_SEMVER_SUFFIX
 COPY --chmod=777 builder/configure-build.sh /usr/local/bin/configure-build
 RUN /usr/local/bin/configure-build
 COPY --chmod=777 builder/entrypoint.sh /usr/local/bin/entrypoint.sh
