@@ -11,7 +11,7 @@ on:
       - 'files/**'
       - 'packages/**'
       - 'patches/**'
-      - 'build.conf.example'
+      - 'build.conf.defaults'
       - 'build-nethsec.sh'
     tags:
       - '*'
@@ -22,7 +22,7 @@ on:
       - 'files/**'
       - 'packages/**'
       - 'patches/**'
-      - 'build.conf.example'
+      - 'build.conf.defaults'
       - 'build-nethsec.sh'
 
 jobs:
@@ -42,32 +42,32 @@ jobs:
       - name: Generate build variables
         id: build_vars
         run: |
-          # export OWRT_VERSION from build.conf.example
-          echo "OWRT_VERSION=$(grep -oP 'OWRT_VERSION=\K.*' build.conf.example)" >> $GITHUB_OUTPUT
+          # export OWRT_VERSION from build.conf.defaults
+          echo "OWRT_VERSION=$(grep -oP 'OWRT_VERSION=\K.*' build.conf.defaults)" >> $GITHUB_OUTPUT
 
-          # export TARGET from build.conf.example
-          echo "TARGET=$(grep -oP 'TARGET=\K.*' build.conf.example)" >> $GITHUB_OUTPUT
+          # export TARGET from build.conf.defaults
+          echo "TARGET=$(grep -oP 'TARGET=\K.*' build.conf.defaults)" >> $GITHUB_OUTPUT
 
           # export NETHSECURITY_VERSION from build
-          echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.example)" >> $GITHUB_OUTPUT
+          echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.defaults)" >> $GITHUB_OUTPUT
 
           # When pushing a tag, set REPO_CHANNEL to stable
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "REPO_CHANNEL=stable" >> $GITHUB_OUTPUT
             # save NETHSECURITY_VERSION to env
-            echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.example)" >> $GITHUB_OUTPUT
+            echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.defaults)" >> $GITHUB_OUTPUT
 
           # When pushing to main branch, set REPO_CHANNEL to dev
           elif [[ "${{ github.ref }}" == refs/heads/main ]]; then
             echo "REPO_CHANNEL=dev" >> $GITHUB_OUTPUT
             # save NETHSECURITY_VERSION to env and append -dev to it
-            echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.example)-dev+$(git rev-parse --short HEAD).$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+            echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.defaults)-dev+$(git rev-parse --short HEAD).$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
 
           # Otherwise, get the branch name of the PR pushing if REPO_CHANNEL is not set
           elif [[ "${{ github.event_name }}" == 'pull_request' && ! -v REPO_CHANNEL ]]; then
             echo "REPO_CHANNEL=${{ github.head_ref }}" >> $GITHUB_OUTPUT
             # save NETHSECURITY_VERSION to env and append last commit hash to it
-            echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.example)-${{ github.head_ref }}+$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+            echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.defaults)-${{ github.head_ref }}+$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
           fi
       - name: Build the image
         env:
