@@ -47,19 +47,6 @@ def __validate_key_pem(key_path):
         raise ValidationError('key_path', 'invalid_format', key_path)
 
 
-def __validate_chain_pem(chain_path):
-    """
-    Validates that the chain file is a valid PEM certificate.
-    Raises ValidationError if validation fails.
-    """
-    result = subprocess.run(
-        ['openssl', 'x509', '-noout', '-in', chain_path],
-        capture_output=True, text=True
-    )
-    if result.returncode != 0:
-        raise ValidationError('chain_path', 'invalid_format', chain_path)
-
-
 def __validate_key_certificate_match(cert_path, key_path):
     """
     Validates that the certificate and private key are a matching pair.
@@ -284,7 +271,7 @@ elif cmd == 'call':
             __validate_key_certificate_match(data['certificate_path'], data['key_path'])
             __validate_certificate_expiry(data['certificate_path'])
             if 'chain_path' in data:
-                __validate_chain_pem(data['chain_path'])
+                __validate_certificate_pem(data['chain_path'])
 
             # store certificate
             with open(data['certificate_path'], 'r') as cert_file:
