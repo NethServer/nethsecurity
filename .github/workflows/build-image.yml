@@ -13,8 +13,6 @@ on:
       - 'patches/**'
       - 'build.conf.defaults'
       - 'build-nethsec.sh'
-    tags:
-      - '*'
   pull_request:
     paths:
       - 'builder/**'
@@ -48,26 +46,23 @@ jobs:
           # export TARGET from build.conf.defaults
           echo "TARGET=$(grep -oP 'TARGET=\K.*' build.conf.defaults)" >> $GITHUB_OUTPUT
 
-          # export NETHSECURITY_VERSION from build
-          echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.defaults)" >> $GITHUB_OUTPUT
-
-          # When pushing a tag, set REPO_CHANNEL to stable
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "REPO_CHANNEL=stable" >> $GITHUB_OUTPUT
-            # save NETHSECURITY_VERSION to env
-            echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.defaults)" >> $GITHUB_OUTPUT
+          # export base NETHSECURITY_VERSION from build.conf.defaults
+          BASE_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.defaults)
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          TIMESTAMP=$(date +'%Y%m%d%H%M%S')
 
           # When pushing to main branch, set REPO_CHANNEL to dev
-          elif [[ "${{ github.ref }}" == refs/heads/main ]]; then
+          if [[ "${{ github.ref }}" == refs/heads/main ]]; then
             echo "REPO_CHANNEL=dev" >> $GITHUB_OUTPUT
-            # save NETHSECURITY_VERSION to env and append -dev to it
-            echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.defaults)-dev+$(git rev-parse --short HEAD).$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+            # Append -dev.<timestamp>.<commit_hash> for easy sorting
+            echo "NETHSECURITY_VERSION=${BASE_VERSION}-dev.${TIMESTAMP}.${COMMIT_HASH}" >> $GITHUB_OUTPUT
 
-          # Otherwise, get the branch name of the PR pushing if REPO_CHANNEL is not set
-          elif [[ "${{ github.event_name }}" == 'pull_request' && ! -v REPO_CHANNEL ]]; then
-            echo "REPO_CHANNEL=${{ github.head_ref }}" >> $GITHUB_OUTPUT
-            # save NETHSECURITY_VERSION to env and append last commit hash to it
-            echo "NETHSECURITY_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.defaults)-${{ github.head_ref }}+$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          # Otherwise, get the branch name for branch channel builds
+          elif [[ "${{ github.event_name }}" == 'pull_request' ]]; then
+            BRANCH_NAME="${{ github.head_ref }}"
+            echo "REPO_CHANNEL=${BRANCH_NAME}" >> $GITHUB_OUTPUT
+            # Append -<branch>.<timestamp>.<commit_hash> for easy sorting
+            echo "NETHSECURITY_VERSION=${BASE_VERSION}-${BRANCH_NAME}.${TIMESTAMP}.${COMMIT_HASH}" >> $GITHUB_OUTPUT
           fi
       - name: Build the image
         env:
@@ -78,7 +73,7 @@ jobs:
         run: ./build-nethsec.sh
       - name: Update latest_release file
         run: |
-          # Create release file pointing to 8-VERSION
+          # Create release file with the built version
           echo "${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}" > latest_release
           echo "::notice title='Image published':: ${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}"
       - uses: actions/upload-artifact@v7
@@ -117,8 +112,14 @@ jobs:
           RCLONE_CONFIG_REPO_ACCESS_KEY_ID: ${{ secrets.DO_SPACE_ACCESS_KEY }}
           RCLONE_CONFIG_REPO_SECRET_ACCESS_KEY: ${{ secrets.DO_SPACE_SECRET_KEY }}
         run: |
+          # Sync binaries to channel/version/
           rclone sync bin/ repo:nethsecurity/${{ steps.build_vars.outputs.REPO_CHANNEL }}/${{ steps.build_vars.outputs.NETHSECURITY_VERSION }} --progress --create-empty-src-dirs
-          rclone copy latest_release repo:nethsecurity/${{ steps.build_vars.outputs.REPO_CHANNEL }}/ --progress --create-empty-src-dirs
+          
+          # Place latest_release inside the version directory
+          rclone copy latest_release repo:nethsecurity/${{ steps.build_vars.outputs.REPO_CHANNEL }}/${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}/ --progress
+          
+          # Also place latest_release at channel root as fallback
+          rclone copy latest_release repo:nethsecurity/${{ steps.build_vars.outputs.REPO_CHANNEL }}/ --progress
 
   tools:
     name: 'Run tools'
