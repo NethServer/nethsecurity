@@ -39,7 +39,15 @@ By default, the CI will build the `x86_64` target. To build a different target, 
 
 To build locally, it's recommended to populate the `build.conf` file with the options you want to use for the build.
 This file is ignored by Git and should not be committed to the repository.
-You can use the `build.conf.example` file as a starting point. Refer to [Environment variables](#environment-variables) for more details on the available options.
+The `build.conf.defaults` file contains the versioned defaults and is always tracked by Git.
+
+You can create a local `build.conf` override that inherits from `build.conf.defaults`:
+```bash
+cp build.conf.defaults build.conf
+# Edit build.conf to override any variables as needed
+```
+
+Refer to [Environment variables](#environment-variables) for more details on the available options.
 
 To build images locally on your machine, make sure these minimum requirements are met:
 
@@ -65,14 +73,21 @@ During the start-up, the container will download netifyd plugins if configuratio
 
 ### Environment variables
 
-The `build-nethsec.sh` script behavior can be changed by giving the following environment variables or setting them inside the `build.conf` file:
+The `build-nethsec.sh` script behavior can be changed by setting environment variables or by populating the `build.conf` file (git-ignored, local overrides only).
+
+**Variable loading order:**
+1. `build.conf.defaults` (versioned, always loaded first — contains canonical defaults)
+2. `build.conf` (git-ignored, optional — can override any variable)
+3. Environment variables set before calling `./build-nethsec.sh` (highest priority)
+
+**Available variables:**
 
 - `OWRT_VERSION`: specify the OpenWrt version to build, it can be either a TAG or a branch in the [GitHub OpenWRT repo](https://github.com/openwrt/openwrt); **required**
 - `NETHSECURITY_VERSION`: specify what to call the NethSecurity image; **required**
 - `TARGET`: specify the target to build; if not set default is `x86_64`
 - `REPO_CHANNEL`: specify the channel to publish the image to; if not set default is `dev`
+- `BUILD_SEMVER_SUFFIX`: optional semver suffix appended to the image version only (not the distfeed URL). Use pre-release format (`-rc.1`, `-beta.2`) or metadata format (`+hotfix.1`, `+testing`) or both (`-rc.1+fix.1`).
 - `USIGN_PUB_KEY` and `USIGN_PRIV_KEY`: see [package signing section](#package-signing)
-   with the given keys
 
 The `USIGN_PUB_KEY`, `USIGN_PRIV_KEY` variables are always set as secrets inside the CI pipeline, but 
 for [security reasons](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#accessing-secrets)
@@ -133,7 +148,8 @@ Development version example:
 
 ## Upstream version change
 
-To change the OpenWrt version used by NethSecurity, you can just replace the `OWRT_VERSION` variable inside the `build.conf.example` file with the new OpenWrt version.
+To change the OpenWrt version used by NethSecurity, update the `OWRT_VERSION` variable inside the `build.conf.defaults` file (versioned, always tracked by Git).
+This ensures all developers and CI get the same default version.
 
 ## Release new image checklist
 
