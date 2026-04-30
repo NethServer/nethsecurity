@@ -11,8 +11,8 @@
 nft flush set inet fw4 nfq_bypass_v4
 nft flush set inet fw4 nfq_bypass_v6
 
-v4_elements=$(uci -q get netifyd.config.bypassv4 2>/dev/null | tr ' ' '\n' | grep -v '^$' | tr '\n' ',' | sed 's/,$//')
-v6_elements=$(uci -q get netifyd.config.bypassv6 2>/dev/null | tr ' ' '\n' | grep -v '^$' | tr '\n' ',' | sed 's/,$//')
+v4_elements=$(uci -q get netifyd.config.bypassv4 2>/dev/null | tr ' ' '\n' | grep -v '^$' | cut -d'|' -f1 | tr '\n' ',' | sed 's/,$//')
+v6_elements=$(uci -q get netifyd.config.bypassv6 2>/dev/null | tr ' ' '\n' | grep -v '^$' | cut -d'|' -f1 | tr '\n' ',' | sed 's/,$//')
 
 [ -n "$v4_elements" ] && nft add element inet fw4 nfq_bypass_v4 "{ $v4_elements }"
 [ -n "$v6_elements" ] && nft add element inet fw4 nfq_bypass_v6 "{ $v6_elements }"

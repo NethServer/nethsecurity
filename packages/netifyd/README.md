@@ -30,8 +30,8 @@ config netifyd
     #list options '-t'
 
 config ns_config 'config'
-    list bypassv4 '192.168.100.0/24'
-    list bypassv6 '2001:db8::/32'
+    list bypassv4 '192.168.100.0/24|Trusted LAN'
+    list bypassv6 '2001:db8::/32|'
 ```
 
 The `netifyd` section controls the daemon. The `ns_config 'config'` section is a
@@ -72,24 +72,27 @@ config include 'ns_netifyd_include'
 
 ### Managing bypass lists
 
-Bypass lists are managed via the `ns.netifyd` API (see `packages/ns-api`):
+Bypass lists are managed via the `ns.netifyd` API (see `packages/ns-api`).
+Each entry is stored in UCI as `<ip>|<description>` — the description is optional and
+stripped before loading into nftables.
 
 ```bash
-# Read current bypass lists
-api-cli ns.netifyd get-bypass
+# List all bypass entries
+api-cli ns.netifyd list-bypasses
 
-# Set bypass lists (replaces existing entries)
-api-cli ns.netifyd set-bypass --data '{
-  "bypassv4": ["192.168.100.0/24", "10.0.0.5"],
-  "bypassv6": ["2001:db8::/32"]
-}'
+# Add an entry (description is optional)
+api-cli ns.netifyd create-bypass --data '{"protocol": "ipv4", "ip": "192.168.100.0/24", "description": "Trusted LAN"}'
+api-cli ns.netifyd create-bypass --data '{"protocol": "ipv6", "ip": "2001:db8::/32"}'
+
+# Remove an entry
+api-cli ns.netifyd delete-bypass --data '{"protocol": "ipv4", "ip": "192.168.100.0/24"}'
 ```
 
 Or directly via UCI (requires a firewall reload to take effect):
 
 ```bash
-uci set netifyd.config.bypassv4='192.168.100.0/24'
-uci add_list netifyd.config.bypassv4='10.0.0.5'
+uci add_list netifyd.config.bypassv4='192.168.100.0/24|Trusted LAN'
+uci add_list netifyd.config.bypassv4='10.0.0.5|'
 uci commit netifyd
 fw4 reload
 ```

@@ -90,11 +90,11 @@ security:
   - BearerAuth: []
 
 paths:
-  POST /ubus/ns.netifyd/get-bypass:
+  POST /ubus/ns.netifyd/list-bypasses:
     post:
-      summary: Get DPI bypass lists
-      description: Return the current IPv4 and IPv6 CIDR lists excluded from netifyd DPI inspection.
-      operationId: ns.netifyd.get-bypass
+      summary: List DPI bypass entries
+      description: Return all IPv4 and IPv6 bypass entries stored in UCI, each with protocol, ip, and optional description.
+      operationId: ns.netifyd.list-bypasses
       tags: [netifyd]
       requestBody:
         required: true
@@ -104,36 +104,39 @@ paths:
               type: object
       responses:
         "200":
-          description: Current bypass lists
+          description: List of bypass entries
           content:
             application/json:
               schema:
                 oneOf:
                   - type: object
-                    required: [bypassv4, bypassv6]
+                    required: [bypasses]
                     properties:
-                      bypassv4:
+                      bypasses:
                         type: array
                         items:
-                          type: string
-                        description: IPv4 addresses or CIDRs bypassing DPI
-                        example: ["192.168.100.0/24", "10.0.0.5"]
-                      bypassv6:
-                        type: array
-                        items:
-                          type: string
-                        description: IPv6 addresses or CIDRs bypassing DPI
-                        example: ["2001:db8::/32"]
+                          type: object
+                          required: [protocol, ip, description]
+                          properties:
+                            protocol:
+                              type: string
+                              enum: [ipv4, ipv6]
+                            ip:
+                              type: string
+                              example: 192.168.1.0/24
+                            description:
+                              type: string
+                              example: My trusted subnet
                   - $ref: "#/components/schemas/Error"
 
-  POST /ubus/ns.netifyd/set-bypass:
+  POST /ubus/ns.netifyd/create-bypass:
     post:
-      summary: Set DPI bypass lists
+      summary: Add a DPI bypass entry
       description: |
-        Replace the IPv4 and IPv6 CIDR bypass lists in UCI (`netifyd.config.bypassv4` /
-        `netifyd.config.bypassv6`). Lists are applied to the `nfq_bypass_v4` / `nfq_bypass_v6`
-        nftables sets on the next firewall reload via `/usr/share/netifyd/netify.user`.
-      operationId: ns.netifyd.set-bypass
+        Append an IPv4 or IPv6 address/CIDR to the bypass list. The entry is stored in UCI as
+        `<ip>|<description>`. The IP part is loaded into the `nfq_bypass_v4` / `nfq_bypass_v6`
+        nftables sets on the next firewall reload.
+      operationId: ns.netifyd.create-bypass
       tags: [netifyd]
       requestBody:
         required: true
@@ -141,20 +144,56 @@ paths:
           application/json:
             schema:
               type: object
-              required: [bypassv4, bypassv6]
+              required: [protocol, ip]
               properties:
-                bypassv4:
-                  type: array
-                  items:
-                    type: string
-                  description: IPv4 addresses or CIDRs to bypass DPI
-                  example: ["192.168.100.0/24", "10.0.0.5"]
-                bypassv6:
-                  type: array
-                  items:
-                    type: string
-                  description: IPv6 addresses or CIDRs to bypass DPI
-                  example: ["2001:db8::/32"]
+                protocol:
+                  type: string
+                  enum: [ipv4, ipv6]
+                  description: IP version of the address
+                ip:
+                  type: string
+                  description: IPv4/IPv6 address or CIDR prefix
+                  example: 192.168.1.0/24
+                description:
+                  type: string
+                  description: Optional human-readable label
+                  example: My trusted subnet
+      responses:
+        "200":
+          description: Result of the operation
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required: [result]
+                    properties:
+                      result:
+                        type: string
+                        example: success
+                  - $ref: "#/components/schemas/Error"
+                  - $ref: "#/components/schemas/ValidationError"
+
+  POST /ubus/ns.netifyd/delete-bypass:
+    post:
+      summary: Remove a DPI bypass entry
+      description: Delete the bypass entry matching the given protocol and IP from UCI.
+      operationId: ns.netifyd.delete-bypass
+      tags: [netifyd]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [protocol, ip]
+              properties:
+                protocol:
+                  type: string
+                  enum: [ipv4, ipv6]
+                ip:
+                  type: string
+                  example: 192.168.1.0/24
       responses:
         "200":
           description: Result of the operation

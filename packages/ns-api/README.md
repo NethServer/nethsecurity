@@ -7054,29 +7054,31 @@ Response example:
 {"result": "success"}
 ```
 
-### get-bypass
+### list-bypasses
 
-Return the current DPI bypass lists stored in `netifyd.config.bypassv4` and `netifyd.config.bypassv6`.
-Entries are populated into the `nfq_bypass_v4` / `nfq_bypass_v6` nftables sets by `/usr/share/netifyd/netify.user`
-on every firewall reload.
+Return all DPI bypass entries from UCI. Each entry exposes the protocol, ip, and optional description.
+Entries are applied to the `nfq_bypass_v4` / `nfq_bypass_v6` nftables sets by
+`/usr/share/netifyd/netify.user` on every firewall reload.
 ```
-api-cli ns.netifyd get-bypass
+api-cli ns.netifyd list-bypasses
 ```
 
 Response example:
 ```json
 {
-  "bypassv4": ["192.168.100.0/24", "10.0.0.5"],
-  "bypassv6": ["2001:db8::/32"]
+  "bypasses": [
+    {"protocol": "ipv4", "ip": "192.168.100.0/24", "description": "Trusted LAN"},
+    {"protocol": "ipv6", "ip": "2001:db8::/32", "description": ""}
+  ]
 }
 ```
 
-### set-bypass
+### create-bypass
 
-Set the DPI bypass lists. Each entry must be a valid IPv4 or IPv6 address or CIDR prefix.
-The configuration is saved to UCI (`netifyd.config`) and applied on the next firewall reload.
+Add a new DPI bypass entry. The `ip` field must be a valid address or CIDR for the given `protocol`.
+The entry is stored in UCI as `<ip>|<description>`.
 ```
-api-cli ns.netifyd set-bypass --data '{"bypassv4": ["192.168.100.0/24"], "bypassv6": []}'
+api-cli ns.netifyd create-bypass --data '{"protocol": "ipv4", "ip": "192.168.100.0/24", "description": "Trusted LAN"}'
 ```
 
 Response example:
@@ -7084,15 +7086,21 @@ Response example:
 {"result": "success"}
 ```
 
-Error response when an invalid CIDR is provided:
+Error when the IP is already present:
 ```json
-{
-  "validation": {
-    "errors": [
-      {"parameter": "bypassv4", "message": "invalid_cidr", "value": "not-an-ip"}
-    ]
-  }
-}
+{"validation": {"errors": [{"parameter": "ip", "message": "ip_already_used", "value": "192.168.100.0/24"}]}}
+```
+
+### delete-bypass
+
+Remove a DPI bypass entry by protocol and IP.
+```
+api-cli ns.netifyd delete-bypass --data '{"protocol": "ipv4", "ip": "192.168.100.0/24"}'
+```
+
+Response example:
+```json
+{"result": "success"}
 ```
 
 ## ns.controller

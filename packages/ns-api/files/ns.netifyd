@@ -54,65 +54,93 @@ def disable():
     return {"result": "success"}
 
 
-def get_bypass():
+def _list_bypasses():
     with EUci() as e_uci:
-        return {
-            "bypassv4": list(e_uci.get("netifyd", "config", "bypassv4", list=True, default=[])),
-            "bypassv6": list(e_uci.get("netifyd", "config", "bypassv6", list=True, default=[])),
-        }
+        bypasses = []
+        for entry in e_uci.get("netifyd", "config", "bypassv4", list=True, default=[]):
+            parts = entry.split("|", 1)
+            bypasses.append({"protocol": "ipv4", "ip": parts[0], "description": parts[1] if len(parts) > 1 else ""})
+        for entry in e_uci.get("netifyd", "config", "bypassv6", list=True, default=[]):
+            parts = entry.split("|", 1)
+            bypasses.append({"protocol": "ipv6", "ip": parts[0], "description": parts[1] if len(parts) > 1 else ""})
+        return bypasses
 
 
-def set_bypass(data):
-    errors = []
-    for field, version in (("bypassv4", 4), ("bypassv6", 6)):
-        if field not in data:
-            raise ValidationError(field, "required")
-        if not isinstance(data[field], list):
-            raise ValidationError(field, "invalid", data[field])
-        for entry in data[field]:
-            try:
-                net = ipaddress.ip_network(entry, strict=False)
-                if net.version != version:
-                    raise ValueError
-            except ValueError:
-                errors.append({"parameter": field, "message": "invalid_cidr", "value": entry})
-    if errors:
-        return {"validation": {"errors": errors}}
+def _validate_bypass_request(request):
+    if "protocol" not in request or request["protocol"] == "":
+        raise ValidationError("protocol", "required")
+    if request["protocol"] not in ("ipv4", "ipv6"):
+        raise ValidationError("protocol", "invalid", request["protocol"])
+    if "ip" not in request or request["ip"] == "":
+        raise ValidationError("ip", "required")
+
+
+def _validate_ip(ip, protocol):
+    cls_addr = ipaddress.IPv4Address if protocol == "ipv4" else ipaddress.IPv6Address
+    cls_net = ipaddress.IPv4Network if protocol == "ipv4" else ipaddress.IPv6Network
+    try:
+        cls_addr(ip)
+        return
+    except ipaddress.AddressValueError:
+        pass
+    try:
+        cls_net(ip, strict=False)
+        return
+    except (ipaddress.AddressValueError, ipaddress.NetmaskValueError, ValueError):
+        pass
+    raise ValidationError("ip", "invalid_ip_or_cidr", ip)
+
+
+def _create_bypass(data):
+    _validate_bypass_request(data)
+    _validate_ip(data["ip"], data["protocol"])
+    uci_key = "bypassv4" if data["protocol"] == "ipv4" else "bypassv6"
     with EUci() as e_uci:
-        e_uci.set("netifyd", "config", "bypassv4", data["bypassv4"])
-        e_uci.set("netifyd", "config", "bypassv6", data["bypassv6"])
+        entries = list(e_uci.get("netifyd", "config", uci_key, list=True, default=[]))
+        if any(data["ip"] == entry.split("|")[0] for entry in entries):
+            raise ValidationError("ip", "ip_already_used", data["ip"])
+        entries.append(f"{data['ip']}|{data.get('description', '')}")
+        e_uci.set("netifyd", "config", uci_key, entries)
         e_uci.save("netifyd")
-    return {"result": "success"}
+
+
+def _delete_bypass(data):
+    _validate_bypass_request(data)
+    uci_key = "bypassv4" if data["protocol"] == "ipv4" else "bypassv6"
+    with EUci() as e_uci:
+        entries = list(e_uci.get("netifyd", "config", uci_key, list=True, default=[]))
+        entries = [e for e in entries if e.split("|")[0] != data["ip"]]
+        e_uci.set("netifyd", "config", uci_key, entries)
+        e_uci.save("netifyd")
 
 
 cmd = sys.argv[1]
 
-if cmd == 'list':
+if cmd == "list":
     print(json.dumps({
         "enable": {},
         "disable": {},
         "status": {},
-        "get-bypass": {},
-        "set-bypass": {
-            "bypassv4": "Array of IPv4 CIDRs to bypass DPI",
-            "bypassv6": "Array of IPv6 CIDRs to bypass DPI",
-        },
+        "list-bypasses": {},
+        "create-bypass": {"protocol": "ipv4", "ip": "192.168.1.0/24", "description": "Optional description"},
+        "delete-bypass": {"protocol": "ipv4", "ip": "192.168.1.0/24"},
     }))
 else:
-    action = sys.argv[2]
-    if action == "enable":
-        ret = enable()
-    elif action == "status":
-        ret = status()
-    elif action == "disable":
-        ret = disable()
-    elif action == "get-bypass":
-        ret = get_bypass()
-    elif action == "set-bypass":
-        try:
-            data = json.load(sys.stdin)
-            ret = set_bypass(data)
-        except ValidationError as e:
-            ret = validation_error(e.parameter, e.message, e.value)
-
-    print(json.dumps(ret))
+    try:
+        action = sys.argv[2]
+        if action == "enable":
+            print(json.dumps(enable()))
+        elif action == "status":
+            print(json.dumps(status()))
+        elif action == "disable":
+            print(json.dumps(disable()))
+        elif action == "list-bypasses":
+            print(json.dumps({"bypasses": _list_bypasses()}))
+        elif action == "create-bypass":
+            _create_bypass(json.load(sys.stdin))
+            print(json.dumps({"result": "success"}))
+        elif action == "delete-bypass":
+            _delete_bypass(json.load(sys.stdin))
+            print(json.dumps({"result": "success"}))
+    except ValidationError as e:
+        print(json.dumps(validation_error(e.parameter, e.message, e.value)))
