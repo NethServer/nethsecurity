@@ -1,5 +1,10 @@
 include $(TOPDIR)/rules.mk
 
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
 PKG_NAME:=victoria-logs
 # renovate: datasource=github-tags depName=VictoriaMetrics/VictoriaLogs
 PKG_VERSION:=1.14.0-victorialogs
