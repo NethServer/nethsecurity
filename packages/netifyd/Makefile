@@ -1,14 +1,15 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=netifyd
-PKG_VERSION:=5.2.6
+NETIFYD_VERSION:=5.2.6
+PKG_VERSION:=$(NETIFYD_VERSION)-bypass
 PKG_RELEASE:=2
 PKG_MAINTAINER:=Darryl Sokoloski <darryl@egloo.ca>
 PKG_LICENSE:=Unlicensed
 
 # Base URL for downloads
-NETIFYD_BASE_URL:=https://updates.nethsecurity.nethserver.org/netifyd-dist/netifyd-$(PKG_VERSION)/$(ARCH)
-DL_DIR:=$(DL_DIR)/netifyd-$(PKG_VERSION)-$(ARCH)
+NETIFYD_BASE_URL:=https://updates.nethsecurity.nethserver.org/netifyd-dist/netifyd-$(NETIFYD_VERSION)/$(ARCH)
+DL_DIR:=$(DL_DIR)/netifyd-$(NETIFYD_VERSION)-$(ARCH)
 
 include $(INCLUDE_DIR)/package.mk
 
