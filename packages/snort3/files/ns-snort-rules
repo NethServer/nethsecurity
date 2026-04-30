@@ -17,8 +17,8 @@ import subprocess
 from nethsec import snort
 from euci import EUci
 
-# Constants
-DATA_DIR = "/var/ns-snort"
+# Use persistent storage when /mnt/data is available so rule archives survive reboots
+DATA_DIR = "/mnt/data/ns-snort" if os.path.isdir("/mnt/data") else "/var/ns-snort"
 RULES_DIR = os.path.join(DATA_DIR, "rules")
 BACKUP_DIR = os.path.join(DATA_DIR, "old.rules")
 TESTING_RULES_FILE = os.path.join(RULES_DIR, "testing.rules")

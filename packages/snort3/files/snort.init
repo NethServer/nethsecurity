@@ -18,26 +18,39 @@ validate_snort_section() {
 }
 
 download_rules () {
-	oinkcode="$(uci -q get snort.snort.oinkcode)"
-	if [ -n "$oinkcode" ]; then
-		rm -f /var/ns-snort/*community-rules.tar.gz
-		rules="$(find /var/ns-snort -type f -name "snortrules-*.tar.gz")"
+	# Prefer data storage if available, otherwise use /var/ns-snort.
+	if [ -d "/mnt/data" ] ; then
+		cache_dir="/mnt/data/ns-snort"
 	else
-		rm -f /var/ns-snort/snortrules-*.tar.gz
-		rules="$(find /var/ns-snort/ -type f -name "*community-rules.tar.gz")"
+		cache_dir="/var/ns-snort"
+	fi
+	mkdir -p "${cache_dir}"
+	oinkcode="$(uci -q get snort.snort.oinkcode)"
+	args=""
+	if [ -n "$oinkcode" ]; then
+		rm -f "${cache_dir}"/*community-rules.tar.gz
+		rules="$(find "${cache_dir}" -type f -name "snortrules-*.tar.gz" 2>/dev/null)"
+	else
+		rm -f "${cache_dir}"/snortrules-*.tar.gz
+		rules="$(find "${cache_dir}" -type f -name "*community-rules.tar.gz" 2>/dev/null)"
 	fi
 	if [ -z "$rules" ]; then
-		args="--download"
+		# No rules found, try downloading if we have internet connectivity.
+		if ping -c 1 -W 2 1.1.1.1 > /dev/null 2>&1 || ping -c 1 -W 2 8.8.8.8 > /dev/null 2>&1; then
+			args="--download"
+		else
+			echo "Warning: snort rules not found and no internet connectivity, skipping download."
+		fi
 	fi
 	# this is done every time the service is started
 	attempt=0
 	until /usr/bin/ns-snort-rules $args; do
 		attempt=$((attempt + 1))
-		if [ "$attempt" -ge 6 ]; then
-			echo "Error: failed to download snort rules after 6 attempts (1 minute)."
+		if [ "$attempt" -ge 3 ]; then
+			echo "Error: failed to process snort rules after 3 attempts."
 			break
 		fi
-		sleep 10
+		sleep 5
 	done
 }
 
