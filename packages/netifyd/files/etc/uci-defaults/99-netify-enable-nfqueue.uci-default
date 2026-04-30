@@ -14,5 +14,8 @@ if uci -q get netifyd.@netifyd[0].internal_if > /dev/null; then
 fi
 
 if ! uci -q get netifyd.config > /dev/null; then
+    # add the missing section
     uci set netifyd.config=ns_config
+    # removed the table-pre script for fw4, reload it to remove the entries
+    /etc/init.d/firewall reload >/dev/null 2>&1
 fi
