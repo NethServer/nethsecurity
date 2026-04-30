@@ -29,4 +29,7 @@ if [ -f /etc/openvpn/$instance/pki/ca.crt ]; then
         /usr/bin/easyrsa gen-crl
         /usr/bin/easyrsa build-server-full server nopass
     )
+    # change server key path in migrated systems
+    uci set openvpn.$instance.key="/etc/openvpn/$instance/pki/private/server.key"
+    uci commit openvpn
 fi
