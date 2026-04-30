@@ -13,6 +13,7 @@ from jinja2 import Environment, BaseLoader
 
 NFQ_TABLE_FILE = '/tmp/netifyd-nfq-table-definition.nft'
 
+
 NFQ_TABLE = """
 table inet netifyd { }
 delete table inet netifyd
@@ -87,12 +88,43 @@ table inet netifyd {
 }
 """
 
+
+def _format_nft_elements(entries):
+    """
+    Format entries for nftables set elements.
+    Each entry can be:
+    - IP/CIDR (no comment)
+    - IP/CIDR | Description (with comment)
+
+    Returns list of formatted elements for nftables.
+    """
+    formatted = []
+    for entry in entries:
+        parts = entry.split('|')
+        ip = parts[0].strip()
+
+        if len(parts) > 1 and parts[1].strip():
+            # Entry has a description - add as nftables comment
+            desc = parts[1].strip()
+            formatted.append(f'{ip} comment "{desc}"')
+        else:
+            # No description
+            formatted.append(ip)
+
+    return formatted
+
+
 def generate_nfq_table():
     e_uci = EUci()
     
     # Read IPv4 and IPv6 bypass lists from UCI
-    v4_elements = e_uci.get('netifyd', 'config', 'bypassv4', dtype=str, list=True, default=[])
-    v6_elements = e_uci.get('netifyd', 'config', 'bypassv6', dtype=str, list=True, default=[])
+    # Entries can optionally have a description separated by |
+    v4_raw = e_uci.get('netifyd', 'config', 'bypassv4', dtype=str, list=True, default=[])
+    v6_raw = e_uci.get('netifyd', 'config', 'bypassv6', dtype=str, list=True, default=[])
+    
+    # Format elements with optional comments for nftables
+    v4_elements = _format_nft_elements(v4_raw)
+    v6_elements = _format_nft_elements(v6_raw)
     
     template = Environment(loader=BaseLoader()).from_string(NFQ_TABLE)
     render = template.render(
