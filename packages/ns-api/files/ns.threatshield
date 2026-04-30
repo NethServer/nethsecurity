@@ -182,9 +182,8 @@ def list_settings(e_uci):
         'data': {
             'enabled': e_uci.get('banip', 'global', 'ban_enabled') == '1',
             'ban_logprerouting': e_uci.get('banip', 'global', 'ban_logprerouting', default=False) == '1',
-            'ban_loginput': e_uci.get('banip', 'global', 'ban_loginput', default=False) == '1',
-            'ban_logforwardwan': e_uci.get('banip', 'global', 'ban_logforwardwan', default=False) == '1',
-            'ban_logforwardlan': e_uci.get('banip', 'global', 'ban_logforwardlan', default=False) == '1',
+            'ban_loginbound': e_uci.get('banip', 'global', 'ban_loginbound', default=False) == '1',
+            'ban_logoutbound': e_uci.get('banip', 'global', 'ban_logoutbound', default=False) == '1',
             'ban_loglimit': True if int(e_uci.get('banip', 'global', 'ban_loglimit', default=100)) > 0 else False,
             'ban_logcount': e_uci.get('banip', 'global', 'ban_logcount', default=1),
             'ban_logterm': e_uci.get('banip', 'global', 'ban_logterm', list=True, default=[]),
@@ -232,18 +231,14 @@ def edit_settings(e_uci, payload):
             raise ValidationError('ban_logprerouting', 'required')
         if not isinstance(payload['ban_logprerouting'], bool):
             raise ValidationError('ban_logprerouting', 'invalid', payload['ban_logprerouting'])
-        if 'ban_loginput' not in payload:
-            raise ValidationError('ban_loginput', 'required')
-        if not isinstance(payload['ban_loginput'], bool):
-            raise ValidationError('ban_loginput', 'invalid', payload['ban_loginput'])
-        if 'ban_logforwardwan' not in payload:
-            raise ValidationError('ban_logforwardwan', 'required')
-        if not isinstance(payload['ban_logforwardwan'], bool):
-            raise ValidationError('ban_logforwardwan', 'invalid', payload['ban_logforwardwan'])
-        if 'ban_logforwardlan' not in payload:
-            raise ValidationError('ban_logforwardlan', 'required')
-        if not isinstance(payload['ban_logforwardlan'], bool):
-            raise ValidationError('ban_logforwardlan', 'invalid', payload['ban_logforwardlan'])
+        if 'ban_loginbound' not in payload:
+            raise ValidationError('ban_loginbound', 'required')
+        if not isinstance(payload['ban_loginbound'], bool):
+            raise ValidationError('ban_loginbound', 'invalid', payload['ban_loginbound'])
+        if 'ban_logoutbound' not in payload:
+            raise ValidationError('ban_logoutbound', 'required')
+        if not isinstance(payload['ban_logoutbound'], bool):
+            raise ValidationError('ban_logoutbound', 'invalid', payload['ban_logoutbound'])
         if 'ban_icmplimit' not in payload:
             raise ValidationError('ban_icmplimit', 'required')
         if not (isinstance(payload['ban_icmplimit'], bool) or isinstance(payload['ban_icmplimit'], int)):
@@ -282,9 +277,8 @@ def edit_settings(e_uci, payload):
         set_default(e_uci, 'ban_protov6', '1')
 
         e_uci.set('banip', 'global', 'ban_logprerouting', payload['ban_logprerouting'])
-        e_uci.set('banip', 'global', 'ban_loginput', payload['ban_loginput'])
-        e_uci.set('banip', 'global', 'ban_logforwardwan', payload['ban_logforwardwan'])
-        e_uci.set('banip', 'global', 'ban_logforwardlan', payload['ban_logforwardlan'])
+        e_uci.set('banip', 'global', 'ban_loginbound', payload['ban_loginbound'])
+        e_uci.set('banip', 'global', 'ban_logoutbound', payload['ban_logoutbound'])
         e_uci.set('banip', 'global', 'ban_loglimit', 100 if payload['ban_loglimit'] else 0)
 
         if isinstance(payload['ban_icmplimit'], int):
@@ -708,9 +702,8 @@ if cmd == 'list':
         'edit-settings': {
             'enabled': True,
             'ban_logprerouting': True,
-            'ban_loginput': True,
-            'ban_logforwardwan': True,
-            'ban_logforwardlan': True,
+            'ban_loginbound': True,
+            'ban_logoutbound': True,
             'ban_loglimit': True,
             'ban_logcount': 3,
             'ban_logterm': ['string'],
