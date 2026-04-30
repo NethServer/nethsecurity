@@ -202,11 +202,13 @@ define Package/netifyd/install
 	$(INSTALL_BIN) ./files/etc/uci-defaults/99-netify-enable-nfqueue.uci-default $(1)/etc/uci-defaults/99-netify-enable-nfqueue
 	$(INSTALL_BIN) ./files/etc/uci-defaults/99-netify-disable-autoconfig.uci-default $(1)/etc/uci-defaults/99-netify-disable-autoconfig
 	$(INSTALL_BIN) ./files/etc/uci-defaults/99-netify-disable-coredumps.uci-default $(1)/etc/uci-defaults/99-netify-disable-coredumps
+	$(INSTALL_BIN) ./files/etc/uci-defaults/99-netify-ns-defaults.uci-default $(1)/etc/uci-defaults/99-netify-ns-defaults
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/netifyd $(1)/usr/sbin/netifyd
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/libnetifyd.so.4.0.0 $(1)/usr/lib/libnetifyd.so.4.0.0
 	$(LN) /usr/lib/libnetifyd.so.4.0.0 $(1)/usr/lib/libnetifyd.so
 	$(LN) /usr/lib/libnetifyd.so.4.0.0 $(1)/usr/lib/libnetifyd.so.4
 	$(INSTALL_DATA) ./files/usr/share/netifyd/functions.sh $(1)/usr/share/netifyd/functions.sh
+	$(INSTALL_bin) ./files/usr/share/netifyd/netify.user $(1)/usr/share/netifyd/netify.user
 	$(INSTALL_DATA) ./files/usr/share/netifyd/netify-apps.conf $(1)/usr/share/netifyd/netify-apps.conf
 	$(INSTALL_DATA) ./files/usr/share/netifyd/netify-categories.json $(1)/usr/share/netifyd/netify-categories.json
 	$(INSTALL_DATA) ./files/usr/share/netifyd/netify-proc-core-auto.json $(1)/usr/share/netifyd/netify-proc-core-auto.json

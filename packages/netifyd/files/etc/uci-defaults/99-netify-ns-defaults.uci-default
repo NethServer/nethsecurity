@@ -1,0 +1,20 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Add ns_config section to netifyd config if not present
+if ! uci -q get netifyd.config > /dev/null; then
+    uci set netifyd.config=ns_config
+    uci commit netifyd
+fi
+
+# Add netifyd firewall include if not present
+if ! uci -q get firewall.ns_netifyd_include > /dev/null; then
+    uci set firewall.ns_netifyd_include=include
+    uci set firewall.ns_netifyd_include.path='/usr/share/netifyd/netify.user'
+    uci set firewall.ns_netifyd_include.fw4_compatible='1'
+    uci commit firewall
+fi
