@@ -191,6 +191,10 @@ def import_client(tunnel):
 
     # Add management socket
     u.set("openvpn", iname, 'management', f'/var/run/openvpn_{iname}.socket unix')
+    
+    # set tun_mtu and mss_fix to default values if not provided by client config
+    u.set("openvpn", iname, 'tun_mtu', tunnel.get('TunMtu', '') or '1500')
+    u.set("openvpn", iname, 'mssfix', tunnel.get('Mssfix', '') or '1450')
 
     u.save('openvpn')
     
@@ -235,6 +239,8 @@ def setup_server(u, iname, tunnel):
     u.set("openvpn", iname, "persist_key", "1")
     u.set("openvpn", iname, "keepalive", "10 60")
     u.set("openvpn", iname, "lport", tunnel['port'])
+    u.set('openvpn', iname, 'tun_mtu', '1500')
+    u.set('openvpn', iname, 'mssfix', '1450')
     if tunnel['proto'] == "tcp":
         u.set("openvpn", iname, "proto", "tcp-server")
     else:
@@ -324,6 +330,8 @@ def export_client(name):
         "Cipher": u.get("openvpn", name, "cipher", default=""),
         "Topology": u.get("openvpn", name, "topology", default=""),
         "Protocol": proto,
+        "TunMtu": u.get("openvpn", name, "tun_mtu", default="1500"),
+        "Mssfix": u.get("openvpn", name, "mssfix", default="1450"),
     }
     remotes = []
     for r in u.get("openvpn", name, "push", default=[], list=True):
@@ -391,6 +399,10 @@ def list_tunnels():
                 "remote_host": vpn.get("remote", ""),
                 "remote_network": remote
             }
+            if vpn.get("tun_mtu"):
+                client["tun_mtu"] = vpn.get("tun_mtu")
+            if vpn.get("mssfix"):
+                client["mssfix"] = vpn.get("mssfix")
             if vpn.get('cert'):
                 client["certificates"] = get_certificates_from_pem(vpn.get('cert'))
             clients.append(client)
@@ -422,6 +434,10 @@ def list_tunnels():
                 "remote_network": remote,
                 "vpn_network": net,
             }
+            if vpn.get("tun_mtu"):
+                server["tun_mtu"] = vpn.get("tun_mtu")
+            if vpn.get("mssfix"):
+                server["mssfix"] = vpn.get("mssfix")
 
             certificates = {}
             if vpn.get('cert'):
@@ -608,6 +624,8 @@ def setup_client(u, iname, args):
     u.set('openvpn', iname, 'passtos', '1')
     u.set('openvpn', iname, 'verb', '3')
     u.set('openvpn', iname, 'keepalive', '10 60')
+    u.set('openvpn', iname, 'tun_mtu', '1500')
+    u.set('openvpn', iname, 'mssfix', '1450')
 
     for opt in ['cipher', 'compress', 'auth', 'port']:
         if args.get(opt, None):

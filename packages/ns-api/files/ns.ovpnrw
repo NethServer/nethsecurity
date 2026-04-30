@@ -333,6 +333,8 @@ def add_instance():
     u.set("openvpn", instance, 'tls_version_min','1.2')
     u.set("openvpn", instance, 'ns_auth_mode', 'certificate')
     u.set('openvpn', instance, 'ns_tag', ["automated"])
+    u.set('openvpn', instance, 'tun_mtu', '1500')
+    u.set('openvpn', instance, 'mssfix', '1450')
 
     # commit everything, otherwise a future revert will break the configuration
     # drawback: openvpn zone and network will be created even if the instance is not saved
@@ -949,6 +951,8 @@ def download_user_configuration(ovpninstance, username):
     config = config + "persist-tun\n"
     config = config + "nobind\n"
     config = config + "passtos\n"
+    config = config + f"tun-mtu {u.get('openvpn', ovpninstance, 'tun_mtu', default='1500')}\n"
+    config = config + f"mssfix {u.get('openvpn', ovpninstance, 'mssfix', default='1450')}\n"
 
     # add certificate verification if supported by certificate
     # this is not supported by migrated instances

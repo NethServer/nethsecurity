@@ -1,0 +1,23 @@
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# extract all openvpn section names starting with ns_
+ns_instances=$(uci show openvpn 2>/dev/null | grep '=openvpn$' | grep -o 'ns_[^.=]*' | sort -u)
+
+for name in $ns_instances; do
+    # skip instances using a custom config file
+    [ -n "$(uci -q get openvpn."${name}".config)" ] && continue
+
+    if [ -z "$(uci -q get openvpn."${name}".tun_mtu)" ]; then
+        uci set openvpn."${name}".tun_mtu='1500'
+    fi
+    if [ -z "$(uci -q get openvpn."${name}".mssfix)" ]; then
+        uci set openvpn."${name}".mssfix='1450'
+    fi
+done
+
+uci commit openvpn
+
+exit 0
