@@ -52,6 +52,16 @@ define Package/netifyd/description
 Netifyd meta package compiled for NethSecurity 8.
 endef
 
+define Package/netifyd/postinst
+#!/bin/sh
+if [ -z "$${IPKG_INSTROOT}" ]; then
+	# removed the table-pre script for fw4, reload it to remove the entries
+	/etc/init.d/firewall reload >/dev/null 2>&1
+	/etc/init.d/netifyd restart
+fi
+exit 0
+endef
+
 define Download/libnetifyd
   URL:=$(NETIFYD_BASE_URL)/usr/lib
   URL_FILE:=libnetifyd.so.4.0.0
