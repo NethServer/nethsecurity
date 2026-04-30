@@ -21,7 +21,7 @@ from nethsec.utils import ValidationError
 
 
 
-def __validate_certificate_pem(cert_path):
+def __validate_certificate_pem(cert_path, cert_type='certificate_path'):
     """
     Validates that the certificate file is a valid PEM X.509 certificate.
     Raises ValidationError if validation fails.
@@ -31,7 +31,7 @@ def __validate_certificate_pem(cert_path):
         capture_output=True, text=True
     )
     if result.returncode != 0:
-        raise ValidationError('certificate_path', 'invalid_format', cert_path)
+        raise ValidationError(cert_type, 'invalid_format', cert_path)
 
 
 def __validate_key_pem(key_path):
