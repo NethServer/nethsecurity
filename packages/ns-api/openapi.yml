@@ -90,3 +90,52 @@ security:
   - BearerAuth: []
 
 paths:
+  POST /ubus/ns.reverseproxy/add-certificate:
+    post:
+      summary: Add a custom certificate
+      operationId: ns.reverseproxy.add-certificate
+      tags:
+        - reverseproxy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - certificate_path
+                - key_path
+              properties:
+                name:
+                  type: string
+                  description: Certificate name, must be unique and conform to UCI name format
+                  example: my_certificate
+                certificate_path:
+                  type: string
+                  description: Path to PEM X.509 certificate file (must not be expired)
+                  example: /tmp/cert.pem
+                key_path:
+                  type: string
+                  description: Path to PEM private key file (must match the certificate)
+                  example: /tmp/key.pem
+                chain_path:
+                  type: string
+                  description: Optional path to PEM certificate chain file
+                  example: /tmp/chain.pem
+      responses:
+        "200":
+          description: Certificate successfully added
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required:
+                      - message
+                    properties:
+                      message:
+                        type: string
+                        example: success
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"

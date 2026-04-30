@@ -4910,12 +4910,22 @@ Allows to add a custom certificate uploaded to the system.
 Required parameters:
 
 - `name`: name of the certificate, must be unique and conform to the uci name format
-- `certificate_path`: path to the certificate file, will be imported and saved under `/etc/acme`, then deleted.
-- `key_path`: path to the key file, will be imported and saved under `/etc/acme`, then deleted.
+- `certificate_path`: path to the certificate file, must be a valid PEM X.509 certificate that has not expired, will be imported and saved under `/etc/nginx/custom_certs/`, then deleted.
+- `key_path`: path to the key file, must be a valid PEM private key that matches the certificate, will be imported and saved under `/etc/nginx/custom_certs/`, then deleted.
 
 Optional parameters:
 
-- `chain_path`: path to the subsequent certificate, will be appended to the `certficate_file` and deleted.
+- `chain_path`: path to the subsequent certificate, must be a valid PEM certificate, will be appended to the `certificate_file` and deleted.
+
+Validation errors:
+
+- `certificate_path` / `invalid_format`: certificate is not a valid PEM X.509 certificate
+- `certificate_path` / `expired`: certificate has already expired
+- `key_path` / `invalid_format`: key is not a valid PEM private key
+- `key_path` / `key_mismatch`: private key does not match the certificate
+- `chain_path` / `invalid_format`: chain is not a valid PEM certificate
+- `name` / `invalid`: name does not conform to uci name format
+- `name` / `unique`: a certificate with this name already exists
 
 ```bash
 api-cli ns.reverseproxy add-certificate --data '{"name": "pretty_certificate", "certificate_path": "/tmp/cert.pem", "key_path": "/tmp/key.pem", "chain_path": "/tmp/chain.pem"}'
@@ -4926,6 +4936,22 @@ Example response:
 ```json
 {
    "message": "success"
+}
+```
+
+Example validation error response:
+
+```json
+{
+  "validation": {
+    "errors": [
+      {
+        "parameter": "certificate_path",
+        "message": "expired",
+        "value": "/tmp/cert.pem"
+      }
+    ]
+  }
 }
 ```
 
