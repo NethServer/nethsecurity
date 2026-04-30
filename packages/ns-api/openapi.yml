@@ -90,3 +90,83 @@ security:
   - BearerAuth: []
 
 paths:
+  POST /ubus/ns.netifyd/get-bypass:
+    post:
+      summary: Get DPI bypass lists
+      description: Return the current IPv4 and IPv6 CIDR lists excluded from netifyd DPI inspection.
+      operationId: ns.netifyd.get-bypass
+      tags: [netifyd]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Current bypass lists
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required: [bypassv4, bypassv6]
+                    properties:
+                      bypassv4:
+                        type: array
+                        items:
+                          type: string
+                        description: IPv4 addresses or CIDRs bypassing DPI
+                        example: ["192.168.100.0/24", "10.0.0.5"]
+                      bypassv6:
+                        type: array
+                        items:
+                          type: string
+                        description: IPv6 addresses or CIDRs bypassing DPI
+                        example: ["2001:db8::/32"]
+                  - $ref: "#/components/schemas/Error"
+
+  POST /ubus/ns.netifyd/set-bypass:
+    post:
+      summary: Set DPI bypass lists
+      description: |
+        Replace the IPv4 and IPv6 CIDR bypass lists in UCI (`netifyd.config.bypassv4` /
+        `netifyd.config.bypassv6`). Lists are applied to the `nfq_bypass_v4` / `nfq_bypass_v6`
+        nftables sets on the next firewall reload via `/usr/share/netifyd/netify.user`.
+      operationId: ns.netifyd.set-bypass
+      tags: [netifyd]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bypassv4, bypassv6]
+              properties:
+                bypassv4:
+                  type: array
+                  items:
+                    type: string
+                  description: IPv4 addresses or CIDRs to bypass DPI
+                  example: ["192.168.100.0/24", "10.0.0.5"]
+                bypassv6:
+                  type: array
+                  items:
+                    type: string
+                  description: IPv6 addresses or CIDRs to bypass DPI
+                  example: ["2001:db8::/32"]
+      responses:
+        "200":
+          description: Result of the operation
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required: [result]
+                    properties:
+                      result:
+                        type: string
+                        example: success
+                  - $ref: "#/components/schemas/Error"
+                  - $ref: "#/components/schemas/ValidationError"

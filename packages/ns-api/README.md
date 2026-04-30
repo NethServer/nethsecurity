@@ -7005,11 +7005,11 @@ Response example:
 
 ## ns.netifyd
 
-Manage netifyd sink configuration.
+Manage netifyd sink configuration and DPI bypass lists.
 
 ### status
 
-Check the status of the sink confinguration:
+Check the status of the sink configuration:
 ```
 api-cli ns.netifyd status
 ```
@@ -7032,7 +7032,7 @@ Response example for an unconfigured machine:
 
 ### enable
 
-Enable the sink to Neitfyd cloud:
+Enable the sink to Netifyd cloud:
 ```
 api-cli ns.netifyd enable
 ```
@@ -7044,7 +7044,7 @@ Response example:
 
 ### disable
 
-Disable the sink to Neitfyd cloud:
+Disable the sink to Netifyd cloud:
 ```
 api-cli ns.netifyd disable
 ```
@@ -7052,6 +7052,47 @@ api-cli ns.netifyd disable
 Response example:
 ```json
 {"result": "success"}
+```
+
+### get-bypass
+
+Return the current DPI bypass lists stored in `netifyd.config.bypassv4` and `netifyd.config.bypassv6`.
+Entries are populated into the `nfq_bypass_v4` / `nfq_bypass_v6` nftables sets by `/usr/share/netifyd/netify.user`
+on every firewall reload.
+```
+api-cli ns.netifyd get-bypass
+```
+
+Response example:
+```json
+{
+  "bypassv4": ["192.168.100.0/24", "10.0.0.5"],
+  "bypassv6": ["2001:db8::/32"]
+}
+```
+
+### set-bypass
+
+Set the DPI bypass lists. Each entry must be a valid IPv4 or IPv6 address or CIDR prefix.
+The configuration is saved to UCI (`netifyd.config`) and applied on the next firewall reload.
+```
+api-cli ns.netifyd set-bypass --data '{"bypassv4": ["192.168.100.0/24"], "bypassv6": []}'
+```
+
+Response example:
+```json
+{"result": "success"}
+```
+
+Error response when an invalid CIDR is provided:
+```json
+{
+  "validation": {
+    "errors": [
+      {"parameter": "bypassv4", "message": "invalid_cidr", "value": "not-an-ip"}
+    ]
+  }
+}
 ```
 
 ## ns.controller
