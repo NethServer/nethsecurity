@@ -22,6 +22,9 @@ table inet snort {
 	chain {{ chain_type }}_{{ snort.mode }} {
 		type filter  hook {{ chain_type }}  priority {{ nfq.chain_priority }}
 		policy accept
+		{% if (int(nfq.max_inspect_bytes) > 0): %}
+		ct bytes > {{ nfq.max_inspect_bytes }} accept
+		{% endif %}
 		ip saddr @bypass_v4 counter accept
 		ip daddr @bypass_v4 counter accept
 		ip6 saddr @bypass_v6 counter accept

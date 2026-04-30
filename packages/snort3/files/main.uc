@@ -116,14 +116,15 @@ const snort_config = {
 };
 
 const nfq_config = {
-	queue_count:     config_item("range", [ 1, 16 ], 4),           // Count of queues to allocate in nft chain when method=nfq, usually 2-8.
-	queue_start:     config_item("range", [ 1, 32768], 4),         // Start of queue numbers in nftables.
-	queue_maxlen:    config_item("range", [ 1024, 65536 ], 1024),  // --daq-var queue_maxlen=int
-	fanout_type:     config_item("enum",  [ "hash", "lb", "cpu", "rollover", "rnd", "qm"], "hash"), // See below.
-	thread_count:    config_item("range", [ 0, 32 ], 0),           // 0 = use cpu count
-	chain_type:      config_item("enum",  [ "prerouting", "input", "forward", "output", "postrouting" ], "input"),
-	chain_priority:  config_item("enum",  [ "raw", "filter", "300"], "filter"),
-	include:         config_item("path",  [ "" ]),                 // User-defined rules to include inside queue chain.
+	queue_count:       config_item("range", [ 1, 16 ], 4),              // Count of queues to allocate in nft chain when method=nfq, usually 2-8.
+	queue_start:       config_item("range", [ 1, 32768], 4),            // Start of queue numbers in nftables.
+	queue_maxlen:      config_item("range", [ 1024, 65536 ], 1024),     // --daq-var queue_maxlen=int
+	fanout_type:       config_item("enum",  [ "hash", "lb", "cpu", "rollover", "rnd", "qm"], "hash"), // See below.
+	thread_count:      config_item("range", [ 0, 32 ], 0),              // 0 = use cpu count
+	chain_type:        config_item("enum",  [ "prerouting", "input", "forward", "output", "postrouting" ], "input"),
+	chain_priority:    config_item("enum",  [ "raw", "filter", "300"], "filter"),
+	include:           config_item("path",  [ "" ]),                    // User-defined rules to include inside queue chain.
+	max_inspect_bytes: config_item("range", [ 0, 2147483648 ], 1048576), // Max bytes per connection sent to snort; 0 = unlimited.
 };
 
 
@@ -170,9 +171,14 @@ nfq - https://github.com/snort3/libdaq/blob/master/modules/nfq/README.nfq.md
     thread_count    - int snort.-z: <count> maximum number of packet threads
                       (same as --max-packet-threads); 0 gets the number of
                       CPU cores reported by the system; default is 1 { 0:max32 }
-    chain_type      - Chain type when generating nft output
-    chain_priority  - Chain priority when generating nft output
-    include         - Full path to user-defined extra rules to include inside queue chain
+    chain_type          - Chain type when generating nft output
+    chain_priority      - Chain priority when generating nft output
+    include             - Full path to user-defined extra rules to include inside queue chain
+    max_inspect_bytes   - Maximum bytes per connection forwarded to snort for inspection.
+                          Connections that have already transferred more than this many bytes
+                          are accepted directly by nftables without further inspection.
+                          Set to 0 to disable this limit (inspect all traffic).
+                          Default is 1048576 (1 MB).
 
     * - for details on fanout_type, see these pages:
         https://github.com/florincoras/daq/blob/master/README

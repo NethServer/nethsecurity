@@ -8063,16 +8063,18 @@ Response example:
   "enabled": true,
   "ns_policy": "balanced",
   "oinkcode": "123456789",
-  "home_net": ["192.168.1.0/24", "10.0.0.0/8"]
+  "home_net": ["192.168.1.0/24", "10.0.0.0/8"],
+  "max_inspect_bytes": 1048576
 }
 ```
 
 ### save-settings
 
 Set `snort` configuration. The `home_net` field is a list of IPv4 CIDRs representing the protected networks.
+The optional `max_inspect_bytes` field sets how many bytes per connection are forwarded to snort for inspection; use `0` for unlimited (default: `1048576`).
 
 ```bash
-api-cli ns.snort save-settings --data '{"enabled": true, "ns_policy": "balanced", "oinkcode": "123456789", "home_net": ["192.168.1.0/24"]}'
+api-cli ns.snort save-settings --data '{"enabled": true, "ns_policy": "balanced", "oinkcode": "123456789", "home_net": ["192.168.1.0/24"], "max_inspect_bytes": 1048576}'
 ```
 
 ### check-oinkcode

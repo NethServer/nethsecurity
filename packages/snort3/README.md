@@ -40,6 +40,7 @@ This package also adds the following extra UCI options under the `nfq` section:
 - `bypass_src_v4` - bypass IDS for source IPv4 addresses
 - `bypass_dst_v6` - bypass IDS for destination IPv6 addresses
 - `bypass_src_v6` - bypass IDS for source IPv6 addresses
+- `max_inspect_bytes` - maximum number of bytes per connection forwarded to snort for inspection. Connections that have already transferred more than this many bytes are accepted directly by nftables without further inspection. Set to `0` to disable the limit and inspect all traffic. Default is `1048576` (1 MB).
 
 ## Download rules
 

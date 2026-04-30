@@ -181,6 +181,10 @@ def __save_settings():
     e_uci = EUci()
     e_uci.set('snort', 'snort', 'oinkcode', data.get('oinkcode', ''))
     e_uci.set('snort', 'snort', 'home_net', ' '.join(home_net))
+    max_inspect_bytes = data.get('max_inspect_bytes', 1048576)
+    if not isinstance(max_inspect_bytes, int) or max_inspect_bytes < 0:
+        raise ValidationError('max_inspect_bytes', 'invalid')
+    e_uci.set('snort', 'nfq', 'max_inspect_bytes', str(max_inspect_bytes))
     e_uci.save('snort')
 
 
@@ -198,6 +202,7 @@ def __settings():
         "ns_policy": e_uci.get('snort', 'snort', 'ns_policy', default='connectivity'),
         "oinkcode": e_uci.get('snort', 'snort', 'oinkcode', default=''),
         "home_net": home_net,
+        "max_inspect_bytes": int(e_uci.get('snort', 'nfq', 'max_inspect_bytes', default='1048576')),
     }
 
 
@@ -461,8 +466,9 @@ if cmd == 'list':
             "ns_policy": "balanced",
             "oinkcode": "1234567890",
             "home_net": ["192.168.1.0/24"],
+            "max_inspect_bytes": 1048576,
         },
-        "save-settings": {"enabled": True, "ns_policy": "balanced", "oinkcode": "1234567890", "home_net": ["192.168.1.0/24"]},
+        "save-settings": {"enabled": True, "ns_policy": "balanced", "oinkcode": "1234567890", "home_net": ["192.168.1.0/24"], "max_inspect_bytes": 1048576},
         "check-oinkcode": {},
         "list-bypasses": {},
         "create-bypass": {"protocol": "ipv4", "ip": "*.*.*.*", "description": "Description"},
