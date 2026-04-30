@@ -47,8 +47,8 @@ table inet netifyd {
         # Netifyd only analyzes the first 32 packets
         ct packets > 32 accept
 
-        # Traffic to queues 50-53
-        queue flags bypass to 50-53
+        # Traffic to queues 54-57
+        queue flags bypass to 54-57
     }
 
     # push forward packets to userspace queues for DPI analysis
@@ -82,8 +82,8 @@ table inet netifyd {
         # Netifyd only analyzes the first 32 packets
         ct packets > 32 accept
 
-        # Traffic to queues 50-53
-        queue flags bypass to 50-53
+        # Traffic to queues 54-57
+        queue flags bypass to 54-57
     }
 }
 """
