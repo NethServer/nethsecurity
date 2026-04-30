@@ -102,6 +102,9 @@ def check_system_update():
                 return utils.generic_error("not_found")
             case _:
                 return utils.generic_error("generic_error")
+    except ValueError:
+        # Avoid UI error when checking dev version because it's not a valid semver
+        return data
     except Exception:
         return utils.generic_error("generic_error")
 
