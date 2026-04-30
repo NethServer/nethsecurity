@@ -71,7 +71,7 @@ define Package/telegraf/install
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/telegraf.initd $(1)/etc/init.d/telegraf
 	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_CONF) ./files/telegraf.conf $(1)/etc/config/telegraf
+	$(INSTALL_CONF) ./files/telegraf.uci $(1)/etc/config/telegraf
 	$(INSTALL_DIR) $(1)/etc/telegraf
 	$(INSTALL_DATA) ./files/telegraf.conf $(1)/etc/telegraf.conf
 	$(INSTALL_DIR) $(1)/etc/telegraf.conf.d
