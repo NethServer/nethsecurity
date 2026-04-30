@@ -29,24 +29,23 @@ GO_PKG_LDFLAGS_X:=github.com/influxdata/telegraf/internal.Version=$(PKG_VERSION)
 GO_PKG_TAGS:= \
 	custom \
 	inputs.bond \
+	inputs.conntrack \
 	inputs.cpu \
 	inputs.disk \
+	inputs.diskio \
 	inputs.ethtool \
 	inputs.exec \
 	inputs.file \
-	inputs.http_listener_v2 \
 	inputs.mem \
 	inputs.net \
 	inputs.netstat \
-	inputs.nftables \
 	inputs.nstat \
 	inputs.ping \
 	inputs.processes \
 	inputs.sensors \
 	inputs.system \
-	inputs.tail \
 	outputs.influxdb \
-	parsers.grok \
+	outputs.prometheus_client \
 	parsers.json_v2
 
 include $(INCLUDE_DIR)/package.mk
@@ -94,7 +93,6 @@ define Package/telegraf/install
 	$(INSTALL_BIN) ./files/telegraf-services $(1)/usr/libexec/telegraf-services
 	$(INSTALL_BIN) ./files/telegraf-backup-encryption $(1)/usr/libexec/telegraf-backup-encryption
 	$(INSTALL_BIN) ./files/telegraf-storage-status $(1)/usr/libexec/telegraf-storage-status
-	$(INSTALL_BIN) ./files/telegraf-services $(1)/usr/libexec/telegraf-services
 	$(INSTALL_BIN) ./files/telegraf-mwan $(1)/usr/libexec/telegraf-mwan
 endef
 
