@@ -133,9 +133,9 @@ def generate_prometheus_config():
 
 
 def sensors_available():
-    """Check if sensors command is available on the system."""
+    """Check if sensors command works by running it with -A -u flags."""
     try:
-        result = subprocess.run(['which', 'sensors'], capture_output=True, timeout=2)
+        result = subprocess.run(['sensors', '-A', '-u'], capture_output=True, timeout=5)
         return result.returncode == 0
     except (subprocess.TimeoutExpired, FileNotFoundError):
         return False
