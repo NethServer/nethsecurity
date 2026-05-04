@@ -239,8 +239,8 @@ def setup_server(u, iname, tunnel):
     u.set("openvpn", iname, "persist_key", "1")
     u.set("openvpn", iname, "keepalive", "10 60")
     u.set("openvpn", iname, "lport", tunnel['port'])
-    u.set('openvpn', iname, 'tun_mtu', '1500')
-    u.set('openvpn', iname, 'mssfix', '1450')
+    u.set('openvpn', iname, 'tun_mtu', tunnel.get('tun_mtu', '1500'))
+    u.set('openvpn', iname, 'mssfix', tunnel.get('mssfix', '1450'))
     if tunnel['proto'] == "tcp":
         u.set("openvpn", iname, "proto", "tcp-server")
     else:
@@ -527,7 +527,9 @@ def get_defaults():
         "ifconfig_local": str(ipaddress.ip_interface(net).network.network_address + 1),
         "ifconfig_remote": str(ipaddress.ip_interface(net).network.network_address + 2),
         'route': ovpn.get_local_networks(u),
-        'remote': ovpn.get_public_addresses(u)
+        'remote': ovpn.get_public_addresses(u),
+        'tun_mtu': '1500',
+        'mssfix': '1450'
     }
 
     return defaults
@@ -624,8 +626,8 @@ def setup_client(u, iname, args):
     u.set('openvpn', iname, 'passtos', '1')
     u.set('openvpn', iname, 'verb', '3')
     u.set('openvpn', iname, 'keepalive', '10 60')
-    u.set('openvpn', iname, 'tun_mtu', '1500')
-    u.set('openvpn', iname, 'mssfix', '1450')
+    u.set('openvpn', iname, 'tun_mtu', args.get('tun_mtu', '1500'))
+    u.set('openvpn', iname, 'mssfix', args.get('mssfix', '1450'))
 
     for opt in ['cipher', 'compress', 'auth', 'port']:
         if args.get(opt, None):
@@ -752,10 +754,10 @@ cmd = sys.argv[1]
 if cmd == 'list':
     print(json.dumps({
         "import-client": {},
-        "add-server": {"ns_name": "server1", "port": "2001", "server": "192.168.4.0/24", "topology": "subnet", "proto": "tcp", "local": ["192.168.100.0/24"], "remote": ["192.168.5.0/24"], "compress": "", "auth": "", "cipher": "", "secret": "", "ifconfig_local": "", "ifconfig_remote": "", "ns_public_ip": ["1.2.3.4"], "tls_version_min": "1.2"},
-        "edit-server": {"id": "ns_server1", "ns_name": "server1", "port": "2001", "server": "192.168.4.0/24", "topology": "subnet", "proto": "tcp", "local": ["192.168.100.0/24"], "remote": ["192.168.5.0/24"], "compress": "", "auth": "", "cipher": "", "secret": "", "ifconfig_local": "", "ifconfig_remote": "", "ns_public_ip": ["1.2.3.4"], "tls_version_min": "1.2"},
-        "add-client": {"ns_name": "client1", "port": "2001", "proto": "tcp", "certificate": "XXX", "dev_type": "tun", "remote": ["192.168.5.0/24"], "compress": "", "auth": "", "cipher": "", "secret": "", "route": [], "username": "", "password": "", "ifconfig_local": "", "ifconfig_remote": ""},
-        "edit-client": {"id": "ns_client1", "ns_name": "client2", "port": "2001", "proto": "tcp", "certificate": "XXX", "dev_type": "tun", "remote": ["192.168.5.0/24"], "compres": "", "auth": "", "cipher": "", "secret": "", "route": [], "username": "", "password": "", "ifconfig_local": "", "ifconfig_remote": ""},
+        "add-server": {"ns_name": "server1", "port": "2001", "server": "192.168.4.0/24", "topology": "subnet", "proto": "tcp", "local": ["192.168.100.0/24"], "remote": ["192.168.5.0/24"], "compress": "", "auth": "", "cipher": "", "secret": "", "ifconfig_local": "", "ifconfig_remote": "", "ns_public_ip": ["1.2.3.4"], "tls_version_min": "1.2","tun_mtu": "1500", "mssfix": "1450"},
+        "edit-server": {"id": "ns_server1", "ns_name": "server1", "port": "2001", "server": "192.168.4.0/24", "topology": "subnet", "proto": "tcp", "local": ["192.168.100.0/24"], "remote": ["192.168.5.0/24"], "compress": "", "auth": "", "cipher": "", "secret": "", "ifconfig_local": "", "ifconfig_remote": "", "ns_public_ip": ["1.2.3.4"], "tls_version_min": "1.2", "tun_mtu": "1500", "mssfix": "1450"},
+        "add-client": {"ns_name": "client1", "port": "2001", "proto": "tcp", "certificate": "XXX", "dev_type": "tun", "remote": ["192.168.5.0/24"], "compress": "", "auth": "", "cipher": "", "secret": "", "route": [], "username": "", "password": "", "ifconfig_local": "", "ifconfig_remote": "", "tun_mtu": "1500", "mssfix": "1450"},
+        "edit-client": {"id": "ns_client1", "ns_name": "client2", "port": "2001", "proto": "tcp", "certificate": "XXX", "dev_type": "tun", "remote": ["192.168.5.0/24"], "compres": "", "auth": "", "cipher": "", "secret": "", "route": [], "username": "", "password": "", "ifconfig_local": "", "ifconfig_remote": "", "tun_mtu": "1500", "mssfix": "1450"},
         "export-client": {"name": "ns_client1"},
         "list-tunnels": {},
         "list-cipher": {},

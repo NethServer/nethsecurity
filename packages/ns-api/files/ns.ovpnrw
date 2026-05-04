@@ -589,6 +589,10 @@ def set_configuration(args):
     else:
         return utils.validation_error("ns_auth_mode", "invalid_auth_mode", args["ns_auth_mode"])
 
+    if args["tun_mtu"] and args["tun_mtu"] != u.get("openvpn", ovpninstance, "tun_mtu", default=''):
+        u.set("openvpn", ovpninstance, "tun_mtu", args.get("tun_mtu"))
+    if args["mssfix"] and args["mssfix"] != u.get("openvpn", ovpninstance, "mssfix", default=''):
+        u.set("openvpn", ovpninstance, "mssfix", args.get("mssfix"))
 
     u.save("openvpn")
 
@@ -1232,7 +1236,9 @@ if cmd == 'list':
             "ns_dhcp_options": [],
             "ns_public_ip": ["1.2.3.4"],
             "ns_user_db": "main",
-            "ifconfig_pool": ["10.166.54.4", "10.166.54.20"]
+            "ifconfig_pool": ["10.166.54.4", "10.166.54.20"],
+            "tun_mtu": "1500",
+            "mssfix": "1450",
             },
         "remove-instance": {"instance": "roadwarrior1"},
         "import-users": {"instance": "roadwarrior1"},
