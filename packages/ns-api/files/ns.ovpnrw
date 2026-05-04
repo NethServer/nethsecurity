@@ -589,10 +589,9 @@ def set_configuration(args):
     else:
         return utils.validation_error("ns_auth_mode", "invalid_auth_mode", args["ns_auth_mode"])
 
-    if args["tun_mtu"] and args["tun_mtu"] != u.get("openvpn", ovpninstance, "tun_mtu", default=''):
-        u.set("openvpn", ovpninstance, "tun_mtu", args.get("tun_mtu"))
-    if args["mssfix"] and args["mssfix"] != u.get("openvpn", ovpninstance, "mssfix", default=''):
-        u.set("openvpn", ovpninstance, "mssfix", args.get("mssfix"))
+    # MTU and MSSFix settings
+    u.set("openvpn", ovpninstance, "tun_mtu", args.get("tun_mtu"))
+    u.set("openvpn", ovpninstance, "mssfix", args.get("mssfix"))
 
     u.save("openvpn")
 
