@@ -1,14 +1,15 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=netifyd
-PKG_VERSION:=5.2.6
+NETIFYD_VERSION:=5.2.6
+PKG_VERSION:=$(NETIFYD_VERSION)
 PKG_RELEASE:=2
 PKG_MAINTAINER:=Darryl Sokoloski <darryl@egloo.ca>
 PKG_LICENSE:=Unlicensed
 
 # Base URL for downloads
-NETIFYD_BASE_URL:=https://updates.nethsecurity.nethserver.org/netifyd-dist/netifyd-$(PKG_VERSION)/$(ARCH)
-DL_DIR:=$(DL_DIR)/netifyd-$(PKG_VERSION)-$(ARCH)
+NETIFYD_BASE_URL:=https://updates.nethsecurity.nethserver.org/netifyd-dist/netifyd-$(NETIFYD_VERSION)/$(ARCH)
+DL_DIR:=$(DL_DIR)/netifyd-$(NETIFYD_VERSION)-$(ARCH)
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -49,6 +50,16 @@ endef
 
 define Package/netifyd/description
 Netifyd meta package compiled for NethSecurity 8.
+endef
+
+define Package/netifyd/postinst
+#!/bin/sh
+if [ -z "$${IPKG_INSTROOT}" ]; then
+	# removed the table-pre script for fw4, reload it to remove the entries
+	/etc/init.d/firewall reload >/dev/null 2>&1
+	/etc/init.d/netifyd restart
+fi
+exit 0
 endef
 
 define Download/libnetifyd
@@ -213,7 +224,8 @@ define Package/netifyd/install
 	$(INSTALL_DATA) ./files/usr/share/netifyd/netify-sink-http-auto.json $(1)/usr/share/netifyd/netify-sink-http-auto.json
 	$(INSTALL_DATA) ./files/usr/share/netifyd/plugins.d/99-netify-proc-core-auto.conf $(1)/usr/share/netifyd/plugins.d/99-netify-proc-core-auto.conf
 	$(INSTALL_DATA) ./files/usr/share/netifyd/plugins.d/99-netify-sink-http-auto.conf $(1)/usr/share/netifyd/plugins.d/99-netify-sink-http-auto.conf
-	$(INSTALL_DATA) ./files/usr/share/nftables.d/table-pre/10-netifyd-nfqueue.nft $(1)/usr/share/nftables.d/table-pre/10-netifyd-nfqueue.nft
+	# nethesis additional files
+	$(INSTALL_BIN) ./files/usr/sbin/ns-netifyd-configure.py $(1)/usr/sbin/ns-netifyd-configure
 	# netify-plm
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/libnetify-plm.so.1.0.0 $(1)/usr/lib/libnetify-plm.so.1.0.0
 	$(LN) /usr/lib/libnetify-plm.so.1.0.0 $(1)/usr/lib/libnetify-plm.so
