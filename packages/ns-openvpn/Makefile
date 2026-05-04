@@ -76,7 +76,10 @@ endef
 
 define Package/ns-openvpn/postinst
 #!/bin/sh
-/usr/sbin/ns-openvpnrw-extend-crl
+if [ -z "$${IPKG_INSTROOT}" ]; then
+  /usr/sbin/ns-openvpnrw-extend-crl
+  /usr/libexec/ns-openvpn/openvpn-merge-connections-db
+fi
 exit 0
 endef
 
