@@ -1,12 +1,5 @@
 {
     "format": "json",
     "compressor": "none",
-    "sinks": {
-        "sink-socket": {
-            "legacy": {
-                "enable": true,
-                "types": [ "legacy-socket" ]
-            }
-        }
-    }
+    "sinks": { }
 }

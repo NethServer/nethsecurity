@@ -241,6 +241,9 @@ def dump_dpi_stats():
     # filename example /var/run/dpireport/2024/08/20/172.25.5.17/15.json
     ret = []
     for file, timestamp in find_recent_files("/var/run/dpireport", 20):
+        # Skip non-JSON files (e.g., SQLite WAL files like stats.db-wal)
+        if not file.endswith('.json'):
+            continue
         # parse the filename to get the date client
         file_split = file.removeprefix('/var/run/dpireport/').split('/')
         year = int(file_split[0])
