@@ -8,7 +8,7 @@
 
 import os
 import boto3
-from semver import VersionInfo
+from semver import Version as VersionInfo
 
 region = "ams3"
 bucket_name = "nethsecurity"
