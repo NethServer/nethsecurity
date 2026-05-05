@@ -6,7 +6,9 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=checkmk-agent
-PKG_VERSION:=2.4.0p24
+# renovate: datasource=github-tags depName=Checkmk/checkmk
+CHECKMK_UPSTREAM_VERSION:=2.5.0
+PKG_VERSION:=$(subst p,_p,$(CHECKMK_UPSTREAM_VERSION))
 PKG_RELEASE:=1
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/checkmk-agent-$(PKG_VERSION)
@@ -32,7 +34,7 @@ endef
 
 # Download the Check_MK agent binary
 define Download/checkmk-agent-binary
-  URL:=https://raw.githubusercontent.com/Checkmk/checkmk/v$(PKG_VERSION)/agents
+  URL:=https://raw.githubusercontent.com/Checkmk/checkmk/v$(CHECKMK_UPSTREAM_VERSION)/agents
   URL_FILE:=check_mk_agent.openwrt
   FILE:=check_mk_agent.openwrt
   HASH:=skip
