@@ -129,13 +129,12 @@ remote-backup download $(remote-backup list | jq -r .[0].file) - | gpg --batch -
 
 ## Alerts
 
-All system alerts, except MultiWAN ones, are handled by netdata, including those from the multiwan monitoring.
-Alerts are disabled by default and enabled only if the machine has a valid subscription.
-In this case, alerts are automatically sent to the remote server (either my.nethesis.it or my.nethserver.com) using a
-custom sender (`/etc/netdata/health_alarm_notify.conf`).
-Alerts are also logged to `/var/log/messages` and are visible within the netdata UI.
+System alerts are handled by **vmalert** (Victoria Metrics alert evaluation engine) which evaluates
+alert rules against metrics collected by telegraf.
 
-Only the following alerts are sent to the remote system:
+When an alert fires or resolves, vmalert sends an Alertmanager-format webhook to `ns-plug-alert-proxy`
+running on `127.0.0.1:9095`. The proxy forwards the following alerts to the registered monitoring
+portal (my.nethesis.it or my.nethserver.com):
 
 | Alert | Condition | Legacy alert_id |
 |---|---|---|
@@ -151,3 +150,7 @@ The proxy starts automatically at boot regardless of registration state.
 Firing/resolved state is determined from the Alertmanager-standard `endsAt` field:
 if `endsAt` is in the future (or zero/missing) a **FAILURE** is sent; if `endsAt` is in
 the past an **OK** is sent.
+A FAILURE is sent when the alert starts firing and an OK is sent when it resolves.
+
+If Mimir credentials are configured in ns-plug UCI (`my_url`, `my_system_key`, `my_system_secret`),
+vmalert also forwards all alerts to the Mimir alertmanager for cloud-side processing.

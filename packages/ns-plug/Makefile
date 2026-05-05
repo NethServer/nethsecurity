@@ -104,6 +104,7 @@ define Package/ns-plug/install
 	$(INSTALL_CONF) files/ns-plug.keep $(1)/lib/upgrade/keep.d/ns-plug
 	$(INSTALL_BIN) ./files/mwan-hooks $(1)/usr/libexec/ns-plug
 	$(INSTALL_BIN) ./files/ns-plug-rsyslog-fixup.uci-default $(1)/etc/uci-defaults/rsyslog-fixup
+	$(INSTALL_BIN) ./files/99_ns-plug-netdata-cleanup.uci-default $(1)/etc/uci-defaults/99_ns-plug-netdata-cleanup
 endef
  
 $(eval $(call BuildPackage,ns-plug))
