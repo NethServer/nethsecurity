@@ -13,7 +13,7 @@ WORK_DIR=/var/run/ns-api-server
 TOKENS_DIR=${WORK_DIR}/tokens
 SECRETS_DIR=/etc/ns-api-server
 UPLOAD_FILE_PATH=${WORK_DIR}/uploads
-UPLOAD_FILE_MAX_SIZE=64 # 64MB
+UPLOAD_FILE_MAX_SIZE=128 # 128MB
 
 boot() {
     local boot_delay="$(uci_get ns-ui.config.api_server_delay)"
