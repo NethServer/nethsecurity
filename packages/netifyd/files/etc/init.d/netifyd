@@ -108,6 +108,11 @@ service_data() {
 	$PROG --version
 }
 
+service_triggers()
+{
+    procd_add_reload_trigger "netifyd"
+}
+
 start_service() {
 	[ ! -d /var/run/netifyd ] && mkdir -p /var/run/netifyd
 
