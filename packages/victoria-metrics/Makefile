@@ -7,7 +7,7 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=victoria-metrics
 # renovate: datasource=github-tags depName=VictoriaMetrics/VictoriaMetrics
-PKG_VERSION:=1.139.0
+PKG_VERSION:=1.142.0
 PKG_RELEASE:=1
  
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
