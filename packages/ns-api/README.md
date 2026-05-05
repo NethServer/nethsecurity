@@ -4625,39 +4625,6 @@ Error response example:
 {"error": "restart_failed"}
 ```
 
-## ns.netdata
-
-Configure netdata reporting daemon.
-
-### get-configuration
-
-Get current netdata configuration:
-```
-api-cli ns.netdata get-configuration
-```
-
-Response example:
-```json
-{
-  "hosts": [
-    "1.2.3.4",
-    "google.it"
-  ]
-}
-```
-
-### set-hosts
-
-Configure hosts to be monitored by fping:
-```
-api-cli ns.netdata set-hosts --data '{"hosts": ["1.1.1.1", "google.com"]}'
-```
-
-Response example:
-```json
-{"result": "success"}
-```
-
 ## ns.factoryreset
 
 ### reset
