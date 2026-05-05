@@ -48,22 +48,26 @@ jobs:
 
           # export base NETHSECURITY_VERSION from build.conf.defaults
           BASE_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.defaults)
-          echo "BASE_VERSION=${BASE_VERSION}" >> $GITHUB_OUTPUT
           COMMIT_HASH=$(git rev-parse --short HEAD)
           TIMESTAMP=$(date +'%Y%m%d%H%M%S')
+          echo "NETHSECURITY_VERSION=${BASE_VERSION}" >> $GITHUB_OUTPUT
 
           # When pushing to main branch, set REPO_CHANNEL to dev
           if [[ "${{ github.ref }}" == refs/heads/main ]]; then
             echo "REPO_CHANNEL=dev" >> $GITHUB_OUTPUT
-            # Append -dev.<timestamp>.<commit_hash> for easy sorting
-            echo "NETHSECURITY_VERSION=${BASE_VERSION}-dev.${TIMESTAMP}.${COMMIT_HASH}" >> $GITHUB_OUTPUT
+            echo "BUILD_SEMVER_SUFFIX=-dev.${TIMESTAMP}.${COMMIT_HASH}" >> $GITHUB_OUTPUT
 
-          # Otherwise, get the branch name for branch channel builds
+          # For pull requests and workflow_dispatch, add timestamp suffix
           elif [[ "${{ github.event_name }}" == 'pull_request' ]]; then
             BRANCH_NAME="${{ github.head_ref }}"
             echo "REPO_CHANNEL=${BRANCH_NAME}" >> $GITHUB_OUTPUT
-            # Append -<branch>.<timestamp>.<commit_hash> for easy sorting
-            echo "NETHSECURITY_VERSION=${BASE_VERSION}-${BRANCH_NAME}.${TIMESTAMP}.${COMMIT_HASH}" >> $GITHUB_OUTPUT
+            echo "BUILD_SEMVER_SUFFIX=-${BRANCH_NAME}.${TIMESTAMP}.${COMMIT_HASH}" >> $GITHUB_OUTPUT
+
+          elif [[ "${{ github.event_name }}" == 'workflow_dispatch' ]]; then
+            BRANCH_NAME=$(echo "${{ github.ref }}" | sed 's|refs/heads/||')
+            echo "REPO_CHANNEL=${BRANCH_NAME}" >> $GITHUB_OUTPUT
+            echo "BUILD_SEMVER_SUFFIX=-.${TIMESTAMP}.${COMMIT_HASH}" >> $GITHUB_OUTPUT
+
           fi
       - name: Build the image
         env:
@@ -71,12 +75,14 @@ jobs:
           NETHSECURITY_VERSION: ${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}
           REPO_CHANNEL: ${{ steps.build_vars.outputs.REPO_CHANNEL }}
           TARGET: ${{ steps.build_vars.outputs.TARGET }}
+          BUILD_SEMVER_SUFFIX: ${{ steps.build_vars.outputs.BUILD_SEMVER_SUFFIX }}
         run: ./build-nethsec.sh
       - name: Update latest_release file
         run: |
-          # Create release file with the built version
-          echo "${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}" > latest_release
-          echo "::notice title='Image published':: ${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}"
+          # Create release file with the full display version (base + suffix)
+          FULL_VERSION="${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}${{ steps.build_vars.outputs.BUILD_SEMVER_SUFFIX }}"
+          echo "${FULL_VERSION}" > latest_release
+          echo "::notice title='Image published':: ${FULL_VERSION}"
       - uses: actions/upload-artifact@v7
         name: Upload image
         with:
@@ -114,10 +120,10 @@ jobs:
           RCLONE_CONFIG_REPO_SECRET_ACCESS_KEY: ${{ secrets.DO_SPACE_SECRET_KEY }}
         run: |
           # Sync binaries to channel/version/
-          rclone sync bin/ repo:nethsecurity/${{ steps.build_vars.outputs.REPO_CHANNEL }}/${{ steps.build_vars.outputs.BASE_VERSION }} --progress --create-empty-src-dirs
+          rclone sync bin/ repo:nethsecurity/${{ steps.build_vars.outputs.REPO_CHANNEL }}/${{ steps.build_vars.outputs.NETHSECURITY_VERSION }} --progress --create-empty-src-dirs
           
           # Place latest_release inside the version directory
-          rclone copy latest_release repo:nethsecurity/${{ steps.build_vars.outputs.REPO_CHANNEL }}/${{ steps.build_vars.outputs.BASE_VERSION }}/ --progress
+          rclone copy latest_release repo:nethsecurity/${{ steps.build_vars.outputs.REPO_CHANNEL }}/${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}/ --progress
           
           # Also place latest_release at channel root as fallback
           rclone copy latest_release repo:nethsecurity/${{ steps.build_vars.outputs.REPO_CHANNEL }}/ --progress
