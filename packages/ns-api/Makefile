@@ -120,8 +120,6 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.dpi.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.telegraf $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.telegraf.json $(1)/usr/share/rpcd/acl.d/
-	$(LN) ns.telegraf $(1)/usr/libexec/rpcd/ns.netdata
-	$(LN) ns.telegraf.json $(1)/usr/share/rpcd/acl.d/ns.netdata.json
 	$(INSTALL_BIN) ./files/ns.storage $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.storage.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.account $(1)/usr/libexec/rpcd/
@@ -188,7 +186,6 @@ define Package/ns-api/install
 	$(INSTALL_CONF) ./files/config/ns-api $(1)/etc/config/ns-api
 	$(INSTALL_CONF) ./files/config/ns-wizard $(1)/etc/config/ns-wizard
 	$(INSTALL_CONF) ./files/templates $(1)/etc/config/
-	$(INSTALL_BIN) ./files/post-commit/restart-netdata.py $(1)/usr/libexec/ns-api/post-commit/
 	$(INSTALL_BIN) ./files/pre-commit/fix-redirect-reflections.py $(1)/usr/libexec/ns-api/pre-commit
 	$(INSTALL_BIN) ./files/pre-commit/update-objects.py $(1)/usr/libexec/ns-api/pre-commit
 	$(INSTALL_BIN) ./files/post-commit/reload-ipsets.py $(1)/usr/libexec/ns-api/post-commit
