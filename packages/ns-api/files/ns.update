@@ -86,7 +86,7 @@ def check_system_update():
         response = requests.get(f"{url}/latest_release", headers={"Accept": "application/json"}, timeout=5)
         response.raise_for_status()
         version = response.text.strip()
-        if semver.compare(version, current_version) > 0:
+        if semver.Version.compare(version, current_version) > 0:
             data["lastVersion"] = f'NethSecurity {version}'
     except requests.exceptions.ConnectionError:
         return utils.generic_error("connection_error")
