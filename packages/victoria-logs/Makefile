@@ -7,7 +7,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=victoria-logs
 # renovate: datasource=github-tags depName=VictoriaMetrics/VictoriaLogs
-PKG_VERSION:=1.14.0-victorialogs
+PKG_VERSION:=1.50.0
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
@@ -23,12 +23,9 @@ PKG_BUILD_DEPENDS:=golang/host
 PKG_BUILD_PARALLEL:=1
 PKG_BUILD_FLAGS:=no-mips16
 
-GO_PKG:=github.com/VictoriaMetrics/VictoriaMetrics
-GO_PKG_BUILD_PKG:=github.com/VictoriaMetrics/VictoriaMetrics/app/victoria-logs \
-	github.com/VictoriaMetrics/VictoriaMetrics/app/vlogscli
-GO_PKG_GCFLAGS:= \
-	-trimpath \
-	-buildvcs=false
+GO_PKG:=github.com/VictoriaMetrics/VictoriaLogs
+GO_PKG_BUILD_PKG:=github.com/VictoriaMetrics/VictoriaLogs/app/victoria-logs \
+	github.com/VictoriaMetrics/VictoriaLogs/app/vlogscli
 GO_PKG_LDFLAGS:= \
 	-extldflags \
 	-static
