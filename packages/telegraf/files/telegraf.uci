@@ -1,0 +1,5 @@
+config output_prometheus 'output_prometheus'
+	option enabled '0'
+	option listen_addr ':9273'
+	option basic_auth_username ''
+	option basic_auth_password ''
