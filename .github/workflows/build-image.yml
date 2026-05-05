@@ -48,6 +48,7 @@ jobs:
 
           # export base NETHSECURITY_VERSION from build.conf.defaults
           BASE_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.defaults)
+          echo "BASE_VERSION=${BASE_VERSION}" >> $GITHUB_OUTPUT
           COMMIT_HASH=$(git rev-parse --short HEAD)
           TIMESTAMP=$(date +'%Y%m%d%H%M%S')
 
@@ -113,10 +114,10 @@ jobs:
           RCLONE_CONFIG_REPO_SECRET_ACCESS_KEY: ${{ secrets.DO_SPACE_SECRET_KEY }}
         run: |
           # Sync binaries to channel/version/
-          rclone sync bin/ repo:nethsecurity/${{ steps.build_vars.outputs.REPO_CHANNEL }}/${{ steps.build_vars.outputs.NETHSECURITY_VERSION }} --progress --create-empty-src-dirs
+          rclone sync bin/ repo:nethsecurity/${{ steps.build_vars.outputs.REPO_CHANNEL }}/${{ steps.build_vars.outputs.BASE_VERSION }} --progress --create-empty-src-dirs
           
           # Place latest_release inside the version directory
-          rclone copy latest_release repo:nethsecurity/${{ steps.build_vars.outputs.REPO_CHANNEL }}/${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}/ --progress
+          rclone copy latest_release repo:nethsecurity/${{ steps.build_vars.outputs.REPO_CHANNEL }}/${{ steps.build_vars.outputs.BASE_VERSION }}/ --progress
           
           # Also place latest_release at channel root as fallback
           rclone copy latest_release repo:nethsecurity/${{ steps.build_vars.outputs.REPO_CHANNEL }}/ --progress
