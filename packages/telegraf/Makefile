@@ -7,7 +7,7 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=telegraf
 # renovate: datasource=github-tags depName=influxdata/telegraf
-PKG_VERSION:=1.33.2
+PKG_VERSION:=1.38.3
 PKG_RELEASE:=1
  
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz

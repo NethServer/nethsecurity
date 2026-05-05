@@ -7,7 +7,7 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=victoria-metrics
 # renovate: datasource=github-tags depName=VictoriaMetrics/VictoriaMetrics
-PKG_VERSION:=1.110.1
+PKG_VERSION:=1.142.0
 PKG_RELEASE:=1
  
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
@@ -26,9 +26,6 @@ PKG_BUILD_FLAGS:=no-mips16
 GO_PKG:=github.com/VictoriaMetrics/VictoriaMetrics
 GO_PKG_BUILD_PKG:=github.com/VictoriaMetrics/VictoriaMetrics/app/victoria-metrics \
 	github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert
-GO_PKG_GCFLAGS:= \
-	-trimpath \
-	-buildvcs=false
 GO_PKG_LDFLAGS:= \
 	-extldflags \
 	-static
