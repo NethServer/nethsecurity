@@ -7,17 +7,18 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-monitoring
 # renovate: datasource=github-tags depName=nethserver/nethsecurity-monitoring
-PKG_VERSION:=1.1.2
+PKG_VERSION:=1.1.3
 PKG_RELEASE:=1
 
-PKG_SOURCE:=nethsecurity-monitoring-v$(PKG_VERSION).tar.gz
-PKG_SOURCE_URL:=https://codeload.github.com/nethserver/nethsecurity-monitoring/tar.gz/v$(PKG_VERSION)?
-PKG_SOURCE_SUBDIR:=nethsecurity-monitoring-$(PKG_VERSION)
+PKG_SOURCE_PROTO:=git
+PKG_SOURCE_URL:=https://github.com/nethserver/nethsecurity-monitoring.git
+PKG_SOURCE_VERSION:=v$(PKG_VERSION)
+PKG_SOURCE_SUBDIR:=nethsecurity-monitoring-$(PKG_SOURCE_VERSION)
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_SOURCE_SUBDIR)
+PKG_MIRROR_HASH:=skip
 
-PKG_HASH:=skip
 PKG_MAINTAINER:=Tommaso Bailetti <tommaso.bailetti@nethesis.it>
-PKG_LICENSE:=MIT
+PKG_LICENSE:=GPL-3.0-only
 
 PKG_BUILD_DEPENDS:=golang/host
 PKG_BUILD_PARALLEL:=1
