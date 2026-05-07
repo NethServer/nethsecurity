@@ -34,6 +34,7 @@ GO_PKG_TAGS:= \
 	inputs.disk \
 	inputs.diskio \
 	inputs.ethtool \
+	inputs.dns_query \
 	inputs.exec \
 	inputs.file \
 	inputs.mem \
@@ -86,7 +87,8 @@ define Package/telegraf/install
 	$(INSTALL_DATA) ./files/telegraf.conf.d/storage.conf $(1)/etc/telegraf.conf.d/storage.conf
 	$(INSTALL_DATA) ./files/telegraf.conf.d/services.conf $(1)/etc/telegraf.conf.d/services.conf
 	$(INSTALL_DATA) ./files/telegraf.conf.d/mwan.conf $(1)/etc/telegraf.conf.d/mwan.conf
-	$(INSTALL_DATA) ./files/telegraf.conf.d/ping.conf $(1)/etc/telegraf.conf.d/ping.conf
+	$(INSTALL_DIR) $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/uci-defaults/99-telegraf-migrate-netdata $(1)/etc/uci-defaults/99-telegraf-migrate-netdata
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/telegraf-config $(1)/usr/sbin/telegraf-config
 	$(INSTALL_DIR) $(1)/usr/libexec
