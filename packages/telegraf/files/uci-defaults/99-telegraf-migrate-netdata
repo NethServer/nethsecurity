@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Migrate fping hosts from the legacy netdata configuration to the telegraf
+# UCI config (telegraf.internet.pings).
+#
+# The old fping.conf format is a single line:
+#   hosts="1.1.1.1 8.8.8.8 google.com"
+
+FPING_CONF="/etc/netdata/fping.conf"
+
+[ -f "$FPING_CONF" ] || exit 0
+
+# Extract the hosts string: strip 'hosts="..."'
+hosts_line=$(grep '^hosts=' "$FPING_CONF" | head -n1)
+[ -n "$hosts_line" ] || exit 0
+
+# Strip key and surrounding quotes
+hosts_val="${hosts_line#hosts=}"
+hosts_val="${hosts_val#\"}"
+hosts_val="${hosts_val%\"}"
+[ -n "$hosts_val" ] || exit 0
+
+# Add each host to telegraf.internet.pings if not already present
+uci -q get telegraf.internet > /dev/null || uci set telegraf.internet='internet'
+
+for host in $hosts_val; do
+    # Skip if already in the list
+    uci -q get telegraf.internet.pings | grep -qw "$host" && continue
+    uci add_list telegraf.internet.pings="$host"
+done
+
+uci commit telegraf
