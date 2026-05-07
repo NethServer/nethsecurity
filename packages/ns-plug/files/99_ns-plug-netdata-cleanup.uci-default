@@ -4,9 +4,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-# Remove bundled netdata configuration files on first boot.
-rm -rf /etc/netdata 2>/dev/null || true
-
 # Remove the legacy backup-encryption alert cron entry if it is still present.
 if crontab -l 2>/dev/null | grep -q '/usr/libexec/backup-encryption-alert'; then
     crontab -l 2>/dev/null | grep -v '/usr/libexec/backup-encryption-alert' | sort | uniq | crontab -
