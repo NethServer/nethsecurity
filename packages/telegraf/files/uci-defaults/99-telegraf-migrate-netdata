@@ -34,3 +34,6 @@ for host in $hosts_val; do
 done
 
 uci commit telegraf
+
+# Remove bundled netdata configuration files since they are no longer used.
+rm -rf /etc/netdata 2>/dev/null || true
