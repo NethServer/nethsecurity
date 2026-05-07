@@ -13,26 +13,36 @@ import json
 import subprocess
 import re
 import time
+import ipaddress
 import urllib.error
 import urllib.parse
 import urllib.request
 from euci import EUci
+from nethsec.utils import validation_error
 
-ping_conf_file = "/etc/telegraf.conf.d/ping.conf"
+
+def _is_valid_ip_or_hostname(host):
+    """Validate if a string is a valid IPv4, IPv6, or hostname."""
+    if not isinstance(host, str) or not host.strip():
+        return False
+
+    # Try to parse as IP address (IPv4 or IPv6)
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        pass
+
+    # Hostname pattern (alphanumeric, dots, hyphens)
+    hostname_pattern = r'^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)(\.([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?))*$'
+    return bool(re.match(hostname_pattern, host))
 
 
 def _read_ping_hosts():
-    """Read the list of monitored ping hosts from the telegraf config file."""
-    if not os.path.exists(ping_conf_file):
-        return []
-    try:
-        with open(ping_conf_file) as fp:
-            match = re.search(r"urls\s*=\s*(\[[^\]]*\])", fp.read())
-            if match:
-                return json.loads(match.group(1))
-    except Exception:
-        pass
-    return []
+    """Read the list of monitored ping hosts from UCI config."""
+    e_uci = EUci()
+    pings = e_uci.get('telegraf', 'internet', 'pings', dtype=str, list=True, default=[])
+    return pings
 
 
 def get_config():
@@ -40,33 +50,24 @@ def get_config():
 
 
 def set_config(config):
-    try:
-        # Ensure directory exists
-        os.makedirs(os.path.dirname(ping_conf_file), exist_ok=True)
+    if 'hosts' not in config:
+        return validation_error('hosts', 'required')
 
-        # Create the telegraf ping configuration
-        with open(ping_conf_file, "w") as fp:
-            fp.write("# Ping input plugin configuration\n")
-            fp.write("[[inputs.ping]]\n")
-            if len(config["hosts"]) > 0:
-                # Format hosts as TOML array
-                hosts_str = json.dumps(config["hosts"])
-                fp.write(f"  urls = {hosts_str}\n")
-                fp.write('  method = "native"\n')
-                fp.write("  count = 5\n")
-                fp.write("  ping_interval = 1.0\n")
-                fp.write("  deadline = 10\n")
-                fp.write("  [inputs.ping.tags]\n")
-                fp.write('    influxdb_db = "ping-metrics"\n')
-            else:
-                # Write empty config to disable
-                fp.write("  urls = []\n")
+    hosts = config.get('hosts')
+    if not isinstance(hosts, list):
+        return validation_error('hosts', 'invalid')
 
-        # Restart telegraf service
-        subprocess.run(["/etc/init.d/telegraf", "restart"], check=True)
-        return {"success": True}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
+    # Validate each host with per-index error reporting
+    for idx, host in enumerate(hosts):
+        if not _is_valid_ip_or_hostname(host):
+            return validation_error(f'hosts.{idx}', 'invalid', value=host)
+
+    e_uci = EUci()
+    current = set(e_uci.get('telegraf', 'internet', 'pings', dtype=str, list=True, default=[]))
+    if current != set(hosts):
+        e_uci.set('telegraf', 'internet', 'pings', hosts)
+        e_uci.save('telegraf')
+    return {"success": True}
 
 
 VM_URL = "http://127.0.0.1:8428/api/v1/query_range"
