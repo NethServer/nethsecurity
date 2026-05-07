@@ -23,8 +23,13 @@ if 'network' in changes or 'banip' in changes:
         save = True
 
     devices = utils.get_all_wan_devices(uci, exclude_aliases=True)
+    all_interfaces = utils.get_all_by_type(uci, "network", "interface")
     for d in devices:
         interfaces.append(utils.get_interface_from_device(uci, d))
+        for k, v in all_interfaces.items():
+            if v.get("device") == d and v.get("proto") == "pppoe":
+                devices.append('pppoe-' + k)
+                devices.remove(d)
 
     for opt in ('ban_ifv4', 'ban_ifv6', 'ban_trigger'):
         if tuple(interfaces) != uci.get("banip", "global", opt, default=()):
