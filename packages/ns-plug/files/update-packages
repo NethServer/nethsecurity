@@ -15,15 +15,15 @@ error_exit() {
 }
 
 # Update metadata, make sure to output even if in case of error
-output=$(opkg update 2>&1)
+output=$(apk update 2>&1)
 status=$?
 echo "$output" | logger -s -t update-packages
 [ $status -ne 0 ] && error_exit "Failed to update metadata"
 
 error_count=0
 # Upgrade each package individually and capture output
-opkg list-upgradable | cut -f 1 -d ' ' | while read -r package; do
-    output=$(opkg upgrade "$package" 2>&1)
+apk list --upgradable | cut -f 1 -d ' ' | while read -r package; do
+    output=$(apk upgrade "$package" 2>&1)
     status=$?
     [ $status -ne 0 ] && error_count=$((error_count + 1))
     echo "$output" | logger -s -t update-packages
