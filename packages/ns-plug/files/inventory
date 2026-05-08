@@ -57,7 +57,7 @@ data = {
         }
     },
     "mountpoints": mount_points,
-    "rpms": { "nethserver-firewall-base-ui": _run("opkg status ns-ui | grep Version | awk '{print $2}'") },
+    "rpms": { "nethserver-firewall-base-ui": _run("apk info ns-ui 2>/dev/null | head -1 | sed 's/ns-ui-//;s/ .*//'") },
     "public_ip": inventory.info_default_ipv4(uci),
     "features": features
 }

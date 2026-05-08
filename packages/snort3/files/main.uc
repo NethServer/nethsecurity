@@ -155,7 +155,7 @@ snort
     log_dir         - Location of the generated logs, and oh-by-the-way the snort
                       PID file (why?).  Default /var/log
     openappid       - Enabled inspection using the 'openappid' package
-                      See 'opkg info openappid'
+                      See 'apk info openappid'
     action          - Override the specified action of your rules.  One of 'default',
                       'alert', 'block', 'reject' or 'drop', where 'default' means use
                       the rule as defined and don't override.
