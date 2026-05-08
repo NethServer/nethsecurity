@@ -8,6 +8,7 @@
 # Manage packages and system updates
 
 import os
+import re
 import sys
 import json
 import time
@@ -22,9 +23,11 @@ from euci import EUci
 
 def last_package_check():
     try:
-        if not os.listdir("/tmp/opkg-lists/"):
+        cache_dir = "/var/cache/apk/"
+        files = [f for f in os.listdir(cache_dir) if f.endswith(".tar.gz")]
+        if not files:
             return 0
-        return int(os.path.getmtime("/tmp/opkg-lists/"))
+        return int(max(os.path.getmtime(os.path.join(cache_dir, f)) for f in files))
     except:
         return 0
 
@@ -50,16 +53,22 @@ def check_package_updates():
     try:
         # download metadata only if they are older than 5 minutes
         if (time.time() - last_package_check()) > 300:
-            subprocess.run(["/bin/opkg", "update"], check=True, capture_output=True)
+            subprocess.run(["/usr/bin/apk", "update"], check=True, capture_output=True)
     except Exception as e:
         print(e, file=sys.stderr)
-        return utils.generic_error("opkg_update_failed")
-    p = subprocess.run(["/bin/opkg", "list-upgradable"], check=True, capture_output=True, text=True)
+        return utils.generic_error("apk_update_failed")
+    p = subprocess.run(["/usr/bin/apk", "list", "--upgradable"], check=True, capture_output=True, text=True, stderr=subprocess.DEVNULL)
     for line in p.stdout.split("\n"):
         if not line:
             continue
-        tmp = line.split(" - ")
-        ret.append({"package": tmp[0], "currentVersion": tmp[1], "latestVersion": tmp[2]})
+        # format: pkgname-version-rN arch {pkgname} (license) [upgradable from: old-version-rN]
+        m = re.match(r'^(\S+)\s+\S+\s+\{(\S+)\}.*\[upgradable from:\s+(\S+)\]', line)
+        if m:
+            full_ver = m.group(1)   # e.g. ns-api-3.6.0-r1
+            pkg_name = m.group(2)   # e.g. ns-api
+            current_ver = m.group(3)  # e.g. 3.5.0-r1
+            latest_ver = full_ver.removeprefix(pkg_name + "-")
+            ret.append({"package": pkg_name, "currentVersion": current_ver, "latestVersion": latest_ver})
     # Sort the ret array by the "package" field
     ret.sort(key=lambda package: package["package"])
     return {"updates": ret}
@@ -72,7 +81,7 @@ def install_package_updates():
         out = subprocess.check_output("/usr/sbin/screen -dmS install_package_updates /usr/sbin/update-packages", shell=True)
     except Exception as e:
         print(e, file=sys.stderr)
-        return utils.generic_error("opkg_ugrade_failed")
+        return utils.generic_error("apk_upgrade_failed")
     return {"result": "success"}
 
 def check_system_update():
@@ -86,7 +95,7 @@ def check_system_update():
         response = requests.get(f"{url}/latest_release", headers={"Accept": "application/json"}, timeout=5)
         response.raise_for_status()
         version = response.text.strip()
-        if semver.Version.compare(version, current_version) > 0:
+        if semver.compare(version, current_version) > 0:
             data["lastVersion"] = f'NethSecurity {version}'
     except requests.exceptions.ConnectionError:
         return utils.generic_error("connection_error")

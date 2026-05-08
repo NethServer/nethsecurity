@@ -17,15 +17,15 @@ if ! ping -c 1 -W 5 8.8.8.8 >/dev/null 2>&1 && ! ping -c 1 -W 5 1.1.1.1 >/dev/nu
     exit 1
 fi
 
-opkg update
+apk update
 if [ $? -ne 0 ]; then
     echo "Failed to update package lists, will retry later"
     exit 1
 fi
 
 grep -E '\w+\s+overlay$' /etc/backup/installed_packages.txt | awk '{print $1}' | while read package; do
-    if ! opkg status "$package" | grep -q "Installed"; then
-        opkg install "$package"
+    if ! apk info -e "$package" > /dev/null 2>&1; then
+        apk add "$package"
         echo "Restored package: $package"
     fi
 done

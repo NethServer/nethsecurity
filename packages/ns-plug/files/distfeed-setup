@@ -14,7 +14,7 @@ if [ -z "$version" ]; then
     version="$VERSION"
 fi
 
-cat << EOF > /etc/opkg/distfeeds.conf
+cat << EOF > /etc/apk/repositories.d/distfeeds.list
 src/gz nethsecurity_core $base_url/$version/targets/x86/64/packages
 src/gz nethsecurity_base $base_url/$version/packages/x86_64/base
 src/gz nethsecurity_luci $base_url/$version/packages/x86_64/luci
