@@ -158,7 +158,7 @@ file_policy = {
   }
 }
 
--- To use openappid with snort, 'opkg install openappid' and enable in config.
+-- To use openappid with snort, 'apk install openappid' and enable in config.
 {% if (int(snort.openappid)): %}
 appid = {
   -- View all options with "snort --help-module appid"
