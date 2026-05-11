@@ -82,18 +82,13 @@ uci commit adblock
 /etc/init.d/adblock restart
 ```
 
-### Custom categories
-
-To add custom categories, create a file `/etc/adblock/custom.sources.gz` with the list of categories to block.
-If such file is present, the `/usr/share/threat_shield/community-dns.sources.gz` will be ignored.
-
 ### DNS redirect bypass
 
 Allow bypass of DNS redirect for a specific source IP:
 ```
-uci add_list adblock.global.adb_bypass=192.168.100.2
+uci add_list adblock.global.ns_tsdns_bypass=192.168.100.2
 uci commit adblock
-/etc/init.d/adblock restart
+/etc/init.d/adblock reload
 ```
 
 For more info see [adblock repository](https://github.com/openwrt/packages/tree/master/net/adblock).
