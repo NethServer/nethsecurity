@@ -7,7 +7,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-threat_shield
-PKG_VERSION:=0.0.8
+PKG_VERSION:=0.0.9
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-threat_shield-$(PKG_VERSION)
@@ -22,7 +22,8 @@ define Package/ns-threat_shield
 	CATEGORY:=NethSecurity
 	TITLE:=Threat shield block list
 	URL:=https://github.com/NethServer/nethsecurity/
-	DEPENDS:=+wget-ssl +adblock +jq
+	DEPENDS:=+wget-ssl +adblock +jq +ns-api
+	EXTRA_DEPENDS:=adblock (>=4.5.3), ns-api (>=3.6.2)
 	PKGARCH:=all
 endef
  
