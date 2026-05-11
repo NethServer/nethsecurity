@@ -57,16 +57,16 @@ def check_package_updates():
     except Exception as e:
         print(e, file=sys.stderr)
         return utils.generic_error("apk_update_failed")
-    p = subprocess.run(["/usr/bin/apk", "list", "--upgradable"], check=True, capture_output=True, text=True, stderr=subprocess.DEVNULL)
+    p = subprocess.run(["/usr/bin/apk", "list", "--upgradable"], check=True, capture_output=True, text=True)
     for line in p.stdout.split("\n"):
         if not line:
             continue
-        # format: pkgname-version-rN arch {pkgname} (license) [upgradable from: old-version-rN]
         m = re.match(r'^(\S+)\s+\S+\s+\{(\S+)\}.*\[upgradable from:\s+(\S+)\]', line)
         if m:
-            full_ver = m.group(1)   # e.g. ns-api-3.6.0-r1
-            pkg_name = m.group(2)   # e.g. ns-api
-            current_ver = m.group(3)  # e.g. 3.5.0-r1
+            full_ver = m.group(1)
+            pkg_name = m.group(2).split("/")[-1]
+            current_full_ver = m.group(3)
+            current_ver = current_full_ver.removeprefix(pkg_name + "-")  # e.g. 26.124.63982~650a6ca
             latest_ver = full_ver.removeprefix(pkg_name + "-")
             ret.append({"package": pkg_name, "currentVersion": current_ver, "latestVersion": latest_ver})
     # Sort the ret array by the "package" field
