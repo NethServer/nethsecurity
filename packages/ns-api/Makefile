@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-api
-PKG_VERSION:=3.6.1
+PKG_VERSION:=3.6.2
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-api-$(PKG_VERSION)
@@ -22,6 +22,7 @@ define Package/ns-api
 	TITLE:=NethSecurity REST API
 	URL:=https://github.com/NethServer/nethsecurity-controller/
 	DEPENDS:= \
+		+adblock \
 		+coreutils-date \
 		+coreutils-stty \
 		+python3-idna \
@@ -32,6 +33,7 @@ define Package/ns-api
 		+python3-urllib \
 		+sshpass \
 		+wireguard-tools
+	EXTRA_DEPENDS:=adblock (>=4.5.3)
 	PKGARCH:=all
 endef
 
