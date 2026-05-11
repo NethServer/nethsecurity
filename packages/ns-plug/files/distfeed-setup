@@ -15,10 +15,9 @@ if [ -z "$version" ]; then
 fi
 
 cat << EOF > /etc/apk/repositories.d/distfeeds.list
-src/gz nethsecurity_core $base_url/$version/targets/x86/64/packages
-src/gz nethsecurity_base $base_url/$version/packages/x86_64/base
-src/gz nethsecurity_luci $base_url/$version/packages/x86_64/luci
-src/gz nethsecurity_nethsecurity $base_url/$version/packages/x86_64/nethsecurity
-src/gz nethsecurity_packages $base_url/$version/packages/x86_64/packages
-src/gz nethsecurity_routing $base_url/$version/packages/x86_64/routing
+$base_url/$version/targets/x86/64/packages/packages.adb
+$base_url/$version/packages/x86_64/base/packages.adb
+$base_url/$version/packages/x86_64/luci/packages.adb
+$base_url/$version/packages/x86_64/nethsecurity/packages.adb
+$base_url/$version/packages/x86_64/packages/packages.adb
 EOF
