@@ -22,7 +22,8 @@ define Package/ns-threat_shield
 	CATEGORY:=NethSecurity
 	TITLE:=Threat shield block list
 	URL:=https://github.com/NethServer/nethsecurity/
-	DEPENDS:=+wget-ssl +adblock +jq
+	DEPENDS:=+wget-ssl +adblock +jq +ns-api
+	EXTRA_DEPENDS:=adblock (>=4.5.3), ns-api (>=3.6.2)
 	PKGARCH:=all
 endef
  
