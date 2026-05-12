@@ -1,4 +1,5 @@
-key-build*
+private-key.pem
+public-key.pem
 /bin
 build-logs
 build.conf
