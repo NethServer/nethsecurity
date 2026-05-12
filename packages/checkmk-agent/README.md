@@ -24,7 +24,7 @@ For NethSecurity-specific plugins and utilities, install the complementary `ns-c
 
 ```bash
 # Install the package
-opkg install checkmk-agent
+apk add checkmk-agent
 
 # Start the service
 /etc/init.d/check_mk_agent start
@@ -87,7 +87,7 @@ uci commit firewall
 To add NethSecurity-specific plugins and utilities, install the `ns-checkmk-utils` package:
 
 ```bash
-opkg install ns-checkmk-utils
+apk add ns-checkmk-utils
 ```
 
 Plugins are stored in `/usr/lib/check_mk_agent/local` and are automatically executed by the agent.

@@ -110,9 +110,9 @@ A lot of people already use adblocker plugins within their desktop browsers, but
 * Optional support for gnu awk as alternative to the busybox default, install the additional package 'gawk'
 
 ## Installation & Usage
-* Update your local opkg repository (_opkg update_)
-* Install 'adblock' (_opkg install adblock_). The adblock service is enabled by default
-* Install the LuCI companion package 'luci-app-adblock' (_opkg install luci-app-adblock_)
+* Update your local apk repository (_apk update_)
+* Install 'adblock' (_apk add adblock_). The adblock service is enabled by default
+* Install the LuCI companion package 'luci-app-adblock' (_apk add luci-app-adblock_)
 * It's strongly recommended to use the LuCI frontend to easily configure all aspects of adblock, the application is located in LuCI under the 'Services' menu
 * Update from a former adblock version is easy. During the update a backup is made of the old configuration '/etc/config/adblock-backup' and replaced by the new config - that's all
 
