@@ -35,13 +35,6 @@ RUN apt-get update \
         sudo \
         vim
 
-FROM base AS usign_build
-RUN git clone --depth 1 https://git.openwrt.org/project/usign.git /tmp/usign \
-    && cd /tmp/usign \
-    && cmake . \
-    && make
-
-FROM base AS builder
 RUN groupadd -g 1000 'buildbot' \
     && useradd -m -s '/bin/bash' -u 1000 -g 1000 'buildbot' \
     && echo 'buildbot ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/buildbot \
@@ -58,7 +51,9 @@ WORKDIR /home/buildbot
 ARG OWRT_VERSION
 RUN git clone --branch "${OWRT_VERSION}" https://github.com/openwrt/openwrt.git
 WORKDIR /home/buildbot/openwrt
-RUN sed -i '/telephony/d' feeds.conf.default
+RUN sed -i '/telephony/d' feeds.conf.default \
+    && sed -i '/routing/d' feeds.conf.default \
+    && sed -i '/video/d' feeds.conf.default
 RUN ./scripts/feeds update -a
 COPY --chmod=777 builder/apply-patches.sh /usr/local/bin/apply-patches
 COPY --chown=buildbot:buildbot patches patches
@@ -79,15 +74,14 @@ COPY --chmod=777 builder/configure-build.sh /usr/local/bin/configure-build
 RUN /usr/local/bin/configure-build
 COPY --chmod=777 builder/entrypoint.sh /usr/local/bin/entrypoint.sh
 ENTRYPOINT [ "/usr/local/bin/entrypoint.sh" ]
-COPY --from=usign_build /tmp/usign/usign /usr/local/bin/usign
 RUN mkdir -p \
-      .ccache \
-      build_dir \
-      dl \
-      download \
-      staging_dir
+        .ccache \
+        build_dir \
+        dl \
+        download \
+        staging_dir
 VOLUME "/home/buildbot/openwrt/.ccache" \
-    "/home/buildbot/openwrt/build_dir" \
-    "/home/buildbot/openwrt/dl" \
-    "/home/buildbot/openwrt/download" \
-    "/home/buildbot/openwrt/staging_dir"
+        "/home/buildbot/openwrt/build_dir" \
+        "/home/buildbot/openwrt/dl" \
+        "/home/buildbot/openwrt/download" \
+        "/home/buildbot/openwrt/staging_dir"
