@@ -12,8 +12,8 @@ This is done by using the [`https-dns-proxy`](https://openwrt.org/docs/guide-use
 The package can be installed using the following command:
 
 ```bash
-opkg update
-opkg install https-dns-proxy
+apk update
+apk add https-dns-proxy
 ```
 
 By default, the proxy listens to the `127.0.0.1:5053` and `127.0.0.1:5054` addresses. The configuration for the service can be found at the

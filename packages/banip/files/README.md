@@ -109,9 +109,9 @@ IP address blocking is commonly used to protect against brute force attacks, pre
 * Any previous installation of ancient banIP 0.7.x must be uninstalled, and the /etc/banip folder and the /etc/config/banip configuration file must be deleted (they are recreated when this version is installed)
 
 ## Installation & Usage
-* Update your local opkg repository (_opkg update_)
-* Install banIP (_opkg install banip_) - the banIP service is disabled by default
-* Install the LuCI companion package 'luci-app-banip' (opkg install luci-app-banip)
+* Update your local apk repository (_apk update_)
+* Install banIP (_apk add banip_) - the banIP service is disabled by default
+* Install the LuCI companion package 'luci-app-banip' (apk add luci-app-banip)
 * It's strongly recommended to use the LuCI frontend to easily configure all aspects of banIP, the application is located in LuCI under the 'Services' menu
 * To be able to use banIP in a meaningful way, you must activate the service and possibly also activate a few blocklist feeds
 * If you're using a complex network setup, e.g. special tunnel interfaces, than untick the 'Auto Detection' option under the 'General Settings' tab and set the required options manually
