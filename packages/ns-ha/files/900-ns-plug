@@ -9,6 +9,8 @@ set_service_name ns-plug
 set_restart_if_master
 set_stop_if_backup
 
+RESTORE_LIST="/usr/share/keepalived/rsync/tmp/restore_list"
+
 if [ "$ACTION" == "NOTIFY_BACKUP" ]; then
     update_cron "disable" "send-heartbeat send-backup send-inventory" "ns-push-reports"
     cluster_alert "backup"
@@ -17,7 +19,7 @@ elif [ "$ACTION" == "NOTIFY_MASTER" ]; then
     cluster_alert "master"
 elif [ "$ACTION" == "NOTIFY_SYNC" ]; then
     # Remove backup.pass if it has been unset on the primary
-    if [ ! -f /usr/share/keepalived/rsync/tmp/etc/backup.pass ] && [ -f /etc/backup.pass ]; then
+    if ! grep -q /etc/backup.pass /usr/share/keepalived/rsync/tmp/restore_list && [ -f /etc/backup.pass ]; then
         rm -f /etc/backup.pass
     fi
 fi
