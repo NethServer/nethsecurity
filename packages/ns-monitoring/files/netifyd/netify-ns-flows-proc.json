@@ -2,8 +2,8 @@
     "format": "json",
     "compressor": "none",
     "sinks": {
-        "sink-socket-flows": {
-            "flows": {
+        "sink-ns-flows": {
+            "default": {
                 "enable": true,
                 "types": [ "stream-flows", "stream-stats" ]
             }
