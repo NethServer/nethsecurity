@@ -15,14 +15,14 @@ Please note that after migration, all NAT helpers are loaded
 by default to preserve NethServer 7 behavior.
 
 The `kmod-nf-nathelper` package provides the following helpers:
-`opkg files kmod-nf-nathelper | grep -e '\.ko$' | cut -d'/' -f 5 | cut -d'.' -f1`
+`apk info -L kmod-nf-nathelper 2>/dev/null | grep -e '\\.ko$' | sed 's|.*/||;s|\\.ko$||'`
 ```
 nf_nat_ftp
 nf_conntrack_ftp
 ```
 
 The `kmod-nf-nathelper-extra` package provides the following helpers:
-`opkg files kmod-nf-nathelper-extra | grep -e '\.ko$' | cut -d'/' -f 5 | cut -d'.' -f1`
+`apk info -L kmod-nf-nathelper 2>/dev/null | grep -e '\\.ko$' | sed 's|.*/||;s|\\.ko$||'`
 ```
 nf_conntrack_pptp
 nf_conntrack_broadcast

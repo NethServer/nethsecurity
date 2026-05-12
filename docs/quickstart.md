@@ -38,5 +38,5 @@ The following sections/options should not be changed from the web interface:
 - Flashstart firewall rules
 - OpenVPN instances starting with `ns_` prefix
 - XFRM network interfaces
-- opkg configuration
+- apk configuration
 - Adblock configuration

@@ -32,7 +32,7 @@ reload_config
 
 ## Service management
 
-Only if the package is installed via opkg, the service must be enabled and started via the init script. If the packages is already part of the base image, the forwarder is automatically enabled and started on first boot, so no manual action is required.
+Only if the package is installed via apk, the service must be enabled and started via the init script. If the packages is already part of the base image, the forwarder is automatically enabled and started on first boot, so no manual action is required.
 
 ```bash
 # Enable and start
