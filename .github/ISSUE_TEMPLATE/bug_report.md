@@ -30,7 +30,7 @@ assignees: ''
 // Fill with NethSecurity version number, like: Image version: 8-23.05.5-ns.1.3.0
 // If possible, add relevant package versions. 
 // You can find the package versions typing in a shell prompt
-// opkg list ns-\* | sort
+// apk list ns-\* | sort
 //
 // Also take a look to the troubleshooting guide: https://docs.nethsecurity.org/en/latest/troubleshooting.html
 
