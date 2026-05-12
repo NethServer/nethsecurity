@@ -28,9 +28,9 @@ REPO_CHANNEL=${REPO_CHANNEL:-dev}
 TARGET=${TARGET:-x86_64}
 BUILD_SEMVER_SUFFIX=${BUILD_SEMVER_SUFFIX:-}
 
-if [ -f "./key-build" ] && [ -f "./key-build.pub" ]; then
-    USIGN_PRIV_KEY="$(cat ./key-build)"
-    USIGN_PUB_KEY="$(cat ./key-build.pub)"
+if [ -f "./private-key.pem" ] && [ -f "./public-key.pem" ]; then
+    APK_PRIV_KEY="$(cat ./private-key.pem)"
+    APK_PUB_KEY="$(cat ./public-key.pem)"
 fi
 
 
@@ -39,7 +39,6 @@ podman build \
     --layers \
     --file builder/Containerfile \
     --tag nethsecurity-next \
-    --target builder \
     --jobs 0 \
     --build-arg OWRT_VERSION="$OWRT_VERSION" \
     --build-arg REPO_CHANNEL="$REPO_CHANNEL" \
@@ -52,8 +51,8 @@ set +e
 
 status=0
 podman run \
-    --env USIGN_PRIV_KEY="$USIGN_PRIV_KEY" \
-    --env USIGN_PUB_KEY="$USIGN_PUB_KEY" \
+    --env APK_PRIV_KEY="$APK_PRIV_KEY" \
+    --env APK_PUB_KEY="$APK_PUB_KEY" \
     --name nethsecurity-builder \
     --interactive \
     --tty \

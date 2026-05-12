@@ -87,16 +87,16 @@ The `build-nethsec.sh` script behavior can be changed by setting environment var
 - `TARGET`: specify the target to build; if not set default is `x86_64`
 - `REPO_CHANNEL`: specify the channel to publish the image to; if not set default is `dev`
 - `BUILD_SEMVER_SUFFIX`: optional semver suffix appended to the image version only (not the distfeed URL). Use pre-release format (`-rc.1`, `-beta.2`) or metadata format (`+hotfix.1`, `+testing`) or both (`-rc.1+fix.1`).
-- `USIGN_PUB_KEY` and `USIGN_PRIV_KEY`: see [package signing section](#package-signing)
+- `APK_PUB_KEY` and `APK_PRIV_KEY`: see [package signing section](#package-signing)
 
-The `USIGN_PUB_KEY`, `USIGN_PRIV_KEY` variables are always set as secrets inside the CI pipeline, but 
+The `APK_PUB_KEY`, `APK_PRIV_KEY` variables are always set as secrets inside the CI pipeline, but 
 for [security reasons](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#accessing-secrets)
 they are not accessible when building pull requests from forks.
 
 ### Build locally for a release
 
 If you need to build some packages locally for a release, make sure the following environment variables are set:
-- `USIGN_PUB_KEY` and `USIGN_PRIV_KEY`: refer to the [package signing section](#package-signing) for more info
+- `APK_PUB_KEY` and `APK_PRIV_KEY`: refer to the [package signing section](#package-signing) for more info
 
 Then execute the build as described in the [Build locally](#build-locally) section.
 
@@ -272,26 +272,26 @@ To replace an upstream package just create a new package with the same name insi
 
 ### Package signing
 
-All packages are signed with the following public key generated with [OpenBSD signify](nethsecurity-pub.key).
+Packages are signed using an EC prime256v1 key pair (PEM format) via the APK package manager.
 
-Public key fingerprint: `7640d16662de3b89`
-
-Public key content:
+To generate a new signing key pair:
 ```
-untrusted comment: NethSecurity sign key
-RWR2QNFmYt47ieK7g/zEPwgk+MN8bHsA2vFnPThSpnLZ48L7sh6wxB/f
+openssl ecparam -name prime256v1 -genkey -noout -out private-key.pem
+openssl ec -in private-key.pem -pubout -out public-key.pem
 ```
 
-To sign the packages, just execute the `build-nethsec.sh` script with the following environment variables:
-- `USIGN_PUB_KEY`
-- `USIGN_PRIV_KEY`
+To sign the packages, execute the `build-nethsec.sh` script with the following environment variables:
+- `APK_PUB_KEY`
+- `APK_PRIV_KEY`
 
 Usage example:
 ```
-USIGN_PUB_KEY=$(cat nethsecurity-pub.key) USIGN_PRIV_KEY=$(cat nethsecurity-priv.key) ./build-nethsec.sh
+APK_PUB_KEY=$(cat public-key.pem) APK_PRIV_KEY=$(cat private-key.pem) ./build-nethsec.sh
 ```
 
-Or you can have the keys as two files named `key-build` and `key-build.pub` in the root of the repository. They will be automatically used by the build script.
+Or you can place the keys as two files named `private-key.pem` and `public-key.pem` in the root of the repository. They will be automatically used by the build script.
+
+If no keys are provided, OpenWrt will auto-generate a throwaway key pair at build time.
 
 Builds executed inside CI will sign the packages with the correct key.
 

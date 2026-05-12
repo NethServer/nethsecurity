@@ -7,12 +7,9 @@
 
 set -e
 
-if [ -n "$USIGN_PUB_KEY" ] && [ -n "$USIGN_PRIV_KEY" ]; then
-    echo "$USIGN_PUB_KEY" > /home/buildbot/openwrt/key-build.pub
-    echo "$USIGN_PRIV_KEY" > /home/buildbot/openwrt/key-build
-else
-    echo "No signing keys found. Generating dummy keys..."
-    usign -G -s ./key-build -p ./key-build.pub -c "Local build key"
+if [ -n "$APK_PRIV_KEY" ] && [ -n "$APK_PUB_KEY" ]; then
+    echo "$APK_PRIV_KEY" > /home/buildbot/openwrt/private-key.pem
+    echo "$APK_PUB_KEY" > /home/buildbot/openwrt/public-key.pem
 fi
 
 # if command $1 is a file or a executable, run it
