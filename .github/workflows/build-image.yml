@@ -31,8 +31,8 @@ jobs:
       NETHSECURITY_VERSION: ${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}
       REPO_CHANNEL: ${{ steps.build_vars.outputs.REPO_CHANNEL }}
     env:
-      USIGN_PUB_KEY: ${{ secrets.USIGN_PUB_KEY }}
-      USIGN_PRIV_KEY: ${{ secrets.USIGN_PRIV_KEY }}
+      APK_PUB_KEY: ${{ secrets.APK_PUB_KEY }}
+      APK_PRIV_KEY: ${{ secrets.APK_PRIV_KEY }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
     steps:
