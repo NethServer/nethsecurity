@@ -333,6 +333,8 @@ def add_instance():
     u.set("openvpn", instance, 'tls_version_min','1.2')
     u.set("openvpn", instance, 'ns_auth_mode', 'certificate')
     u.set('openvpn', instance, 'ns_tag', ["automated"])
+    u.set('openvpn', instance, 'tun_mtu', '1500')
+    u.set('openvpn', instance, 'mssfix', '1450')
 
     # commit everything, otherwise a future revert will break the configuration
     # drawback: openvpn zone and network will be created even if the instance is not saved
@@ -587,6 +589,9 @@ def set_configuration(args):
     else:
         return utils.validation_error("ns_auth_mode", "invalid_auth_mode", args["ns_auth_mode"])
 
+    # MTU and MSSFix settings
+    u.set("openvpn", ovpninstance, "tun_mtu", args.get("tun_mtu"))
+    u.set("openvpn", ovpninstance, "mssfix", args.get("mssfix"))
 
     u.save("openvpn")
 
@@ -949,6 +954,8 @@ def download_user_configuration(ovpninstance, username):
     config = config + "persist-tun\n"
     config = config + "nobind\n"
     config = config + "passtos\n"
+    config = config + f"tun-mtu {u.get('openvpn', ovpninstance, 'tun_mtu', default='1500')}\n"
+    config = config + f"mssfix {u.get('openvpn', ovpninstance, 'mssfix', default='1450')}\n"
 
     # add certificate verification if supported by certificate
     # this is not supported by migrated instances
@@ -1228,7 +1235,9 @@ if cmd == 'list':
             "ns_dhcp_options": [],
             "ns_public_ip": ["1.2.3.4"],
             "ns_user_db": "main",
-            "ifconfig_pool": ["10.166.54.4", "10.166.54.20"]
+            "ifconfig_pool": ["10.166.54.4", "10.166.54.20"],
+            "tun_mtu": "1500",
+            "mssfix": "1450",
             },
         "remove-instance": {"instance": "roadwarrior1"},
         "import-users": {"instance": "roadwarrior1"},
