@@ -36,10 +36,8 @@ This package add the following extra UCI options under the `snort` section:
 
 This package also adds the following extra UCI options under the `nfq` section:
 
-- `bypass_dst_v4` - bypass IDS for destination IPv4 addresses
-- `bypass_src_v4` - bypass IDS for source IPv4 addresses
-- `bypass_dst_v6` - bypass IDS for destination IPv6 addresses
-- `bypass_src_v6` - bypass IDS for source IPv6 addresses
+- `bypass_v4` - bypass IPS for IPv4 addresses; applies to both source and destination traffic
+- `bypass_v6` - bypass IPS for IPv6 addresses; applies to both source and destination traffic
 - `max_inspect_bytes` - maximum number of bytes per connection forwarded to snort for inspection. Connections that have already transferred more than this many bytes are accepted directly by nftables without further inspection. Set to `0` to disable the limit and inspect all traffic. Default is `1048576` (1 MB).
 
 ## Download rules
@@ -105,21 +103,22 @@ reload_config
 
 ## Bypass IPS
 
-The IPS support bypass for destination or source IP addresses. Both IPv4 and IPv6 are supported.
+The IPS supports bypass for IPv4 and IPv6 addresses. Each bypass applies to both source and destination traffic.
 
 The following options are supported inside `snort.nfq` section:
-- `bypass_dst_v4` - bypass IDS for destination IPv4 addresses
-- `bypass_src_v4` - bypass IDS for source IPv4 addresses
-- `bypass_dst_v6` - bypass IDS for destination IPv6 addresses
-- `bypass_src_v6` - bypass IDS for source IPv6 addresses
+- `bypass_v4` - bypass IPS for IPv4 addresses; applies to both source and destination traffic
+- `bypass_v6` - bypass IPS for IPv6 addresses; applies to both source and destination traffic
 
 Usage example:
 ```bash
-uci add_list snort.nfq.bypass_src_v4=192.168.100.23
-uci add_list snort.nfq.bypass_src_v4=192.168.100.28
+uci add_list snort.nfq.bypass_v4=192.168.100.23
+uci add_list snort.nfq.bypass_v4=192.168.100.28
 uci commit snort
 /etc/init.d/snort restart
 ```
+
+Existing configurations using the legacy options (`bypass_src_v4`, `bypass_dst_v4`, `bypass_src_v6`, `bypass_dst_v6`) are automatically migrated to the unified format on first boot via `99_snort_bypass_migration`.
+
 ## Rule suppression
 
 A suppression rule is a rule that is ignored by Snort for a specific IP address or CIDR.
