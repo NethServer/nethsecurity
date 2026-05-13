@@ -17,3 +17,14 @@ start_service() {
 	procd_set_param respawn 3600 5 0
 	procd_close_instance
 }
+
+service_triggers()
+{
+	procd_add_reload_trigger "ns-plug"
+}
+
+reload_service()
+{
+	stop
+	start
+}
