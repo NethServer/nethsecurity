@@ -79,6 +79,335 @@ components:
               items:
                 $ref: "#/components/schemas/ValidationErrorDetail"
 
+    ResultResponse:
+      type: object
+      required: [result]
+      properties:
+        result:
+          type: string
+          example: success
+
+    IpsecPreSharedKey:
+      type: string
+      description: Pre-shared key. Curly braces (`{` and `}`) are not supported.
+      pattern: '^[^{}]*$'
+      example: xxxxxxxxxxxxxxxxxxx
+
+    IpsecTunnelIdRequest:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          example: ns_81df3995
+
+    IpsecTunnelIdResponse:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          example: ns_81df3995
+
+    IpsecTunnelProposal:
+      type: object
+      required: [encryption_algorithm, hash_algorithm, dh_group, rekeytime]
+      properties:
+        encryption_algorithm:
+          type: string
+          example: aes256
+        hash_algorithm:
+          type: string
+          example: sha256
+        dh_group:
+          type: string
+          example: modp2048
+        rekeytime:
+          type: string
+          example: "3600"
+
+    IpsecTunnelRequest:
+      type: object
+      required:
+        - ns_name
+        - ike
+        - esp
+        - pre_shared_key
+        - local_identifier
+        - remote_identifier
+        - local_subnet
+        - remote_subnet
+        - enabled
+        - local_ip
+        - keyexchange
+        - ipcomp
+        - dpdaction
+        - gateway
+      properties:
+        ns_name:
+          type: string
+          example: tun1
+        ike:
+          $ref: "#/components/schemas/IpsecTunnelProposal"
+        esp:
+          $ref: "#/components/schemas/IpsecTunnelProposal"
+        pre_shared_key:
+          $ref: "#/components/schemas/IpsecPreSharedKey"
+        local_identifier:
+          type: string
+          example: "@ipsec1.local"
+        remote_identifier:
+          type: string
+          example: "@ipsec1.remote"
+        local_subnet:
+          type: array
+          items:
+            type: string
+          example: ["192.168.100.0/24"]
+        remote_subnet:
+          type: array
+          items:
+            type: string
+          example: ["192.168.200.0/24"]
+        enabled:
+          type: string
+          enum: ["0", "1"]
+          example: "1"
+        local_ip:
+          type: string
+          example: 192.168.122.49
+        keyexchange:
+          type: string
+          enum: [ike, ikev1, ikev2]
+          example: ike
+        ipcomp:
+          type: string
+          enum: ["true", "false"]
+          example: "false"
+        dpdaction:
+          type: string
+          example: restart
+        closeaction:
+          type: string
+          default: none
+          example: trap
+        gateway:
+          type: string
+          example: 10.10.0.172
+
+    IpsecTunnelEditRequest:
+      allOf:
+        - $ref: "#/components/schemas/IpsecTunnelRequest"
+        - type: object
+          required: [id]
+          properties:
+            id:
+              type: string
+              example: ns_81df3995
+
+    IpsecTunnelChild:
+      type: object
+      required: [name, installed, local_subnet, remote_subnet]
+      properties:
+        name:
+          type: string
+          example: ns_81df3995_tunnel_1
+        installed:
+          type: boolean
+          example: true
+        local_subnet:
+          type: array
+          items:
+            type: string
+          example: ["192.168.100.0/24"]
+        remote_subnet:
+          type: array
+          items:
+            type: string
+          example: ["192.168.200.0/24"]
+
+    IpsecTunnelSummary:
+      type: object
+      required: [id, name, enabled, connected, children, raw_output, local, remote]
+      properties:
+        id:
+          type: string
+          example: ns_81df3995
+        name:
+          type: string
+          example: tun1
+        enabled:
+          type: string
+          enum: ["0", "1"]
+          example: "1"
+        status:
+          type: [string, "null"]
+          example: ESTABLISHED
+        connected:
+          type: string
+          enum: [yes, warning, no]
+          example: yes
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/IpsecTunnelChild"
+        raw_output:
+          type: string
+        local:
+          type: array
+          items:
+            type: string
+          example: ["192.168.100.0/24"]
+        remote:
+          type: array
+          items:
+            type: string
+          example: ["192.168.200.0/24"]
+
+    IpsecTunnelListResponse:
+      type: object
+      required: [tunnels]
+      properties:
+        tunnels:
+          type: array
+          items:
+            $ref: "#/components/schemas/IpsecTunnelSummary"
+
+    IpsecTunnelGetResponse:
+      type: object
+      required:
+        - ike
+        - esp
+        - ipcomp
+        - dpdaction
+        - closeaction
+        - local_subnet
+        - remote_subnet
+        - ns_name
+        - gateway
+        - keyexchange
+        - local_identifier
+        - local_ip
+        - enabled
+        - remote_identifier
+        - pre_shared_key
+      properties:
+        ike:
+          $ref: "#/components/schemas/IpsecTunnelProposal"
+        esp:
+          $ref: "#/components/schemas/IpsecTunnelProposal"
+        ipcomp:
+          type: string
+          enum: ["true", "false"]
+          example: "false"
+        dpdaction:
+          type: string
+          example: restart
+        closeaction:
+          type: string
+          example: trap
+        local_subnet:
+          type: array
+          items:
+            type: string
+          example: ["192.168.100.0/24"]
+        remote_subnet:
+          type: array
+          items:
+            type: string
+          example: ["192.168.200.0/24"]
+        ns_name:
+          type: string
+          example: tun1
+        gateway:
+          type: string
+          example: 10.10.0.172
+        keyexchange:
+          type: string
+          enum: [ike, ikev1, ikev2]
+          example: ike
+        local_identifier:
+          type: string
+          example: "@ipsec1.local"
+        local_ip:
+          type: string
+          example: 192.168.122.49
+        enabled:
+          type: string
+          enum: ["0", "1"]
+          example: "1"
+        remote_identifier:
+          type: string
+          example: "@ipsec1.remote"
+        pre_shared_key:
+          $ref: "#/components/schemas/IpsecPreSharedKey"
+
+    IpsecTunnelDefaultsResponse:
+      type: object
+      required: [pre_shared_key, local_identifier, remote_identifier, local_networks]
+      properties:
+        pre_shared_key:
+          $ref: "#/components/schemas/IpsecPreSharedKey"
+        local_identifier:
+          type: string
+          example: "@tun2.local"
+        remote_identifier:
+          type: string
+          example: "@tun2.remote"
+        local_networks:
+          type: array
+          items:
+            type: string
+          example: ["192.168.100.0/24"]
+
+    IpsecWan:
+      type: object
+      required: [device, ipaddr]
+      properties:
+        device:
+          type: string
+          example: eth1
+        ipaddr:
+          type: string
+          example: 192.168.122.49
+
+    IpsecWansResponse:
+      type: object
+      required: [wans]
+      properties:
+        wans:
+          type: array
+          items:
+            $ref: "#/components/schemas/IpsecWan"
+
+    IpsecAlgorithm:
+      type: object
+      required: [name, id]
+      properties:
+        name:
+          type: string
+          example: AES 256
+        id:
+          type: string
+          example: aes256
+
+    IpsecAlgorithmsResponse:
+      type: object
+      required: [encryption, integrity, dh]
+      properties:
+        encryption:
+          type: array
+          items:
+            $ref: "#/components/schemas/IpsecAlgorithm"
+        integrity:
+          type: array
+          items:
+            $ref: "#/components/schemas/IpsecAlgorithm"
+        dh:
+          type: array
+          items:
+            $ref: "#/components/schemas/IpsecAlgorithm"
+
   securitySchemes:
     BearerAuth:
       type: http
@@ -137,5 +466,212 @@ paths:
                       message:
                         type: string
                         example: success
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.ipsectunnel/list-tunnels:
+    post:
+      summary: List configured IPsec tunnels
+      operationId: ns.ipsectunnel.list-tunnels
+      tags:
+        - ipsectunnel
+      responses:
+        "200":
+          description: List of IPsec tunnels
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/IpsecTunnelListResponse"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.ipsectunnel/list-wans:
+    post:
+      summary: List WAN addresses available for IPsec tunnels
+      operationId: ns.ipsectunnel.list-wans
+      tags:
+        - ipsectunnel
+      responses:
+        "200":
+          description: List of WAN addresses
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/IpsecWansResponse"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.ipsectunnel/get-defaults:
+    post:
+      summary: Get default values for a new IPsec tunnel
+      operationId: ns.ipsectunnel.get-defaults
+      tags:
+        - ipsectunnel
+      responses:
+        "200":
+          description: Default tunnel values
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/IpsecTunnelDefaultsResponse"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.ipsectunnel/list-algs:
+    post:
+      summary: List available IPsec algorithms
+      operationId: ns.ipsectunnel.list-algs
+      tags:
+        - ipsectunnel
+      responses:
+        "200":
+          description: Available encryption, integrity, and DH algorithms
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/IpsecAlgorithmsResponse"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.ipsectunnel/restart:
+    post:
+      summary: Restart the swanctl service
+      operationId: ns.ipsectunnel.restart
+      tags:
+        - ipsectunnel
+      responses:
+        "200":
+          description: Restart result
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ResultResponse"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.ipsectunnel/add-tunnel:
+    post:
+      summary: Create a new IPsec tunnel
+      operationId: ns.ipsectunnel.add-tunnel
+      tags:
+        - ipsectunnel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IpsecTunnelRequest"
+      responses:
+        "200":
+          description: Tunnel created
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/IpsecTunnelIdResponse"
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.ipsectunnel/edit-tunnel:
+    post:
+      summary: Update an existing IPsec tunnel
+      operationId: ns.ipsectunnel.edit-tunnel
+      tags:
+        - ipsectunnel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IpsecTunnelEditRequest"
+      responses:
+        "200":
+          description: Tunnel updated
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/IpsecTunnelIdResponse"
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.ipsectunnel/enable-tunnel:
+    post:
+      summary: Enable an IPsec tunnel
+      operationId: ns.ipsectunnel.enable-tunnel
+      tags:
+        - ipsectunnel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IpsecTunnelIdRequest"
+      responses:
+        "200":
+          description: Tunnel enabled
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ResultResponse"
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.ipsectunnel/disable-tunnel:
+    post:
+      summary: Disable an IPsec tunnel
+      operationId: ns.ipsectunnel.disable-tunnel
+      tags:
+        - ipsectunnel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IpsecTunnelIdRequest"
+      responses:
+        "200":
+          description: Tunnel disabled
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ResultResponse"
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.ipsectunnel/delete-tunnel:
+    post:
+      summary: Delete an IPsec tunnel
+      operationId: ns.ipsectunnel.delete-tunnel
+      tags:
+        - ipsectunnel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IpsecTunnelIdRequest"
+      responses:
+        "200":
+          description: Tunnel deleted
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ResultResponse"
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.ipsectunnel/get-tunnel:
+    post:
+      summary: Retrieve an IPsec tunnel configuration
+      operationId: ns.ipsectunnel.get-tunnel
+      tags:
+        - ipsectunnel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IpsecTunnelIdRequest"
+      responses:
+        "200":
+          description: Tunnel configuration
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/IpsecTunnelGetResponse"
                   - $ref: "#/components/schemas/ValidationError"
                   - $ref: "#/components/schemas/Error"
