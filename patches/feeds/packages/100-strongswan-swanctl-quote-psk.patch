@@ -1,0 +1,11 @@
+--- a/net/strongswan/files/swanctl.init
++++ b/net/strongswan/files/swanctl.init
+@@ -675,7 +675,7 @@ config_remote() {
+  
+ 		swanctl_xappend0 "secrets {"
+ 		swanctl_xappend1 "ike-$conf {"
+-		swanctl_xappend2 "secret = $pre_shared_key"
++		swanctl_xappend2 "secret = \"${pre_shared_key//\"/\\\"}\""
+ 		if [ -n "$local_identifier" ]; then
+ 			swanctl_xappend2 "id1 = $local_identifier"
+ 			if [ -n "$remote_identifier" ]; then
