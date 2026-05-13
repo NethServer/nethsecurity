@@ -150,6 +150,11 @@ def uci_set_if_changed(u, config, section, option, value):
         return True
     return False
 
+def validate_pre_shared_key(pre_shared_key):
+    if isinstance(pre_shared_key, str) and ("{" in pre_shared_key or "}" in pre_shared_key):
+        return utils.validation_error("pre_shared_key", "invalid", pre_shared_key)
+    return None
+
 
 ## APIs
 
@@ -213,6 +218,9 @@ def list_tunnels():
     return {"tunnels": ret}
 
 def add_tunnel(args):
+    validation = validate_pre_shared_key(args.get("pre_shared_key", ""))
+    if validation:
+        return validation
     u = EUci()
     iname = utils.get_random_id()
     return setup_tunnel(u, iname, args)
@@ -309,6 +317,10 @@ def edit_tunnel(args):
         u.get("ipsec", id)
     except:
         return utils.validation_error("tunnel_not_found")
+
+    validation = validate_pre_shared_key(args.get("pre_shared_key", ""))
+    if validation:
+        return validation
     
     ike_p = f'{id}_ike'
     esp_p = f'{id}_esp'

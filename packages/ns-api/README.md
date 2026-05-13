@@ -4390,6 +4390,9 @@ Create a tunnel:
 api-cli ns.ipsectunnel add-tunnel --data '{"ns_name": "tun1", "ike": {"hash_algorithm": "md5", "encryption_algorithm": "3des", "dh_group": "modp1024", "rekeytime": "3600"}, "esp": {"hash_algorithm": "md5", "encryption_algorithm": "3des", "dh_group": "modp1024", "rekeytime": "3600"}, "pre_shared_key": "xxxxxxxxxxxxxxxxxxx", "local_identifier": "@ipsec1.local", "remote_identifier": "@ipsec1.remote", "local_subnet": ["192.168.100.0/24"], "remote_subnet": ["192.168.200.0/24"], "enabled": "1", "local_ip": "192.168.122.49", "keyexchange": "ike", "ipcomp": "false", "dpdaction": "restart", "closeaction": "trap", "gateway": "10.10.0.172"}'
 ```
 
+Validation notes:
+- `pre_shared_key` must not contain curly braces (`{` or `}`); the API returns a validation error if they are present.
+
 Response example:
 ```json
 {"id": "ns_81df3995"}
@@ -4401,6 +4404,8 @@ Edit a tunnel:
 ```
 api-cli ns.ipsectunnel edit-tunnel --data '{"id": "ns_81df3995", "ns_name": "tun1", "ike": {"hash_algorithm": "md5", "encryption_algorithm": "3des", "dh_group": "modp1024", "rekeytime": "3600"}, "esp": {"hash_algorithm": "md5", "encryption_algorithm": "3des", "dh_group": "modp1024", "rekeytime": "3600"}, "pre_shared_key": "xxxxxxxxxxxxxxxxxxx", "local_identifier": "@ipsec1.local", "remote_identifier": "@ipsec1.remote", "local_subnet": ["192.168.100.0/24"], "remote_subnet": ["192.168.200.0/24"], "enabled": "1", "local_ip": "192.168.122.49", "keyexchange": "ike", "ipcomp": "false", "dpdaction": "restart", "closeaction": "trap", "gateway": "10.10.0.172"}'
 ```
+
+The same `pre_shared_key` validation applies here: curly braces (`{` or `}`) are rejected.
 
 Response example:
 ```json
