@@ -432,8 +432,8 @@ def list_tunnels():
                 "remote_network": remote,
                 "vpn_network": net,
             }
-            client["tun_mtu"] = vpn.get("tun_mtu", '1500')
-            client["mssfix"] = vpn.get("mssfix", '1450')
+            server["tun_mtu"] = vpn.get("tun_mtu", '1500')
+            server["mssfix"] = vpn.get("mssfix", '1450')
 
             certificates = {}
             if vpn.get('cert'):
