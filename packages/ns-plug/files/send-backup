@@ -38,6 +38,12 @@ if [ -z "$SYSTEM_ID" ] || [ -z "$SYSTEM_SECRET" ]; then
     exit 0
 fi
 
+# remote-backup handles the enterprise/community branching and calls
+# migrate-to-my when needed; this script just prepares the payload and
+# delegates the upload. An enterprise unit still waiting on the
+# migration surfaces its error through remote-backup, which is caught
+# by set -e above.
+
 # hack: avoid to backup non-config file
 if [ -f /etc/acme/http.header ]; then
     mv /etc/acme/http.header /tmp

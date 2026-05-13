@@ -6,8 +6,16 @@
 #
 
 #
-# Retrieve subscription information
-# The script takes an optional timeout parameter
+# Retrieve subscription information.
+#
+# Enterprise units query the my collect /info endpoint with their
+# native credentials and synthesise a payload shaped like the legacy
+# my-old /api/systems/info response the UI expects. The subscription
+# plan / expiration fields are left empty — the new my data model
+# no longer tracks them at the system level; the ns.subscription
+# info handler falls back to "-" / 0 / "active" in those cases.
+#
+# Community units keep hitting my.nethserver.com as before.
 #
 
 timeout=${1:-20}
@@ -15,20 +23,49 @@ timeout=${1:-20}
 system_id=$(uci -q get ns-plug.config.system_id)
 
 if [ -z "$system_id" ]; then
-    # no subscription
     echo '{"uuid": ""}'
     exit 0
 fi
 
 type=$(uci -q get ns-plug.config.type)
 secret=$(uci -q get ns-plug.config.secret)
-url=$(uci -q get ns-plug.config.api_url | sed 's/\/$//')
 
 if [ "$type" = "enterprise" ]; then
-    curl -f -s -m $timeout --retry-delay 1 --retry 2 -L \
-        -H "Content-Type: application/json" -H "Accept: application/json" \
-        -d '{"secret": "'$secret'"}' "$url/systems/info"
+    /usr/sbin/migrate-to-my
+
+    collect_url=$(uci -q get ns-plug.config.collect_url)
+    if [ -z "$collect_url" ]; then
+        # Pre-migration unit — nothing to report yet; caller falls
+        # back to a default payload built from ns-plug.config.
+        exit 1
+    fi
+
+    # /info returns {code, message, data: {system_id, registered,
+    # registered_at, suspended, organization: {name, ...}, ...}}.
+    # Translate to the legacy shape the UI/info handler parses.
+    resp=$(/usr/bin/curl -f -s -m $timeout --retry-delay 1 --retry 2 -L \
+        -H "Accept: application/json" \
+        --user "$system_id:$secret" \
+        "$collect_url/info") || exit $?
+
+    jq -c '
+        .data as $s |
+        {
+            uuid: ($s.system_id // ""),
+            id: ($s.system_key // ""),
+            subscription: {
+                status: (if $s.registered and (($s.suspended // false) | not) then "valid" else "invalid" end),
+                valid_until: null,
+                subscription_plan: { name: ($s.organization.name // "-") }
+            }
+        }
+    ' <<EOF
+$resp
+EOF
+
 else
+    url=$(uci -q get ns-plug.config.api_url | sed 's/\/$//')
+
     curl -f -s -m $timeout --retry-delay 1 --retry 2 -L \
         -H "Content-Type: application/json" -H "Accept: application/json" \
         -H "Authorization: token $secret" \

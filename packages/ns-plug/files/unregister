@@ -11,14 +11,28 @@
 
 SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
 SYSTEM_SECRET=$(uci -q get ns-plug.config.secret)
-URL=$(uci -q get ns-plug.config.api_url | sed 's/\/$//')
+TYPE=$(uci -q get ns-plug.config.type)
 
 if [ -z "$SYSTEM_ID" ] || [ -z "$SYSTEM_SECRET" ]; then
     # System ID and System secret not found, configure ns-plug to enable it
     exit 0
 fi
 
-curl -s -m 180 --retry 3 -L -H "Content-type: application/json" -H "Accept: application/json" -d "{\"lk\": \"$SYSTEM_ID\", \"secret\": \"$SYSTEM_SECRET\"}" "$URL/Utils/freekey" >/dev/null
+# Release the legacy slot on my-old for migrated enterprise units —
+# the /api/Utils/freekey PHP endpoint still exists on my-ent and lets
+# the old dashboard record the unit as gone. Native enterprise units
+# have no legacy slot to release (registered directly on my collect),
+# and community has no freekey equivalent on dartagnan.
+if [ "$TYPE" = "enterprise" ]; then
+    LEGACY_ID=$(uci -q get ns-plug.config.legacy_system_id)
+    LEGACY_SECRET=$(uci -q get ns-plug.config.legacy_secret)
+    if [ -n "$LEGACY_ID" ] && [ -n "$LEGACY_SECRET" ]; then
+        curl -s -m 180 --retry 3 -L \
+            -H "Content-type: application/json" -H "Accept: application/json" \
+            -d "{\"lk\":\"$LEGACY_ID\",\"secret\":\"$LEGACY_SECRET\"}" \
+            https://my.nethesis.it/api/Utils/freekey >/dev/null
+    fi
+fi
 
 # Reset ns-plug configuration
 uci set ns-plug.config.type=""
@@ -28,6 +42,14 @@ uci set ns-plug.config.inventory_url=""
 uci set ns-plug.config.system_id=""
 uci set ns-plug.config.secret=""
 uci set ns-plug.config.repository_url="https://updates.nethsecurity.nethserver.org/$(cat /etc/repo-channel)"
+# Drop the enterprise migration fingerprint so a subsequent register
+# starts from a clean slate and migrate-to-my can run again if the
+# unit re-registers with legacy credentials.
+uci -q delete ns-plug.config.collect_url
+uci -q delete ns-plug.config.migrated
+uci -q delete ns-plug.config.migrated_at
+uci -q delete ns-plug.config.legacy_system_id
+uci -q delete ns-plug.config.legacy_secret
 
 # Save config
 uci commit ns-plug
