@@ -50,7 +50,7 @@ elif cmd == 'call':
                 for device in utils.get_all_devices_by_zone(e_uci, zone.get('name')):
                     devices.append({
                         'id': device,
-                        'label': utils.get_interface_from_device(e_uci, device)
+                        'label': utils.get_interface_from_device(e_uci, device) or device
                     })
             json.dump({
                 'devices': devices,
