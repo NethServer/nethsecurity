@@ -325,25 +325,6 @@ def ovpnrw_bytes_by_hour_and_user(instance, day, user):
     return {"hours": hours_bytes}
 
 
-def get_ping_hosts():
-    # read ping hosts from telegraf configuration
-    ping_conf_file = "/etc/telegraf.conf.d/ping.conf"
-    hosts = []
-    if os.path.exists(ping_conf_file):
-        try:
-            with open(ping_conf_file, 'r') as fp:
-                content = fp.read()
-                # Find the urls line in TOML format: urls = ["host1", "host2"]
-                match = re.search(r'urls\s*=\s*(\[[^\]]*\])', content)
-                if match:
-                    urls_str = match.group(1)
-                    # Parse JSON array
-                    hosts = json.loads(urls_str)
-        except Exception:
-            pass
-    return hosts
-
-
 def get_victoria_metrics_ping_data(host):
     """
     Query Victoria Metrics for ping metrics.
@@ -384,7 +365,8 @@ def get_victoria_metrics_ping_data(host):
 
 
 def latency_and_quality_report():
-    hosts = get_ping_hosts()
+    e_uci = EUci()
+    hosts = e_uci.get('telegraf', 'internet', 'pings', dtype=str, list=True, default=[])
     ret = {}
     for host in hosts:
         ret[host] = get_victoria_metrics_ping_data(host)
