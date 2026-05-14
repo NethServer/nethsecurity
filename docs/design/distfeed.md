@@ -103,10 +103,11 @@ To enable OpenWrt package repositories use the following commands
 ```bash
 source /etc/os-release
 VERSION=$(echo $OPENWRT_RELEASE | cut -d' ' -f3 | sed 's/^v//')
-cat << EOF > /etc/apk/repositories.d/customfeeds.list 
+cat << EOF > /etc/apk/repositories.d/customfeeds.list
 https://downloads.openwrt.org/releases/$VERSION/targets/x86/64/packages/packages.adb
 https://downloads.openwrt.org/releases/$VERSION/packages/x86_64/base/packages.adb
 https://downloads.openwrt.org/releases/$VERSION/packages/x86_64/luci/packages.adb
 https://downloads.openwrt.org/releases/$VERSION/packages/x86_64/packages/packages.adb
+https://downloads.openwrt.org/releases/$VERSION/packages/x86_64/routing/packages.adb
 EOF
 ```
