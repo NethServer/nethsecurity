@@ -422,17 +422,17 @@ Relevant UCI options set by NethSecurity (in addition to standard adblock option
 | Option | Default | Description |
 | :--- | :--- | :--- |
 | `ts_enabled` | `0` | Set to `1` by NethSecurity to activate Threat Shield DNS mode |
-| `ns_tsdns_bypass` | -, not set | List of IP addresses excluded from `adb_nftforce` DNS redirection |
+| `ns_tsdns_bypass` | -, not set | List of IP addresses or subnets excluded from `adb_nftforce` DNS redirection |
 
 ### IP-based DNS bypass
 
-The standard adblock `adb_nftforce` feature forces DNS queries from specified LAN devices/VLANs through the local resolver. NethSecurity extends this with an **IP-based bypass** list (`ns_tsdns_bypass`): any source IP in that list is exempt from DNS redirection, even when DNS enforcement is active.
+The standard adblock `adb_nftforce` feature forces DNS queries from specified LAN devices/VLANs through the local resolver. NethSecurity extends this with an **IP-based bypass** list (`ns_tsdns_bypass`): any source IP or subnet in that list is exempt from DNS redirection, even when DNS enforcement is active.
 
-To add a bypass address:
+To add a bypass address or subnet:
 ```sh
 uci add_list adblock.global.ns_tsdns_bypass=192.168.100.2
 uci commit adblock
-/etc/init.d/adblock reload
+/etc/init.d/adblock restart
 ```
 
 The bypass rules are injected into the `inet adblock pre-routing` chain (adblock's own nftables table) as `return` rules that take effect before the DNS redirect rules. No fw4/firewall rules are involved.
