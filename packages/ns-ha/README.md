@@ -157,6 +157,8 @@ If the requirements are met, you can initialize the primary node, please note th
 ns-ha-config init-primary-node <primary_node_ip> <backup_node_ip> <virtual_ip> <lan_interface>
 ```
 
+For best compatibility, initialize HA on an interface named `lan`.
+
 The script will:
 
 - initialize keepalived with the virtual IP
@@ -214,6 +216,7 @@ ns-ha-config add-lan-interface <primary_node_ip> <backup_node_ip> <virtual_ip_ad
 
 When adding a LAN interface, the following requirements must be met:
 - the LAN interface must be configured with a static IP address on both nodes
+- the interface must not be named `lan` if the main VRRP interface was initialized with a different name; the command fails validation in that case to avoid Keepalived section collisions
 - if a DHCP server is running
   - the `Force DHCP server start` option must be enabled
   - the DHCP option `3: router` must be set and configured with the virtual IP address (e.g. `192.168.100.240`)

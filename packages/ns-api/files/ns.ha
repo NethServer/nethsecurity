@@ -83,6 +83,22 @@ def get_device_from_ip(uci, ipaddr):
             return (n, uci.get('network', n, 'device', default=None))
     return (None, None)
 
+def get_main_vrrp_interface(uci):
+    for section in utils.get_all_by_type(uci, 'keepalived', 'ipaddress'):
+        if uci.get('keepalived', section, 'name', default=None) != 'lan_ha':
+            continue
+
+        ns_link = uci.get('keepalived', section, 'ns_link', default='')
+        if ns_link.startswith('network/'):
+            return ns_link.split('/', 1)[1]
+
+    return None
+
+def validate_additional_ha_interface_name(uci, interface, parameter):
+    main_vrrp_interface = get_main_vrrp_interface(uci)
+    if interface == 'lan' and main_vrrp_interface and main_vrrp_interface != 'lan':
+        raise utils.ValidationError(parameter, 'lan_interface_name_conflicts_with_main_vrrp_interface')
+
 def ssh_execute(command, host, port=22, username='root', password=None, private_key_path=None):
     """
     Execute SSH command using subprocess
@@ -336,7 +352,21 @@ def add_lan_interface(role, primary_node_ip, backup_node_ip, virtual_ip):
     if role == "primary":
         kinstance_name = 'primary'
         (interface, device) = get_device_from_ip(u, primary_node_ip)
+    else:
+        kinstance_name = 'backup'
+        (interface, device) = get_device_from_ip(u, backup_node_ip)
 
+    if interface is None:
+        raise utils.ValidationError(f'{role}_node_ip', 'no_interface_with_static_ip_found')
+    if device is None:
+        raise utils.ValidationError(f'{role}_node_ip', 'no_device_with_static_ip_found')
+
+    validate_additional_ha_interface_name(u, interface, f'{role}_node_ip')
+
+    if len(device) >= 13:
+        raise utils.ValidationError(f'{role}_node_ip', 'device_name_too_long_for_ha')
+
+    if role == "primary":
         validate_command = json.dumps({
             "role": "backup",
             "lan_interface": interface
@@ -348,16 +378,6 @@ def add_lan_interface(role, primary_node_ip, backup_node_ip, virtual_ip):
             result = json.loads(output)
             if not result.get("success"):
                 raise utils.ValidationError('backup_node_invalid_configuration', ','.join(result.get("errors", [])))
-    else:
-        kinstance_name = 'backup'
-        (interface, device) = get_device_from_ip(u, backup_node_ip)
-
-    if interface is None:
-        raise utils.ValidationError(f'{role}_node_ip', 'no_interface_with_static_ip_found')
-    if device is None:
-        raise utils.ValidationError(f'{role}_node_ip', 'no_device_with_static_ip_found')
-    if len(device) >= 13:
-        raise utils.ValidationError(f'{role}_node_ip', 'device_name_too_long_for_ha')
 
     dhcp_errors = validate_dhcp(interface)
     if len(dhcp_errors) > 0:

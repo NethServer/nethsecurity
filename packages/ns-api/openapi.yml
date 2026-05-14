@@ -90,6 +90,55 @@ security:
   - BearerAuth: []
 
 paths:
+  POST /ubus/ns.ha/add-lan-interface:
+    post:
+      summary: Add a LAN interface to the HA keepalived configuration
+      operationId: ns.ha.add-lan-interface
+      tags:
+        - ha
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - role
+                - primary_node_ip
+                - backup_node_ip
+                - virtual_ip
+              properties:
+                role:
+                  type: string
+                  enum: [primary, backup]
+                  description: Node role executing the operation
+                primary_node_ip:
+                  type: string
+                  description: Static IP of the interface on the primary node
+                  example: 192.168.1.10
+                backup_node_ip:
+                  type: string
+                  description: Static IP of the corresponding interface on the backup node
+                  example: 192.168.1.11
+                virtual_ip:
+                  type: string
+                  description: Virtual IP in CIDR notation
+                  example: 192.168.1.1/24
+      responses:
+        "200":
+          description: Interface added or validation failed
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required: [success]
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"
   POST /ubus/ns.reverseproxy/add-certificate:
     post:
       summary: Add a custom certificate
