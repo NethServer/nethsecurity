@@ -23,13 +23,26 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-grep -E '\w+\s+overlay$' /etc/backup/installed_packages.txt | awk '{print $1}' | while read package; do
+# Restore packages and track failures
+failed_packages=""
+
+while IFS= read -r package; do
     if ! apk info -e "$package" > /dev/null 2>&1; then
         apk add "$package"
-        echo "Restored package: $package"
+        if [ $? -eq 0 ]; then
+            echo "Restored package: $package"
+        else
+            echo "Failed to restore package: $package"
+            failed_packages="$failed_packages $package"
+        fi
     fi
-done
+done < <(grep -E '\w+\s+overlay$' /etc/backup/installed_packages.txt | awk '{print $1}')
 
-/etc/init.d/ns-restore-extra-packages stop
-/etc/init.d/ns-restore-extra-packages disable
-exit 0
+if [ -z "$failed_packages" ]; then
+    /etc/init.d/ns-restore-extra-packages stop
+    /etc/init.d/ns-restore-extra-packages disable
+    exit 0
+else
+    echo "Some packages failed to restore, will retry later"
+    exit 1
+fi
