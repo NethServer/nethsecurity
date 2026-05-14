@@ -8635,6 +8635,10 @@ Response example:
 
 Adds a LAN interface to the keepalived configuration.
 
+Validation fails with `lan_interface_name_conflicts_with_main_vrrp_interface`
+when the additional interface resolves to `lan` but the main VRRP interface
+was initialized with a different interface name.
+
 Request example:
 ```bash
 api-cli ns.ha call add-lan-interface --data '{
