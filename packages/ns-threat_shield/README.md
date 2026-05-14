@@ -84,11 +84,11 @@ uci commit adblock
 
 ### DNS redirect bypass
 
-Allow bypass of DNS redirect for a specific source IP:
+Allow bypass of DNS redirect for a specific source IP or subnet:
 ```
 uci add_list adblock.global.ns_tsdns_bypass=192.168.100.2
 uci commit adblock
-/etc/init.d/adblock reload
+/etc/init.d/adblock restart
 ```
 
 For more info see [adblock repository](https://github.com/openwrt/packages/tree/master/net/adblock).

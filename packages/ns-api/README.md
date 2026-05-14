@@ -6118,6 +6118,8 @@ Response example:
 {"message": "success"}
 ``` 
 
+The selected blocklists are applied immediately by restarting adblock.
+
 ### dns-list-settings
 
 Show current dns adblock settings:
@@ -6141,6 +6143,8 @@ Response example:
 ```json
 {"message": "success"}
 ```
+
+The updated DNS enforcement settings are applied immediately by restarting adblock.
 
 ### dns-list-zones
 
@@ -6224,7 +6228,7 @@ It can raise the following validation errors:
 
 ### dns-list-bypass
 
-List hosts that can bypass the adblock DNS redirect:
+List hosts or subnets that can bypass the adblock DNS redirect:
 ```
 api-cli ns.threatshield dns-list-bypass
 ```
@@ -6236,7 +6240,7 @@ Response example:
 
 ### dns-add-bypass
 
-Add a host that can bypass the adblock DNS redirect:
+Add a host or subnet that can bypass the adblock DNS redirect:
 ```
 api-cli ns.threatshield dns-add-bypass --data '{"address": "192.168.1.22"}'
 ```
@@ -6246,9 +6250,11 @@ Response example:
 {"message": "success"}
 ```
 
+The new bypass entry is applied immediately by restarting adblock.
+
 ### dns-delete-bypass
 
-Delete a host that can bypass the adblock DNS redirect:
+Delete a host or subnet that can bypass the adblock DNS redirect:
 ```
 api-cli ns.threatshield dns-delete-bypass --data '{"address": "192.168.1.22"}'
 ```
@@ -6257,6 +6263,8 @@ Response example:
 ```json
 {"message": "success"}
 ```
+
+The updated bypass list is applied immediately by restarting adblock.
 
 ### dns-list-blocked
 
