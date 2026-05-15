@@ -27,4 +27,4 @@ config main 'config'
 EOI
 fi
 
-crontab -l | grep -q '/usr/sbin/dpi-update' || echo '8 4 * * * sleep $(( RANDOM % 3600 )); /usr/sbin/dpi-update' >> /etc/crontabs/root
+crontab -l | grep -q '/usr/sbin/dpi-update' || echo '8 4 * * * sleep $(( RANDOM % 36000 )); /usr/sbin/dpi-update' >> /etc/crontabs/root
