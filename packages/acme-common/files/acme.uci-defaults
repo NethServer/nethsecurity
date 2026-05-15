@@ -1,4 +1,0 @@
-#!/bin/sh
-
-grep -q '/etc/init.d/acme' /etc/crontabs/root 2>/dev/null && exit 0
-echo "0 0 * * * /etc/init.d/acme start" >>/etc/crontabs/root
