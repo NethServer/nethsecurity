@@ -12,6 +12,7 @@ base_url="$(uci -q get ns-plug.config.repository_url)"
 source /etc/os-release
 if [ -z "$version" ]; then
     version="$VERSION"
+    version="${version%%-*}"
 fi
 
 cat << EOF > /etc/apk/repositories.d/distfeeds.list
