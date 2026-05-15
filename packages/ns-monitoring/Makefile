@@ -12,7 +12,7 @@ PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/nethserver/nethsecurity-monitoring.git
-PKG_SOURCE_VERSION:=v$(PKG_VERSION)
+PKG_SOURCE_VERSION:=fded6cb978027837fd86b2cc48311b2a68f86842
 PKG_SOURCE_SUBDIR:=nethsecurity-monitoring-$(PKG_SOURCE_VERSION)
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_SOURCE_SUBDIR)
 PKG_MIRROR_HASH:=skip
@@ -38,7 +38,7 @@ define Package/ns-monitoring
 	CATEGORY:=NethServer
 	TITLE:=Nethsecurity Monitoring
 	URL:=https://github.com/nethserver/nethsecurity-monitoring
-	DEPENDS:=$(GO_ARCH_DEPENDS)
+	DEPENDS:=$(GO_ARCH_DEPENDS) netifyd
 endef
 
 define Package/ns-monitoring/conffiles
@@ -64,8 +64,8 @@ define Package/ns-monitoring/install
 	$(INSTALL_DIR) $(1)/etc/netifyd/plugins.d
 	## ns-flows
 	$(INSTALL_CONF) ./files/netifyd/plugins.d/10-ns-flows.conf $(1)/etc/netifyd/plugins.d/10-ns-flows.conf
-	$(INSTALL_CONF) ./files/netifyd/netify-sink-socket-flows.json $(1)/etc/netifyd/netify-sink-socket-flows.json
-	$(INSTALL_CONF) ./files/netifyd/netify-proc-core-flows.json $(1)/etc/netifyd/netify-proc-core-flows.json
+	$(INSTALL_CONF) ./files/netifyd/netify-ns-flows-sink.json $(1)/etc/netifyd/netify-ns-flows-sink.json
+	$(INSTALL_CONF) ./files/netifyd/netify-ns-flows-proc.json $(1)/etc/netifyd/netify-ns-flows-proc.json
 	## ns-stats
 	$(INSTALL_CONF) ./files/netifyd/plugins.d/10-ns-stats.conf $(1)/etc/netifyd/plugins.d/10-ns-stats.conf
 	$(INSTALL_CONF) ./files/netifyd/netify-ns-stats-proc.json $(1)/etc/netifyd/netify-ns-stats-proc.json
