@@ -13,11 +13,15 @@ PKG_RELEASE:=1
 PKG_MAINTAINER:=Giacomo Sanchietti <giacomo.sanchietti@nethesis.it>
 PKG_LICENSE:=GPL-3.0-only
 
-PKG_SOURCE:=python3-nethsec-$(PKG_VERSION).tar.gz
-PKG_SOURCE_URL:=https://codeload.github.com/nethserver/python3-nethsec/tar.gz/$(PKG_VERSION)?
-PKG_HASH:=skip
+PKG_SOURCE_PROTO:=git
+PKG_SOURCE_URL:=https://github.com/NethServer/python3-nethsec.git
+PKG_SOURCE_VERSION:=8389c32cb7d4e9dcd72acf8e0dc882855b4034d7
+PKG_SOURCE_SUBDIR:=python3-nethsec-$(PKG_SOURCE_VERSION)
+PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_SOURCE_SUBDIR)
+PKG_MIRROR_HASH:=skip
 
 PYTHON3_PKG_WHEEL_NAME=nethsec
+PYTHON3_PKG_WHEEL_VERSION:=$(PKG_VERSION)
 
 include $(INCLUDE_DIR)/package.mk
 include $(TOPDIR)/feeds/packages/lang/python/python3-package.mk
@@ -27,7 +31,7 @@ define Package/python3-nethsec
 	CATEGORY:=NethSecurity
 	TITLE:=NethSecurity python libraries
 	URL:=https://github.com/NethServer/python3-nethsec/
-	DEPENDS:=+python3-uci +python3-passlib
+	DEPENDS:=+python3-uci +python3-libpass
 	PKGARCH:=all
 endef
  
