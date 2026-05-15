@@ -15,9 +15,32 @@ PROG="/usr/bin/victoria-metrics"
 start_service() {
     config_load victoria-metrics
     local storage_path retention_period http_listen_addr
-    config_get storage_path main storage_path /var/lib/victoriametrics
-    config_get retention_period main retention_period 1d
+    config_get storage_path main storage_path
+    config_get retention_period main retention_period
     config_get http_listen_addr main http_listen_addr 127.0.0.1:8428
+
+    # Detect if external storage is mounted
+    local disk_mount
+    config_load fstab
+    config_get disk_mount ns_data target
+
+    # Auto-detect storage_path if not customized
+    if [ -z "$storage_path" ]; then
+        if [ -n "$disk_mount" ]; then
+            storage_path="$disk_mount/victoria-metrics-data"
+        else
+            storage_path="/var/lib/victoria-metrics-data"
+        fi
+    fi
+
+    # Set retention_period default based on storage availability
+    if [ -z "$retention_period" ]; then
+        if [ -n "$disk_mount" ]; then
+            retention_period="1y"
+        else
+            retention_period="7d"
+        fi
+    fi
 
     procd_open_instance
     procd_set_param stdout 1
