@@ -44,6 +44,8 @@ if [ -z "$${IPKG_INSTROOT}" ]; then
   /etc/init.d/cron restart
   /usr/libexec/ns-plug/40_ns-plug_mwan_hooks
   /etc/init.d/ns-plug restart
+  /etc/init.d/ns-plug-alert-proxy enable
+  /etc/init.d/ns-plug-alert-proxy restart
 fi
 exit 0
 endef
@@ -55,6 +57,8 @@ if [ -z "$${IPKG_INSTROOT}" ]; then
   crontab -l | grep -v "/usr/sbin/send-inventory" | sort | uniq | crontab -
   crontab -l | grep -v "/usr/sbin/send-heartbeat" | sort | uniq | crontab -
   sed -i '/\/usr\/libexec\/ns-plug\/mwan-hooks/d' /etc/mwan3.user
+  /etc/init.d/ns-plug-alert-proxy stop
+  /etc/init.d/ns-plug-alert-proxy disable
 fi
 exit 0
 endef
@@ -68,12 +72,13 @@ define Package/ns-plug/install
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
-	$(INSTALL_DIR) $(1)/etc/netdata
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_DIR) $(1)/usr/libexec/ns-plug
 	$(INSTALL_DIR) $(1)/usr/libexec/mwan-hooks
 	$(INSTALL_BIN) ./files/ns-plug.init $(1)/etc/init.d/ns-plug
+	$(INSTALL_BIN) ./files/ns-plug-alert-proxy.init $(1)/etc/init.d/ns-plug-alert-proxy
 	$(INSTALL_BIN) ./files/ns-plug $(1)/usr/sbin/ns-plug
+	$(INSTALL_BIN) ./files/ns-plug-alert-proxy $(1)/usr/sbin/ns-plug-alert-proxy
 	$(INSTALL_BIN) ./files/distfeed-setup $(1)/usr/sbin/distfeed-setup
 	$(INSTALL_BIN) ./files/remote-backup $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/send-backup $(1)/usr/sbin
@@ -89,22 +94,17 @@ define Package/ns-plug/install
 	$(INSTALL_BIN) ./files/ns-push-reports $(1)/usr/bin
 	$(INSTALL_BIN) ./files/ns-controller-push-info $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/20_ns-plug $(1)/etc/uci-defaults
-	$(INSTALL_BIN) ./files/30_ns-plug_alerts $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/40_ns-plug_automatic_updates $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/40_ns-plug_automatic_updates $(1)/usr/libexec/ns-plug
 	$(INSTALL_BIN) ./files/40_ns-plug_mwan_hooks $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/40_ns-plug_mwan_hooks $(1)/usr/libexec/ns-plug
-	$(INSTALL_BIN) ./files/netadata_enable_alerts $(1)/usr/share/ns-plug/hooks/register/70netadata_enable_alerts
-	$(INSTALL_BIN) ./files/netadata_disable_alerts $(1)/usr/share/ns-plug/hooks/unregister/70netadata_disable_alerts
 	$(INSTALL_BIN) ./files/enable_automatic_updates $(1)/usr/share/ns-plug/hooks/register/60enable_automatic_updates
 	$(INSTALL_BIN) ./files/disable_automatic_updates $(1)/usr/share/ns-plug/hooks/unregister/60disable_automatic_updates
 	$(INSTALL_CONF) ./files/config $(1)/etc/config/ns-plug
 	$(INSTALL_CONF) files/ns-plug.keep $(1)/lib/upgrade/keep.d/ns-plug
-	$(INSTALL_CONF) files/health_alarm_notify.conf $(1)/etc/netdata
-	$(INSTALL_BIN) ./files/send-mwan-alert $(1)/usr/libexec/mwan-hooks
-	$(INSTALL_BIN) ./files/backup-encryption-alert $(1)/usr/libexec
 	$(INSTALL_BIN) ./files/mwan-hooks $(1)/usr/libexec/ns-plug
 	$(INSTALL_BIN) ./files/ns-plug-rsyslog-fixup.uci-default $(1)/etc/uci-defaults/rsyslog-fixup
+	$(INSTALL_BIN) ./files/99_ns-plug-netdata-cleanup.uci-default $(1)/etc/uci-defaults/99_ns-plug-netdata-cleanup
 endef
  
 $(eval $(call BuildPackage,ns-plug))

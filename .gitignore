@@ -1,7 +1,8 @@
-key-build*
-build.conf.override
+private-key.pem
+public-key.pem
 /bin
 build-logs
 build.conf
 netify-flow-actions
 netify-agent-stats-plugin
+scripts/netifyd-apks

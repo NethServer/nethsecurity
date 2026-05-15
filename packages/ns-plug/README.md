@@ -110,13 +110,9 @@ the given passphrase: only the encrypted backup will be sent to the remote serve
 
 To disable the encryption, just delete the file `/etc/backup.pass`.
 
-If the backup is not encrypted, an alert will be sent to the remote portal (my.nethesis.it or my.nethserver.com).
-Unencrypted backups are deprecated and will be removed in the future.
-The alert can be disabled using this command:
-```
-uci set ns-plug.config.backup_alert_disabled=1
-uci commit ns-plug
-```
+Non-encrypted backups are not sent to the remote server for security reasons.
+If the backup is not encrypted, an alert will be sent to the remote portal (my.nethesis.it or my.nethserver.com)
+so the user can be aware of the risk and take action to secure the backup.
 
 ### Restore
 
@@ -133,28 +129,28 @@ remote-backup download $(remote-backup list | jq -r .[0].file) - | gpg --batch -
 
 ## Alerts
 
-All system alerts, except MultiWAN ones, are handled by netdata, including those from the multiwan monitoring.
-Alerts are disabled by default and enabled only if the machine has a valid subscription.
-In this case, alerts are automatically sent to the remote server (either my.nethesis.it or my.nethserver.com) using a
-custom sender (`/etc/netdata/health_alarm_notify.conf`).
-Alerts are also logged to `/var/log/messages` and are visible within the netdata UI.
+System alerts are handled by **vmalert** (Victoria Metrics alert evaluation engine) which evaluates
+alert rules against metrics collected by telegraf.
 
-Only the following alerts are sent to the remote system:
+When an alert fires or resolves, vmalert sends an Alertmanager-format webhook to `ns-plug-alert-proxy`
+running on `127.0.0.1:9095`. The proxy forwards the following alerts to the registered monitoring
+portal (my.nethesis.it or my.nethserver.com):
 
-- disk space occupation
-- WAN down events
+| Alert | Condition | Legacy alert_id |
+|---|---|---|
+| `WanDown` | WAN interface offline for 2m | `wan:<interface>:down` |
+| `DiskSpaceCritical` | Disk usage > 90% for 2m | `df:root:percent_bytes:free` or `df:boot:percent_bytes:free` |
+| `BackupEncryptionDisabled` | Backup passphrase missing | `backup:config:notencrypted` |
+| `StorageStatus` | Storage status is error | `storage:status` |
 
-When an alert is resolved, netdata will also send a clear command to remote server.
+All other alert are silently dropped by the proxy.
+If the machine is not registered, all alerts are silently dropped.
 
-### MultiWAN alerts
+The proxy starts automatically at boot regardless of registration state.
+Firing/resolved state is determined from the Alertmanager-standard `endsAt` field:
+if `endsAt` is in the future (or zero/missing) a **FAILURE** is sent; if `endsAt` is in
+the past an **OK** is sent.
+A FAILURE is sent when the alert starts firing and an OK is sent when it resolves.
 
-MultiWAN alerts are managed using `/etc/mwan3.user` script.
-
-When a WAN changes its status, all executable scripts inside the `/usr/libexec/mwan-hooks/` directory will be executed.
-If the machine has a valid subscription, the `send-mwan-alert` script will send an alert to my.nethesis.it and my.nethserver.com monitoring portals.
-Sent alerts are logged to `/var/log/messages`, example:
-```
-Jul 31 12:40:42 NethSec mwan3-alert: Sending alert wan:wanb:down with status FAILURE
-...
-Jul 31 12:41:04 NethSec mwan3-alert: Sending alert wan:wanb:down with status OK
-```
+If Mimir credentials are configured in ns-plug UCI (`my_url`, `my_system_key`, `my_system_secret`),
+vmalert also forwards all alerts to the Mimir alertmanager for cloud-side processing.

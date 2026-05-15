@@ -10,10 +10,12 @@ PKG_NAME:=ns-ui
 PKG_VERSION:=2.20.1
 PKG_RELEASE:=1
 
-PKG_SOURCE:=nethsecurity-ui-$(PKG_VERSION).tar.gz
-PKG_BUILD_DIR=$(BUILD_DIR)/nethsecurity-ui-$(PKG_VERSION)
-PKG_SOURCE_URL:=https://codeload.github.com/nethserver/nethsecurity-ui/tar.gz/$(PKG_VERSION)?
-PKG_HASH:=skip
+PKG_SOURCE_PROTO:=git
+PKG_SOURCE_URL:=https://github.com/NethServer/nethsecurity-ui.git
+PKG_SOURCE_VERSION:=d95a3d9df55b18df2db9afbe01421901e655ac58
+PKG_SOURCE_SUBDIR:=nethsecurity-ui-$(PKG_SOURCE_VERSION)
+PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_SOURCE_SUBDIR)
+PKG_MIRROR_HASH:=skip
 
 PKG_MAINTAINER:=Giacomo Sanchietti <giacomo.sanchietti@nethesis.it>
 PKG_LICENSE:=GPL-3.0-only

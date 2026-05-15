@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-api
-PKG_VERSION:=3.6.1
+PKG_VERSION:=3.6.2
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-api-$(PKG_VERSION)
@@ -22,6 +22,7 @@ define Package/ns-api
 	TITLE:=NethSecurity REST API
 	URL:=https://github.com/NethServer/nethsecurity-controller/
 	DEPENDS:= \
+		+adblock \
 		+coreutils-date \
 		+coreutils-stty \
 		+python3-idna \
@@ -32,6 +33,7 @@ define Package/ns-api
 		+python3-urllib \
 		+sshpass \
 		+wireguard-tools
+	EXTRA_DEPENDS:=adblock (>=4.5.3)
 	PKGARCH:=all
 endef
 
@@ -118,8 +120,8 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.mwan.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.dpi $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.dpi.json $(1)/usr/share/rpcd/acl.d/
-	$(INSTALL_BIN) ./files/ns.netdata $(1)/usr/libexec/rpcd/
-	$(INSTALL_DATA) ./files/ns.netdata.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.telegraf $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.telegraf.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.storage $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.storage.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.account $(1)/usr/libexec/rpcd/
@@ -186,7 +188,6 @@ define Package/ns-api/install
 	$(INSTALL_CONF) ./files/config/ns-api $(1)/etc/config/ns-api
 	$(INSTALL_CONF) ./files/config/ns-wizard $(1)/etc/config/ns-wizard
 	$(INSTALL_CONF) ./files/templates $(1)/etc/config/
-	$(INSTALL_BIN) ./files/post-commit/restart-netdata.py $(1)/usr/libexec/ns-api/post-commit/
 	$(INSTALL_BIN) ./files/pre-commit/fix-redirect-reflections.py $(1)/usr/libexec/ns-api/pre-commit
 	$(INSTALL_BIN) ./files/pre-commit/update-objects.py $(1)/usr/libexec/ns-api/pre-commit
 	$(INSTALL_BIN) ./files/post-commit/reload-ipsets.py $(1)/usr/libexec/ns-api/post-commit

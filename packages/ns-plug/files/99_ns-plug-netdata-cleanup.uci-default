@@ -1,0 +1,10 @@
+#!/bin/sh
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Remove the legacy backup-encryption alert cron entry if it is still present.
+if crontab -l 2>/dev/null | grep -q '/usr/libexec/backup-encryption-alert'; then
+    crontab -l 2>/dev/null | grep -v '/usr/libexec/backup-encryption-alert' | sort | uniq | crontab -
+fi

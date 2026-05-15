@@ -7,23 +7,36 @@
 
 set -e
 
-# Source build files if it exists
+# Snapshot current environment so it can be restored with highest precedence
+_env_snapshot=$(export -p)
+
+# Source versioned defaults first
 set -o allexport
+if [ -f build.conf.defaults ]; then
+    echo "Loading build.conf.defaults..."
+    . ./build.conf.defaults
+fi
+
+# Source local overrides second (can override defaults)
 if [ -f build.conf ]; then
-    echo "Loading build.conf file..."
+    echo "Loading build.conf (local overrides)..."
     . ./build.conf
 fi
 set +o allexport
+
+# Re-apply original environment variables so they take final precedence over config files
+eval "$_env_snapshot"
 
 # Check required environment variables
 OWRT_VERSION=${OWRT_VERSION:?Missing OWRT_VERSION environment variable}
 NETHSECURITY_VERSION=${NETHSECURITY_VERSION:?Missing NETHSECURITY_VERSION environment variable}
 REPO_CHANNEL=${REPO_CHANNEL:-dev}
 TARGET=${TARGET:-x86_64}
+BUILD_SEMVER_SUFFIX=${BUILD_SEMVER_SUFFIX:-}
 
-if [ -f "./key-build" ] && [ -f "./key-build.pub" ]; then
-    USIGN_PRIV_KEY="$(cat ./key-build)"
-    USIGN_PUB_KEY="$(cat ./key-build.pub)"
+if [ -f "./private-key.pem" ] && [ -f "./public-key.pem" ]; then
+    APK_PRIV_KEY="$(cat ./private-key.pem)"
+    APK_PUB_KEY="$(cat ./public-key.pem)"
 fi
 
 
@@ -32,20 +45,20 @@ podman build \
     --layers \
     --file builder/Containerfile \
     --tag nethsecurity-next \
-    --target builder \
     --jobs 0 \
     --build-arg OWRT_VERSION="$OWRT_VERSION" \
     --build-arg REPO_CHANNEL="$REPO_CHANNEL" \
     --build-arg TARGET="$TARGET" \
     --build-arg NETHSECURITY_VERSION="$NETHSECURITY_VERSION" \
+    --build-arg BUILD_SEMVER_SUFFIX="$BUILD_SEMVER_SUFFIX" \
     .
 
 set +e
 
 status=0
 podman run \
-    --env USIGN_PRIV_KEY="$USIGN_PRIV_KEY" \
-    --env USIGN_PUB_KEY="$USIGN_PUB_KEY" \
+    --env APK_PRIV_KEY="$APK_PRIV_KEY" \
+    --env APK_PUB_KEY="$APK_PUB_KEY" \
     --name nethsecurity-builder \
     --interactive \
     --tty \

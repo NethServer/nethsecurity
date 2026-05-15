@@ -1,0 +1,11 @@
+config output_prometheus 'output_prometheus'
+	option enabled '0'
+	option listen_addr ':9273'
+	option basic_auth_username ''
+	option basic_auth_password ''
+
+config internet 'internet'
+	list pings '8.8.8.8'
+	list pings '1.1.1.1'
+	list dns 'google.com'
+	list dns 'cloudflare.com'

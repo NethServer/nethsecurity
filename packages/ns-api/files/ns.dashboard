@@ -12,6 +12,8 @@ import os
 import sys
 import json
 import subprocess
+import time
+import urllib.parse
 import urllib.request
 from euci import EUci
 from nethsec import utils, ovpn
@@ -154,7 +156,7 @@ def check_adblock():
     if not adb_enabled:
         return "disabled"
     pa = subprocess.run(["service", "adblock", "status"], check=False, capture_output=True, text=True)
-    if adb_enabled and re.search('adblock_status\s+:\s+enabled', pa.stdout):
+    if adb_enabled and re.search(r'adblock_status\s+:\s+enabled', pa.stdout):
         return "ok"
     else:
         return "error"
@@ -165,7 +167,7 @@ def check_banip():
     if not bip_enabled:
         return "disabled"
     pa = subprocess.run(["service", "banip", "status"], check=False, capture_output=True, text=True)
-    if bip_enabled and re.search('status\s+:\s+active', pa.stdout):
+    if bip_enabled and re.search(r'status\s+:\s+active', pa.stdout):
         return "ok"
 
 def check_ts_ip():
@@ -274,17 +276,24 @@ def system_info():
 
 def interface_traffic(interface):
     ret = {"labels": [], "data": []}
-    # retrieve from netdata the traffic for the last hour
-    url = f'http://127.0.0.1:19999/api/v1/data?chart=net.{interface}&after=-3600&points=180&options=abs'
-    try:
-        with urllib.request.urlopen(url, timeout=10) as fu:
-            data = json.loads(fu.read())
-    except:
-        return ret
+    vm_url = "http://127.0.0.1:8428/api/v1/query_range"
+    now = int(time.time())
+    one_hour_ago = now - 3600
 
-    for record in data["data"]:
-        ret["labels"].append(record[0])
-        ret["data"].append([record[1], record[2]])
+    def vm_query(expr):
+        params = urllib.parse.urlencode({"query": expr, "start": one_hour_ago, "end": now, "step": 20})
+        with urllib.request.urlopen(f"{vm_url}?{params}", timeout=5) as resp:
+            data = json.loads(resp.read())
+        result = data.get("data", {}).get("result", [])
+        return result[0].get("values", []) if result else []
+
+    try:
+        recv = vm_query(f'rate(net_bytes_recv{{interface="{interface}"}}[20s]) * 8 / 1000')
+        sent = vm_query(f'rate(net_bytes_sent{{interface="{interface}"}}[20s]) * 8 / 1000')
+        ret["labels"] = [int(ts) for ts, _ in reversed(recv)]
+        ret["data"] = [[float(r), float(s)] for (_, r), (_, s) in zip(reversed(recv), reversed(sent))]
+    except Exception:
+        pass
 
     return ret
 

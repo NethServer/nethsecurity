@@ -62,8 +62,7 @@ def add_tap_to_bridge(u, bridge, interface):
                     u.commit("network")
             except:
                 pass
-            finally:
-                return
+            return
 
 
 iname="ns_roadwarrior1"
