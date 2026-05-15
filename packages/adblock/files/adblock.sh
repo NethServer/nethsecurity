@@ -2507,6 +2507,12 @@ case "${adb_action}" in
 	f_env
 	f_main
 	;;
+# Start NethSecurity patch
+"nft-reload")
+	f_nftremove
+	f_nftadd
+	;;
+# End NethSecurity patch
 "restart")
 	f_temp
 	f_jsnup "processing"

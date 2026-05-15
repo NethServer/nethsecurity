@@ -76,7 +76,10 @@ restart() {
 }
 
 reload_service() {
+    # Start NethSecurity patch
 	/usr/sbin/ts-dns # configure threat shield dns, if needed
+    ${adb_script} nft-reload
+    # End NethSecurity patch
 	rc_procd start_service reload
 }
 
@@ -137,4 +140,7 @@ service_triggers() {
 	for iface in ${trigger}; do
 		procd_add_interface_trigger "interface.*.up" "${iface}" "${adb_init}" start
 	done
+    # Start NethSecurity patch
+	procd_add_reload_trigger adblock
+    # End NethSecurity patch
 }
