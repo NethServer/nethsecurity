@@ -7,6 +7,9 @@
 
 set -e
 
+# Snapshot current environment so it can be restored with highest precedence
+_env_snapshot=$(export -p)
+
 # Source versioned defaults first
 set -o allexport
 if [ -f build.conf.defaults ]; then
@@ -14,12 +17,15 @@ if [ -f build.conf.defaults ]; then
     . ./build.conf.defaults
 fi
 
-# Source local overrides second (can override anything)
+# Source local overrides second (can override defaults)
 if [ -f build.conf ]; then
     echo "Loading build.conf (local overrides)..."
     . ./build.conf
 fi
 set +o allexport
+
+# Re-apply original environment variables so they take final precedence over config files
+eval "$_env_snapshot"
 
 # Check required environment variables
 OWRT_VERSION=${OWRT_VERSION:?Missing OWRT_VERSION environment variable}
