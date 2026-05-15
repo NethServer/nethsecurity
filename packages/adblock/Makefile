@@ -30,8 +30,6 @@ endef
 
 define Package/adblock/conffiles
 /etc/config/adblock
-/etc/adblock/adblock.allowlist
-/etc/adblock/adblock.blocklist
 /etc/adblock/adblock.custom.feeds
 endef
 
@@ -56,14 +54,13 @@ define Package/adblock/install
 
 	$(INSTALL_DIR) $(1)/etc/adblock
 	$(INSTALL_BIN) ./files/adblock.mail $(1)/etc/adblock
-	$(INSTALL_CONF) ./files/adblock.allowlist $(1)/etc/adblock
-	$(INSTALL_CONF) ./files/adblock.blocklist $(1)/etc/adblock
 	$(INSTALL_CONF) ./files/adblock.categories $(1)/etc/adblock
 	$(INSTALL_CONF) ./files/adblock.feeds $(1)/etc/adblock
 	$(INSTALL_CONF) ./files/adblock.custom.feeds $(1)/etc/adblock
 
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/95-adblock-housekeeping $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/99_adblock_migrate_lists.sh $(1)/etc/uci-defaults/99_adblock_migrate_lists
 endef
 
 $(eval $(call BuildPackage,adblock))
