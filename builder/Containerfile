@@ -51,9 +51,7 @@ WORKDIR /home/buildbot
 ARG OWRT_VERSION
 RUN git clone --branch "${OWRT_VERSION}" https://github.com/openwrt/openwrt.git
 WORKDIR /home/buildbot/openwrt
-RUN sed -i '/telephony/d' feeds.conf.default \
-    && sed -i '/routing/d' feeds.conf.default \
-    && sed -i '/video/d' feeds.conf.default
+RUN sed -i '/telephony/d' feeds.conf.default
 RUN ./scripts/feeds update -a
 COPY --chmod=777 builder/apply-patches.sh /usr/local/bin/apply-patches
 COPY --chown=buildbot:buildbot patches patches
