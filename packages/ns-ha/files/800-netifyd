@@ -7,12 +7,16 @@ set_service_name netifyd
 set_restart_if_master
 set_stop_if_backup
 
+services="dpi dpi-data-update dpi-license-update dpi-update ns-flows ns-stats"
+
 if [ "$ACTION" == "NOTIFY_MASTER" ]; then
-    /etc/init.d/dpi restart
-    /etc/init.d/dpireport restart
+    for service in $services; do
+        /etc/init.d/$service restart
+    done
 elif [ "$ACTION" == "NOTIFY_BACKUP" ]; then
-    /etc/init.d/dpi stop
-    /etc/init.d/dpireport stop
+    for service in $services; do
+        /etc/init.d/$service stop
+    done
 fi
 
 keepalived_hotplug
