@@ -79,6 +79,29 @@ components:
               items:
                 $ref: "#/components/schemas/ValidationErrorDetail"
 
+    SuccessResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          example: success
+
+    ThreatShieldDnsListEntry:
+      type: object
+      required:
+        - address
+        - description
+      properties:
+        address:
+          type: string
+          description: Domain name present in the local Threat Shield DNS list
+          example: nethesis.it
+        description:
+          type: string
+          description: Optional free-form description associated with the domain
+          example: my allow1
+
   securitySchemes:
     BearerAuth:
       type: http
@@ -188,80 +211,539 @@ paths:
                         example: success
                   - $ref: "#/components/schemas/ValidationError"
                   - $ref: "#/components/schemas/Error"
-  POST /ubus/ns.telegraf/list-alerts:
+  POST /ubus/ns.threatshield/dns-list-allowed:
     post:
-      summary: List current monitoring alerts
-      operationId: ns.telegraf.list-alerts
+      summary: List local Threat Shield DNS allowlist entries
+      description: Returns the allowlist entries currently staged in UCI. They are written to the adblock file on the next reload triggered by `ns.commit` or `reload_config`.
+      operationId: ns.threatshield.dns-list-allowed
       tags:
-        - telegraf
+        - threatshield
       responses:
         "200":
-          description: Current pending and firing alerts evaluated by vmalert
+          description: Staged allowlist entries
           content:
             application/json:
               schema:
                 oneOf:
                   - type: object
                     required:
-                      - alerts
+                      - data
                     properties:
-                      alerts:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ThreatShieldDnsListEntry"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.threatshield/dns-add-allowed:
+    post:
+      summary: Add a local Threat Shield DNS allowlist entry
+      description: Stages the new allowlist entry in UCI. The physical adblock file is updated on the next reload triggered by `ns.commit` or `reload_config`.
+      operationId: ns.threatshield.dns-add-allowed
+      tags:
+        - threatshield
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - address
+                - description
+              properties:
+                address:
+                  type: string
+                  description: Domain to add to the local allowlist
+                  example: nethesis.it
+                description:
+                  type: string
+                  description: Free-form description for the domain
+                  example: my allow1
+      responses:
+        "200":
+          description: Allowlist entry staged or validation failed
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.threatshield/dns-edit-allowed:
+    post:
+      summary: Edit a local Threat Shield DNS allowlist entry
+      description: Updates the staged allowlist description in UCI. The physical adblock file is updated on the next reload triggered by `ns.commit` or `reload_config`.
+      operationId: ns.threatshield.dns-edit-allowed
+      tags:
+        - threatshield
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - address
+                - description
+              properties:
+                address:
+                  type: string
+                  description: Existing domain in the local allowlist
+                  example: nethesis.it
+                description:
+                  type: string
+                  description: Updated description for the domain
+                  example: my new desc
+      responses:
+        "200":
+          description: Allowlist entry updated or validation failed
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.threatshield/dns-delete-allowed:
+    post:
+      summary: Delete a local Threat Shield DNS allowlist entry
+      description: Removes the staged allowlist entry from UCI. The physical adblock file is updated on the next reload triggered by `ns.commit` or `reload_config`.
+      operationId: ns.threatshield.dns-delete-allowed
+      tags:
+        - threatshield
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - address
+              properties:
+                address:
+                  type: string
+                  description: Existing domain in the local allowlist
+                  example: nethesis.it
+      responses:
+        "200":
+          description: Allowlist entry deleted or validation failed
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.threatshield/dns-list-blocklist:
+    post:
+      summary: List available Threat Shield DNS blocklists
+      operationId: ns.threatshield.dns-list-blocklist
+      tags:
+        - threatshield
+      responses:
+        "200":
+          description: Available blocklists
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
                         type: array
                         items:
                           type: object
                           required:
-                            - state
                             - name
-                            - labels
-                            - annotations
-                            - activeAt
+                            - type
+                            - enabled
+                            - confidence
+                            - description
                           properties:
-                            state:
-                              type: string
-                              description: Alert state reported by vmalert
-                              example: firing
                             name:
                               type: string
-                              description: Alert name
-                              example: BackupEncryptionDisabled
-                            value:
+                              description: Blocklist name
+                              example: adguard
+                            type:
                               type: string
-                              description: Evaluated expression value
-                              example: "0"
-                            labels:
-                              type: object
-                              description: Alert labels emitted by vmalert
-                              additionalProperties:
-                                type: string
-                            annotations:
-                              type: object
-                              description: Localized summaries and descriptions emitted by vmalert
-                              additionalProperties:
-                                type: string
-                            activeAt:
-                              type: string
-                              format: date-time
-                              description: Time when the alert became active
-                              example: "2026-05-07T09:18:00Z"
-                            id:
-                              type: string
-                              description: Alert instance identifier
-                            rule_id:
-                              type: string
-                              description: Alert rule identifier
-                            group_id:
-                              type: string
-                              description: Alert group identifier
-                            expression:
-                              type: string
-                              description: Alert rule expression
-                            source:
-                              type: string
-                              description: vmalert source URL for the alert
-                            restored:
+                              enum: [enterprise, community]
+                              description: Blocklist category
+                              example: enterprise
+                            enabled:
                               type: boolean
-                              description: True when the alert is being restored
-                            stabilizing:
-                              type: boolean
-                              description: True when the alert is stabilizing
+                              description: Whether the blocklist is enabled
+                              example: true
+                            confidence:
+                              type: integer
+                              description: Entitlement confidence score
+                              example: 10
+                            description:
+                              type: [string, "null"]
+                              description: Blocklist description
+                              example: OpenDNS family shield
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.threatshield/dns-list-blocked:
+    post:
+      summary: List local Threat Shield DNS blocklist entries
+      description: Returns the blocklist entries currently staged in UCI. They are written to the adblock file on the next reload triggered by `ns.commit` or `reload_config`.
+      operationId: ns.threatshield.dns-list-blocked
+      tags:
+        - threatshield
+      responses:
+        "200":
+          description: Staged blocklist entries
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ThreatShieldDnsListEntry"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.threatshield/dns-add-blocked:
+    post:
+      summary: Add a local Threat Shield DNS blocklist entry
+      description: Stages the new blocklist entry in UCI. The physical adblock file is updated on the next reload triggered by `ns.commit` or `reload_config`.
+      operationId: ns.threatshield.dns-add-blocked
+      tags:
+        - threatshield
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - address
+              properties:
+                address:
+                  type: string
+                  description: Domain to add to the local blocklist
+                  example: nastydomain.net
+                description:
+                  type: string
+                  description: Optional free-form description for the domain
+                  example: my block1
+      responses:
+        "200":
+          description: Blocklist entry staged or validation failed
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.threatshield/dns-edit-blocked:
+    post:
+      summary: Edit a local Threat Shield DNS blocklist entry
+      description: Updates the staged blocklist description in UCI. The physical adblock file is updated on the next reload triggered by `ns.commit` or `reload_config`.
+      operationId: ns.threatshield.dns-edit-blocked
+      tags:
+        - threatshield
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - address
+              properties:
+                address:
+                  type: string
+                  description: Existing domain in the local blocklist
+                  example: nastydomain.net
+                description:
+                  type: string
+                  description: Updated description for the domain
+                  example: My new desc
+      responses:
+        "200":
+          description: Blocklist entry updated or validation failed
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.threatshield/dns-delete-blocked:
+    post:
+      summary: Delete a local Threat Shield DNS blocklist entry
+      description: Removes the staged blocklist entry from UCI. The physical adblock file is updated on the next reload triggered by `ns.commit` or `reload_config`.
+      operationId: ns.threatshield.dns-delete-blocked
+      tags:
+        - threatshield
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - address
+              properties:
+                address:
+                  type: string
+                  description: Existing domain in the local blocklist
+                  example: nastydomain.net
+      responses:
+        "200":
+          description: Blocklist entry deleted or validation failed
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.threatshield/dns-list-settings:
+    post:
+      summary: Get Threat Shield DNS enforcement settings
+      operationId: ns.threatshield.dns-list-settings
+      tags:
+        - threatshield
+      responses:
+        "200":
+          description: Current DNS enforcement settings
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - enabled
+                          - zones
+                          - ports
+                        properties:
+                          enabled:
+                            type: boolean
+                            description: Whether Threat Shield DNS is enabled
+                            example: true
+                          zones:
+                            type: array
+                            description: Firewall zones where DNS redirection is enforced
+                            items:
+                              type: string
+                            example: [lan]
+                          ports:
+                            type: array
+                            description: DNS ports enforced locally
+                            items:
+                              type: string
+                            example: ["53", "853"]
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.threatshield/dns-list-zones:
+    post:
+      summary: List firewall zones available for Threat Shield DNS
+      operationId: ns.threatshield.dns-list-zones
+      tags:
+        - threatshield
+      responses:
+        "200":
+          description: Available zones
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: string
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.threatshield/dns-edit-blocklist:
+    post:
+      summary: Enable or disable a Threat Shield DNS blocklist
+      operationId: ns.threatshield.dns-edit-blocklist
+      tags:
+        - threatshield
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - blocklist
+                - enabled
+              properties:
+                blocklist:
+                  type: string
+                  description: DNS blocklist name
+                  example: adguard
+                enabled:
+                  type: boolean
+                  description: Whether the blocklist should be enabled
+                  example: true
+      responses:
+        "200":
+          description: Blocklist updated or validation failed
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required:
+                      - message
+                    properties:
+                      message:
+                        type: string
+                        example: success
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.threatshield/dns-edit-settings:
+    post:
+      summary: Update Threat Shield DNS enforcement settings
+      operationId: ns.threatshield.dns-edit-settings
+      tags:
+        - threatshield
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - enabled
+              properties:
+                enabled:
+                  type: boolean
+                  description: Enable or disable Threat Shield DNS
+                  example: true
+                zones:
+                  type: array
+                  description: Firewall zones where DNS redirection is enforced
+                  items:
+                    type: string
+                  example: [lan]
+                ports:
+                  type: array
+                  description: DNS ports enforced locally
+                  items:
+                    type: string
+                  example: ["53", "853"]
+      responses:
+        "200":
+          description: Settings updated or validation failed
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required:
+                      - message
+                    properties:
+                      message:
+                        type: string
+                        example: success
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.threatshield/dns-list-bypass:
+    post:
+      summary: List Threat Shield DNS bypass entries
+      operationId: ns.threatshield.dns-list-bypass
+      tags:
+        - threatshield
+      responses:
+        "200":
+          description: DNS bypass entries
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: string
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.threatshield/dns-add-bypass:
+    post:
+      summary: Add a Threat Shield DNS bypass entry
+      operationId: ns.threatshield.dns-add-bypass
+      tags:
+        - threatshield
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - address
+              properties:
+                address:
+                  type: string
+                  description: Source IP address or subnet that should bypass DNS redirection
+                  example: 192.168.1.22
+      responses:
+        "200":
+          description: Bypass entry added or validation failed
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required:
+                      - message
+                    properties:
+                      message:
+                        type: string
+                        example: success
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.threatshield/dns-delete-bypass:
+    post:
+      summary: Delete a Threat Shield DNS bypass entry
+      operationId: ns.threatshield.dns-delete-bypass
+      tags:
+        - threatshield
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - address
+              properties:
+                address:
+                  type: string
+                  description: Source IP address or subnet to remove from the DNS bypass list
+                  example: 192.168.1.22
+      responses:
+        "200":
+          description: Bypass entry removed or validation failed
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required:
+                      - message
+                    properties:
+                      message:
+                        type: string
+                        example: success
+                  - $ref: "#/components/schemas/ValidationError"
                   - $ref: "#/components/schemas/Error"
