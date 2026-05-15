@@ -36,15 +36,15 @@ Configuration is located at `/etc/config/victoria-metrics`:
 
 ```
 config victoriametrics 'main'
-    option storage_path '/var/lib/victoriametrics'
-    option retention_period '1y'
     option http_listen_addr '127.0.0.1:8428'
 ```
 
-**Options:**
-- `storage_path`: Where to store metrics data
-- `retention_period`: How long to keep metrics (`1d`, `7d`, `30d`, `1y`, etc.)
+**Required options:**
 - `http_listen_addr`: Address and port for the HTTP server
+
+**Optional options:**
+- `storage_path`: Where to store metrics data (default: `/var/lib/victoriametrics`, auto-detects `/mnt/data/victoriametrics` if available)
+- `retention_period`: How long to keep metrics (`1d`, `7d`, `30d`, `1y`, etc.) (default: `7d`, auto-detects `1y` if not set)
 
 ### Accessing the Web UI
 
