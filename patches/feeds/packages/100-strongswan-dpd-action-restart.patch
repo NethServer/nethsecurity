@@ -1,0 +1,12 @@
+diff --git a/net/strongswan/files/swanctl.init b/net/strongswan/files/swanctl.init
+--- a/net/strongswan/files/swanctl.init
++++ b/net/strongswan/files/swanctl.init
+@@ -314,7 +314,7 @@
+ 	hold)
+ 		dpdaction="trap" ;;
+ 	restart)
+-		dpdaction="start" ;;
++		dpdaction="restart" ;;
+ 	trap|start)
+ 		# already using new syntax
+ 		;;
