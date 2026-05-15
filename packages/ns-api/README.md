@@ -6171,11 +6171,14 @@ Response example:
 {
   "data": [
     {
-      "address": "nethesis.it"
+      "address": "nethesis.it",
+      "description": "my allow1"
     }
   ]
 }
 ```
+
+The allow and block list methods work on UCI-staged data. Changes are visible immediately through the API and are written to `/etc/adblock/adblock.allowlist` and `/etc/adblock/adblock.blocklist` during the next adblock reload triggered by `ns.commit` or `reload_config`.
 
 ### dns-add-allowed
 
