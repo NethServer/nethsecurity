@@ -80,34 +80,34 @@ Updates are pushed to the subscription channel after one week from the release d
 If you have a machine with a valid subscription and want to force an update, you can use the following commands:
 
 ```bash
-cp /etc/opkg/customfeeds.conf /etc/opkg/customfeeds.conf.ori
-cat /rom/etc/opkg/distfeeds.conf | sed 's/dev/stable/g' > /etc/opkg/customfeeds.conf
-opkg update
-/bin/opkg list-upgradable | /usr/bin/cut -f 1 -d ' ' | /usr/bin/xargs -r opkg upgrade && echo "Update successful!"
+cp /etc/apk/repositories.d/customfeeds.list /etc/apk/repositories.d/customfeeds.list.ori
+cat /rom/etc/apk/repositories.d/distfeeds.list | sed 's/dev/stable/g' > /etc/apk/repositories.d/customfeeds.list
+apk update
+apk list --upgradable | grep -oP '{\w+/\K[^}]+' | /usr/bin/xargs -r apk upgrade && echo "Update successful!"
 ```
 
 The customfeed.conf file takes precedence over distfeed.conf, so you can safely
-ignore errors like `opkg_conf_parse_file: Duplicate src declaration`.
+ignore errors like `apk_conf_parse_file: Duplicate src declaration`.
 
 At the end, restore the original `customfeeds.conf`:
 ```
-mv /etc/opkg/customfeeds.conf.ori /etc/opkg/customfeeds.conf
-opkg update
+mv /etc/apk/repositories.d/customfeeds.list.ori /etc/apk/repositories.d/customfeeds.list
+apk update
 ```
 
 ## Upstream OpenWrt repositories
 
-You can add custom feeds by changing the `/etc/opkg/customfeeds.conf` file.
+You can add custom feeds by changing the `/etc/apk/repositories.d/customfeeds.list` file.
 
 To enable OpenWrt package repositories use the following commands
 ```bash
 source /etc/os-release
 VERSION=$(echo $OPENWRT_RELEASE | cut -d' ' -f3 | sed 's/^v//')
-cat << EOF > /etc/opkg/customfeeds.conf 
-src/gz core https://downloads.openwrt.org/releases/$VERSION/targets/x86/64/packages
-src/gz base https://downloads.openwrt.org/releases/$VERSION/packages/x86_64/base
-src/gz luci https://downloads.openwrt.org/releases/$VERSION/packages/x86_64/luci
-src/gz packages https://downloads.openwrt.org/releases/$VERSION/packages/x86_64/packages
-src/gz routing https://downloads.openwrt.org/releases/$VERSION/packages/x86_64/routing
+cat << EOF > /etc/apk/repositories.d/customfeeds.list
+https://downloads.openwrt.org/releases/$VERSION/targets/x86/64/packages/packages.adb
+https://downloads.openwrt.org/releases/$VERSION/packages/x86_64/base/packages.adb
+https://downloads.openwrt.org/releases/$VERSION/packages/x86_64/luci/packages.adb
+https://downloads.openwrt.org/releases/$VERSION/packages/x86_64/packages/packages.adb
+https://downloads.openwrt.org/releases/$VERSION/packages/x86_64/routing/packages.adb
 EOF
 ```

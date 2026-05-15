@@ -194,7 +194,7 @@ Existing files are grandfathered; see `ruff.toml` in the repo root for details.
 After building the `.ipk`:
 
 1. Copy to a live NethSecurity device
-2. Install: `opkg install ns-myapp_<version>_all.ipk`
+2. Install: `apk add ns-myapp_<version>_all.ipk`
 3. Test functionality manually
 4. Check logs: `logread | grep ns-myapp`
 

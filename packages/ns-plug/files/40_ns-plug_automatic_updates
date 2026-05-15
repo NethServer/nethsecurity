@@ -1,4 +1,4 @@
-old_cmd="sleep \$(( RANDOM % 18000 )); /bin/opkg list-upgradable | /usr/bin/cut -f 1 -d ' ' | /usr/bin/xargs -r opkg upgrade"
+old_cmd="sleep \$(( RANDOM % 18000 )); /usr/bin/apk list --upgradable | grep -oP '{\w+/\K[^}]+' | /usr/bin/xargs -r apk upgrade"
 cmd="sleep \$(( RANDOM % 18000 )); /usr/sbin/update-packages"
 
 # Remove old command from crontab and add new one
