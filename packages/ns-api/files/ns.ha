@@ -97,7 +97,7 @@ def get_main_vrrp_interface(uci):
 def validate_additional_ha_interface_name(uci, interface, parameter):
     main_vrrp_interface = get_main_vrrp_interface(uci)
     if interface == 'lan' and main_vrrp_interface and main_vrrp_interface != 'lan':
-        raise utils.ValidationError(parameter, 'lan_interface_name_conflicts_with_main_vrrp_interface')
+        raise utils.ValidationError(parameter, 'interface_name_lan_is_reserved_for_the_main_vrrp_interface_use_a_different_network_interface_name')
 
 def ssh_execute(command, host, port=22, username='root', password=None, private_key_path=None):
     """
