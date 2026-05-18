@@ -14,16 +14,35 @@ error_exit() {
     exit 1
 }
 
+# Parse arguments
+enable_custom_repo=false
+for arg in "$@"; do
+    case "$arg" in
+        --enable-custom-repo)
+            enable_custom_repo=true
+            ;;
+    esac
+done
+
+# when called from automatic updates (enable_custom_repo=false), restrict apk to
+# the official NethSecurity mirrors only by passing --repositories-file.
+# When called from the UI (enable_custom_repo=true), no restriction is applied so
+# custom repos are included as well.
+repositories_flag=""
+if [ "$enable_custom_repo" = "false" ]; then
+    repositories_flag="--repositories-file /etc/apk/repositories.d/distfeeds.list"
+fi
+
 # Update metadata, make sure to output even if in case of error
-output=$(apk update 2>&1)
+output=$(apk $repositories_flag update 2>&1)
 status=$?
 echo "$output" | logger -s -t update-packages
 [ $status -ne 0 ] && error_exit "Failed to update metadata"
 
 error_count=0
 # Upgrade each package individually and capture output
-apk list --upgradable 2>/dev/null | grep -o '{[^}]*}' | tr -d '{}' | sed 's|.*/||' | while read -r package; do
-    output=$(apk upgrade "$package" 2>&1)
+apk $repositories_flag list --upgradable 2>/dev/null | grep -o '{[^}]*}' | tr -d '{}' | sed 's|.*/||' | while read -r package; do
+    output=$(apk $repositories_flag upgrade "$package" 2>&1)
     status=$?
     [ $status -ne 0 ] && error_count=$((error_count + 1))
     echo "$output" | logger -s -t update-packages
