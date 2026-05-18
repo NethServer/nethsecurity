@@ -22,7 +22,7 @@ echo "$output" | logger -s -t update-packages
 
 error_count=0
 # Upgrade each package individually and capture output
-apk list --upgradable | cut -f 1 -d ' ' | while read -r package; do
+apk list --upgradable 2>/dev/null | grep -o '{[^}]*}' | tr -d '{}' | sed 's|.*/||' | while read -r package; do
     output=$(apk upgrade "$package" 2>&1)
     status=$?
     [ $status -ne 0 ] && error_count=$((error_count + 1))
