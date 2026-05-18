@@ -1,8 +1,0 @@
-{
-    "channels": {
-        "flows": {
-            "enable": true,
-            "bind_address": "unix://${path_state_volatile}/flows.sock"
-        }
-    }
-}
