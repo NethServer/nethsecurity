@@ -112,9 +112,6 @@ define Package/snort3/install
 
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/snort.config $(1)/etc/config/snort
-
-	$(INSTALL_DIR) $(1)/etc/capabilities
-	$(INSTALL_CONF) ./files/snort.json $(1)/etc/capabilities/snort.json
 endef
 
 $(eval $(call BuildPackage,snort3))
