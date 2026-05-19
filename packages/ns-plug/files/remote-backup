@@ -59,9 +59,11 @@ case "$cmd" in
        # proxy, same pattern used by send-heartbeat / send-inventory.
        # To be removed once the migration is complete.
        if [ "$TYPE" = "enterprise" ]; then
+           ext=".$(basename $file | cut -d '.' -f2)"
+           date="-$(date +%Y-%m-%d)"
            curl $curl_args -X POST \
                -H "Content-Type: application/octet-stream" \
-               -H "X-Filename: $(basename "$file")" \
+	       -H "X-Filename: backup$date$ext" \
                --data-binary "@$file" https://my.nethesis.it/proxy/backup >/dev/null || :
        fi
        exit $rc
