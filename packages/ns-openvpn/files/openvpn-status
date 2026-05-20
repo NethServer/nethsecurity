@@ -62,6 +62,8 @@ try:
                         ip_addr, port_addr = real_address_parts
                     elif len(real_address_parts) == 3:
                         ip_addr, port_addr = real_address_parts[1:]
+                    else:
+                        ip_addr, port_addr = real_address, ''
 
                     results[cn] = {
                         'real_address': ip_addr,
