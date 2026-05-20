@@ -57,7 +57,11 @@ try:
                     if cn == 'UNDEF':
                         continue
 
-                    ip_addr, port_addr = real_address.split(':')
+                    real_address_parts = real_address.split(':')
+                    if len(real_address_parts) == 2:
+                        ip_addr, port_addr = real_address_parts
+                    elif len(real_address_parts) == 3:
+                        ip_addr, port_addr = real_address_parts[1:]
 
                     results[cn] = {
                         'real_address': ip_addr,
