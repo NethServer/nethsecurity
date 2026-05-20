@@ -63,7 +63,7 @@ case "$cmd" in
            date="-$(date +%Y-%m-%d)"
            curl $curl_args -X POST \
                -H "Content-Type: application/octet-stream" \
-	       -H "X-Filename: backup$date$ext" \
+               -H "X-Filename: backup$date$ext" \
                --data-binary "@$file" https://my.nethesis.it/proxy/backup >/dev/null || :
        fi
        exit $rc
