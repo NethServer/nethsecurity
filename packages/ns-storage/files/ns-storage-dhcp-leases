@@ -1,0 +1,49 @@
+#!/bin/sh
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# This script is used to move the dnsmasq leases file between the storage and the tmpfs,
+# depending on the storage availability.
+
+TMP_LEASEFILE=/tmp/dhcp.leases
+STORAGE_TARGET=/mnt/data
+STORAGE_DIR=${STORAGE_TARGET}/dnsmasq
+STORAGE_LEASEFILE=${STORAGE_DIR}/dhcp.leases
+
+is_storage_mounted()
+{
+	awk -v target="${STORAGE_TARGET}" '$2 == target {found=1} END {exit !found}' /proc/mounts
+}
+
+get_current_leasefile()
+{
+	current="$(uci -q get dhcp.ns_dnsmasq.leasefile)"
+	if [ -n "${current}" ]; then
+		printf '%s\n' "${current}"
+	else
+		printf '%s\n' "${TMP_LEASEFILE}"
+	fi
+}
+
+current_leasefile="$(get_current_leasefile)"
+if is_storage_mounted; then
+	target_leasefile="${STORAGE_LEASEFILE}"
+else
+	target_leasefile="${TMP_LEASEFILE}"
+fi
+
+if  [ "${current_leasefile}" != "${target_leasefile}" ]; then
+	if [ "${current_leasefile}" = "${STORAGE_LEASEFILE}" ]; then
+		# From storage to tmp
+		cp -af "${STORAGE_LEASEFILE}" "${TMP_LEASEFILE}" || :
+	else
+		# From tmp to storage
+		mkdir -p "${STORAGE_DIR}"
+		cp -af "${TMP_LEASEFILE}" "${STORAGE_LEASEFILE}" || :
+	fi
+	uci set dhcp.ns_dnsmasq.leasefile="$target_leasefile"
+	uci commit dhcp
+	reload_config
+fi

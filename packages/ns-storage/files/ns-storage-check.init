@@ -26,6 +26,8 @@ storage_check()
     uci set rsyslog.ns_data.destination="/mnt/data/log/messages"
     uci commit rsyslog
   fi
+
+  /usr/libexec/ns-storage-dhcp-leases
 }
 
 boot()

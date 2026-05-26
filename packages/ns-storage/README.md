@@ -10,6 +10,7 @@ Features:
 
 - device initialization and mounting
 - rsyslog configuration
+- dnsmasq DHCP lease persistence on mounted storage
 - logrotate for extra log files
 - customizable cron job to sync data once a day
 
@@ -66,8 +67,9 @@ add-storage /dev/sda
 The script will mount the storage at `/mnt/data` and configure
 the system as follow:
 
-- rsyslog will write logs also inside `/mnt/data/logs/messages` file
-- logrotate will rotate `/mnt/data/logs/messages` once a week (see `/etc/logrotate/data.conf` for more info)
+- rsyslog will write logs also inside `/mnt/data/log/messages` file
+- logrotate will rotate `/mnt/data/log/messages` once a week (see `/etc/logrotate/data.conf` for more info)
+- dnsmasq will store DHCP leases inside `/mnt/data/dnsmasq/dhcp.leases`; `/tmp/dhcp.leases` remains available as a compatibility symlink while the storage is mounted
 
 ### Storage status alert
 
@@ -91,3 +93,6 @@ To remove the data storage and restore in-memory log retention only, execute:
 ```
 remove-storage
 ```
+
+The `remove-storage` script switches dnsmasq back to `/tmp/dhcp.leases` before
+unmounting `/mnt/data`.
