@@ -14,10 +14,41 @@ PROG="/usr/bin/victoria-logs"
 
 start_service() {
     config_load victoria-logs
-    local storage_path max_disk_usage http_listen_addr
-    config_get storage_path main storage_path /var/lib/victoria-logs
-    config_get max_disk_usage main max_disk_usage 50MB
+    local storage_path retention_period max_disk_usage http_listen_addr
+    config_get storage_path main storage_path
+    config_get retention_period main retention_period
+    config_get max_disk_usage main max_disk_usage
     config_get http_listen_addr main http_listen_addr 127.0.0.1:9428
+
+    # Detect if external storage is mounted
+    local disk_mount
+    config_load fstab
+    config_get disk_mount ns_data target
+
+    # Auto-detect storage_path if not customized
+    if [ -z "$storage_path" ]; then
+        if [ -n "$disk_mount" ]; then
+            storage_path="$disk_mount/victoria-logs-data"
+        else
+            storage_path="/var/lib/victoria-logs-data"
+        fi
+    fi
+
+    # Set retention_period default based on storage availability
+    if [ -z "$retention_period" ]; then
+        if [ -n "$disk_mount" ]; then
+            retention_period="1y"
+        else
+            retention_period="7d"
+        fi
+    fi
+
+    # Set max_disk_usage only for internal storage (to protect tmpfs)
+    if [ -z "$max_disk_usage" ]; then
+        if [ -z "$disk_mount" ]; then
+            max_disk_usage="50MB"
+        fi
+    fi
 
     procd_open_instance
     procd_set_param stdout 1
@@ -25,7 +56,10 @@ start_service() {
     procd_set_param respawn 3600 5 0
     procd_set_param command $PROG
     procd_append_param command -storageDataPath="$storage_path"
-    procd_append_param command -retention.maxDiskSpaceUsageBytes="$max_disk_usage"
+    procd_append_param command -retentionPeriod="$retention_period"
+    if [ -n "$max_disk_usage" ]; then
+        procd_append_param command -retention.maxDiskSpaceUsageBytes="$max_disk_usage"
+    fi
     procd_append_param command -httpListenAddr="$http_listen_addr"
     procd_append_param command -syslog.listenAddr.tcp=127.0.0.1:5514
     procd_close_instance
