@@ -1,8 +1,3 @@
-#
-# Copyright (C) 2026 Nethesis S.r.l.
-# SPDX-License-Identifier: GPL-2.0-only
-#
-
 # Victoria Logs
 
 ## Overview
