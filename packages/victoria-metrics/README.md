@@ -58,7 +58,7 @@ ssh -L 8428:127.0.0.1:8428 root@remote_host
 ```
 
 Then open `http://127.0.0.1:8428` in your web browser to see all exposed endpoints.
-The UI to query metrics is available at `http://127.0.0.1:8428/vmui
+The UI to query metrics is available at `http://127.0.0.1:8428/vmui`.
 
 ## Alerting Rules
 
