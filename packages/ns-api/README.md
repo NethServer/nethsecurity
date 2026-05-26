@@ -2847,6 +2847,10 @@ List active DHCPv4 leases:
 api-cli ns.dhcp list-active-leases
 ```
 
+The method reads the dnsmasq lease file configured in
+`dhcp.ns_dnsmasq.leasefile` and falls back to `/tmp/dhcp.leases` when the
+option is unset.
+
 Response example:
 ```json
 {

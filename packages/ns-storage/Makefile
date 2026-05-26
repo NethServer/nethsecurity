@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-storage
-PKG_VERSION:=1.0.1
+PKG_VERSION:=1.0.2
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-storage-$(PKG_VERSION)
@@ -62,6 +62,7 @@ define Package/ns-storage/install
 	$(INSTALL_BIN) ./files/ns-storage-setup-partition $(1)/usr/libexec
 	$(INSTALL_BIN) ./files/ns-storage-setup-disk $(1)/usr/libexec
 	$(INSTALL_BIN) ./files/ns-storage-has-free-space $(1)/usr/libexec
+	$(INSTALL_BIN) ./files/ns-storage-dhcp-leases $(1)/usr/libexec
 	$(INSTALL_BIN) ./files/remove-storage $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/rotate-messages $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/sync-data $(1)/usr/sbin
