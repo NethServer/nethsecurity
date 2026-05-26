@@ -83,6 +83,9 @@ def get_device_from_ip(uci, ipaddr):
             return (n, uci.get('network', n, 'device', default=None))
     return (None, None)
 
+def get_dhcp_leasefile(uci):
+    return uci.get('dhcp', 'ns_dnsmasq', 'dhcp', 'leasefile', default='/tmp/dhcp.leases')
+
 def get_main_vrrp_interface(uci):
     for section in utils.get_all_by_type(uci, 'keepalived', 'ipaddress'):
         if uci.get('keepalived', section, 'name', default=None) != 'lan_ha':
@@ -444,7 +447,7 @@ def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, lan_interface,
         '/etc/adblock',
         '/etc/banip',
         '/etc/netifyd',
-        '/tmp/dhcp.leases',
+        get_dhcp_leasefile(u),
         '/var/ns-snort',
         '/tmp/banIP-backup',
         '/tmp/adblock-Backup'
