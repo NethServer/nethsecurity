@@ -1,0 +1,7 @@
+diff --git a/net/https-dns-proxy/files/etc/config/https-dns-proxy b/net/https-dns-proxy/files/etc/config/https-dns-proxy
+index 2aa9b210c..9c7e67d91 100644
+--- a/net/https-dns-proxy/files/etc/config/https-dns-proxy
++++ b/net/https-dns-proxy/files/etc/config/https-dns-proxy
+@@ -4 +4 @@ config main 'config'
+-	option dnsmasq_config_update '*'
++	option dnsmasq_config_update '-'
