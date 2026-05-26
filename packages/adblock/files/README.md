@@ -415,7 +415,7 @@ NethSecurity ships adblock as the DNS-blocking engine for the Threat Shield DNS 
 
 ### Threat Shield DNS
 
-The Threat Shield DNS integration is controlled by the `ts_enabled` option in `adblock.global`. When enabled, `ts-dns` populates `/etc/adblock/adblock.custom.feeds` with Nethesis enterprise feeds (if a subscription is active) and community free feeds, which adblock reads automatically.
+The Threat Shield DNS integration is controlled by the `ts_enabled` option in `adblock.global`. When enabled, `ts-dns` populates `/etc/adblock/adblock.custom.feeds` with a merged effective catalog: builtin adblock feeds plus Nethesis enterprise feeds (if a subscription is active) and community free feeds. This keeps standard feeds such as `adguard` available while Threat Shield DNS is active.
 
 Relevant UCI options set by NethSecurity (in addition to standard adblock options):
 
