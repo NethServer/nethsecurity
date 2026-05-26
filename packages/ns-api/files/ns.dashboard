@@ -330,7 +330,7 @@ def ovpn_tunnels():
 
         if vpn.get("client", "0") == "1" or vpn.get("ns_client", "0") == "1":
             connected = ovpn.list_connected_clients(section, 'p2p')
-            if 'stats' in connected:
+            if 'stats' in connected and connected['stats'].get('bytes_received') > 0 and connected['stats'].get('bytes_sent') > 0 :
                 ret["connected"] += 1
         else:
             connected = ovpn.list_connected_clients(section, vpn.get("topology", "subnet"))
