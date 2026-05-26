@@ -102,6 +102,8 @@ def filter_official_rules(policy, alert_excluded, disabled_rules, oinkcode=None)
         rule_files = [os.path.join(OFFICIAL_RULES_DIR, "snort3-community-rules/snort3-community.rules")]
 
     for file in rule_files:
+        if not os.path.exists(file):
+            continue
         log(f"Processing rule file {file}")
         for rule in snort.parse_file(file):
             # rule.metadata can contain:
