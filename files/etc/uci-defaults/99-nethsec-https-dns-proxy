@@ -1,0 +1,12 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+if [ "$(uci -q get https-dns-proxy.config.dnsmasq_config_update)" = "-" ]; then
+    /etc/init.d/https-dns-proxy disable
+fi
+
+exit 0
