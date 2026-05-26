@@ -10,6 +10,7 @@
 import sys
 import json
 import ipaddress
+import os
 import subprocess
 from euci import EUci
 from nethsec import utils, objects
@@ -221,7 +222,11 @@ def list_active_leases():
         if 'mac' in ldata and 'ip' in ldata:
             static_leases.append(ldata['mac'].lower())
 
-    with open("/tmp/dhcp.leases", "r") as fp:
+    leasefile = u.get('dhcp', 'ns_dnsmasq', 'dhcp', 'leasefile', default='/tmp/dhcp.leases')
+    if not os.path.exists(leasefile):
+        return ret
+
+    with open(leasefile, "r") as fp:
         for line in fp.readlines():
             tmp = line.split(" ")
             hostname = tmp[3]

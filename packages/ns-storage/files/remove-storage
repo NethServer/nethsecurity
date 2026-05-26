@@ -34,3 +34,6 @@ rm -rf /mnt/data
 if [ "$rom_disk" == "$data_disk" ]; then
     parted "/dev/${data_disk}" rm 3
 fi
+
+# Restore dnsmasq to /tmp before the storage disappears.
+/usr/libexec/ns-storage-dhcp-leases
