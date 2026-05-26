@@ -69,6 +69,7 @@ endef
 define Package/victoria-logs/postinst
 #!/bin/sh
 [ -z "$${IPKG_INSTROOT}" ] && /etc/init.d/victoria-logs restart
+[ -z "$${IPKG_INSTROOT}" ] && /etc/init.d/rsyslog restart
 exit 0
 endef
 
