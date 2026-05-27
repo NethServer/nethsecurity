@@ -38,6 +38,8 @@ table inet netifyd {
         type filter hook input priority filter + 10; policy accept;
         iifname lo accept
 
+        # Skip untracked traffic
+        ct state untracked accept
         # Accept traffic matching bypass set
         ip saddr @nfq_bypass_v4 accept
         ip daddr @nfq_bypass_v4 accept
@@ -55,6 +57,8 @@ table inet netifyd {
     chain nfq_forward {
         type filter hook forward priority filter + 10; policy accept;
 
+        # Skip untracked traffic
+        ct state untracked accept
         # Accept traffic matching bypass set
         ip saddr @nfq_bypass_v4 accept
         ip daddr @nfq_bypass_v4 accept
@@ -73,6 +77,8 @@ table inet netifyd {
         type filter hook output priority filter + 10; policy accept;
         oifname lo accept
 
+        # Skip untracked traffic
+        ct state untracked accept
         # Accept traffic matching bypass set
         ip saddr @nfq_bypass_v4 accept
         ip daddr @nfq_bypass_v4 accept
