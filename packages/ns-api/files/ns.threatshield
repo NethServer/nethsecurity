@@ -474,6 +474,7 @@ def dns_edit_settings(e_uci, payload):
             raise ValidationError('zones', 'wan_zone_not_allowed', payload['zones'])
         e_uci.set('adblock', 'global', 'ts_enabled', '1')
         e_uci.set('adblock', 'global', 'adb_enabled', '1')
+        e_uci.set('adblock', 'global', 'adb_triggerdelay', '30')
         e_uci.set('adblock', 'global', 'adb_nftforce', '1')
         e_uci.set('adblock', 'global', 'adb_nftdevforce', payload.get('zones', ['lan']))
         e_uci.set('adblock', 'global', 'adb_nftportforce', payload.get('ports', ['53', '853']))
