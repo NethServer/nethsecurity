@@ -1,0 +1,21 @@
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Since OpenWRT sets profile directory and file as config files, they are not replaced upon update.
+# This script is used to copy the profile and profile.d files from the rom to the etc directory, then hush the 
+
+if [ -f /rom/etc/profile ]; then
+    cp /rom/etc/profile /etc/profile
+fi
+
+for file in /rom/etc/profile.d; do
+    if [ -f "$file" ]; then
+        cp "$file" /etc/profile.d/
+    fi
+done
+
+# hush the /etc/profile.d/apk-cheatsheet.sh
+
+touch /etc/profile.d/apk-cheatsheet.hush
