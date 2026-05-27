@@ -1,0 +1,492 @@
+{#
+ # Copyright (C) 2026 Nethesis S.r.l.
+ # SPDX-License-Identifier: GPL-2.0-only
+ #}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ summary.title }}</title>
+  <style>{{ stylesheet | safe }}</style>
+</head>
+<body>
+<div id="layout">
+  <!-- Sidebar navigation -->
+  <nav id="sidebar" aria-label="Report sections">
+    <div class="brand">
+      <div class="brand-text">NethSecurity</div>
+      <div class="brand-sub">Audit Report</div>
+    </div>
+    <a href="#executive-summary">Executive Summary</a>
+    <a href="#configuration-inventory">Configuration Inventory</a>
+    <a href="#authentication-events">Authentication Events</a>
+    <a href="#api-audit-trail">API Audit Trail</a>
+    <a href="#configuration-changes">Configuration Changes</a>
+    <a href="#gap-analysis">Gap Analysis</a>
+    <a href="#remediation-plan">Remediation Plan</a>
+    <a href="#config-navigator">Config Navigator</a>
+    <a href="#collected-logs">Collected Logs</a>
+    <a href="#evidence-appendix">Evidence Appendix</a>
+  </nav>
+
+  <main id="main">
+
+    <!-- Header -->
+    <div class="report-header">
+      <div class="header-info">
+        <p class="eyebrow">NethSecurity on-device audit</p>
+        <h1>{{ summary.title }}</h1>
+        <p class="header-meta">Generated {{ generated_at }} · Host: <strong>{{ hostname or summary.appliance }}</strong>{% if subscription and subscription.active %} · <span class="sub-badge">{{ subscription.plan or "Subscribed" }}</span>{% endif %}{% if ha_enabled %} · <span class="ha-badge">HA Active</span>{% endif %}</p>
+      </div>
+      <div class="score-card {{ summary.status | status_class }}">
+        <span class="score-label">Overall score</span>
+        <strong>{{ summary.score }}</strong>
+        <span class="status-pill {{ summary.status | status_class }}">{{ summary.status | humanize }}</span>
+      </div>
+    </div>
+
+    <div class="system-badges" aria-label="System status">
+      <div class="badge-item">
+        <span class="badge-label">Subscription</span>
+        {% if subscription and subscription.active %}
+        <span class="sub-badge">{{ subscription.plan or "Subscribed" }}</span>
+        {% else %}
+        <span class="status-pill neutral">Not active</span>
+        {% endif %}
+      </div>
+      <div class="badge-item">
+        <span class="badge-label">High availability</span>
+        {% if ha_enabled %}
+        <span class="ha-badge">HA Active</span>
+        {% else %}
+        <span class="status-pill neutral">Not active</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- 1. Executive Summary -->
+    <section id="executive-summary" class="report-section">
+      <h2>Executive Summary</h2>
+      <div class="metric-grid">
+        <article class="metric">
+          <span>Total findings</span>
+          <strong>{{ summary.finding_count }}</strong>
+        </article>
+        {% for severity, count in summary.severity_counts.items() %}
+        <article class="metric severity-{{ severity | severity_class }}">
+          <span>{{ severity | humanize }}</span>
+          <strong>{{ count }}</strong>
+        </article>
+        {% endfor %}
+      </div>
+
+      {% if summary.highlights %}
+      <h3>Key observations</h3>
+      <ul class="summary-list">
+        {% for highlight in summary.highlights %}
+        <li>{{ highlight }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      {% if summary.areas %}
+      <h3>Security areas</h3>
+      <div class="area-grid">
+        {% for area in summary.areas %}
+        <article class="area-card {{ area.status | status_class }}">
+          <h4>{{ area.name }}</h4>
+          <p class="area-score">{{ area.score }}</p>
+          <p>{{ area.status | humanize }}{% if area.weight %} · Weight {{ area.weight }}{% endif %}</p>
+        </article>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </section>
+
+    <!-- 2. Configuration Inventory -->
+    <section id="configuration-inventory" class="report-section">
+      <h2>Configuration Inventory</h2>
+      {% if inventory_sections %}
+        {% for section in inventory_sections %}
+        <article class="inventory-section">
+          <h3>{{ section.title }}</h3>
+          {% if section.description %}<p>{{ section.description }}</p>{% endif %}
+          {% if section.rows %}
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  {% for column in section.columns %}
+                  <th>{{ column | humanize }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in section.rows %}
+                <tr>
+                  {% for column in section.columns %}
+                <td><span class="table-value">{{ row.get(column, "") }}</span></td>
+                  {% endfor %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p class="empty-state">No inventory evidence available for this section.</p>
+          {% endif %}
+        </article>
+        {% endfor %}
+      {% else %}
+      <p class="empty-state">No configuration inventory artifact was found.</p>
+      {% endif %}
+    </section>
+
+    <!-- 3. Authentication Events (from victoria-logs) -->
+    <section id="authentication-events" class="report-section">
+      <h2>Authentication Events</h2>
+      <p>Login, logout, and VPN connection events sourced from <strong>victoria-logs</strong> (structured log store, 30-day window). Covers SSH (dropbear), web UI (nethsecurity-api), and VPN (openvpn/ipsec).</p>
+
+      {% if auth_events and auth_events.available %}
+      <p><strong>{{ auth_events.event_count }}</strong> events collected.</p>
+      {% if auth_events.errors %}
+      <p class="empty-state">Some sources could not be queried: {{ auth_events.errors | format_value }}</p>
+      {% endif %}
+
+      {% if auth_events.events %}
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Time (UTC)</th>
+              <th>Source</th>
+              <th>Event</th>
+              <th>User</th>
+              <th>Detail</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ev in auth_events.events | reverse %}
+            <tr>
+              <td><code>{{ ev.time }}</code></td>
+              <td><span class="source-badge">{{ ev.source }}</span></td>
+              <td><span class="event-{{ ev.event_type }}">{{ ev.event_type | humanize }}</span></td>
+              <td>{% if ev.user %}<strong>{{ ev.user }}</strong>{% else %}—{% endif %}</td>
+              <td>{{ ev.detail }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="empty-state">Victoria-logs is available but no qualifying auth events were found in the last 30 days.</p>
+      {% endif %}
+
+      {% else %}
+      <p class="empty-state">Victoria-logs is not available or returned no data. Ensure the service is running at <code>http://127.0.0.1:9428</code>.</p>
+      {% endif %}
+    </section>
+
+    <!-- 4. API Audit Trail -->
+    <section id="api-audit-trail" class="report-section">
+      <h2>API Audit Trail</h2>
+      <p>Login, logout, and authentication events extracted from <code>nethsecurity-api</code> entries in the system log (<code>/var/log/messages</code> or persistent storage).</p>
+
+      {% if api_audit and api_audit.available %}
+      <p>
+        <strong>API log lines sampled:</strong> {{ api_audit.api_log_lines }}
+        &nbsp;·&nbsp; Logins: {{ api_audit.counts.get("logins", 0) }}
+        &nbsp;·&nbsp; Logouts: {{ api_audit.counts.get("logouts", 0) }}
+        &nbsp;·&nbsp; Auth failures: {{ api_audit.counts.get("auth_failures", 0) }}
+        &nbsp;·&nbsp; Config changes: {{ api_audit.counts.get("config_changes", 0) }}
+      </p>
+
+      {% if api_audit.logins %}
+      <h3>Login events</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Timestamp</th><th>User</th><th>Source IP</th></tr></thead>
+          <tbody>
+            {% for ev in api_audit.logins %}
+            <tr>
+              <td>{{ ev.get("timestamp", "") }}</td>
+              <td><strong>{{ ev.get("user", "") }}</strong></td>
+              <td>{{ ev.get("source_ip", "") }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+
+      {% if api_audit.logouts %}
+      <h3>Logout events</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Timestamp</th><th>User</th></tr></thead>
+          <tbody>
+            {% for ev in api_audit.logouts %}
+            <tr>
+              <td>{{ ev.get("timestamp", "") }}</td>
+              <td><strong>{{ ev.get("user", "") }}</strong></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+
+      {% if api_audit.auth_failures %}
+      <h3>Authentication failures</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Timestamp</th><th>User</th><th>Reason</th></tr></thead>
+          <tbody>
+            {% for ev in api_audit.auth_failures %}
+            <tr>
+              <td>{{ ev.get("timestamp", "") }}</td>
+              <td>{{ ev.get("user", "—") }}</td>
+              <td>{{ ev.get("reason", "") }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+
+      {% else %}
+      <p class="empty-state">No nethsecurity-api log entries were found in the sampled log data. Ensure rsyslog is active and the log buffer retains recent activity.</p>
+      {% endif %}
+    </section>
+
+    <!-- 5. Configuration Changes -->
+    <section id="configuration-changes" class="report-section">
+      <h2>Configuration Changes</h2>
+      <p>All <code>ns.commit</code> operations found in the sampled log — each entry records the user, timestamp, and the exact UCI change applied to the system.</p>
+
+      {% if config_changes %}
+      <p><strong>{{ config_changes | length }}</strong> change event(s) found.</p>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>User</th>
+              <th>Change description</th>
+              <th>Raw payload</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ev in config_changes %}
+            <tr>
+              <td><code>{{ ev.get("timestamp", "") }}</code></td>
+              <td><strong>{{ ev.get("user", "") }}</strong></td>
+              <td>{{ ev.get("description", "") }}</td>
+              <td>
+                {% if ev.get("raw_payload") %}
+                <details>
+                  <summary>Show payload</summary>
+                  <pre>{{ ev.get("raw_payload", "") }}</pre>
+                </details>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="empty-state">No <code>ns.commit</code> configuration change events were found in the sampled log data.</p>
+      {% endif %}
+    </section>
+
+    <!-- 6. Gap Analysis & Compliance Mapping -->
+    <section id="gap-analysis" class="report-section">
+      <h2>Gap Analysis &amp; Compliance Mapping</h2>
+      {% if findings %}
+      <div class="finding-list">
+        {% for finding in findings %}
+        <article class="finding severity-{{ finding.severity | severity_class }}">
+          <div class="finding-heading">
+            <div>
+              <p class="finding-id">{{ finding.id }} · {{ finding.component }}</p>
+              <h3>{{ finding.title }}</h3>
+            </div>
+            <span class="severity-badge {{ finding.severity | severity_class }}">{{ finding.severity | humanize }}</span>
+          </div>
+          <p>{{ finding.description }}</p>
+          {% if finding.impact %}<p><strong>Impact:</strong> {{ finding.impact }}</p>{% endif %}
+          {% if finding.compliance %}
+          <p><strong>Mapped controls:</strong> {{ finding.compliance | join("; ") }}</p>
+          {% endif %}
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty-state">No findings were reported by the analyzer.</p>
+      {% endif %}
+
+      {% if compliance_mappings %}
+      <h3>Compliance control coverage</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Framework</th>
+              <th>Control</th>
+              <th>Category</th>
+              <th>Status</th>
+              <th>Related findings</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for mapping in compliance_mappings %}
+            <tr>
+              <td>{{ mapping.framework }}</td>
+              <td><strong>{{ mapping.control }}</strong>{% if mapping.title %}<br><span style="font-weight:normal;color:var(--muted)">{{ mapping.title }}</span>{% endif %}</td>
+              <td>{{ mapping.category }}</td>
+              <td><span class="status-pill {{ mapping.status | status_class }}">{{ mapping.status | humanize }}</span></td>
+              <td>{{ mapping.findings | join(", ") }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </section>
+
+    <!-- 7. Remediation Plan -->
+    <section id="remediation-plan" class="report-section">
+      <h2>Actionable Remediation Plan</h2>
+      {% if remediation_plan %}
+      <ol class="remediation-list">
+        {% for item in remediation_plan %}
+        <li class="remediation-item severity-{{ item.severity | severity_class }}">
+          <h3>{{ item.title }}</h3>
+          <p class="finding-id">{{ item.finding_id }} · {{ item.component }} · {{ item.severity | humanize }}</p>
+          <p>{{ item.remediation }}</p>
+          {% if item.compliance %}<p><strong>Controls:</strong> {{ item.compliance | join("; ") }}</p>{% endif %}
+        </li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <p class="empty-state">No remediation actions are required or no remediation data was provided.</p>
+      {% endif %}
+    </section>
+
+    <!-- 8. Config Navigator -->
+    <section id="config-navigator" class="report-section">
+      <h2>Configuration Navigator</h2>
+      <p>All <code>/etc/config/*</code> files collected at audit time, with secrets and keys redacted. Download the full file via the link or expand the preview below.</p>
+
+      {% if config_files %}
+      <div class="config-list">
+        {% for cf in config_files %}
+        <div class="config-card">
+          <div class="config-card-header">
+            <h4><a href="{{ cf.archive_path }}"><code>{{ cf.name }}</code></a></h4>
+            <span class="config-size">{{ cf.size }} B</span>
+          </div>
+          <details>
+            <summary>Preview</summary>
+            <pre>{{ cf.preview }}</pre>
+          </details>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty-state">No <code>/etc/config</code> files were found in the audit snapshot.</p>
+      {% endif %}
+    </section>
+
+    <!-- 9. Collected Logs -->
+    <section id="collected-logs" class="report-section">
+      <h2>Collected Logs</h2>
+      <p>Log files copied into the report bundle from the active log source (persistent storage if mounted, otherwise in-memory ring buffer). Open the file link after extracting the tar.gz archive.</p>
+
+      {% if log_artifacts %}
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Source path</th>
+              <th>Source</th>
+              <th>Bytes</th>
+              <th>Truncated</th>
+              <th>Open</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for log in log_artifacts %}
+            <tr>
+              <td>{{ log.source_paths | join("; ") }}</td>
+              <td><span class="source-badge">{{ log.source_kind }}</span></td>
+              <td>{{ log.size }}</td>
+              <td>{{ "yes" if log.truncated else "no" }}</td>
+              <td><a href="{{ log.archive_path }}"><code>{{ log.archive_path }}</code></a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="empty-state">No log files were available to include in the report bundle.</p>
+      {% endif %}
+    </section>
+
+    <!-- 10. Evidence Appendix -->
+    <section id="evidence-appendix" class="report-section">
+      <h2>Evidence Appendix</h2>
+      <p>Evidence is generated locally from sanitized JSON artifacts. The report does not include private keys, password hashes, tokens, or shared secrets.</p>
+      {% if snapshot_hash %}
+      <p><strong>Sanitized raw snapshot SHA-256:</strong> <code>{{ snapshot_hash }}</code></p>
+      {% endif %}
+
+      <h3>Artifact integrity</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Artifact</th>
+              <th>Present</th>
+              <th>Size (B)</th>
+              <th>SHA-256</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for name, artifact in source_artifacts.items() %}
+            <tr>
+              <td>{{ name }}</td>
+              <td>{{ "yes" if artifact.exists else "no" }}</td>
+              <td>{{ artifact.size }}</td>
+              <td>{% if artifact.sha256 %}<code>{{ artifact.sha256[:20] }}…</code>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if findings %}
+      <h3>Finding evidence references</h3>
+      {% for finding in findings %}
+      <article class="finding" style="margin-bottom:10px">
+        <h4>{{ finding.id }} · {{ finding.title }}</h4>
+        {% if finding.evidence %}
+        <ul style="margin:6px 0 0;padding-left:18px;font-size:0.82rem">
+          {% for evidence in finding.evidence %}
+          <li><strong>{{ evidence.id }}</strong>{% if evidence.source %} from <code>{{ evidence.source }}</code>{% endif %}: {{ evidence.detail }}</li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="empty-state">No evidence reference provided.</p>
+        {% endif %}
+      </article>
+      {% endfor %}
+      {% endif %}
+    </section>
+
+  </main>
+</div>
+</body>
+</html>

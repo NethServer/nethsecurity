@@ -1,0 +1,362 @@
+#!/usr/bin/python3
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+from __future__ import annotations
+
+import json
+import re
+import sys
+import tarfile
+from datetime import UTC, datetime
+from pathlib import Path
+
+REPORT_ROOT = Path("/var/run/ns-audit")
+INSTALLED_SHARE_DIR = Path("/usr/share/ns-audit")
+LOCAL_SHARE_DIR = Path(__file__).resolve().parent
+REPORT_ID_RE = re.compile(r"[A-Za-z0-9_.-]+")
+
+ARTIFACT_NAMES = (
+    "raw_snapshot.json",
+    "inventory.json",
+    "findings.json",
+    "compliance_mapping.json",
+    "summary.json",
+    "audit-report.html",
+    "audit-report.tar.gz",
+)
+METHODS = {
+    "generate": {"report_id": "String"},
+    "list-reports": {},
+    "get-summary": {"report_id": "String"},
+}
+
+
+class RpcdError(Exception):
+    def __init__(self, code: str):
+        super().__init__(code)
+        self.code = code
+
+
+class ValidationError(Exception):
+    def __init__(self, parameter: str, message: str, value: object = None):
+        super().__init__(message)
+        self.parameter = parameter
+        self.message = message
+        self.value = value
+
+
+def _json_default(value: object) -> str:
+    return str(value)
+
+
+def _write_response(payload: object) -> None:
+    print(
+        json.dumps(payload, ensure_ascii=False, sort_keys=True, default=_json_default)
+    )
+
+
+def _error(code: str) -> dict[str, str]:
+    return {"error": code}
+
+
+def _validation_error(
+    exc: ValidationError,
+) -> dict[str, dict[str, list[dict[str, object]]]]:
+    return {
+        "validation": {
+            "errors": [
+                {
+                    "parameter": exc.parameter,
+                    "message": exc.message,
+                    "value": exc.value,
+                }
+            ]
+        }
+    }
+
+
+def _setup_python_path() -> None:
+    for share_dir in (INSTALLED_SHARE_DIR, LOCAL_SHARE_DIR):
+        if (share_dir / "ns_audit").is_dir():
+            sys.path.insert(0, str(share_dir))
+
+
+def _load_run_pipeline():
+    _setup_python_path()
+    try:
+        from ns_audit.cli import run
+    except ImportError as exc:
+        raise RpcdError("audit_pipeline_unavailable") from exc
+    return run
+
+
+def _read_payload() -> dict[str, object]:
+    raw_payload = sys.stdin.read()
+    try:
+        payload = json.loads(raw_payload) if raw_payload.strip() else {}
+    except json.JSONDecodeError as exc:
+        raise RpcdError("invalid_json") from exc
+    if not isinstance(payload, dict):
+        raise ValidationError("payload", "expected_object", payload)
+    return payload
+
+
+def _is_safe_report_id(report_id: str) -> bool:
+    return bool(REPORT_ID_RE.fullmatch(report_id)) and report_id not in {".", ".."}
+
+
+def _timestamped_report_id() -> str:
+    return f"audit-{datetime.now(UTC).strftime('%Y%m%dT%H%M%S_%fZ')}"
+
+
+def _report_id_from_payload(payload: dict[str, object], *, required: bool) -> str:
+    value = payload.get("report_id")
+    if value in (None, ""):
+        if required:
+            raise ValidationError("report_id", "required", value)
+        return _timestamped_report_id()
+    if not isinstance(value, str) or not _is_safe_report_id(value):
+        raise ValidationError("report_id", "invalid_report_id", value)
+    return value
+
+
+def _ensure_report_root() -> Path:
+    if REPORT_ROOT.is_symlink():
+        raise RpcdError("output_root_unsafe")
+    REPORT_ROOT.mkdir(parents=True, exist_ok=True)
+    if not REPORT_ROOT.is_dir():
+        raise RpcdError("output_root_invalid")
+    return REPORT_ROOT
+
+
+def _ensure_report_dir(report_id: str) -> Path:
+    report_root = _ensure_report_root()
+    output_dir = report_root / report_id
+    if output_dir.is_symlink():
+        raise RpcdError("output_dir_unsafe")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    if not output_dir.is_dir():
+        raise RpcdError("output_dir_invalid")
+    return output_dir
+
+
+def _existing_report_dir(report_id: str) -> Path:
+    if REPORT_ROOT.is_symlink():
+        raise RpcdError("output_root_unsafe")
+    if not REPORT_ROOT.exists():
+        raise RpcdError("report_not_found")
+    if not REPORT_ROOT.is_dir():
+        raise RpcdError("output_root_invalid")
+    report_dir = REPORT_ROOT / report_id
+    if report_dir.is_symlink():
+        raise RpcdError("output_dir_unsafe")
+    if not report_dir.is_dir():
+        raise RpcdError("report_not_found")
+    return report_dir
+
+
+def _artifact_info(path: Path) -> dict[str, object] | None:
+    if path.is_symlink() or not path.is_file():
+        return None
+    try:
+        stat = path.stat()
+    except OSError:
+        return None
+    return {
+        "name": path.name,
+        "path": str(path),
+        "size": stat.st_size,
+        "mtime": int(stat.st_mtime),
+    }
+
+
+def _list_artifacts(report_dir: Path) -> list[dict[str, object]]:
+    artifacts = []
+    for name in ARTIFACT_NAMES:
+        artifact = _artifact_info(report_dir / name)
+        if artifact is not None:
+            artifacts.append(artifact)
+    return artifacts
+
+
+def _read_summary(report_dir: Path, *, required: bool) -> dict[str, object] | None:
+    summary_path = report_dir / "summary.json"
+    if summary_path.is_symlink():
+        if required:
+            raise RpcdError("summary_not_readable")
+        return None
+    if not summary_path.is_file():
+        if required:
+            raise RpcdError("summary_not_found")
+        return None
+    try:
+        with summary_path.open(encoding="utf-8") as handle:
+            summary = json.load(handle)
+    except json.JSONDecodeError as exc:
+        if required:
+            raise RpcdError("invalid_summary") from exc
+        return None
+    except OSError as exc:
+        if required:
+            raise RpcdError("summary_not_readable") from exc
+        return None
+    if not isinstance(summary, dict):
+        if required:
+            raise RpcdError("invalid_summary")
+        return None
+    return summary
+
+
+def _create_bundle(report_dir: Path) -> Path | None:
+    """Create a tar.gz bundle of the report artifacts."""
+    bundle_path = report_dir / "audit-report.tar.gz"
+    if bundle_path.exists():
+        return bundle_path
+
+    try:
+        root_name = "audit-report"
+        excluded = {bundle_path.resolve()}
+        files = sorted(
+            path
+            for path in report_dir.rglob("*")
+            if path.is_file() and path.resolve() not in excluded
+        )
+        with tarfile.open(bundle_path, "w:gz") as archive:
+            for path in files:
+                arcname = str(Path(root_name) / path.relative_to(report_dir))
+                info = tarfile.TarInfo(arcname)
+                stat = path.stat()
+                info.size = stat.st_size
+                info.mode = stat.st_mode & 0o777
+                info.mtime = int(stat.st_mtime)
+                with path.open("rb") as handle:
+                    archive.addfile(info, handle)
+        return bundle_path
+    except OSError:
+        return None
+
+
+def _update_latest_symlink(report_dir: Path) -> None:
+    """Update the 'latest' symlink to point to the current report directory."""
+    report_root = report_dir.parent
+    latest_link = report_root / "latest"
+
+    try:
+        # Remove existing symlink if it exists
+        if latest_link.is_symlink() or latest_link.exists():
+            latest_link.unlink()
+        # Create new symlink
+        latest_link.symlink_to(report_dir.name)
+    except OSError:
+        pass  # Silently ignore symlink creation errors
+
+
+def generate(payload: dict[str, object]) -> dict[str, object]:
+    report_id = _report_id_from_payload(payload, required=False)
+    output_dir = _ensure_report_dir(report_id)
+    _load_run_pipeline()(output_dir)
+
+    # Generate tar.gz bundle
+    bundle_path = _create_bundle(output_dir)
+
+    # Update "latest" symlink
+    _update_latest_symlink(output_dir)
+
+    response: dict[str, object] = {
+        "report_id": report_id,
+        "output_dir": str(output_dir),
+        "artifacts": _list_artifacts(output_dir),
+    }
+    summary = _read_summary(output_dir, required=False)
+    if summary is not None:
+        response["summary"] = summary
+    if bundle_path:
+        response["bundle"] = str(bundle_path)
+    return response
+
+
+def list_reports(_payload: dict[str, object]) -> dict[str, list[dict[str, object]]]:
+    if not REPORT_ROOT.exists():
+        return {"reports": []}
+    if REPORT_ROOT.is_symlink() or not REPORT_ROOT.is_dir():
+        raise RpcdError("output_root_invalid")
+
+    reports = []
+    for report_dir in sorted(REPORT_ROOT.iterdir(), key=lambda path: path.name):
+        if (
+            not _is_safe_report_id(report_dir.name)
+            or report_dir.is_symlink()
+            or not report_dir.is_dir()
+        ):
+            continue
+        try:
+            stat = report_dir.stat()
+        except OSError:
+            continue
+        reports.append(
+            {
+                "report_id": report_dir.name,
+                "output_dir": str(report_dir),
+                "mtime": int(stat.st_mtime),
+                "artifacts": _list_artifacts(report_dir),
+            }
+        )
+    return {"reports": reports}
+
+
+def get_summary(payload: dict[str, object]) -> dict[str, object]:
+    report_id = _report_id_from_payload(payload, required=True)
+    report_dir = _existing_report_dir(report_id)
+    return {
+        "report_id": report_id,
+        "output_dir": str(report_dir),
+        "summary": _read_summary(report_dir, required=True),
+    }
+
+
+def _call_method(method: str, payload: dict[str, object]) -> dict[str, object]:
+    if method == "generate":
+        return generate(payload)
+    if method == "list-reports":
+        return list_reports(payload)
+    if method == "get-summary":
+        return get_summary(payload)
+    raise RpcdError("unknown_method")
+
+
+def main() -> int:
+    if len(sys.argv) < 2:
+        _write_response(_error("missing_command"))
+        return 0
+
+    command = sys.argv[1]
+    if command == "list":
+        _write_response(METHODS)
+        return 0
+    if command != "call":
+        _write_response(_error("unknown_command"))
+        return 0
+    if len(sys.argv) < 3:
+        _write_response(_error("missing_method"))
+        return 0
+
+    try:
+        _write_response(_call_method(sys.argv[2], _read_payload()))
+    except ValidationError as exc:
+        _write_response(_validation_error(exc))
+    except RpcdError as exc:
+        _write_response(_error(exc.code))
+    except OSError:
+        _write_response(_error("io_error"))
+    except RuntimeError:
+        _write_response(_error("report_generation_failed"))
+    except ValueError:
+        _write_response(_error("invalid_value"))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

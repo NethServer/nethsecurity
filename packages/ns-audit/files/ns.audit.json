@@ -1,0 +1,15 @@
+{
+  "audit-reader": {
+    "description": "Generate and read local audit reports",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.audit": [
+          "generate",
+          "list-reports",
+          "get-summary"
+        ]
+      }
+    }
+  }
+}

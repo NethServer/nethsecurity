@@ -12,6 +12,7 @@
 
 import os
 import re
+import syslog
 import sys
 from euci import EUci
 from nethsec import users
@@ -21,29 +22,46 @@ password = os.environ.get("password")
 config_path = os.environ.get("config")
 
 instance = re.sub(r'^openvpn-|\.conf$', '', config_path)
+remote_ip = os.environ.get("untrusted_ip", "unknown")
+
+syslog.openlog("openvpn-auth", syslog.LOG_PID, syslog.LOG_AUTHPRIV)
+
+
+def audit(outcome, reason=None):
+    message = f"event=auth outcome={outcome} instance={instance} user={username} remote_ip={remote_ip}"
+    if reason:
+        message = f"{message} reason={reason}"
+    priority = syslog.LOG_INFO if outcome == "success" else syslog.LOG_WARNING
+    syslog.syslog(priority, message)
 
 uci = EUci()
 try:
     db = uci.get("openvpn", instance, "ns_user_db")
 except:
     # user db not set
+    audit("failure", "user_db_not_set")
     sys.exit(5)
 
 user = users.get_user_by_name(uci, username, db)
 if user is None:
     # user not found
+    audit("failure", "user_not_found")
     sys.exit(4)
 
 if not "openvpn_enabled" in user or user["openvpn_enabled"] != "1":
     # user not enabled
+    audit("failure", "user_disabled")
     sys.exit(3)
 
 if "password" not in user:
     # password not set
+    audit("failure", "password_not_set")
     sys.exit(2)
 
 if users.check_password(password, user["password"]):
+    audit("success")
     sys.exit(0)
 else:
     # password do not match
+    audit("failure", "password_mismatch")
     sys.exit(1)
