@@ -1,0 +1,13 @@
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Since OpenWRT sets profile directory and file as config files, they are not replaced upon update.
+# This script updates the /rom/etc/profile, then hush the /etc/profile.d/apk-cheatsheet.sh
+
+if [ -f /rom/etc/profile ]; then
+    cp /rom/etc/profile /etc/profile
+fi
+
+touch /etc/profile.d/apk-cheatsheet.hush
