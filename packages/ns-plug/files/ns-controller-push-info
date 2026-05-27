@@ -7,6 +7,7 @@
 
 import json
 import subprocess
+import os
 
 from euci import EUci
 
@@ -55,3 +56,16 @@ curl_opts.extend([
 
 # start curl in background
 subprocess.Popen(['curl', *curl_opts])
+
+# Configure telegraf prometheus exporter for controller
+try:
+    ifconfig_local = os.environ.get('ifconfig_local')
+    if ifconfig_local and os.path.isdir('/etc/telegraf.conf.d'):
+        telegraf_config = f"""# Controller prometheus exporter
+[[outputs.prometheus_client]]
+  listen = \"{ifconfig_local}:9273\"
+"""
+        with open('/etc/telegraf.conf.d/controller-prometheus.conf', 'w') as f:
+            f.write(telegraf_config)
+except Exception:
+    pass  # Fail silently if telegraf is not installed or config dir missing
