@@ -144,14 +144,14 @@ def read_json(file):
     return {}
 
 def list_dns_feeds(enterprise=False):
-    # Read feeds from adblock.feeds (builtin) and adblock.custom.feeds (NethSecurity/user overrides)
-    ret = read_json('/etc/adblock/adblock.feeds')
-    custom = read_json('/etc/adblock/adblock.custom.feeds')
-    if custom:
-        ret.update(custom)
-    elif enterprise:
-        # fallback: merge nethesis sources gz if no custom feeds file yet
-        ret.update(read_gz('/usr/share/threat_shield/nethesis-dns.sources.gz'))
+    ret = {}
+    sources = '/etc/adblock/adblock.custom.feeds'
+    if not os.path.exists(sources):
+        ret = read_gz('/usr/share/threat_shield/community-dns.sources.gz')
+        if enterprise:
+            ret.update(read_gz('/usr/share/threat_shield/nethesis-dns.sources.gz'))
+    else:
+        ret = read_json(sources)
     return ret
 
 def get_confidence(f, enterprise=False):
