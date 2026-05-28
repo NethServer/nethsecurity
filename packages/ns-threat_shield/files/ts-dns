@@ -6,7 +6,6 @@
 #
 
 DEST_DIR=/etc/adblock
-BUILTIN_FEEDS="$DEST_DIR/adblock.feeds"
 NETHESIS_SOURCES=/usr/share/threat_shield/nethesis-dns.sources.gz
 COMMUNITY_SOURCES=/usr/share/threat_shield/community-dns.sources.gz
 CUSTOM_FEEDS="$DEST_DIR/adblock.custom.feeds"
@@ -22,7 +21,7 @@ if [ "$TS_ENABLED" = 1 ]; then
     uci set adblock.global.adb_dns='dnsmasq'
     uci set adblock.global.adb_dnsinstance='0'
 
-    # Build the Threat Shield source stream from community sources
+    # Build custom feeds from community sources
     gunzip -c "$COMMUNITY_SOURCES" > "$TMP_FILE"
 
     # Merge Nethesis sources if the machine has a subscription
@@ -30,12 +29,8 @@ if [ "$TS_ENABLED" = 1 ]; then
         gunzip -c "$NETHESIS_SOURCES" | sed -e "s/__USER__/$SYSTEM_ID/" -e "s/__PASSWORD__/$SYSTEM_SECRET/" -e "s/__TYPE__/$TYPE/" >> "$TMP_FILE"
     fi
 
-    # Keep builtin adblock feeds available while Threat Shield DNS is enabled.
-    if [ -s "$BUILTIN_FEEDS" ]; then
-        jq -s 'reduce .[] as $item ({}; . * $item)' "$BUILTIN_FEEDS" "$TMP_FILE" > "$CUSTOM_FEEDS"
-    else
-        jq -s 'reduce .[] as $item ({}; . * $item)' "$TMP_FILE" > "$CUSTOM_FEEDS"
-    fi
+    # Merge all sources into a single JSON object and write to adblock.custom.feeds
+    jq -s 'reduce .[] as $item ({}; . * $item)' "$TMP_FILE" > "$CUSTOM_FEEDS"
 
     # Cleanup
     rm -f "$TMP_FILE"
@@ -46,3 +41,4 @@ fi
 
 # Save changes
 uci commit adblock
+
