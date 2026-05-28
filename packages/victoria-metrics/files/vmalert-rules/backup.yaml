@@ -15,6 +15,6 @@ groups:
           service: "backup"
         annotations:
           summary_en: "Backup encryption is disabled"
-          summary_it: "La cifratura dei backup e disattivata"
+          summary_it: "La cifratura dei backup è disattivata"
           description_en: "The backup passphrase file /etc/backup.pass is missing or empty. If the firewall has a subscription, the backup will not be sent to the remote storage server."
-          description_it: "Il file della passphrase dei backup /etc/backup.pass manca o e vuoto. Se il firewall ha una subscription, i backup non verranno inviati al server di archiviazione remoto."
+          description_it: "Il file della passphrase dei backup /etc/backup.pass manca o è vuoto. Se il firewall ha una subscription, i backup non verranno inviati al server di archiviazione remoto."
