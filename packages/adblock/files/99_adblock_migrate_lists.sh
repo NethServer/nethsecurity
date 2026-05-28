@@ -11,6 +11,10 @@ uci -q get adblock.ns_lists >/dev/null 2>&1 && exit 0
 
 uci set adblock.ns_lists=ns_lists
 
+# Local lists changed name since adblock 4.5.5
+mv /etc/adblock/adblock.whitelist /etc/adblock/adblock.allowlist 2>/dev/null || :
+mv /etc/adblock/adblock.blacklist /etc/adblock/adblock.blocklist 2>/dev/null || :
+
 for type in allowlist blocklist; do
 	file="/etc/adblock/adblock.${type}"
 	[ -f "${file}" ] || continue
