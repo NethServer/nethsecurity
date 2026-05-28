@@ -124,6 +124,7 @@ dev tun-nsplug
 tls-client
 script-security 2
 route-up /usr/sbin/ns-controller-push-info
+down /usr/sbin/ns-controller-telegraf-down
 <ca>
 ${ca}
 </ca>
