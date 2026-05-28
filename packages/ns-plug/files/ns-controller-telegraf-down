@@ -1,0 +1,9 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Remove telegraf prometheus exporter config when VPN connection goes down
+rm -f /etc/telegraf.conf.d/controller-prometheus.conf

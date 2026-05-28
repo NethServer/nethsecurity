@@ -21,7 +21,7 @@ define Package/ns-plug
 	CATEGORY:=NethSecurity
 	TITLE:=NethSecurity controller client
 	URL:=https://github.com/NethServer/nethsecurity-controller/
-	DEPENDS:=+openvpn +lscpu +python3-nethsec +python3-yaml
+	DEPENDS:=+openvpn +lscpu +python3-nethsec +python3-yaml +telegraf
 	PKGARCH:=all
 endef
  
@@ -93,6 +93,7 @@ define Package/ns-plug/install
 	$(INSTALL_BIN) ./files/ns-download $(1)/usr/bin
 	$(INSTALL_BIN) ./files/ns-push-reports $(1)/usr/bin
 	$(INSTALL_BIN) ./files/ns-controller-push-info $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/ns-controller-telegraf-down $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/20_ns-plug $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/40_ns-plug_automatic_updates $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/40_ns-plug_automatic_updates $(1)/usr/libexec/ns-plug
