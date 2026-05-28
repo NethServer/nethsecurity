@@ -1,0 +1,13 @@
+{
+  "audit-manager": {
+    "description": "View access and authentication audit logs",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.audit": [
+          "*"
+        ]
+      }
+    }
+  }
+}

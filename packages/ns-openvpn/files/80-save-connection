@@ -9,6 +9,7 @@ import re
 import os
 import sys
 import sqlite3
+import syslog
 from euci import EUci
 from nethsec import users
 
@@ -37,6 +38,8 @@ instance = re.sub(r'^openvpn-|\.conf$', '', config_path)
 virtual_ip_addr = os.environ.get("ifconfig_pool_remote_ip")
 uci = EUci()
 
+syslog.openlog("openvpn-connect", syslog.LOG_PID, syslog.LOG_AUTHPRIV)
+
 # The OpenVPN server sets the virtual IP address of the client in the environment variable ifconfig_pool_remote_ip,
 # still this value is not reliable in case of an IP reservation.
 try:
@@ -63,6 +66,10 @@ try:
     start_time = int(os.environ.get('time_unix'))
 
     c.execute("INSERT INTO connections (common_name, virtual_ip_addr, remote_ip_addr, start_time) VALUES (?, ?, ?, ?)", (common_name, virtual_ip_addr, remote_ip_addr, start_time))
+    syslog.syslog(
+        syslog.LOG_INFO,
+        f"event=connect instance={instance} user={common_name} remote_ip={remote_ip_addr} virtual_ip={virtual_ip_addr} start_time={start_time}"
+    )
 
     conn.commit()
     conn.close()

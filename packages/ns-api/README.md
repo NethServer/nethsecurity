@@ -4080,6 +4080,86 @@ Example response:
 
 **Notes**: returning strings are syslog formatted, be aware of it if any parsing is needed.
 
+## ns.audit
+
+Query access and authentication audit events collected by VictoriaLogs.
+
+### get-events
+
+```bash
+api-cli ns.audit get-events --data '{"start_time":"2026-05-27T00:00:00Z","end_time":"2026-05-27T23:59:59Z","source":"all","outcome":"all","page":1,"per_page":25}'
+```
+
+Parameter list:
+
+- `start_time`: start of the time window, accepts ISO 8601 string or Unix timestamp
+- `end_time`: end of the time window, accepts ISO 8601 string or Unix timestamp
+- `source`: `ui`, `ssh`, `openvpn`, or `all`
+- `outcome`: `success`, `failure`, or `all`
+- `user`: optional exact username filter
+- `ip`: optional exact remote IP filter
+- `page`: page number, starting from `1`
+- `per_page`: page size, between `1` and `200`
+
+All parameters are optional. By default the API returns the last 24 hours.
+
+Example response:
+
+```json
+{
+  "events": [
+    {
+      "timestamp": "2026-05-27T10:41:44Z",
+      "source": "ui",
+      "event": "action",
+      "outcome": "success",
+      "user": "root",
+      "ip": null,
+      "details": {
+        "method": "POST",
+        "uri": "/api/ubus/call",
+        "body": "{\"path\":\"ns.telegraf\",\"method\":\"list-alerts\",\"payload\":{}}"
+      }
+    },
+    {
+      "timestamp": "2026-05-27T10:30:53Z",
+      "source": "ssh",
+      "event": "login",
+      "outcome": "success",
+      "user": "root",
+      "ip": "10.0.1.20",
+      "details": {
+        "method": "pubkey",
+        "port": 58366
+      }
+    },
+    {
+      "timestamp": "2026-05-27T10:20:15Z",
+      "source": "openvpn",
+      "event": "disconnect",
+      "outcome": "success",
+      "user": "alice",
+      "ip": "198.51.100.10",
+      "details": {
+        "instance": "ns_roadwarrior1",
+        "virtual_ip": "10.5.4.20",
+        "duration": 3600,
+        "bytes_received": 1024,
+        "bytes_sent": 2048,
+        "start_time": 1748341215
+      }
+    }
+  ],
+  "total": 3,
+  "page": 1,
+  "per_page": 25,
+  "start_time": "2026-05-27T00:00:00Z",
+  "end_time": "2026-05-27T23:59:59Z"
+}
+```
+
+**Notes**: this API requires the `victoria-logs` package to be installed and available on `127.0.0.1:9428`.
+
 ## ns.account
 
 Manage accounts.
@@ -7094,7 +7174,7 @@ Response example:
 {"result": "success"}
 ```
 
-Please note that the unregister will also cleanup the `unit_name` and `description` fields.
+Please note that the unregister will also cleanup the `unit_name` and `description` fields and remove the controller-generated local artifacts such as the VPN client configuration and the Telegraf Prometheus exporter drop-in.
 
 ### restart
 

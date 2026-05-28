@@ -1,0 +1,437 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import json
+import re
+import sys
+from datetime import datetime, timedelta, timezone
+from json import JSONDecodeError
+
+import requests
+
+from nethsec import utils
+
+VICTORIA_LOGS_QUERY_URL = "http://127.0.0.1:9428/select/logsql/query"
+MAX_QUERY_RESULTS = 5000
+REQUEST_TIMEOUT = 5
+ALLOWED_SOURCES = {"all", "ui", "ssh", "openvpn"}
+ALLOWED_OUTCOMES = {"all", "success", "failure"}
+
+
+def build_query_specs(source, outcome):
+    specs = []
+    include_success = outcome in {"all", "success"}
+    include_failure = outcome in {"all", "failure"}
+
+    if source in {"all", "ui"}:
+        if include_failure:
+            specs.extend(
+                [
+                    ('app_name:"nethsecurity-api" "authentication failed for user"', parse_ui_event),
+                    ('app_name:"nethsecurity-api" "authorization failed for user"', parse_ui_event),
+                    ('app_name:"nethsecurity-api" "unauthorized request:"', parse_ui_event),
+                ]
+            )
+        if include_success:
+            specs.extend(
+                [
+                    ('app_name:"nethsecurity-api" "authentication success for user"', parse_ui_event),
+                    ('app_name:"nethsecurity-api" "authorization success for user"', parse_ui_event),
+                    ('app_name:"nethsecurity-api" "logout response success for user"', parse_ui_event),
+                ]
+            )
+
+    if source in {"all", "ssh"}:
+        if include_success:
+            specs.extend(
+                [
+                    ('app_name:"dropbear" "Pubkey auth succeeded for"', parse_ssh_event),
+                    ('app_name:"dropbear" "Password auth succeeded for"', parse_ssh_event),
+                    ('app_name:"dropbear" "Child connection from"', parse_ssh_event),
+                    ('app_name:"dropbear" "Exit ("', parse_ssh_event),
+                ]
+            )
+        if include_failure:
+            specs.extend(
+                [
+                    ('app_name:"dropbear" "Bad password attempt for"', parse_ssh_event),
+                    ('app_name:"dropbear" "Exit before auth from"', parse_ssh_event),
+                ]
+            )
+
+    if source in {"all", "openvpn"}:
+        if include_success:
+            specs.extend(
+                [
+                    ('app_name:"openvpn-auth" "outcome=success"', parse_openvpn_event),
+                    ('app_name:"openvpn-connect" "event=connect"', parse_openvpn_event),
+                    ('app_name:"openvpn-disconnect" "event=disconnect"', parse_openvpn_event),
+                ]
+            )
+        if include_failure:
+            specs.append(('app_name:"openvpn-auth" "outcome=failure"', parse_openvpn_event))
+
+    return specs
+
+
+def parse_timestamp(value, default_value):
+    if value is None or value == "":
+        return default_value
+
+    if isinstance(value, (int, float)):
+        return datetime.fromtimestamp(int(value), tz=timezone.utc)
+
+    if isinstance(value, str):
+        normalized = value.strip()
+        if normalized.isdigit():
+            return datetime.fromtimestamp(int(normalized), tz=timezone.utc)
+
+        if normalized.endswith("Z"):
+            normalized = normalized[:-1] + "+00:00"
+
+        return datetime.fromisoformat(normalized).astimezone(timezone.utc)
+
+    raise ValueError("invalid_timestamp")
+
+
+def to_iso8601(value):
+    return value.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def query_victoria_logs(query, start_time, end_time):
+    try:
+        response = requests.get(
+            VICTORIA_LOGS_QUERY_URL,
+            params={
+                "query": query,
+                "start": to_iso8601(start_time),
+                "end": to_iso8601(end_time),
+                "limit": MAX_QUERY_RESULTS,
+            },
+            timeout=REQUEST_TIMEOUT,
+        )
+        response.raise_for_status()
+    except requests.exceptions.ConnectionError:
+        raise RuntimeError("victoria_logs_unavailable")
+    except requests.exceptions.RequestException:
+        raise RuntimeError("victoria_logs_query_failed")
+
+    items = []
+    for line in response.text.splitlines():
+        if not line.strip():
+            continue
+
+        try:
+            items.append(json.loads(line))
+        except JSONDecodeError:
+            continue
+
+    return items
+
+
+def build_event(timestamp, source, event, outcome, user=None, ip=None, details=None):
+    return {
+        "timestamp": timestamp,
+        "source": source,
+        "event": event,
+        "outcome": outcome,
+        "user": user,
+        "ip": ip,
+        "details": details or {},
+    }
+
+
+def parse_ui_event(entry):
+    message = entry.get("_msg", "").strip()
+    timestamp = entry.get("_time")
+
+    match = re.search(
+        r"authentication failed for user (?P<user>\S+) from (?P<ip>[^: ]+)(?::(?P<port>\d+))?: (?P<error>.*)", message
+    )
+    if match:
+        details = {"error": match.group("error")}
+        if match.group("port"):
+            details["port"] = int(match.group("port"))
+        return build_event(timestamp, "ui", "login", "failure", match.group("user"), match.group("ip"), details)
+
+    match = re.search(r"authentication success for user (?P<user>\S+) from (?P<ip>[^ ]+)", message)
+    if match:
+        return build_event(timestamp, "ui", "login", "success", match.group("user"), match.group("ip"))
+
+    match = re.search(
+        r"authorization success for user (?P<user>\S+)\. (?P<method>[A-Z]+) (?P<uri>\S+)(?: (?P<body>.*))?$", message
+    )
+    if match:
+        details = {"method": match.group("method"), "uri": match.group("uri")}
+        if match.group("body"):
+            details["body"] = match.group("body")
+        return build_event(timestamp, "ui", "action", "success", match.group("user"), details=details)
+
+    match = re.search(r"authorization failed for user (?P<user>\S+)\. (?P<method>[A-Z]+) (?P<uri>\S+)", message)
+    if match:
+        return build_event(
+            timestamp,
+            "ui",
+            "action",
+            "failure",
+            match.group("user"),
+            details={"method": match.group("method"), "uri": match.group("uri")},
+        )
+
+    match = re.search(r"logout response success for user (?P<user>\S+)", message)
+    if match:
+        return build_event(timestamp, "ui", "logout", "success", match.group("user"))
+
+    match = re.search(r"unauthorized request: (?P<reason>.*)", message)
+    if match:
+        return build_event(timestamp, "ui", "request", "failure", details={"reason": match.group("reason")})
+
+    return None
+
+
+def parse_ssh_event(entry):
+    message = entry.get("_msg", "").strip()
+    timestamp = entry.get("_time")
+
+    match = re.search(r"Pubkey auth succeeded for '(?P<user>[^']+)' .* from (?P<ip>[^: ]+):(?P<port>\d+)", message)
+    if match:
+        return build_event(
+            timestamp,
+            "ssh",
+            "login",
+            "success",
+            match.group("user"),
+            match.group("ip"),
+            {"method": "pubkey", "port": int(match.group("port"))},
+        )
+
+    match = re.search(r"Password auth succeeded for '(?P<user>[^']+)' from (?P<ip>[^: ]+):(?P<port>\d+)", message)
+    if match:
+        return build_event(
+            timestamp,
+            "ssh",
+            "login",
+            "success",
+            match.group("user"),
+            match.group("ip"),
+            {"method": "password", "port": int(match.group("port"))},
+        )
+
+    match = re.search(r"Bad password attempt for '(?P<user>[^']+)' from (?P<ip>[^: ]+):(?P<port>\d+)", message)
+    if match:
+        return build_event(
+            timestamp,
+            "ssh",
+            "login",
+            "failure",
+            match.group("user"),
+            match.group("ip"),
+            {"method": "password", "port": int(match.group("port"))},
+        )
+
+    match = re.search(r"Exit \((?P<user>[^)]+)\) from <(?P<ip>[^:>]+):(?P<port>\d+)>: (?P<reason>.*)", message)
+    if match:
+        return build_event(
+            timestamp,
+            "ssh",
+            "disconnect",
+            "success",
+            match.group("user"),
+            match.group("ip"),
+            {"port": int(match.group("port")), "reason": match.group("reason")},
+        )
+
+    match = re.search(r"Exit before auth from (?P<ip>[^: ]+):(?P<port>\d+): (?P<reason>.*)", message)
+    if match:
+        return build_event(
+            timestamp,
+            "ssh",
+            "disconnect",
+            "failure",
+            ip=match.group("ip"),
+            details={"port": int(match.group("port")), "reason": match.group("reason")},
+        )
+
+    match = re.search(r"Child connection from (?P<ip>[^: ]+):(?P<port>\d+)", message)
+    if match:
+        return build_event(
+            timestamp,
+            "ssh",
+            "connect",
+            "success",
+            ip=match.group("ip"),
+            details={"port": int(match.group("port"))},
+        )
+
+    return None
+
+
+def parse_key_value_message(message):
+    values = {}
+    for key, value in re.findall(r"(\w+)=([^\s]+)", message):
+        values[key] = value
+    return values
+
+
+def parse_openvpn_event(entry):
+    message = entry.get("_msg", "").strip()
+    timestamp = entry.get("_time")
+    values = parse_key_value_message(message)
+    event = values.get("event")
+
+    if not event:
+        return None
+
+    outcome = values.get("outcome", "success")
+    user = values.get("user")
+    ip = values.get("remote_ip")
+    details = {key: value for key, value in values.items() if key not in {"event", "outcome", "user", "remote_ip"}}
+
+    for numeric_key in {"start_time", "duration", "bytes_received", "bytes_sent"}:
+        if numeric_key in details:
+            try:
+                details[numeric_key] = int(details[numeric_key])
+            except ValueError:
+                pass
+
+    return build_event(timestamp, "openvpn", event, outcome, user, ip, details)
+
+
+def matches_filters(event, source, outcome, user, ip):
+    if source != "all" and event["source"] != source:
+        return False
+
+    if outcome != "all" and event["outcome"] != outcome:
+        return False
+
+    if user and event.get("user") != user:
+        return False
+
+    if ip and event.get("ip") != ip:
+        return False
+
+    return True
+
+
+def get_events(payload):
+    now = datetime.now(timezone.utc)
+
+    try:
+        start_time = parse_timestamp(payload.get("start_time"), now - timedelta(days=1))
+    except ValueError:
+        return utils.validation_error("start_time", "invalid_timestamp", payload.get("start_time"))
+
+    try:
+        end_time = parse_timestamp(payload.get("end_time"), now)
+    except ValueError:
+        return utils.validation_error("end_time", "invalid_timestamp", payload.get("end_time"))
+
+    if end_time < start_time:
+        return utils.validation_error("end_time", "must_be_greater_than_start_time", payload.get("end_time"))
+
+    source = payload.get("source", "all")
+    if source not in ALLOWED_SOURCES:
+        return utils.validation_error("source", "invalid_source", source)
+
+    outcome = payload.get("outcome", "all")
+    if outcome not in ALLOWED_OUTCOMES:
+        return utils.validation_error("outcome", "invalid_outcome", outcome)
+
+    try:
+        page = int(payload.get("page", 1))
+    except (TypeError, ValueError):
+        return utils.validation_error("page", "invalid_integer", payload.get("page"))
+
+    try:
+        per_page = int(payload.get("per_page", 25))
+    except (TypeError, ValueError):
+        return utils.validation_error("per_page", "invalid_integer", payload.get("per_page"))
+
+    if page < 1:
+        return utils.validation_error("page", "must_be_greater_than_zero", page)
+
+    if per_page < 1 or per_page > 200:
+        return utils.validation_error("per_page", "must_be_between_1_and_200", per_page)
+
+    user = payload.get("user")
+    ip = payload.get("ip")
+
+    queries = build_query_specs(source, outcome)
+
+    events = []
+    try:
+        for query, parser in queries:
+            for item in query_victoria_logs(query, start_time, end_time):
+                event = parser(item)
+                if event is None:
+                    continue
+                if matches_filters(event, source, outcome, user, ip):
+                    events.append(event)
+    except RuntimeError as error:
+        return utils.generic_error(str(error))
+
+    events.sort(key=lambda event: event["timestamp"], reverse=True)
+    start_index = (page - 1) * per_page
+    end_index = start_index + per_page
+
+    return {
+        "events": events[start_index:end_index],
+        "total": len(events),
+        "page": page,
+        "per_page": per_page,
+        "start_time": to_iso8601(start_time),
+        "end_time": to_iso8601(end_time),
+    }
+
+
+def main():
+    if len(sys.argv) < 2:
+        print(json.dumps(utils.generic_error("missing_command")))
+        return
+
+    cmd = sys.argv[1]
+
+    if cmd == "list":
+        print(
+            json.dumps(
+                {
+                    "get-events": {
+                        "start_time": "String",
+                        "end_time": "String",
+                        "source": "String",
+                        "outcome": "String",
+                        "user": "String",
+                        "ip": "String",
+                        "page": 32,
+                        "per_page": 32,
+                    }
+                }
+            )
+        )
+        return
+
+    if cmd != "call" or len(sys.argv) < 3:
+        print(json.dumps(utils.generic_error("invalid_command")))
+        return
+
+    action = sys.argv[2]
+    if action != "get-events":
+        print(json.dumps(utils.generic_error("invalid_action")))
+        return
+
+    try:
+        raw_payload = sys.stdin.read().strip()
+        payload = json.loads(raw_payload) if raw_payload else {}
+    except JSONDecodeError:
+        print(json.dumps(utils.generic_error("invalid_json")))
+        return
+
+    print(json.dumps(get_events(payload)))
+
+
+if __name__ == "__main__":
+    main()

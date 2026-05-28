@@ -91,6 +91,8 @@ define Package/ns-api/install
 	$(INSTALL_BIN) ./files/ns.flashstart $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.log.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.log $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.audit.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.audit $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.flashstart.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.dpireport $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.dpireport.json $(1)/usr/share/rpcd/acl.d/

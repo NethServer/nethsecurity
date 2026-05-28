@@ -13,6 +13,7 @@
 import re
 import os
 import sys
+import syslog
 import subprocess
 from euci import EUci
 from nethsec import users
@@ -21,11 +22,21 @@ def debug(msg):
     if os.environ.get("debug", False):
         print(f'[DEBUG] {msg}', file=sys.stderr)
 
+
+def audit(outcome, reason=None):
+    message = f"event=auth outcome={outcome} instance={instance} user={username} remote_ip={remote_ip}"
+    if reason:
+        message = f"{message} reason={reason}"
+    priority = syslog.LOG_INFO if outcome == "success" else syslog.LOG_WARNING
+    syslog.syslog(priority, message)
+
 username = os.environ.get("username")
 password = os.environ.get("password")
 config_path = os.environ.get("config")
+remote_ip = os.environ.get("untrusted_ip", "unknown")
 
 instance = re.sub(r'^openvpn-|\.conf$', '', config_path)
+syslog.openlog("openvpn-auth", syslog.LOG_PID, syslog.LOG_AUTHPRIV)
 debug(f"Instance: {instance}")
 
 ldap = {}
@@ -36,6 +47,7 @@ try:
 except:
     # user db not set or not found
     debug("Error: user db not found")
+    audit("failure", "user_db_not_found")
     sys.exit(5)
 
 debug(f"Username: {username}")
@@ -45,11 +57,13 @@ debug(f"User: {user}")
 if user is None:
     # user not found
     debug(f"Error: user '{user}' not found")
+    audit("failure", "user_not_found")
     sys.exit(4)
 
 if not "openvpn_enabled" in user or user["openvpn_enabled"] != "1":
     # user not enabled
     debug(f"Error: user '{user}' disabled")
+    audit("failure", "user_disabled")
     sys.exit(3)
 
 uri = ldap.get("uri", "")
@@ -64,6 +78,7 @@ user_bind_dn = ldap.get("user_bind_dn")
 if not uri or not base_dn:
     # no info to connect ldap db
     debug(f"Error: invalid LDAP URI or base DN")
+    audit("failure", "invalid_ldap_configuration")
     sys.exit(2)
 
 if user_bind_dn:
@@ -94,7 +109,9 @@ debug(f"Command: LDAPTLS_REQCERT={tls_reqcert} " + " ".join(ldapsearch_command))
 try:
     subprocess.run(ldapsearch_command, env=env, check=True, capture_output=True)
     debug("Success")
+    audit("success")
     sys.exit(0)
 except Exception as e:
     print(e, file=sys.stderr)
+    audit("failure", "ldap_authentication_failed")
     sys.exit(1)

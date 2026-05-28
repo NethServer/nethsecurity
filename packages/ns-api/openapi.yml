@@ -4,26 +4,26 @@ info:
   title: NethSecurity RPCD APIs
   description: |
     Complete OpenAPI 3.1.0 specification for all `ns.*` RPCD API methods.
-    
+
     ## How RPCD Methods Are Called
-    
+
     Methods use the **ubus call convention** but are accessed through the nethsecurity-api Go server:
-    
+
     1. **Device-side (direct ubus)**:
        ```bash
        ubus call ns.firewall list-zones '{"filter": "all"}'
        ```
-    
+
     2. **Remote clients (via HTTP with JWT)**:
        ```bash
        POST /api/ubus/call
        {"path": "ns.firewall", "method": "list-zones", "payload": {"filter": "all"}}
        ```
-    
+
     3. **OpenAPI paths**: `POST /ubus/{ns.name}/{method}`
-    
+
     ## Error Handling
-    
+
     All responses are HTTP 200, even for errors. The response JSON body indicates success or failure:
     - **Success**: `{data...}`
     - **API error**: `{"error": "error_code"}`
@@ -745,5 +745,120 @@ paths:
                       message:
                         type: string
                         example: success
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.audit/get-events:
+    post:
+      summary: Query paginated access and authentication audit events
+      operationId: ns.audit.get-events
+      tags:
+        - audit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                start_time:
+                  oneOf:
+                    - type: string
+                      format: date-time
+                    - type: integer
+                  description: Start of the time window in ISO 8601 or Unix epoch seconds
+                end_time:
+                  oneOf:
+                    - type: string
+                      format: date-time
+                    - type: integer
+                  description: End of the time window in ISO 8601 or Unix epoch seconds
+                source:
+                  type: string
+                  enum: [all, ui, ssh, openvpn]
+                  description: Audit source to query
+                outcome:
+                  type: string
+                  enum: [all, success, failure]
+                  description: Outcome filter
+                user:
+                  type: string
+                  description: Optional exact username filter
+                ip:
+                  type: string
+                  description: Optional exact remote IP filter
+                page:
+                  type: integer
+                  minimum: 1
+                  description: 1-based page number
+                per_page:
+                  type: integer
+                  minimum: 1
+                  maximum: 200
+                  description: Number of results per page
+      responses:
+        "200":
+          description: Audit events or error response
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required:
+                      - events
+                      - total
+                      - page
+                      - per_page
+                      - start_time
+                      - end_time
+                    properties:
+                      events:
+                        type: array
+                        items:
+                          type: object
+                          required:
+                            - timestamp
+                            - source
+                            - event
+                            - outcome
+                            - details
+                          properties:
+                            timestamp:
+                              type: string
+                              format: date-time
+                            source:
+                              type: string
+                              enum: [ui, ssh, openvpn]
+                            event:
+                              type: string
+                              example: login
+                            outcome:
+                              type: string
+                              enum: [success, failure]
+                            user:
+                              type:
+                                - string
+                                - "null"
+                            ip:
+                              type:
+                                - string
+                                - "null"
+                            details:
+                              type: object
+                              additionalProperties: true
+                      total:
+                        type: integer
+                        minimum: 0
+                      page:
+                        type: integer
+                        minimum: 1
+                      per_page:
+                        type: integer
+                        minimum: 1
+                      start_time:
+                        type: string
+                        format: date-time
+                      end_time:
+                        type: string
+                        format: date-time
                   - $ref: "#/components/schemas/ValidationError"
                   - $ref: "#/components/schemas/Error"
