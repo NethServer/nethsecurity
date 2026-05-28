@@ -136,6 +136,10 @@ def unregister():
     except:
         pass
     try:
+        os.unlink("/etc/telegraf.conf.d/controller-prometheus.conf")
+    except:
+        pass
+    try:
         subprocess.run(['/etc/init.d/ns-plug', 'restart'], check=True, capture_output=True)
     except:
         return utils.generic_error("failed_to_restart_ns-plug")
