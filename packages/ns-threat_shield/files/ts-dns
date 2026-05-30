@@ -20,10 +20,6 @@ if [ "$TS_ENABLED" = 1 ]; then
     # Setup new blacklist source
     uci set adblock.global.adb_srcarc="$DEST_DIR"/combined.sources.gz
 
-    # Setup dnsmasq as backend
-    uci set adblock.global.adb_dns='dnsmasq'
-    uci set adblock.global.adb_dnsinstance='0'
-
     # Setup wget with compression support
     uci set adblock.global.adb_fetchutil='wget'
     uci set adblock.global.adb_fetchparm="--compression=gzip --no-cache --no-cookies --max-redirect=0 --timeout=20 -O"

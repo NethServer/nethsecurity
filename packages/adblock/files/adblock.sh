@@ -566,7 +566,7 @@ f_extconf() {
 						set firewall."adblock_${zone}${port}".src="${zone}"
 						set firewall."adblock_${zone}${port}".proto="tcp udp"
 						set firewall."adblock_${zone}${port}".src_dport="${port}"
-						set firewall."adblock_${zone}${port}".dest_port="${port}"
+						set firewall."adblock_${zone}${port}".dest_port="5300"
 						set firewall."adblock_${zone}${port}".target="DNAT"
 						set firewall."adblock_${zone}${port}".family="any"
 						set firewall."adblock_${zone}${port}".ipset="!tsdns_bypass"
@@ -583,6 +583,25 @@ f_extconf() {
 		for section in ${fwcfg}; do
 			uci_remove firewall "${section}"
 		done
+	fi
+
+	if [ "${adb_enabled}" = "1" ] && [ "${adb_forcedns}" = "1" ] &&	/etc/init.d/firewall enabled && [ "$(uci -q get dhcp.adblock)" != "dnsmasq" ]; then
+		uci -q batch <<-EOC
+			set dhcp.adblock="dnsmasq"
+			set dhcp.adblock.port="5300"
+			set dhcp.adblock.noresolv="1"
+			set dhcp.adblock.max_ttl="60"
+			set dhcp.adblock.max_cache_ttl="60"
+			set dhcp.adblock.logqueries="0"
+			set dhcp.adblock.rebind_protection="0"
+			set dhcp.adblock.confdir="$adb_dnsdir"
+			add_list dhcp.adblock.ns_tag="automated"
+			add_list dhcp.adblock.server="127.0.0.1"
+		EOC
+	fi
+
+	if [ "${adb_enabled}" = "0" ] || [ "${adb_forcedns}" = "0" ]; then
+		uci -q delete dhcp.adblock
 	fi
 
 	# add adb_bypass
@@ -612,6 +631,7 @@ f_extconf() {
 	fi
 
 	f_uci "${config}"
+	f_uci "dhcp"
 }
 
 # restart dns backend
