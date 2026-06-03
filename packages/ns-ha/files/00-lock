@@ -22,8 +22,13 @@ esac
 
 LOCKFILE="/var/lock/keepalived-hotplug.lock"
 ACQUIRED_FLAG="/var/lock/keepalived-hotplug-acquired"
-TIMEOUT=60
+TIMEOUT=$(uci -q get keepalived.globals.ns_lock_timeout)
 elapsed=0
+
+if [ -z "$TIMEOUT" ] || [ "$TIMEOUT" -le 0 ]; then
+	# Locking disabled by configuration
+	return 0 2>/dev/null || exit 0
+fi
 
 while [ "$elapsed" -lt "$TIMEOUT" ]; do
 	if lock -n "$LOCKFILE" > /dev/null 2>&1; then
