@@ -68,6 +68,12 @@ The setup process automatically does the following:
   key-based authentication is allowed
 - configure conntrackd to sync the connection tracking table
 
+Keepalived hotplug locking is disabled by default and is usually not needed. Leave
+`keepalived.globals.ns_lock_timeout` unset unless keepalived state transitions overlap and restart/stop
+events race with each other, as in the dedalo/dpi failover. When the option is set,
+the hotplug chain waits up to the configured timeout before letting the next event proceed.
+To enable the locking mechanism, set `keepalived.globals.ns_lock_timeout` to a positive integer representing the timeout in seconds, suggested value is 120 seconds, since OpenVPN and Netifyd have lng `term_timeout` option.
+
 In this example:
 - `primary_node_ip` is the primary node, with LAN IP `192.168.100.238`
 - `backup_node_ip` is the backup node, with LAN IP `192.168.100.239`
@@ -323,6 +329,7 @@ Role: primary
 Current State: master
 Last Sync Status: SSH Connection Failed
 Last Sync Time: Fri Apr 18 13:07:08 UTC 2025
+Locking: disabled
 ```
 
 The first synchronization will take up to 10 minutes and will be done in the background.
@@ -333,7 +340,7 @@ Role: primary
 Current State: master
 Last Sync Status: Successful
 Last Sync Time: Mon Jun  9 07:21:15 UTC 2025
-
+Locking: enabled (timeout 60s)
 Virtual IPs:
   lan_ipaddress: 192.168.100.240/24 (br-lan)
 

@@ -673,6 +673,20 @@ def init_remote(ssh_password, lan_interface):
     return json.loads(stdout)
 
 
+def get_lock_status(uci):
+    lock_timeout = uci.get('keepalived', 'globals', 'ns_lock_timeout', default='')
+
+    ret = {
+        "lock_status": "disabled",
+        "lock_timeout": "",
+    }
+    if lock_timeout.isdigit() and int(lock_timeout) > 0:
+        ret["lock_status"] = "enabled"
+        ret["lock_timeout"] = lock_timeout
+
+    return ret
+
+
 def status():
     ret = {
         "role": "unknown",
@@ -680,6 +694,8 @@ def status():
         "status": "unknown",
         "last_sync_status": "",
         "last_sync_time": "",
+        "lock_status": "disabled",
+        "lock_timeout": "",
         "virtual_ips": [],
         "keepalived_stats": {}
     }
@@ -699,6 +715,8 @@ def status():
 
     if ret["status"] == "enabled":
         ret["state"], ret["keepalived_stats"], ret["last_sync_status"], ret["last_sync_time"]= parse_node_state()
+
+    ret.update(get_lock_status(u))
 
     # List all configured virtual IPs
     try:

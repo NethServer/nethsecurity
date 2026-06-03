@@ -372,6 +372,8 @@ status() {
   STATE=$(echo "$OUTPUT" | jq -r '.state')
   LAST_SYNC_STATUS=$(echo "$OUTPUT" | jq -r '.last_sync_status')
   LAST_SYNC_TIME=$(echo "$OUTPUT" | jq -r '.last_sync_time')
+  LOCK_STATUS=$(echo "$OUTPUT" | jq -r '.lock_status // "disabled"')
+  LOCK_TIMEOUT=$(echo "$OUTPUT" | jq -r '.lock_timeout // empty')
 
   if [[ "$STATUS" == "enabled" ]]; then
     echo -e "Status: \e[32m$STATUS\e[0m" # Green for enabled
@@ -398,6 +400,12 @@ status() {
       echo -e "Current State: \e[97m$STATE\e[0m" # White for others
     fi
 
+    if [[ "$LOCK_STATUS" == "enabled" && -n "$LOCK_TIMEOUT" ]]; then
+      echo -e "Locking: \e[32menabled\e[0m (\e[33mtimeout ${LOCK_TIMEOUT}s\e[0m)"
+    else
+      echo -e "Locking: \e[37m$LOCK_STATUS\e[0m"
+    fi
+
     # Display virtual IPs
     echo
     echo -e "\e[96mVirtual IPs:\e[0m"
@@ -415,7 +423,15 @@ status() {
     else
       echo "No keepalived statistics available."
     fi
+  fi
+
+  if [[ "$STATUS" != "enabled" ]]; then
+    if [[ "$LOCK_STATUS" == "enabled" && -n "$LOCK_TIMEOUT" ]]; then
+      echo -e "Locking: \e[32menabled\e[0m (\e[33mtimeout ${LOCK_TIMEOUT}s\e[0m)"
+    else
+      echo -e "Locking: \e[37m$LOCK_STATUS\e[0m"
     fi
+  fi
 }
 
 show_config() {
