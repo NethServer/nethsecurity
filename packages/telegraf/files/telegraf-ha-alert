@@ -1,0 +1,81 @@
+#!/bin/sh
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+EVENT_WINDOW_SECONDS=120
+
+recent_event_value() {
+	local event_timestamp="$1"
+	local now event_age
+
+	case "$event_timestamp" in
+		''|*[!0-9]*)
+			echo "0"
+			return 0
+			;;
+	esac
+
+	now="$(date +%s)"
+	event_age=$((now - event_timestamp))
+	if [ "$event_age" -lt 0 ]; then
+		event_age=0
+	fi
+
+	if [ "$event_age" -le "$EVENT_WINDOW_SECONDS" ]; then
+		echo "1"
+	else
+		echo "0"
+	fi
+}
+
+json_backup_record() {
+	local instance="$1"
+	local primary_failed_event="$2"
+
+	printf '[{"role":"backup","instance":"%s","primary_failed_event":%s}]\n' \
+		"$instance" "$primary_failed_event"
+}
+
+json_primary_record() {
+	local instance="$1"
+	local sync_failed_event="$2"
+
+	printf '[{"role":"primary","instance":"%s","sync_failed_event":%s}]\n' \
+		"$instance" "$sync_failed_event"
+}
+
+main() {
+	local role instance primary_failed_at
+	local sync_failed_at sync_failed_event
+
+	if uci -q get keepalived.primary >/dev/null 2>&1; then
+		role="primary"
+		instance="$(uci -q get keepalived.primary.name)"
+	elif uci -q get keepalived.backup >/dev/null 2>&1; then
+		role="backup"
+		instance="$(uci -q get keepalived.backup.name)"
+	else
+		printf '[]\n'
+		return 0
+	fi
+
+	if [ -z "$instance" ]; then
+		printf '[]\n'
+		return 0
+	fi
+
+	if [ "$role" = "backup" ]; then
+		primary_failed_at="$(uci -q -P /var/state get keepalived.ha_alert.primary_failed_at 2>/dev/null)"
+		primary_failed_event="$(recent_event_value "$primary_failed_at")"
+		json_backup_record "$instance" "$primary_failed_event"
+		return 0
+	fi
+
+	sync_failed_at="$(uci -q -P /var/state get keepalived.ha_alert.sync_failed_at 2>/dev/null)"
+	sync_failed_event="$(recent_event_value "$sync_failed_at")"
+	json_primary_record "$instance" "$sync_failed_event"
+}
+
+main "$@"

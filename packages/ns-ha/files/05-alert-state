@@ -1,0 +1,26 @@
+#!/bin/sh
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+. /lib/functions.sh
+
+record_alert_event() {
+	local option="$1"
+
+	uci -q -P /var/state get keepalived.ha_alert >/dev/null 2>&1 || \
+		uci -q -P /var/state set keepalived.ha_alert=state
+	uci_revert_state keepalived ha_alert "$option" >/dev/null 2>&1 || true
+	uci_set_state keepalived ha_alert "$option" "$(date +%s)"
+}
+
+case "$ACTION" in
+	NOTIFY_MASTER)
+		if uci -q get keepalived.primary >/dev/null 2>&1; then
+			record_alert_event primary_recovered_at
+		elif uci -q get keepalived.backup >/dev/null 2>&1; then
+			record_alert_event primary_failed_at
+		fi
+		;;
+esac

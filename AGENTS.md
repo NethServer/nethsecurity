@@ -59,6 +59,7 @@ bundle install
 - `builder/apply-patches.sh` strips the `patches/` prefix and applies each patch into the matching upstream source directory.
 - `files/` is the rootfs overlay for the final image. `files/etc/uci-defaults` holds first-boot defaults.
 - Runtime web stack: **nginx** serves `ns-ui` from `/www-ns` and proxies `/api/` → **ns-api-server** on `127.0.0.1:8090`; `ns-api-server` handles auth/JWT and forwards calls to ubus/rpcd handlers.
+- System monitoring alerts, including HA alerts, follow the Telegraf → Victoria Metrics/vmalert → `ns-plug-alert-proxy` path rather than sending legacy portal alerts directly from service scripts.
 - Many local packages are thin wrappers around upstream code. When changing behavior in one of those areas, inspect the matching upstream repo first and treat the local package as integration glue.
 
 ---

@@ -364,15 +364,19 @@ Keepalived Statistics:
 
 ## Alerting
 
-The cluster sends alerts **only** if the machine has a valid subscription.
+HA alerts are evaluated by **vmalert** from metrics exported by `/usr/libexec/telegraf-ha-alert`.
+The collector and HA alert rules are installed by the always-present `telegraf` and
+`victoria-metrics` packages. When alerts fire, `ns-plug-alert-proxy` forwards the legacy HA alert IDs
+to the monitoring portal if the machine has a valid registration.
 
 Available alerts are:
 
-- `ha:sync:failed`: raised if the file synchronization fails; it usyally means that the backup node is not reachable.
-  This alerts is raised only on the primary node.
+- `ha:sync:failed`: raised if the file synchronization fails; it usually means that the backup node is not reachable.
+  The alert is raised with FAILURE state when a sync failure is detected on the primary node and with OK state
+  when synchronization becomes successful again.
 - `ha:primary:failed`: raised if the primary node is down; it means that there was a switchover.
-  This alerts is raised with FAILURE state on the backup node when it takes over the virtual IP address; 
-  the alert is raised with OK state on the primary node when it comes back online.
+  The alert is raised with FAILURE state when the backup node becomes master and raised with OK state
+  when the primary node becomes master again.
 
 ## Connecting to the backup node
 
