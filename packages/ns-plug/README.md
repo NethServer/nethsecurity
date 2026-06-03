@@ -142,15 +142,17 @@ portal (my.nethesis.it or my.nethserver.com):
 | `DiskSpaceCritical` | Disk usage > 90% for 2m | `df:root:percent_bytes:free` or `df:boot:percent_bytes:free` |
 | `BackupEncryptionDisabled` | Backup passphrase missing | `backup:config:notencrypted` |
 | `StorageStatus` | Storage status is error | `storage:status` |
+| `HaPrimaryFailed` | Backup node became master | `ha:primary:failed` |
+| `HaSyncFailed` | HA sync failure detected on the primary node | `ha:sync:failed` |
 
 All other alert are silently dropped by the proxy.
 If the machine is not registered, all alerts are silently dropped.
 
 The proxy starts automatically at boot regardless of registration state.
-Firing/resolved state is determined from the Alertmanager-standard `endsAt` field:
+By default, firing/resolved state is determined from the Alertmanager-standard `endsAt` field:
 if `endsAt` is in the future (or zero/missing) a **FAILURE** is sent; if `endsAt` is in
-the past an **OK** is sent.
-A FAILURE is sent when the alert starts firing and an OK is sent when it resolves.
+the past an **OK** is sent. HA recovery/failover event alerts override this default mapping so
+they can keep the legacy `ha:primary:failed` semantics.
 
 If Mimir credentials are configured in ns-plug UCI (`my_url`, `my_system_key`, `my_system_secret`),
 vmalert also forwards all alerts to the Mimir alertmanager for cloud-side processing.
