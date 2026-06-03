@@ -1,0 +1,29 @@
+# High Availability alert rules
+#
+# Events and sync state are exported by /usr/libexec/telegraf-ha-alert.
+
+groups:
+  - name: "ha"
+    interval: "30s"
+    rules:
+      - alert: HaPrimaryFailed
+        expr: 'ha_alert_primary_failed_event{role="backup"} == 1'
+        labels:
+          severity: "critical"
+          service: "ha"
+        annotations:
+          summary_en: "Primary node failure detected"
+          summary_it: "Rilevato guasto del nodo primario"
+          description_en: "The backup node has become master after a keepalived switchover."
+          description_it: "Il nodo di backup è diventato master dopo uno switchover di keepalived."
+
+      - alert: HaSyncFailed
+        expr: 'ha_alert_sync_failed_event{role="primary"} == 1'
+        labels:
+          severity: "warning"
+          service: "ha"
+        annotations:
+          summary_en: "HA synchronization failed"
+          summary_it: "Sincronizzazione HA non riuscita"
+          description_en: "Configuration synchronization to the backup node failed."
+          description_it: "La sincronizzazione della configurazione verso il nodo di backup non è riuscita."
