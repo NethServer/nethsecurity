@@ -76,7 +76,7 @@ During the start-up, the container will download netifyd plugins if configuratio
 The `build-nethsec.sh` script behavior can be changed by setting environment variables or by populating the `build.conf` file (git-ignored, local overrides only).
 
 **Variable loading order:**
-1. `build.conf.defaults` (versioned, always loaded first — contains canonical defaults)
+1. `build.conf.defaults` (versioned, always loaded first — contains the canonical build defaults tracked in Git)
 2. `build.conf` (git-ignored, optional — can override any variable)
 3. Environment variables set before calling `./build-nethsec.sh` (highest priority)
 
@@ -85,7 +85,7 @@ The `build-nethsec.sh` script behavior can be changed by setting environment var
 - `OWRT_VERSION`: specify the OpenWrt version to build, it can be either a TAG or a branch in the [GitHub OpenWRT repo](https://github.com/openwrt/openwrt); **required**
 - `NETHSECURITY_VERSION`: specify what to call the NethSecurity image; **required**
 - `TARGET`: specify the target to build; if not set default is `x86_64`
-- `REPO_CHANNEL`: specify the channel to publish the image to; if not set default is `dev`
+- `REPO_CHANNEL`: specify the channel to publish the image to; if not set, the build and CI default to `dev`
 - `BUILD_SEMVER_SUFFIX`: optional semver suffix appended to the image version only (not the distfeed URL). Use pre-release format (`-rc.1`, `-beta.2`) or metadata format (`+hotfix.1`, `+testing`) or both (`-rc.1+fix.1`).
 - `APK_PUB_KEY` and `APK_PRIV_KEY`: see [package signing section](#package-signing)
 

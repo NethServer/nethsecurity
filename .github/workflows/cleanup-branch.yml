@@ -26,13 +26,13 @@ jobs:
       - name: Find REPO_CHANNEL
         id: repo_channel
         run: |
-          if [[ "${{ github.event.pull_request.merged }}" == 'true' ]]; then
-            echo "REPO_CHANNEL=${{ github.head_ref }}" >> "$GITHUB_OUTPUT"
+          if [[ "${{ github.event_name }}" == 'pull_request' ]]; then
+            echo "REPO_CHANNEL=PR${{ github.event.number }}" >> "$GITHUB_OUTPUT"
           elif [[ "${{ github.event_name }}" == 'workflow_dispatch' && -n "${{ github.event.inputs.channel }}" ]]; then
             echo "REPO_CHANNEL=${{ github.event.inputs.channel }}" >> "$GITHUB_OUTPUT"
           fi
       - name: Remove old branches
-        if: steps.repo_channel.outputs.REPO_CHANNEL != 'dev' && steps.repo_channel.outputs.REPO_CHANNEL != 'stable' && steps.repo_channel.outputs.REPO_CHANNEL != ''
+        if: steps.repo_channel.outputs.REPO_CHANNEL != 'dev' && steps.repo_channel.outputs.REPO_CHANNEL != 'testing' && steps.repo_channel.outputs.REPO_CHANNEL != 'stable' && steps.repo_channel.outputs.REPO_CHANNEL != ''
         env:
           RCLONE_CONFIG_REPO_PROVIDER: DigitalOcean
           RCLONE_CONFIG_REPO_TYPE: s3
