@@ -8807,6 +8807,8 @@ Response example:
   "role": "primary",
   "state": "master",
   "status": "enabled",
+  "lock_status": "enabled",
+  "lock_timeout": "60",
   "last_sync_status": "Successful",
   "last_sync_time": "1749475026",
   "virtual_ips": {
@@ -8864,6 +8866,9 @@ Response example:
   }
 }
 ```
+
+`lock_status` is `enabled` only when `keepalived.globals.ns_lock_timeout` is set; otherwise it is `disabled`.
+`lock_timeout` shows the configured timeout in seconds.
 
 Error response example:
 ```json
