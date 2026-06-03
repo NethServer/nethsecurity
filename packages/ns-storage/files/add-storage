@@ -51,3 +51,8 @@ crontab -l | grep -q '/usr/sbin/sync-data' || echo '40 1 * * * /usr/sbin/sync-da
 
 # Setup persistent dnsmasq leases file
 /usr/libexec/ns-storage-dhcp-leases
+
+# Restart services that will use the storage
+/etc/init.d/dnsmasq restart
+/etc/init.d/victoria-metrics restart
+/etc/init.d/victoria-logs restart 2>/dev/null || :

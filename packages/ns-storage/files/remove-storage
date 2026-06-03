@@ -7,7 +7,7 @@
 
 set -e
 
-rom_part=$(lsblk -ln | grep "/rom" | uniq | awk '{print $1}')
+rom_part=$(lsblk -ln | grep "/boot" | uniq | awk '{print $1}')
 rom_disk=$(lsblk -lno pkname /dev/$rom_part)
 
 data_part=$(mount | grep /mnt/data | uniq | awk '{print $1}')
@@ -26,6 +26,13 @@ uci commit rsyslog
 crontab -l | grep -v "/usr/sbin/sync-data" | sort | uniq | crontab -
 /etc/init.d/cron restart
 
+# Stop process that will prevent umount
+/etc/init.d/dnsmasq stop
+/etc/init.d/victoria-metrics stop
+/etc/init.d/victoria-logs stop 2>/dev/null || :
+# Sync and wait for the disk to be free
+sync && sleep 5
+
 # Umounting data device
 umount -f /mnt/data
 rm -rf /mnt/data
@@ -37,3 +44,8 @@ fi
 
 # Restore dnsmasq to /tmp before the storage disappears.
 /usr/libexec/ns-storage-dhcp-leases
+
+# Start services
+/etc/init.d/dnsmasq start
+/etc/init.d/victoria-metrics start
+/etc/init.d/victoria-logs start 2>/dev/null || :
