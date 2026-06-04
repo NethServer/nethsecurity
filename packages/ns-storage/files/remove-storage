@@ -7,11 +7,11 @@
 
 set -e
 
-rom_part=$(lsblk -ln | grep "/rom" | uniq | awk '{print $1}')
+rom_part=$(lsblk -l --json | jq -r '.blockdevices[] | select(any(.mountpoints[]; . == "/boot")) | .name')
 rom_disk=$(lsblk -lno pkname /dev/$rom_part)
 
-data_part=$(mount | grep /mnt/data | uniq | awk '{print $1}')
-data_disk=$(lsblk -lno pkname $data_part)
+data_part=$(lsblk -l --json | jq -r '.blockdevices[] | select(any(.mountpoints[]; . == "/mnt/data")) | .name')
+data_disk=$(lsblk -lno pkname /dev/$data_part)
 
 # Removing auto-mount
 uci delete fstab.ns_data
