@@ -148,14 +148,14 @@ GIN_MODE=debug  # (instead of release)
 | Trigger | Channel | Version |
 |---|---|---|
 | Push to `main` | `dev` | `<base>-dev.<run>.<timestamp>.<hash>` |
-| Push to `testing` | `testing` | `<base>` |
-| Push to `stable` | `stable` | `<base>` |
+| Push to `staging` | `staging` | `<base>` |
+| Push to `release` | `stable` | `<base>` |
 | PR branch | branch-named | `<base>-<branch>.<run>.<timestamp>.<hash>` |
 
-**Stable package/image release:**
+**Package/Image release:**
 1. Bump `PKG_VERSION` or `PKG_RELEASE` in `packages/<name>/Makefile`.
-2. Merge the tested change to `stable`.
-3. The `stable` branch push publishes the stable channel automatically.
+2. Merge the tested change to `release`.
+3. The `release` branch push publishes the stable channel automatically.
 
 **Build volumes** (persistent, deleted weekly): `nethsecurity_builder_${OWRT_VERSION}_{build,staging,cache,downloads,dl}`.
 

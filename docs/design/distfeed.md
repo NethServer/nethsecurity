@@ -14,6 +14,7 @@ parent: Design
 The distribution feed includes the following channels:
 
 - `dev` channel: this channel is intended for unstable and development releases.
+- `staging` channel: this channel contains pre-release builds and packages that passed QA and can be tested by end users.
 - `stable` channel: this channel is for stable releases.
 - `subscription` channel: this channel is reserved for stable releases that have undergone additional testing. Access to this channel is restricted to machines with a valid subscription.
 
@@ -28,13 +29,13 @@ released and the packages. The repository will receive updates compatible with t
 
 Here are some examples of releases and their corresponding repositories:
 
-1. Dev example: `8.6.0-dev+ac63c40f4.20250818092838` and it's repository available at `{{site.download_url}}/dev/8.6.0-dev+ac63c40f4.20250818092838`
+1. Dev example: `8.8.0-dev.42.20260604123010.a1b2c3d` and its repository is available at `{{site.download_url}}/dev/8.8.0-dev.42.20260604123010.a1b2c3d`
 
-2. Stable example: `8.6.0` and it's repository available at `{{site.download_url}}/stable/8.6.0`
+2. Staging example: `8.8.0` and its repository is available at `{{site.download_url}}/staging/8.8.0`
 
-3. Unstable example: `8.6.0-alpha1` and it's repository available at `{{site.download_url}}/dev/8.6.0-alpha1`
+3. Stable example: `8.8.0` and its repository is available at `{{site.download_url}}/stable/8.8.0`
 
-4. Branch example: `8.6.0-netifyd-v5.x+37a64ca8a` and it's repository available at `{{site.download_url}}/dev/8.6.0-netifyd-v5.x+37a64ca8a`
+4. Branch example: `8.8.0-PR123.17.20260604123010.a1b2c3d` and its repository is available at `{{site.download_url}}/PR123/8.8.0-PR123.17.20260604123010.a1b2c3d`
 
 ### Change repository channel
 

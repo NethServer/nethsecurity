@@ -5,8 +5,8 @@ on:
   push:
     branches:
       - 'main'
-      - 'testing'
-      - 'stable'
+      - 'staging'
+      - 'release'
     paths:
       - 'builder/**'
       - 'config/**'
@@ -69,7 +69,7 @@ jobs:
             echo "REPO_CHANNEL=dev" >> $GITHUB_OUTPUT
             echo "BUILD_SEMVER_SUFFIX=${BUILD_SEMVER_SUFFIX}" >> $GITHUB_OUTPUT
             echo "NETHSECURITY_VERSION=${FULL_VERSION}" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref_name }}" == 'testing' || "${{ github.ref_name }}" == 'stable' ]]; then
+          elif [[ "${{ github.ref_name }}" == 'staging' || "${{ github.ref_name }}" == 'release' ]]; then
             echo "REPO_CHANNEL=${{ github.ref_name }}" >> $GITHUB_OUTPUT
             echo "BUILD_SEMVER_SUFFIX=" >> $GITHUB_OUTPUT
             echo "NETHSECURITY_VERSION=${BASE_VERSION}" >> $GITHUB_OUTPUT
@@ -137,7 +137,7 @@ jobs:
           TARGETS_DIR="${RELEASE_DIR}/targets"
           PUBLISH_TARGETS=true
 
-          if [[ "${{ steps.build_vars.outputs.REPO_CHANNEL }}" == 'stable' || "${{ steps.build_vars.outputs.REPO_CHANNEL }}" == 'testing' ]]; then
+          if [[ "${{ steps.build_vars.outputs.REPO_CHANNEL }}" == 'release' || "${{ steps.build_vars.outputs.REPO_CHANNEL }}" == 'staging' ]]; then
             if [[ -n "$(rclone lsf "${TARGETS_DIR}" --recursive --files-only 2>/dev/null | head -n 1 || true)" ]]; then
               PUBLISH_TARGETS=false
               echo "::notice title='Image upload skipped':: Image artifacts already exist for ${{ steps.build_vars.outputs.REPO_CHANNEL }}/${{ steps.build_vars.outputs.NETHSECURITY_VERSION }}"
