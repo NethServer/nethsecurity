@@ -37,13 +37,12 @@ fi
 if  [ "${current_leasefile}" != "${target_leasefile}" ]; then
 	if [ "${current_leasefile}" = "${STORAGE_LEASEFILE}" ]; then
 		# From storage to tmp
-		cp -af "${STORAGE_LEASEFILE}" "${TMP_LEASEFILE}" || :
+		cp -af "${STORAGE_LEASEFILE}" "${TMP_LEASEFILE}" 2>/dev/null || :
 	else
 		# From tmp to storage
 		mkdir -p "${STORAGE_DIR}"
-		cp -af "${TMP_LEASEFILE}" "${STORAGE_LEASEFILE}" || :
+		cp -af "${TMP_LEASEFILE}" "${STORAGE_LEASEFILE}" 2>/dev/null || :
 	fi
 	uci set dhcp.ns_dnsmasq.leasefile="$target_leasefile"
 	uci commit dhcp
-	reload_config
 fi
