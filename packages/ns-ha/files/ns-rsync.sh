@@ -21,26 +21,38 @@ update_last_sync_time() {
 	uci_set_state keepalived "$1" last_sync_time "$(utc_timestamp)"
 }
 
+record_sync_alert_event() {
+	local option="$1"
+
+	uci -q -P /var/state get keepalived.ha_alert >/dev/null 2>&1 || \
+		uci -q -P /var/state set keepalived.ha_alert=state
+	uci_revert_state keepalived ha_alert "$option" >/dev/null 2>&1 || true
+	uci_set_state keepalived ha_alert "$option" "$(utc_timestamp)"
+}
+
 update_last_sync_status() {
 	local cfg="$1"
 	shift
 	local status="$*"
+	local previous_status
 
-	# Raise alert if:
-	# - last_sync_time is empty
-	# - last sync time is older than 5 minutes
-	# - last_sync_status is different from the current status
-	config_get last_sync_status "$cfg" last_sync_status
-	if [ -z "$last_sync_status" ] || [ "$last_sync_status" != "$status" ]; then
-		if [[ "$status" != "Up to Date" && "$status" != "Successful" ]]; then
-			send_alert "ha:sync:failed" "FAILURE"
-		else
-			send_alert "ha:sync:failed" "OK"
-		fi
-	fi
+	config_get previous_status "$cfg" last_sync_status
 
 	uci_revert_state keepalived "$cfg" last_sync_status
 	uci_set_state keepalived "$cfg" last_sync_status "$status"
+
+	if [ "$previous_status" = "$status" ]; then
+		return 0
+	fi
+
+	case "$status" in
+		Successful|Up\ to\ Date)
+			record_sync_alert_event sync_recovered_at
+			;;
+		*)
+			record_sync_alert_event sync_failed_at
+			;;
+	esac
 }
 
 ha_sync_send() {

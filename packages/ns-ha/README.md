@@ -68,6 +68,12 @@ The setup process automatically does the following:
   key-based authentication is allowed
 - configure conntrackd to sync the connection tracking table
 
+Keepalived hotplug locking is disabled by default and is usually not needed. Leave
+`keepalived.globals.ns_lock_timeout` unset unless keepalived state transitions overlap and restart/stop
+events race with each other, as in the dedalo/dpi failover. When the option is set,
+the hotplug chain waits up to the configured timeout before letting the next event proceed.
+To enable the locking mechanism, set `keepalived.globals.ns_lock_timeout` to a positive integer representing the timeout in seconds, suggested value is 120 seconds, since OpenVPN and Netifyd have lng `term_timeout` option.
+
 In this example:
 - `primary_node_ip` is the primary node, with LAN IP `192.168.100.238`
 - `backup_node_ip` is the backup node, with LAN IP `192.168.100.239`
@@ -323,6 +329,7 @@ Role: primary
 Current State: master
 Last Sync Status: SSH Connection Failed
 Last Sync Time: Fri Apr 18 13:07:08 UTC 2025
+Locking: disabled
 ```
 
 The first synchronization will take up to 10 minutes and will be done in the background.
@@ -333,7 +340,7 @@ Role: primary
 Current State: master
 Last Sync Status: Successful
 Last Sync Time: Mon Jun  9 07:21:15 UTC 2025
-
+Locking: enabled (timeout 60s)
 Virtual IPs:
   lan_ipaddress: 192.168.100.240/24 (br-lan)
 
@@ -357,15 +364,19 @@ Keepalived Statistics:
 
 ## Alerting
 
-The cluster sends alerts **only** if the machine has a valid subscription.
+HA alerts are evaluated by **vmalert** from metrics exported by `/usr/libexec/telegraf-ha-alert`.
+The collector and HA alert rules are installed by the always-present `telegraf` and
+`victoria-metrics` packages. When alerts fire, `ns-plug-alert-proxy` forwards the legacy HA alert IDs
+to the monitoring portal if the machine has a valid registration.
 
 Available alerts are:
 
-- `ha:sync:failed`: raised if the file synchronization fails; it usyally means that the backup node is not reachable.
-  This alerts is raised only on the primary node.
+- `ha:sync:failed`: raised if the file synchronization fails; it usually means that the backup node is not reachable.
+  The alert is raised with FAILURE state when a sync failure is detected on the primary node and with OK state
+  when synchronization becomes successful again.
 - `ha:primary:failed`: raised if the primary node is down; it means that there was a switchover.
-  This alerts is raised with FAILURE state on the backup node when it takes over the virtual IP address; 
-  the alert is raised with OK state on the primary node when it comes back online.
+  The alert is raised with FAILURE state when the backup node becomes master and raised with OK state
+  when the primary node becomes master again.
 
 ## Connecting to the backup node
 

@@ -16,6 +16,8 @@ Only the following alerts are forwarded:
                                  df:boot:percent_bytes:free  (path=/boot)
   - BackupEncryptionDisabled  → backup:config:notencrypted
   - StorageStatus             → storage:status
+  - HaPrimaryFailed           → ha:primary:failed
+  - HaSyncFailed              → ha:sync:failed
 
 All other alerts are silently dropped.
 If the machine is not registered (no system_id/secret in UCI), all alerts
@@ -75,6 +77,10 @@ def _map_alert_id(alert_name, labels):
         return "backup:config:notencrypted"
     if alert_name == "StorageStatus":
         return "storage:status"
+    if alert_name == "HaPrimaryFailed":
+        return "ha:primary:failed"
+    if alert_name == "HaSyncFailed":
+        return "ha:sync:failed"
     return None
 
 
