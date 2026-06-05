@@ -57,6 +57,13 @@ MONITORED_SERVICES = {
 
 # Excluded service: adblock
 
+# Exit codes that are treated as clean shutdown (mapped to 0) for specific services.
+# banip: 130 (SIGINT) is recorded by procd when the monitor loop is stopped intentionally.
+EXIT_CODE_MAP = {
+    "banip": {130: 0},
+}
+
+
 def get_service_list():
     result = subprocess.run(
         ["ubus", "call", "service", "list"],
@@ -86,13 +93,17 @@ def build_records(data):
             continue
 
         for inst_name, inst in instances.items():
+            raw_exit_code = inst.get("exit_code", 0)
+            exit_code = EXIT_CODE_MAP.get(svc_name, {}).get(
+                raw_exit_code, raw_exit_code
+            )
             records.append(
                 {
                     "service": sanitize_tag(svc_name),
                     "instance": sanitize_tag(inst_name),
                     "running": 1 if inst.get("running", False) else 0,
                     "pid": inst.get("pid", 0),
-                    "exit_code": inst.get("exit_code", 0),
+                    "exit_code": exit_code,
                 }
             )
     return records
