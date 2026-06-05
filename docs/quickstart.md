@@ -31,6 +31,18 @@ See the [install page]({{site.manual_url}}/install.html) inside manual.
 
 See the [access page]({{site.manual_url}}/remote_access.html) inside manual.
 
+## Console setup
+
+The image ships the `/usr/sbin/setup` helper for basic console-first
+configuration.
+
+The command uses a `whiptail` interface to:
+
+- switch the console keyboard between `it` and the default `us`
+- assign physical network cards to `lan` and `wan`
+- configure `lan` IPv4/CIDR
+- configure `wan` as `dhcp` or `static`
+
 ### LuCI
 
 The following sections/options should not be changed from the web interface:

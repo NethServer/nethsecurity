@@ -1,0 +1,813 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+. /usr/share/libubox/jshn.sh
+
+STATE_FILE="/tmp/setup.state"
+DEVICE_DB="/tmp/setup.devices"
+DEVICES_JSON=""
+RPC_OUTPUT=""
+WHIPTAIL_RESULT=""
+
+KEYMAP="us"
+LAN_DEVICE=""
+LAN_IP=""
+WAN_DEVICE=""
+WAN_PROTO="dhcp"
+WAN_IP=""
+WAN_GW=""
+
+CURRENT_KEYMAP="us"
+CURRENT_LAN_IFACE="lan"
+CURRENT_LAN_DEVICE=""
+CURRENT_LAN_DEVICE_SECTION=""
+CURRENT_LAN_IP=""
+CURRENT_LAN_BRIDGED="0"
+CURRENT_LAN_MTU=""
+CURRENT_LAN_IPV6_ENABLED="false"
+CURRENT_WAN_IFACE="wan"
+CURRENT_WAN_DEVICE=""
+CURRENT_WAN_DEVICE_SECTION=""
+CURRENT_WAN_PROTO="dhcp"
+CURRENT_WAN_IP=""
+CURRENT_WAN_GW=""
+CURRENT_WAN_MTU=""
+CURRENT_WAN_IPV6_ENABLED="false"
+CURRENT_WAN_METRIC=""
+CURRENT_WAN_DHCP_CLIENT_ID=""
+CURRENT_WAN_DHCP_VENDOR_CLASS=""
+CURRENT_WAN_DHCP_HOSTNAME_TO_SEND="deviceHostname"
+CURRENT_WAN_DHCP_CUSTOM_HOSTNAME=""
+
+SELECTABLE_DEVICES=""
+
+cleanup() {
+	rm -f "$STATE_FILE"
+	rm -f "$DEVICE_DB"
+}
+
+die() {
+	whiptail --title "Setup" --msgbox "$1" 10 70
+	exit 1
+}
+
+read_current_keymap() {
+	CURRENT_KEYMAP="us"
+	if [ -f /etc/keymap ] && [ "$(cat /etc/keymap 2>/dev/null)" = "it" ]; then
+		CURRENT_KEYMAP="it"
+	fi
+}
+
+run_dialog() {
+	WHIPTAIL_RESULT=$(whiptail "$@" 3>&1 1>&2 2>&3)
+}
+
+zone_interface_name() {
+	zone_name="$1"
+	set -- $(uci -q get "firewall.ns_${zone_name}.network" 2>/dev/null)
+	if [ -n "$1" ]; then
+		printf '%s' "$1"
+	else
+		printf '%s' "$zone_name"
+	fi
+}
+
+uci_bool() {
+	case "$1" in
+		1|on|true|yes) printf '%s' 'true' ;;
+		*) printf '%s' 'false' ;;
+	esac
+}
+
+current_interface_value() {
+	uci -q get "network.$1.$2" 2>/dev/null || true
+}
+
+load_state() {
+	if [ -f "$STATE_FILE" ]; then
+		# shellcheck disable=SC1090
+		. "$STATE_FILE"
+	fi
+}
+
+save_state() {
+	cat > "$STATE_FILE" <<EOF
+KEYMAP='${KEYMAP}'
+LAN_DEVICE='${LAN_DEVICE}'
+LAN_IP='${LAN_IP}'
+WAN_DEVICE='${WAN_DEVICE}'
+WAN_PROTO='${WAN_PROTO}'
+WAN_IP='${WAN_IP}'
+WAN_GW='${WAN_GW}'
+EOF
+}
+
+rpc_call() {
+	service="$1"
+	method="$2"
+	payload="$3"
+
+	RPC_OUTPUT=$(printf '%s' "$payload" | "/usr/libexec/rpcd/$service" call "$method" 2>&1)
+	status=$?
+	if [ $status -ne 0 ]; then
+		return $status
+	fi
+
+	case "$RPC_OUTPUT" in
+		*'"error"'*|*'"validation"'*)
+			return 1
+			;;
+		esac
+
+	return 0
+}
+
+read_devices_json() {
+	DEVICES_JSON=$(printf '{}' | /usr/libexec/rpcd/ns.devices call list-devices 2>/dev/null) || return 1
+	[ -n "$DEVICES_JSON" ]
+}
+
+append_physical_device() {
+	device_name="$1"
+	for existing_device in $SELECTABLE_DEVICES; do
+		[ "$existing_device" = "$device_name" ] && return 0
+	done
+	if [ -n "$SELECTABLE_DEVICES" ]; then
+		SELECTABLE_DEVICES="$SELECTABLE_DEVICES $device_name"
+	else
+		SELECTABLE_DEVICES="$device_name"
+	fi
+}
+
+device_record() {
+	device_name="$1"
+	awk -F '\t' -v device="$device_name" '$1 == device { print; exit }' "$DEVICE_DB"
+}
+
+device_field() {
+	device_name="$1"
+	field_number="$2"
+	awk -F '\t' -v device="$device_name" -v field="$field_number" '$1 == device { print $field; exit }' "$DEVICE_DB"
+}
+
+device_kind() {
+	device_field "$1" 2
+}
+
+device_ports() {
+	device_field "$1" 3
+}
+
+json_array_from_words() {
+	values="$1"
+	first="1"
+	printf '['
+	for value in $values; do
+		[ -n "$value" ] || continue
+		if [ "$first" = "1" ]; then
+			first="0"
+		else
+			printf ','
+		fi
+		printf '"%s"' "$value"
+	done
+	printf ']'
+}
+
+short_text() {
+	max_len="$1"
+	text="$2"
+	text=$(printf '%s' "$text" | tr '\n' ' ' | tr -s ' ')
+	if [ "${#text}" -le "$max_len" ]; then
+		printf '%s' "$text"
+	else
+		cut_len=$((max_len - 3))
+		[ "$cut_len" -lt 1 ] && cut_len=1
+		printf '%s...' "$(printf '%s' "$text" | cut -c1-"$cut_len")"
+	fi
+}
+
+device_description() {
+	device_name="$1"
+	kind=$(device_kind "$device_name")
+	description=""
+	if [ "$kind" = "bridge" ]; then
+		ports=$(device_ports "$device_name")
+		if [ -n "$ports" ]; then
+			printf 'Bridge %s' "$ports"
+		else
+			printf 'Bridge'
+		fi
+		return 0
+	fi
+
+	slot=""
+	if command -v ethtool >/dev/null 2>&1; then
+		slot=$(ethtool -i "$device_name" 2>/dev/null | sed -n 's/^bus-info: //p')
+	fi
+	if [ -z "$slot" ]; then
+		device_path=$(readlink -f "/sys/class/net/$device_name/device" 2>/dev/null)
+		while [ -n "$device_path" ] && [ "$device_path" != "/" ]; do
+			base_name=${device_path##*/}
+			case "$base_name" in
+				????:??:??.?)
+					slot="$base_name"
+					break
+					;;
+			esac
+			device_path=${device_path%/*}
+		done
+	fi
+	if [ -n "$slot" ] && command -v lspci >/dev/null 2>&1; then
+		description=$(lspci -s "$slot" 2>/dev/null | cut -d ' ' -f 2-)
+		description=${description#Ethernet controller: }
+		description=${description#Network controller: }
+		description=${description#Red Hat, Inc. }
+		description=${description% (rev *}
+	fi
+	if [ -n "$description" ]; then
+		short_text 22 "$description"
+	else
+		printf 'Ethernet'
+	fi
+}
+
+device_mac() {
+	cat "/sys/class/net/$1/address" 2>/dev/null
+}
+
+device_status() {
+	device_name="$1"
+	kind=$(device_kind "$device_name")
+	operstate=$(cat "/sys/class/net/$device_name/operstate" 2>/dev/null)
+	carrier=$(cat "/sys/class/net/$device_name/carrier" 2>/dev/null)
+	if [ "$kind" = "bridge" ]; then
+		if [ "$operstate" = "up" ]; then
+			printf 'Up'
+		else
+			printf '%s' "${operstate:-Down}"
+		fi
+		return 0
+	fi
+	if [ "$carrier" = "1" ]; then
+		printf 'Connected'
+	elif [ "$carrier" = "0" ]; then
+		printf 'No cable'
+	elif [ "$operstate" = "up" ]; then
+		printf 'Up'
+	else
+		printf '%s' "${operstate:-Down}"
+	fi
+}
+
+device_menu_label() {
+	device_name="$1"
+	description=$(device_description "$device_name")
+	mac_address=$(device_mac "$device_name")
+	status=$(device_status "$device_name")
+	printf '%s | %s | %s' "$description" "$mac_address" "$status"
+}
+
+build_device_db() {
+	: > "$DEVICE_DB"
+	SELECTABLE_DEVICES=""
+	json_cleanup
+	json_load "$DEVICES_JSON" || return 1
+	json_select all_devices || return 1
+	json_get_keys device_indexes
+
+	for device_index in $device_indexes; do
+		json_select "$device_index"
+		json_get_var name name
+		json_get_var link_type link_type
+		json_get_var type type
+
+		if [ -z "$name" ]; then
+			json_select ..
+			continue
+		fi
+
+		if [ "$type" = "bridge" ]; then
+			json_get_type ports_type ports
+			ports=""
+			if [ "$ports_type" = "array" ]; then
+				json_select ports
+				json_get_keys port_indexes
+				for port_index in $port_indexes; do
+					json_get_var port_name "$port_index"
+					if [ -n "$ports" ]; then
+						ports="$ports $port_name"
+					else
+						ports="$port_name"
+					fi
+				done
+				json_select ..
+			fi
+			printf '%s\t%s\t%s\n' "$name" bridge "$ports" >> "$DEVICE_DB"
+			append_physical_device "$name"
+		elif [ "$link_type" = "ether" ]; then
+			printf '%s\t%s\t%s\n' "$name" physical '' >> "$DEVICE_DB"
+			append_physical_device "$name"
+		fi
+
+		json_select ..
+	done
+
+	json_select ..
+	return 0
+}
+
+parse_devices_json() {
+	CURRENT_LAN_IFACE=$(zone_interface_name lan)
+	CURRENT_WAN_IFACE=$(zone_interface_name wan)
+	CURRENT_LAN_DEVICE=""
+	CURRENT_LAN_DEVICE_SECTION=""
+	CURRENT_LAN_IP=""
+	CURRENT_LAN_BRIDGED="0"
+	CURRENT_LAN_MTU=""
+	CURRENT_LAN_IPV6_ENABLED="false"
+	CURRENT_WAN_DEVICE=""
+	CURRENT_WAN_DEVICE_SECTION=""
+	CURRENT_WAN_PROTO="dhcp"
+	CURRENT_WAN_IP=""
+	CURRENT_WAN_GW=""
+	CURRENT_WAN_MTU=""
+	CURRENT_WAN_IPV6_ENABLED="false"
+	CURRENT_WAN_METRIC=""
+	CURRENT_WAN_DHCP_CLIENT_ID=""
+	CURRENT_WAN_DHCP_VENDOR_CLASS=""
+	CURRENT_WAN_DHCP_HOSTNAME_TO_SEND="deviceHostname"
+	CURRENT_WAN_DHCP_CUSTOM_HOSTNAME=""
+
+	build_device_db || return 1
+
+	json_cleanup
+	json_load "$DEVICES_JSON" || return 1
+	json_select all_devices || return 1
+	json_get_keys device_indexes
+
+	for device_index in $device_indexes; do
+		json_select "$device_index"
+
+		json_get_var name name
+		json_get_var link_type link_type
+		json_get_var type type
+		json_get_type iface_type iface
+
+		iface_name=""
+		iface_proto=""
+		iface_ipaddr=""
+		iface_gateway=""
+		if [ "$iface_type" = "object" ]; then
+			json_select iface
+			json_get_var iface_name .name
+			json_get_var iface_proto proto
+			json_get_var iface_ipaddr ipaddr
+			json_get_var iface_gateway gateway
+			json_select ..
+		fi
+
+		if [ "$iface_name" = "$CURRENT_LAN_IFACE" ]; then
+			CURRENT_LAN_IP="$iface_ipaddr"
+			CURRENT_LAN_DEVICE="$name"
+			json_get_var current_lan_device_section .name
+			CURRENT_LAN_DEVICE_SECTION="$current_lan_device_section"
+			CURRENT_LAN_MTU=$(current_interface_value "$current_lan_device_section" mtu)
+			json_get_var current_lan_ipv6 ipv6
+			CURRENT_LAN_IPV6_ENABLED=$(uci_bool "$current_lan_ipv6")
+			if [ "$type" = "bridge" ]; then
+				CURRENT_LAN_BRIDGED="1"
+			fi
+		elif [ "$iface_name" = "$CURRENT_WAN_IFACE" ]; then
+			CURRENT_WAN_DEVICE="$name"
+			CURRENT_WAN_PROTO="$iface_proto"
+			CURRENT_WAN_IP="$iface_ipaddr"
+			CURRENT_WAN_GW="$iface_gateway"
+			json_get_var current_wan_device_section .name
+			CURRENT_WAN_DEVICE_SECTION="$current_wan_device_section"
+			CURRENT_WAN_MTU=$(current_interface_value "$current_wan_device_section" mtu)
+			json_get_var current_wan_ipv6 ipv6
+			CURRENT_WAN_IPV6_ENABLED=$(uci_bool "$current_wan_ipv6")
+		fi
+
+		json_select ..
+	done
+
+	json_select ..
+
+	CURRENT_WAN_METRIC=$(current_interface_value "$CURRENT_WAN_IFACE" metric)
+	CURRENT_WAN_DHCP_CLIENT_ID=$(current_interface_value "$CURRENT_WAN_IFACE" clientid)
+	CURRENT_WAN_DHCP_VENDOR_CLASS=$(current_interface_value "$CURRENT_WAN_IFACE" vendorid)
+	current_wan_hostname=$(current_interface_value "$CURRENT_WAN_IFACE" hostname)
+	case "$current_wan_hostname" in
+		"")
+			CURRENT_WAN_DHCP_HOSTNAME_TO_SEND="deviceHostname"
+			CURRENT_WAN_DHCP_CUSTOM_HOSTNAME=""
+			;;
+		"*")
+			CURRENT_WAN_DHCP_HOSTNAME_TO_SEND="doNotSendHostname"
+			CURRENT_WAN_DHCP_CUSTOM_HOSTNAME=""
+			;;
+		*)
+			CURRENT_WAN_DHCP_HOSTNAME_TO_SEND="customHostname"
+			CURRENT_WAN_DHCP_CUSTOM_HOSTNAME="$current_wan_hostname"
+			;;
+	esac
+
+	return 0
+}
+
+initialize_state() {
+	read_current_keymap
+	read_devices_json || die "Unable to read current device configuration."
+	parse_devices_json || die "Unable to parse current device configuration."
+
+	KEYMAP="$CURRENT_KEYMAP"
+	LAN_DEVICE="$CURRENT_LAN_DEVICE"
+	LAN_IP="$CURRENT_LAN_IP"
+	WAN_DEVICE="$CURRENT_WAN_DEVICE"
+	WAN_PROTO="$CURRENT_WAN_PROTO"
+	WAN_IP="$CURRENT_WAN_IP"
+	WAN_GW="$CURRENT_WAN_GW"
+
+	load_state
+	save_state
+}
+
+pick_keymap() {
+	run_dialog --title "Keymap" --radiolist "Select keymap" 12 60 2 \
+		it "Italian" "$( [ "$KEYMAP" = "it" ] && printf ON || printf OFF )" \
+		us "US (default)" "$( [ "$KEYMAP" = "us" ] && printf ON || printf OFF )" || return 0
+
+	KEYMAP="$WHIPTAIL_RESULT"
+	apply_keymap || {
+		whiptail --title "Setup Error" --msgbox "Unable to apply keymap immediately." 10 70
+		read_current_keymap
+		KEYMAP="$CURRENT_KEYMAP"
+		return 1
+	}
+	save_state
+}
+
+pick_device() {
+	title="$1"
+	prompt="$2"
+	selected="$3"
+
+	set -- --title "$title" --radiolist "$prompt" 18 70 8
+	for device_name in $SELECTABLE_DEVICES; do
+		status="OFF"
+		[ "$device_name" = "$selected" ] && status="ON"
+		set -- "$@" "$device_name" "$(device_menu_label "$device_name")" "$status"
+	done
+
+	run_dialog "$@" || return 1
+	printf '%s\n' "$WHIPTAIL_RESULT"
+	return 0
+}
+
+prompt_value() {
+	title="$1"
+	prompt="$2"
+	default_value="$3"
+
+	run_dialog --title "$title" --inputbox "$prompt" 12 70 "$default_value" || return 1
+	printf '%s\n' "$WHIPTAIL_RESULT"
+	return 0
+}
+
+pick_lan_device() {
+	choice=$(pick_device "Lan Device" "Select the LAN network device" "$LAN_DEVICE") || return 0
+	LAN_DEVICE="$choice"
+	save_state
+}
+
+pick_lan_ip() {
+	value=$(prompt_value "Lan IPv4" "Enter LAN IPv4 address in CIDR notation" "$LAN_IP") || return 0
+	LAN_IP="$value"
+	save_state
+}
+
+pick_wan_device() {
+	choice=$(pick_device "Wan Device" "Select the WAN network device" "$WAN_DEVICE") || return 0
+	WAN_DEVICE="$choice"
+	save_state
+}
+
+pick_wan_proto() {
+	run_dialog --title "Wan Protocol" --radiolist "Select the WAN protocol" 12 60 2 \
+		dhcp "Automatic configuration" "$( [ "$WAN_PROTO" = "dhcp" ] && printf ON || printf OFF )" \
+		static "Static IPv4 configuration" "$( [ "$WAN_PROTO" = "static" ] && printf ON || printf OFF )" \
+		|| return 0
+
+	WAN_PROTO="$WHIPTAIL_RESULT"
+	if [ "$WAN_PROTO" = "dhcp" ]; then
+		WAN_IP=""
+		WAN_GW=""
+	fi
+	save_state
+}
+
+pick_wan_ip() {
+	[ "$WAN_PROTO" = "static" ] || {
+		whiptail --title "Wan IPv4" --msgbox "WAN IPv4 address is only required for static WAN." 10 70
+		return 0
+	}
+	value=$(prompt_value "Wan IPv4" "Enter WAN IPv4 address in CIDR notation" "$WAN_IP") || return 0
+	WAN_IP="$value"
+	save_state
+}
+
+pick_wan_gw() {
+	[ "$WAN_PROTO" = "static" ] || {
+		whiptail --title "Wan Gateway" --msgbox "WAN gateway is only required for static WAN." 10 70
+		return 0
+	}
+	value=$(prompt_value "Wan Gateway" "Enter WAN IPv4 gateway" "$WAN_GW") || return 0
+	WAN_GW="$value"
+	save_state
+}
+
+network_menu() {
+	while true; do
+		set -- --title "Network" --menu "Choose a network setting" 18 70 7 \
+			lan_device "Lan Device: ${LAN_DEVICE:-unset}" \
+			lan_ip "Lan IPv4/CIDR: ${LAN_IP:-unset}" \
+			wan_device "Wan Device: ${WAN_DEVICE:-unset}" \
+			wan_proto "Wan Protocol: ${WAN_PROTO:-unset}"
+		if [ "$WAN_PROTO" = "static" ]; then
+			set -- "$@" \
+				wan_ip "Wan IPv4/CIDR: ${WAN_IP:-unset}" \
+				wan_gw "Wan Gateway: ${WAN_GW:-unset}"
+		fi
+		set -- "$@" back "Return to Main Menu"
+
+		run_dialog "$@" || return 0
+		selection="$WHIPTAIL_RESULT"
+
+		case "$selection" in
+			lan_device) pick_lan_device ;;
+			lan_ip) pick_lan_ip ;;
+			wan_device) pick_wan_device ;;
+			wan_proto) pick_wan_proto ;;
+			wan_ip) pick_wan_ip ;;
+			wan_gw) pick_wan_gw ;;
+			back) return 0 ;;
+		esac
+	done
+}
+
+validate_cidr() {
+	case "$1" in
+		*/*) return 0 ;;
+		*) return 1 ;;
+	esac
+}
+
+validate_config() {
+	if [ -z "$LAN_DEVICE" ]; then
+		printf '%s\n' "LAN device is required."
+		return 1
+	fi
+
+	if [ -z "$WAN_DEVICE" ]; then
+		printf '%s\n' "WAN device is required."
+		return 1
+	fi
+
+	if [ "$LAN_DEVICE" = "$WAN_DEVICE" ]; then
+		printf '%s\n' "LAN and WAN must use different devices."
+		return 1
+	fi
+
+	if [ "$(device_kind "$LAN_DEVICE")" = "bridge" ] && [ "$LAN_DEVICE" != "$CURRENT_LAN_DEVICE" ]; then
+		printf '%s\n' "Changing LAN to a different existing bridge is not supported."
+		return 1
+	fi
+
+	if [ "$(device_kind "$WAN_DEVICE")" = "bridge" ] && [ "$WAN_DEVICE" != "$CURRENT_WAN_DEVICE" ]; then
+		printf '%s\n' "Changing WAN to a different existing bridge is not supported."
+		return 1
+	fi
+
+	if [ -z "$LAN_IP" ] || ! validate_cidr "$LAN_IP"; then
+		printf '%s\n' "LAN IPv4 address must be in CIDR notation."
+		return 1
+	fi
+
+	if [ "$WAN_PROTO" = "static" ]; then
+		if [ -z "$WAN_IP" ] || ! validate_cidr "$WAN_IP"; then
+			printf '%s\n' "Static WAN IPv4 address must be in CIDR notation."
+			return 1
+		fi
+
+		if [ -z "$WAN_GW" ]; then
+			printf '%s\n' "Static WAN gateway is required."
+			return 1
+		fi
+	fi
+
+	return 0
+}
+
+warn_management_change() {
+	warning=""
+
+	if [ "$LAN_DEVICE" != "$CURRENT_LAN_DEVICE" ]; then
+		warning="LAN device will change from ${CURRENT_LAN_DEVICE:-unset} to ${LAN_DEVICE}."
+	fi
+
+	if [ "$LAN_IP" != "$CURRENT_LAN_IP" ]; then
+		if [ -n "$warning" ]; then
+			warning="$warning\n"
+		fi
+		warning="${warning}LAN IP will change from ${CURRENT_LAN_IP:-unset} to ${LAN_IP}."
+	fi
+
+	if [ -n "$warning" ]; then
+		whiptail --title "Warning" --yesno "$warning\n\nYour current SSH session may disconnect. Continue?" 14 70 || return 1
+	fi
+
+	return 0
+}
+
+configure_lan() {
+	interface_name="$CURRENT_LAN_IFACE"
+	[ -n "$interface_name" ] || interface_name="lan"
+	interface_to_edit="$interface_name"
+	device_kind=$(device_kind "$LAN_DEVICE")
+	if [ -n "$CURRENT_LAN_DEVICE" ] && [ "$LAN_DEVICE" != "$CURRENT_LAN_DEVICE" ]; then
+		rpc_call ns.devices unconfigure-device "{\"iface_name\":\"$interface_name\"}" || return 1
+		interface_to_edit=""
+	fi
+
+	if [ "$device_kind" = "bridge" ] && [ -n "$interface_to_edit" ]; then
+		attached_devices=$(json_array_from_words "$(device_ports "$LAN_DEVICE")")
+		payload=$(printf '{"device_name":"%s","device_type":"logical","logical_type":"bridge","attached_devices":%s,"interface_name":"%s","interface_to_edit":"%s","protocol":"static","zone":"lan","ip4_address":"%s","ip4_gateway":"","ip4_mtu":"%s","ip6_enabled":%s}' \
+			"$LAN_DEVICE" "$attached_devices" "$interface_name" "$interface_to_edit" "$LAN_IP" "$CURRENT_LAN_MTU" "$CURRENT_LAN_IPV6_ENABLED")
+	else
+		payload=$(printf '{"device_name":"%s","device_type":"physical","interface_name":"%s","interface_to_edit":"%s","protocol":"static","zone":"lan","ip4_address":"%s","ip4_gateway":"","ip4_mtu":"%s","ip6_enabled":%s}' \
+			"$LAN_DEVICE" "$interface_name" "$interface_to_edit" "$LAN_IP" "$CURRENT_LAN_MTU" "$CURRENT_LAN_IPV6_ENABLED")
+	fi
+	rpc_call ns.devices configure-device "$payload"
+}
+
+configure_wan() {
+	interface_name="$CURRENT_WAN_IFACE"
+	[ -n "$interface_name" ] || interface_name="wan"
+	interface_to_edit="$interface_name"
+	device_kind=$(device_kind "$WAN_DEVICE")
+	if [ -n "$CURRENT_WAN_DEVICE" ] && [ "$WAN_DEVICE" != "$CURRENT_WAN_DEVICE" ]; then
+		rpc_call ns.devices unconfigure-device "{\"iface_name\":\"$interface_name\"}" || return 1
+		interface_to_edit=""
+	fi
+
+	if [ "$device_kind" = "bridge" ] && [ -n "$interface_to_edit" ]; then
+		attached_devices=$(json_array_from_words "$(device_ports "$WAN_DEVICE")")
+		device_type_fields=$(printf '"device_type":"logical","logical_type":"bridge","attached_devices":%s' "$attached_devices")
+	else
+		device_type_fields='"device_type":"physical"'
+	fi
+	wan_metric_json='null'
+	if [ -n "$CURRENT_WAN_METRIC" ]; then
+		wan_metric_json="$CURRENT_WAN_METRIC"
+	fi
+
+	if [ "$WAN_PROTO" = "static" ]; then
+		payload=$(printf '{"device_name":"%s",%s,"interface_name":"%s","interface_to_edit":"%s","protocol":"static","zone":"wan","ip4_address":"%s","ip4_gateway":"%s","ip4_mtu":"%s","ip6_enabled":%s,"metric":%s}' \
+			"$WAN_DEVICE" "$device_type_fields" "$interface_name" "$interface_to_edit" "$WAN_IP" "$WAN_GW" "$CURRENT_WAN_MTU" "$CURRENT_WAN_IPV6_ENABLED" "$wan_metric_json")
+	else
+		payload=$(printf '{"device_name":"%s",%s,"interface_name":"%s","interface_to_edit":"%s","protocol":"dhcp","zone":"wan","ip4_address":"","ip4_gateway":"","ip4_mtu":"%s","ip6_enabled":%s,"metric":%s,"dhcp_client_id":"%s","dhcp_vendor_class":"%s","dhcp_hostname_to_send":"%s","dhcp_custom_hostname":"%s"}' \
+			"$WAN_DEVICE" "$device_type_fields" "$interface_name" "$interface_to_edit" "$CURRENT_WAN_MTU" "$CURRENT_WAN_IPV6_ENABLED" "$wan_metric_json" "$CURRENT_WAN_DHCP_CLIENT_ID" "$CURRENT_WAN_DHCP_VENDOR_CLASS" "$CURRENT_WAN_DHCP_HOSTNAME_TO_SEND" "$CURRENT_WAN_DHCP_CUSTOM_HOSTNAME")
+	fi
+
+	rpc_call ns.devices configure-device "$payload"
+}
+
+commit_network() {
+	rpc_call ns.commit commit '{"changes":{"network":[],"firewall":[]}}'
+}
+
+apply_keymap() {
+	if [ "$KEYMAP" = "it" ]; then
+		printf 'it' > /etc/keymap || return 1
+		/sbin/loadkmap < /usr/share/keymaps/it.map.bin || return 1
+	else
+		rm -f /etc/keymap || return 1
+	fi
+	return 0
+}
+
+show_apply_error() {
+	message="$1"
+	if [ -n "$RPC_OUTPUT" ]; then
+		message="$message\n\n$RPC_OUTPUT"
+	fi
+	whiptail --title "Setup Error" --msgbox "$message" 18 78
+}
+
+display_value() {
+	if [ -n "$1" ]; then
+		printf '%s' "$1"
+	else
+		printf '%s' '-'
+	fi
+}
+
+network_has_changes() {
+	[ "$LAN_DEVICE" != "$CURRENT_LAN_DEVICE" ] && return 0
+	[ "$LAN_IP" != "$CURRENT_LAN_IP" ] && return 0
+	[ "$WAN_DEVICE" != "$CURRENT_WAN_DEVICE" ] && return 0
+	[ "$WAN_PROTO" != "$CURRENT_WAN_PROTO" ] && return 0
+	[ "$WAN_IP" != "$CURRENT_WAN_IP" ] && return 0
+	[ "$WAN_GW" != "$CURRENT_WAN_GW" ] && return 0
+	return 1
+}
+
+lan_has_changes() {
+	[ "$LAN_DEVICE" != "$CURRENT_LAN_DEVICE" ] && return 0
+	[ "$LAN_IP" != "$CURRENT_LAN_IP" ] && return 0
+	return 1
+}
+
+wan_has_changes() {
+	[ "$WAN_DEVICE" != "$CURRENT_WAN_DEVICE" ] && return 0
+	[ "$WAN_PROTO" != "$CURRENT_WAN_PROTO" ] && return 0
+	[ "$WAN_IP" != "$CURRENT_WAN_IP" ] && return 0
+	[ "$WAN_GW" != "$CURRENT_WAN_GW" ] && return 0
+	return 1
+}
+
+apply_changes() {
+	if ! network_has_changes; then
+		whiptail --title "Setup" --msgbox "No network changes to apply." 10 70
+		return 0
+	fi
+
+	validation_error=$(validate_config 2>&1) || {
+		RPC_OUTPUT=""
+		show_apply_error "$validation_error"
+		return 1
+	}
+
+	warn_management_change || return 1
+
+	summary=$(printf 'Keymap: %s\nLan Device: %s\nLan IPv4/CIDR: %s\nWan Device: %s\nWan Protocol: %s\nWan IPv4/CIDR: %s\nWan Gateway: %s' \
+		"$KEYMAP" "$LAN_DEVICE" "$LAN_IP" "$WAN_DEVICE" "$WAN_PROTO" "$(display_value "$WAN_IP")" "$(display_value "$WAN_GW")")
+	whiptail --title "Confirm Changes" --yesno "$summary\n\nApply these changes?" 18 78 || return 0
+
+	if lan_has_changes; then
+		configure_lan || {
+			show_apply_error "Unable to configure LAN."
+			return 1
+		}
+	fi
+
+	if wan_has_changes; then
+		configure_wan || {
+			show_apply_error "Unable to configure WAN."
+			return 1
+		}
+	fi
+
+	commit_network || {
+		show_apply_error "Unable to commit network configuration."
+		return 1
+	}
+
+	cleanup
+	whiptail --title "Setup" --msgbox "Configuration applied successfully." 10 70
+	return 0
+}
+
+ensure_root() {
+	[ "$(id -u)" -eq 0 ] || die "This command must be run as root."
+}
+
+main_menu() {
+	while true; do
+		run_dialog --title "Setup" --menu "Choose an action" 16 70 4 \
+			network "Network" \
+			keymap "Keymap: ${KEYMAP}" \
+			apply "Apply Changes" \
+			exit "Exit Without Applying" || break
+		selection="$WHIPTAIL_RESULT"
+
+		case "$selection" in
+			keymap) pick_keymap ;;
+			network) network_menu ;;
+			apply) apply_changes ;;
+			exit) break ;;
+		esac
+	done
+
+	cleanup
+}
+
+ensure_root
+initialize_state
+main_menu
