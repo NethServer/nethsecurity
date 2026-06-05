@@ -5,20 +5,37 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-version=${VERSION:=''}
+# setup default variables
+. /etc/openwrt_release
+. /etc/os-release
+cat << EOF > /etc/apk/repositories.d/99-defaults.list
+# This file is handled by nethsecurity and should not be edited manually. Changes will be overwritten.
+# Create a 98-overrides.list file to override these values if needed.
+set -default target_arch=$DISTRIB_TARGET
+set -default package_arch=$DISTRIB_ARCH
+set -default openwrt_version=$(cat /etc/openwrt_version)
+set -default repo_channel=$(cat /etc/repo-channel)
+set -default version=$VERSION_ID
+EOF
+echo 'set -default endpoint=updates.nethsecurity.nethserver.org/${repo_channel}' >> /etc/apk/repositories.d/99-defaults.list
 
-base_url="$(uci -q get ns-plug.config.repository_url)"
-
-source /etc/os-release
-if [ -z "$version" ]; then
-    version="$VERSION"
-    version="${version%%-*}"
+if [ "$(uci -q get ns-plug.config.system_id)" != "" ]; then
+  type="$(uci -q get ns-plug.config.type)"
+  system_id="$(uci -q get ns-plug.config.system_id)"
+  secret="$(uci -q get ns-plug.config.secret)"
+  cat << EOF > /etc/apk/repositories.d/01-enterprise.list
+# This file is handled by nethsecurity and should not be edited manually. Changes will be overwritten.
+set endpoint=${system_id}:${secret}@distfeed.nethesis.it/repository/${type}/nethsecurity
+EOF
+else
+  rm -f /etc/apk/repositories.d/01-enterprise.list
 fi
 
-cat << EOF > /etc/apk/repositories.d/distfeeds.list
-$base_url/$version/targets/x86/64/packages/packages.adb
-$base_url/$version/packages/x86_64/base/packages.adb
-$base_url/$version/packages/x86_64/luci/packages.adb
-$base_url/$version/packages/x86_64/nethsecurity/packages.adb
-$base_url/$version/packages/x86_64/packages/packages.adb
+# parametrize the distfeeds
+cat << 'EOF' > /etc/apk/repositories.d/distfeeds.list
+https://${endpoint}/${version}/targets/${target_arch}/packages/packages.adb
+https://${endpoint}/${version}/packages/${package_arch}/base/packages.adb
+https://${endpoint}/${version}/packages/${package_arch}/luci/packages.adb
+https://${endpoint}/${version}/packages/${package_arch}/nethsecurity/packages.adb
+https://${endpoint}/${version}/packages/${package_arch}/packages/packages.adb
 EOF
