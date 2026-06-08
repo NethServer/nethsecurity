@@ -240,7 +240,7 @@ continent_table = {
     "SE": "europe",
     "CH": "europe",
     "SY": "asia",
-    "TW": "others",
+    "TW": "asia",
     "TJ": "asia",
     "TZ": "africa",
     "TH": "asia",
