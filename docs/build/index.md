@@ -165,7 +165,7 @@ When releasing a new image, follow these steps:
   - Close related issues and milestones.
   - Archive completed project-board items.
   - Release NethSecurity Controller if applicable.
-  - Publish the user-facing announcement once the release draft is approved.
+  - Publish the user-facing announcement once the release draft is approved on [NethServer Community](https://community.nethserver.org) and [Nethesis Partner Portal](https://partner.nethesis.it).
 
 
 ## Image configuration

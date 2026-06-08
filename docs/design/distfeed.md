@@ -69,7 +69,7 @@ If you need to override one of these values, create `/etc/apk/repositories.d/98-
 
 If you want to change the base URL, add the variable override you need in `98-overrides.list`, `apk` will then handle by itself the replacement.
 
-This changes for image updates, to recieve the correct popup you need to update the `ns-plug.config.repository_url` variable and the `/etc/repo-channel`, this will reflect even into `apk` unless a override has been set. This can be done as the following:
+Image updates work differently, they use the `ns-plug.config.repository_url` uci config with the `/etc/repo-channel`. To switch channels for images, do the following:
 
 ```bash
 echo "<channel>" > /etc/repo-channel
@@ -88,7 +88,7 @@ Updates are pushed to the subscription channel after one week from the release d
 If you have a machine with a valid subscription and want to force an update, you can do the following:
 
 ```bash
-echo 'set repo_channel=staging' > /etc/apk/repositories.d/98-overrides.list
+echo 'set repo_channel=stable' > /etc/apk/repositories.d/98-overrides.list
 echo 'set endpoint=updates.nethsecurity.nethserver.org/${repo_channel}' >> /etc/apk/repositories.d/98-overrides.list
 apk update
 apk upgrade

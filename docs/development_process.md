@@ -61,6 +61,17 @@ Do not attach image artifacts to the draft release. The images are already publi
 
 After the draft is reviewed, the user edits and publishes the release manually.
 
+Example: release a new image
+
+1. edit the `build.conf.defaults` file and update `NETHSECURITY_VERSION` variable with the new version
+    
+    a. you can even edit the `BUILD_SEMVER_SUFFIX` variable with `-beta` or `-rc1` to make the builder publish a pre-release 
+
+2. push this commit to `main` to check that the image is built correctly
+3. merge or cherry-pick the commit into the `staging` branch, this will publish the image under the staging repository to allow to check them out.
+4. iterate this process as many times you need with any changes you want.
+5. when ready, remove the suffix and push the changes to `release`, this will publish the image upstream.
+
 ### Publish packages
 
 A new package should be released when:

@@ -150,7 +150,7 @@ GIN_MODE=debug  # (instead of release)
 | Push to `main` | `dev` | `<base>-dev.<run>.<timestamp>.<hash>` |
 | Push to `staging` | `staging` | `<base>` |
 | Push to `release` | `stable` | `<base>` |
-| PR branch | branch-named | `<base>-<branch>.<run>.<timestamp>.<hash>` |
+| PR branch | branch-named | `<base>-PR<pr_number>.<run>.<timestamp>.<hash>` |
 
 **Package/Image release:**
 1. Bump `PKG_VERSION` or `PKG_RELEASE` in `packages/<name>/Makefile`.
