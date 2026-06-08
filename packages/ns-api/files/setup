@@ -14,8 +14,11 @@ RPC_OUTPUT=""
 WHIPTAIL_RESULT=""
 
 KEYMAP="us"
+LAN_IFACE=""
 LAN_DEVICE=""
+LAN_PROTO="static"
 LAN_IP=""
+WAN_IFACE=""
 WAN_DEVICE=""
 WAN_PROTO="dhcp"
 WAN_IP=""
@@ -25,6 +28,7 @@ CURRENT_KEYMAP="us"
 CURRENT_LAN_IFACE="lan"
 CURRENT_LAN_DEVICE=""
 CURRENT_LAN_DEVICE_SECTION=""
+CURRENT_LAN_PROTO="static"
 CURRENT_LAN_IP=""
 CURRENT_LAN_BRIDGED="0"
 CURRENT_LAN_MTU=""
@@ -44,6 +48,8 @@ CURRENT_WAN_DHCP_HOSTNAME_TO_SEND="deviceHostname"
 CURRENT_WAN_DHCP_CUSTOM_HOSTNAME=""
 
 SELECTABLE_DEVICES=""
+LAN_INTERFACES=""
+WAN_INTERFACES=""
 
 cleanup() {
 	rm -f "$STATE_FILE"
@@ -87,6 +93,26 @@ current_interface_value() {
 	uci -q get "network.$1.$2" 2>/dev/null || true
 }
 
+status_json() {
+	ubus call "network.interface.$1" status 2>/dev/null || true
+}
+
+status_ipv4_cidr() {
+	json_output=$(status_json "$1")
+	[ -n "$json_output" ] || return 0
+	addr=$(printf '%s' "$json_output" | jsonfilter -e '@["ipv4-address"][0].address' 2>/dev/null)
+	mask=$(printf '%s' "$json_output" | jsonfilter -e '@["ipv4-address"][0].mask' 2>/dev/null)
+	if [ -n "$addr" ] && [ -n "$mask" ]; then
+		printf '%s/%s' "$addr" "$mask"
+	fi
+}
+
+status_gateway() {
+	json_output=$(status_json "$1")
+	[ -n "$json_output" ] || return 0
+	printf '%s' "$json_output" | jsonfilter -e '@.route[@.target="0.0.0.0" && @.mask=0][0].nexthop' 2>/dev/null
+}
+
 load_state() {
 	if [ -f "$STATE_FILE" ]; then
 		# shellcheck disable=SC1090
@@ -97,8 +123,11 @@ load_state() {
 save_state() {
 	cat > "$STATE_FILE" <<EOF
 KEYMAP='${KEYMAP}'
+LAN_IFACE='${LAN_IFACE}'
 LAN_DEVICE='${LAN_DEVICE}'
+LAN_PROTO='${LAN_PROTO}'
 LAN_IP='${LAN_IP}'
+WAN_IFACE='${WAN_IFACE}'
 WAN_DEVICE='${WAN_DEVICE}'
 WAN_PROTO='${WAN_PROTO}'
 WAN_IP='${WAN_IP}'
@@ -141,6 +170,129 @@ append_physical_device() {
 	else
 		SELECTABLE_DEVICES="$device_name"
 	fi
+}
+
+append_interface_name() {
+	list_name="$1"
+	interface_name="$2"
+	current_list=$(eval "printf '%s' \"\${$list_name}\"")
+	for existing_name in $current_list; do
+		[ "$existing_name" = "$interface_name" ] && return 0
+	done
+	if [ -n "$current_list" ]; then
+		eval "$list_name=\"$current_list $interface_name\""
+	else
+		eval "$list_name=\"$interface_name\""
+	fi
+}
+
+device_for_interface() {
+	iface_name="$1"
+	device_name=$(current_interface_value "$iface_name" device)
+	if [ -z "$device_name" ]; then
+		device_name=$(printf '%s' "$DEVICES_JSON" | jsonfilter -e "@.all_devices[@.iface['.name']='$iface_name'][0].name" 2>/dev/null)
+	fi
+	printf '%s' "$device_name"
+}
+
+proto_for_interface() {
+	printf '%s' "$(current_interface_value "$1" proto)"
+}
+
+ip_for_interface() {
+	iface_name="$1"
+	iface_proto="$2"
+	if [ "$iface_proto" = "dhcp" ]; then
+		status_ipv4_cidr "$iface_name"
+	else
+		ipaddr=$(current_interface_value "$iface_name" ipaddr)
+		netmask=$(current_interface_value "$iface_name" netmask)
+		if [ -n "$ipaddr" ] && [ -n "$netmask" ] && [ "${ipaddr#*/}" = "$ipaddr" ]; then
+			mask_prefix=$(ipcalc.sh "$netmask" 2>/dev/null | grep PREFIX | cut -d= -f2)
+			[ -n "$mask_prefix" ] && ipaddr="$ipaddr/$mask_prefix"
+		fi
+		printf '%s' "$ipaddr"
+	fi
+}
+
+gateway_for_interface() {
+	iface_name="$1"
+	iface_proto="$2"
+	if [ "$iface_proto" = "dhcp" ]; then
+		status_gateway "$iface_name"
+	else
+		printf '%s' "$(current_interface_value "$iface_name" gateway)"
+	fi
+}
+
+load_iface_state() {
+	role="$1"
+	iface_name="$2"
+	device_name=$(device_for_interface "$iface_name")
+	iface_proto=$(proto_for_interface "$iface_name")
+	[ -n "$iface_proto" ] || iface_proto="static"
+	iface_ip=$(ip_for_interface "$iface_name" "$iface_proto")
+	iface_gw=$(gateway_for_interface "$iface_name" "$iface_proto")
+
+	case "$role" in
+		lan)
+			CURRENT_LAN_IFACE="$iface_name"
+			CURRENT_LAN_DEVICE="$device_name"
+			CURRENT_LAN_PROTO="$iface_proto"
+			CURRENT_LAN_IP="$iface_ip"
+			CURRENT_LAN_DEVICE_SECTION="$iface_name"
+			CURRENT_LAN_MTU=$(current_interface_value "$iface_name" mtu)
+			CURRENT_LAN_IPV6_ENABLED=$(uci_bool "$(current_interface_value "$iface_name" ipv6)")
+			LAN_IFACE="$iface_name"
+			LAN_DEVICE="$device_name"
+			LAN_PROTO="$iface_proto"
+			LAN_IP="$iface_ip"
+			;;
+		wan)
+			CURRENT_WAN_IFACE="$iface_name"
+			CURRENT_WAN_DEVICE="$device_name"
+			CURRENT_WAN_PROTO="$iface_proto"
+			CURRENT_WAN_IP="$iface_ip"
+			CURRENT_WAN_GW="$iface_gw"
+			CURRENT_WAN_DEVICE_SECTION="$iface_name"
+			CURRENT_WAN_MTU=$(current_interface_value "$iface_name" mtu)
+			CURRENT_WAN_IPV6_ENABLED=$(uci_bool "$(current_interface_value "$iface_name" ipv6)")
+			CURRENT_WAN_METRIC=$(current_interface_value "$iface_name" metric)
+			CURRENT_WAN_DHCP_CLIENT_ID=$(current_interface_value "$iface_name" clientid)
+			CURRENT_WAN_DHCP_VENDOR_CLASS=$(current_interface_value "$iface_name" vendorid)
+			current_wan_hostname=$(current_interface_value "$iface_name" hostname)
+			case "$current_wan_hostname" in
+				"")
+					CURRENT_WAN_DHCP_HOSTNAME_TO_SEND="deviceHostname"
+					CURRENT_WAN_DHCP_CUSTOM_HOSTNAME=""
+					;;
+				"*")
+					CURRENT_WAN_DHCP_HOSTNAME_TO_SEND="doNotSendHostname"
+					CURRENT_WAN_DHCP_CUSTOM_HOSTNAME=""
+					;;
+				*)
+					CURRENT_WAN_DHCP_HOSTNAME_TO_SEND="customHostname"
+					CURRENT_WAN_DHCP_CUSTOM_HOSTNAME="$current_wan_hostname"
+					;;
+			esac
+			WAN_IFACE="$iface_name"
+			WAN_DEVICE="$device_name"
+			WAN_PROTO="$iface_proto"
+			WAN_IP="$iface_ip"
+			WAN_GW="$iface_gw"
+			;;
+	esac
+}
+
+load_zone_interfaces() {
+	LAN_INTERFACES=""
+	WAN_INTERFACES=""
+	for iface_name in $(uci -q get firewall.ns_lan.network 2>/dev/null); do
+		append_interface_name LAN_INTERFACES "$iface_name"
+	done
+	for iface_name in $(uci -q get firewall.ns_wan.network 2>/dev/null); do
+		append_interface_name WAN_INTERFACES "$iface_name"
+	done
 }
 
 device_record() {
@@ -343,6 +495,7 @@ parse_devices_json() {
 	CURRENT_WAN_DHCP_HOSTNAME_TO_SEND="deviceHostname"
 	CURRENT_WAN_DHCP_CUSTOM_HOSTNAME=""
 
+	load_zone_interfaces
 	build_device_db || return 1
 
 	json_cleanup
@@ -372,6 +525,7 @@ parse_devices_json() {
 		fi
 
 		if [ "$iface_name" = "$CURRENT_LAN_IFACE" ]; then
+			CURRENT_LAN_PROTO="$iface_proto"
 			CURRENT_LAN_IP="$iface_ipaddr"
 			CURRENT_LAN_DEVICE="$name"
 			json_get_var current_lan_device_section .name
@@ -398,6 +552,16 @@ parse_devices_json() {
 	done
 
 	json_select ..
+
+	if [ "$CURRENT_LAN_PROTO" = "dhcp" ] && [ -z "$CURRENT_LAN_IP" ]; then
+		CURRENT_LAN_IP=$(status_ipv4_cidr "$CURRENT_LAN_IFACE")
+	fi
+	if [ "$CURRENT_WAN_PROTO" = "dhcp" ] && [ -z "$CURRENT_WAN_IP" ]; then
+		CURRENT_WAN_IP=$(status_ipv4_cidr "$CURRENT_WAN_IFACE")
+	fi
+	if [ "$CURRENT_WAN_PROTO" = "dhcp" ] && [ -z "$CURRENT_WAN_GW" ]; then
+		CURRENT_WAN_GW=$(status_gateway "$CURRENT_WAN_IFACE")
+	fi
 
 	CURRENT_WAN_METRIC=$(current_interface_value "$CURRENT_WAN_IFACE" metric)
 	CURRENT_WAN_DHCP_CLIENT_ID=$(current_interface_value "$CURRENT_WAN_IFACE" clientid)
@@ -427,14 +591,14 @@ initialize_state() {
 	parse_devices_json || die "Unable to parse current device configuration."
 
 	KEYMAP="$CURRENT_KEYMAP"
-	LAN_DEVICE="$CURRENT_LAN_DEVICE"
-	LAN_IP="$CURRENT_LAN_IP"
-	WAN_DEVICE="$CURRENT_WAN_DEVICE"
-	WAN_PROTO="$CURRENT_WAN_PROTO"
-	WAN_IP="$CURRENT_WAN_IP"
-	WAN_GW="$CURRENT_WAN_GW"
+	LAN_IFACE="$CURRENT_LAN_IFACE"
+	WAN_IFACE="$CURRENT_WAN_IFACE"
+	load_iface_state lan "$LAN_IFACE"
+	load_iface_state wan "$WAN_IFACE"
 
 	load_state
+	[ -n "$LAN_IFACE" ] && load_iface_state lan "$LAN_IFACE"
+	[ -n "$WAN_IFACE" ] && load_iface_state wan "$WAN_IFACE"
 	save_state
 }
 
@@ -450,6 +614,7 @@ pick_keymap() {
 		KEYMAP="$CURRENT_KEYMAP"
 		return 1
 	}
+	CURRENT_KEYMAP="$KEYMAP"
 	save_state
 }
 
@@ -470,6 +635,25 @@ pick_device() {
 	return 0
 }
 
+pick_interface() {
+	title="$1"
+	prompt="$2"
+	selected="$3"
+	interfaces="$4"
+
+	set -- --title "$title" --radiolist "$prompt" 18 70 8
+	for iface_name in $interfaces; do
+		status="OFF"
+		[ "$iface_name" = "$selected" ] && status="ON"
+		description=$(printf '%s | %s | %s' "$iface_name" "$(device_for_interface "$iface_name")" "$(proto_for_interface "$iface_name")")
+		set -- "$@" "$iface_name" "$description" "$status"
+	done
+
+	run_dialog "$@" || return 1
+	printf '%s\n' "$WHIPTAIL_RESULT"
+	return 0
+}
+
 prompt_value() {
 	title="$1"
 	prompt="$2"
@@ -480,15 +664,47 @@ prompt_value() {
 	return 0
 }
 
+pick_lan_iface() {
+	choice=$(pick_interface "Lan Interface" "Select the LAN interface" "$LAN_IFACE" "$LAN_INTERFACES") || return 0
+	load_iface_state lan "$choice"
+	save_state
+}
+
 pick_lan_device() {
 	choice=$(pick_device "Lan Device" "Select the LAN network device" "$LAN_DEVICE") || return 0
 	LAN_DEVICE="$choice"
 	save_state
 }
 
+pick_lan_proto() {
+	run_dialog --title "Lan Protocol" --radiolist "Select the LAN protocol" 12 60 2 \
+		dhcp "Automatic configuration" "$( [ "$LAN_PROTO" = "dhcp" ] && printf ON || printf OFF )" \
+		static "Static IPv4 configuration" "$( [ "$LAN_PROTO" = "static" ] && printf ON || printf OFF )" \
+		|| return 0
+
+	LAN_PROTO="$WHIPTAIL_RESULT"
+	if [ "$LAN_PROTO" = "dhcp" ]; then
+		LAN_IP="$CURRENT_LAN_IP"
+	else
+		[ -n "$LAN_IP" ] || LAN_IP="$CURRENT_LAN_IP"
+		pick_lan_ip
+	fi
+	save_state
+}
+
 pick_lan_ip() {
+	[ "$LAN_PROTO" = "static" ] || {
+		whiptail --title "Lan IPv4" --msgbox "LAN IPv4 address is only required for static LAN." 10 70
+		return 0
+	}
 	value=$(prompt_value "Lan IPv4" "Enter LAN IPv4 address in CIDR notation" "$LAN_IP") || return 0
 	LAN_IP="$value"
+	save_state
+}
+
+pick_wan_iface() {
+	choice=$(pick_interface "Wan Interface" "Select the WAN interface" "$WAN_IFACE" "$WAN_INTERFACES") || return 0
+	load_iface_state wan "$choice"
 	save_state
 }
 
@@ -508,6 +724,11 @@ pick_wan_proto() {
 	if [ "$WAN_PROTO" = "dhcp" ]; then
 		WAN_IP=""
 		WAN_GW=""
+	else
+		[ -n "$WAN_IP" ] || WAN_IP="$CURRENT_WAN_IP"
+		[ -n "$WAN_GW" ] || WAN_GW="$CURRENT_WAN_GW"
+		pick_wan_ip
+		pick_wan_gw
 	fi
 	save_state
 }
@@ -535,37 +756,75 @@ pick_wan_gw() {
 network_menu() {
 	while true; do
 		set -- --title "Network" --menu "Choose a network setting" 18 70 7 \
-			lan_device "Lan Device: ${LAN_DEVICE:-unset}" \
-			lan_ip "Lan IPv4/CIDR: ${LAN_IP:-unset}" \
-			wan_device "Wan Device: ${WAN_DEVICE:-unset}" \
-			wan_proto "Wan Protocol: ${WAN_PROTO:-unset}"
+			"Lan Interface" "${LAN_IFACE:-unset}" \
+			"Lan" "${LAN_DEVICE:-unset}" \
+			"Lan Protocol" "${LAN_PROTO:-unset}" \
+			"Wan Interface" "${WAN_IFACE:-unset}" \
+			"Wan" "${WAN_DEVICE:-unset}" \
+			"Wan Protocol" "${WAN_PROTO:-unset}"
+		if [ "$LAN_PROTO" = "static" ]; then
+			set -- "$@" \
+				"Lan IPv4" "${LAN_IP:-unset}"
+		fi
 		if [ "$WAN_PROTO" = "static" ]; then
 			set -- "$@" \
-				wan_ip "Wan IPv4/CIDR: ${WAN_IP:-unset}" \
-				wan_gw "Wan Gateway: ${WAN_GW:-unset}"
+				"Wan IPv4" "${WAN_IP:-unset}" \
+				"Wan Gateway" "${WAN_GW:-unset}"
 		fi
-		set -- "$@" back "Return to Main Menu"
+		set -- "$@" "Back" "Return to main menu"
 
 		run_dialog "$@" || return 0
 		selection="$WHIPTAIL_RESULT"
 
 		case "$selection" in
-			lan_device) pick_lan_device ;;
-			lan_ip) pick_lan_ip ;;
-			wan_device) pick_wan_device ;;
-			wan_proto) pick_wan_proto ;;
-			wan_ip) pick_wan_ip ;;
-			wan_gw) pick_wan_gw ;;
-			back) return 0 ;;
+			"Lan Interface") pick_lan_iface ;;
+			"Lan") pick_lan_device ;;
+			"Lan Protocol") pick_lan_proto ;;
+			"Lan IPv4") pick_lan_ip ;;
+			"Wan Interface") pick_wan_iface ;;
+			"Wan") pick_wan_device ;;
+			"Wan Protocol") pick_wan_proto ;;
+			"Wan IPv4") pick_wan_ip ;;
+			"Wan Gateway") pick_wan_gw ;;
+			"Back") return 0 ;;
 		esac
 	done
 }
 
+validate_ipv4() {
+	old_ifs="$IFS"
+	IFS=.
+	set -- $1
+	IFS="$old_ifs"
+	[ $# -eq 4 ] || return 1
+	for octet in "$@"; do
+		case "$octet" in
+			''|*[!0-9]*) return 1 ;;
+		esac
+		[ "$octet" -ge 0 ] 2>/dev/null || return 1
+		[ "$octet" -le 255 ] 2>/dev/null || return 1
+		case "$octet" in
+			0|[1-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5]) ;;
+			*) return 1 ;;
+		esac
+	done
+	return 0
+}
+
 validate_cidr() {
 	case "$1" in
-		*/*) return 0 ;;
+		*/*) ;;
 		*) return 1 ;;
 	esac
+	ip_part=${1%/*}
+	prefix=${1#*/}
+	validate_ipv4 "$ip_part" || return 1
+	case "$prefix" in
+		''|*[!0-9]*) return 1 ;;
+	esac
+	[ "$prefix" -ge 0 ] 2>/dev/null || return 1
+	[ "$prefix" -le 32 ] 2>/dev/null || return 1
+	return 0
 }
 
 validate_config() {
@@ -594,9 +853,19 @@ validate_config() {
 		return 1
 	fi
 
-	if [ -z "$LAN_IP" ] || ! validate_cidr "$LAN_IP"; then
-		printf '%s\n' "LAN IPv4 address must be in CIDR notation."
-		return 1
+	case "$LAN_PROTO" in
+		dhcp|static) ;;
+		*)
+			printf '%s\n' "LAN protocol is required."
+			return 1
+			;;
+	esac
+
+	if [ "$LAN_PROTO" = "static" ]; then
+		if [ -z "$LAN_IP" ] || ! validate_cidr "$LAN_IP"; then
+			printf '%s\n' "Static LAN IPv4 address must be in CIDR notation."
+			return 1
+		fi
 	fi
 
 	if [ "$WAN_PROTO" = "static" ]; then
@@ -607,6 +876,11 @@ validate_config() {
 
 		if [ -z "$WAN_GW" ]; then
 			printf '%s\n' "Static WAN gateway is required."
+			return 1
+		fi
+
+		if ! validate_ipv4 "$WAN_GW"; then
+			printf '%s\n' "Static WAN gateway must be a valid IPv4 address."
 			return 1
 		fi
 	fi
@@ -621,7 +895,7 @@ warn_management_change() {
 		warning="LAN device will change from ${CURRENT_LAN_DEVICE:-unset} to ${LAN_DEVICE}."
 	fi
 
-	if [ "$LAN_IP" != "$CURRENT_LAN_IP" ]; then
+	if [ "$LAN_PROTO" = "static" ] && [ "$LAN_IP" != "$CURRENT_LAN_IP" ]; then
 		if [ -n "$warning" ]; then
 			warning="$warning\n"
 		fi
@@ -645,13 +919,23 @@ configure_lan() {
 		interface_to_edit=""
 	fi
 
+	if [ "$LAN_PROTO" = "dhcp" ]; then
+		lan_ip_json=''
+		lan_gw_json=''
+		lan_proto='dhcp'
+	else
+		lan_ip_json="$LAN_IP"
+		lan_gw_json=''
+		lan_proto='static'
+	fi
+
 	if [ "$device_kind" = "bridge" ] && [ -n "$interface_to_edit" ]; then
 		attached_devices=$(json_array_from_words "$(device_ports "$LAN_DEVICE")")
-		payload=$(printf '{"device_name":"%s","device_type":"logical","logical_type":"bridge","attached_devices":%s,"interface_name":"%s","interface_to_edit":"%s","protocol":"static","zone":"lan","ip4_address":"%s","ip4_gateway":"","ip4_mtu":"%s","ip6_enabled":%s}' \
-			"$LAN_DEVICE" "$attached_devices" "$interface_name" "$interface_to_edit" "$LAN_IP" "$CURRENT_LAN_MTU" "$CURRENT_LAN_IPV6_ENABLED")
+		payload=$(printf '{"device_name":"%s","device_type":"logical","logical_type":"bridge","attached_devices":%s,"interface_name":"%s","interface_to_edit":"%s","protocol":"%s","zone":"lan","ip4_address":"%s","ip4_gateway":"%s","ip4_mtu":"%s","ip6_enabled":%s}' \
+			"$LAN_DEVICE" "$attached_devices" "$interface_name" "$interface_to_edit" "$lan_proto" "$lan_ip_json" "$lan_gw_json" "$CURRENT_LAN_MTU" "$CURRENT_LAN_IPV6_ENABLED")
 	else
-		payload=$(printf '{"device_name":"%s","device_type":"physical","interface_name":"%s","interface_to_edit":"%s","protocol":"static","zone":"lan","ip4_address":"%s","ip4_gateway":"","ip4_mtu":"%s","ip6_enabled":%s}' \
-			"$LAN_DEVICE" "$interface_name" "$interface_to_edit" "$LAN_IP" "$CURRENT_LAN_MTU" "$CURRENT_LAN_IPV6_ENABLED")
+		payload=$(printf '{"device_name":"%s","device_type":"physical","interface_name":"%s","interface_to_edit":"%s","protocol":"%s","zone":"lan","ip4_address":"%s","ip4_gateway":"%s","ip4_mtu":"%s","ip6_enabled":%s}' \
+			"$LAN_DEVICE" "$interface_name" "$interface_to_edit" "$lan_proto" "$lan_ip_json" "$lan_gw_json" "$CURRENT_LAN_MTU" "$CURRENT_LAN_IPV6_ENABLED")
 	fi
 	rpc_call ns.devices configure-device "$payload"
 }
@@ -720,31 +1004,41 @@ display_value() {
 
 network_has_changes() {
 	[ "$LAN_DEVICE" != "$CURRENT_LAN_DEVICE" ] && return 0
-	[ "$LAN_IP" != "$CURRENT_LAN_IP" ] && return 0
+	[ "$LAN_PROTO" != "$CURRENT_LAN_PROTO" ] && return 0
 	[ "$WAN_DEVICE" != "$CURRENT_WAN_DEVICE" ] && return 0
 	[ "$WAN_PROTO" != "$CURRENT_WAN_PROTO" ] && return 0
-	[ "$WAN_IP" != "$CURRENT_WAN_IP" ] && return 0
-	[ "$WAN_GW" != "$CURRENT_WAN_GW" ] && return 0
+	if [ "$LAN_PROTO" = "static" ] && [ "$LAN_IP" != "$CURRENT_LAN_IP" ]; then
+		return 0
+	fi
+	if [ "$WAN_PROTO" = "static" ]; then
+		[ "$WAN_IP" != "$CURRENT_WAN_IP" ] && return 0
+		[ "$WAN_GW" != "$CURRENT_WAN_GW" ] && return 0
+	fi
 	return 1
 }
 
 lan_has_changes() {
 	[ "$LAN_DEVICE" != "$CURRENT_LAN_DEVICE" ] && return 0
-	[ "$LAN_IP" != "$CURRENT_LAN_IP" ] && return 0
+	[ "$LAN_PROTO" != "$CURRENT_LAN_PROTO" ] && return 0
+	if [ "$LAN_PROTO" = "static" ] && [ "$LAN_IP" != "$CURRENT_LAN_IP" ]; then
+		return 0
+	fi
 	return 1
 }
 
 wan_has_changes() {
 	[ "$WAN_DEVICE" != "$CURRENT_WAN_DEVICE" ] && return 0
 	[ "$WAN_PROTO" != "$CURRENT_WAN_PROTO" ] && return 0
-	[ "$WAN_IP" != "$CURRENT_WAN_IP" ] && return 0
-	[ "$WAN_GW" != "$CURRENT_WAN_GW" ] && return 0
+	if [ "$WAN_PROTO" = "static" ]; then
+		[ "$WAN_IP" != "$CURRENT_WAN_IP" ] && return 0
+		[ "$WAN_GW" != "$CURRENT_WAN_GW" ] && return 0
+	fi
 	return 1
 }
 
 apply_changes() {
 	if ! network_has_changes; then
-		whiptail --title "Setup" --msgbox "No network changes to apply." 10 70
+		whiptail --title "Setup" --msgbox "Keymap changes are applied immediately. No network changes to apply." 10 70
 		return 0
 	fi
 
@@ -756,8 +1050,13 @@ apply_changes() {
 
 	warn_management_change || return 1
 
-	summary=$(printf 'Keymap: %s\nLan Device: %s\nLan IPv4/CIDR: %s\nWan Device: %s\nWan Protocol: %s\nWan IPv4/CIDR: %s\nWan Gateway: %s' \
-		"$KEYMAP" "$LAN_DEVICE" "$LAN_IP" "$WAN_DEVICE" "$WAN_PROTO" "$(display_value "$WAN_IP")" "$(display_value "$WAN_GW")")
+	if [ "$LAN_PROTO" = "static" ]; then
+		lan_ip_summary=$(display_value "$LAN_IP")
+	else
+		lan_ip_summary='-'
+	fi
+	summary=$(printf 'Keymap: %s\nLan Device: %s\nLan Protocol: %s\nLan IPv4/CIDR: %s\nWan Device: %s\nWan Protocol: %s\nWan IPv4/CIDR: %s\nWan Gateway: %s' \
+		"$KEYMAP" "$LAN_DEVICE" "$LAN_PROTO" "$lan_ip_summary" "$WAN_DEVICE" "$WAN_PROTO" "$(display_value "$WAN_IP")" "$(display_value "$WAN_GW")")
 	whiptail --title "Confirm Changes" --yesno "$summary\n\nApply these changes?" 18 78 || return 0
 
 	if lan_has_changes; then
