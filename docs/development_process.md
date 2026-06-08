@@ -12,45 +12,88 @@ See [NethServer development handbook](https://handbook.nethserver.org/) for a de
 
 ## Release process
 
-The release process is a set of steps to prepare a new image or a new package release.
+The release process is branch-driven and fully automated by GitHub Actions.
+
+The current branches and their publish targets are:
+
+- `main` publishes rolling development builds to the `dev` channel.
+- `staging` publishes tested builds to the `staging` channel.
+- `release` publishes the authoritative release stream to the `stable` channel.
+- pull requests publish ephemeral channels named `PR<id>` and are removed when the PR closes.
+
+The build workflow loads its base values from [build.conf.defaults](https://github.com/NethServer/nethsecurity/tree/main/build.conf.defaults), then CI fills the channel-specific values from the branch or pull-request context.
 
 ### New image
 
 A new image must be released when:
-- a rebase to the new OpenWRT version has been made during development
+- a rebase to a new OpenWrt version is ready
 - a new security fix is available
-- a group of relevant features are ready to be released
+- a group of relevant features should be promoted together
 
-A new image is released for both the community and subscription repositories.
+New images are built and published automatically by CI.
 
-See [release new image checklist](../build#release-new-image-checklist) for more information.
+Use `main` for development images, `staging` for pre-release validation, and `release` for the final release image.
 
-### Packages
+### How to bump an image
+
+When you need to bump the image version, update the tracked defaults in [build.conf.defaults](https://github.com/NethServer/nethsecurity/tree/main/build.conf.defaults), especially `NETHSECURITY_VERSION` and `OWRT_VERSION` if the OpenWrt base changed.
+
+Then push the change to the branch that should publish the new image:
+
+- push to `main` for a new rolling development image
+- push to `staging` to publish the tested image stream
+- push to `release` to publish the final stable image
+
+CI will derive the final image name and repository channel automatically. You do not manually copy image artifacts anymore.
+
+### Draft release from a tag
+
+Tags are Git tags in the NethSecurity repository. They are created on the stable release commit, and on GitHub they are visible under the repository tags list and used as the name of the draft release.
+
+When the stable image is ready, create a tag for the stable commit, then open a GitHub draft release using that tag name.
+
+The draft release should contain:
+
+- the manifest file
+- the SBOM file
+
+Do not attach image artifacts to the draft release. The images are already published by CI in the appropriate channel.
+
+After the draft is reviewed, the user edits and publishes the release manually.
+
+Example: release a new image
+
+1. edit the `build.conf.defaults` file and update `NETHSECURITY_VERSION` variable with the new version
+    
+    a. you can even edit the `BUILD_SEMVER_SUFFIX` variable with `-beta` or `-rc1` to make the builder publish a pre-release 
+
+2. push this commit to `main` to check that the image is built correctly
+3. merge or cherry-pick the commit into the `staging` branch, this will publish the image under the staging repository to allow to check them out.
+4. iterate this process as many times you need with any changes you want.
+5. when ready, remove the suffix and push the changes to `release`, this will publish the image upstream.
+
+### Publish packages
 
 A new package should be released when:
 - a new bug fix is available
 - a new feature is ready to be released
 - a new security fix is available
 
-When releasing a package, remember to:
-- ensure that the package has been tested by the QA team
-- update the package version in the Makefile
-- initiate the release process
+The package flow follows the same branch-driven model:
 
-Unfortunately, when a new package is created, it is initially placed in the dev channel. Before it can be released, it is necessary to ensure that there
- are no ongoing QA processes and that all packages in the repository are ready for release.
-Due to the way the build system works, partial release of a package is not possible.
+- merge the changes to `main` for testing
+- push the tested change to `staging` when it is ready for validation
+- push the promoted change to `release` when it is ready for the stable channel
 
-When ready, launch the [Release stable packages](https://github.com/NethServer/nethsecurity/actions/workflows/release-stable.yml) action on GitHub.
-This action will synchronize the packages from the dev channel to the stable channel; images will not be released.
+*NOTE*: When a new package gets created, it is not pulled automatically by NethSecurity upon release. You must wait for a new image or add the package to the `DEPENDS` section of another package. Make sure to bump the version of the package you are tying the new package to.
 
 The subscription repository, located at `distfeed.nethesis.it`, automatically pulls updates from the stable channel on a nightly basis.
 This process ensures that the repository stays current with the latest stable releases.
 
 Update schedule:
-1. nightly: New packages are pulled from the stable channel
-2. one-week delay: After the initial pull, there is a one-week holding period
-3. release: Following the holding period, the updated packages are released to subscription machines
+1. nightly: new packages are pulled from the stable channel
+2. one-week delay: after the initial pull, there is a one-week holding period
+3. release: following the holding period, the updated packages are released to subscription machines
 
 This staged approach allows for:
 - regular updates to the repository
@@ -62,27 +105,6 @@ This delay does not apply to security updates nor new images, which are released
 
 #### Manually releasing packages
 
-To manually release a package, follow these steps, assuming the major version is `23.05.4`:
-1. Build the packages using a [local system](../build/#build-locally-for-a-release)
-2. Copy the packages to the object storage using rclone, currently hosted on DigitalOcean. Packages must be first published to the `dev` channel:
-   ```
-   RCLONE_CONFIG_SPACES_TYPE=s3 RCLONE_CONFIG_SPACES_PROVIDER=DigitalOcean RCLONE_CONFIG_SPACES_ENV_AUTH=false RCLONE_CONFIG_SPACES_ACCESS_KEY_ID=xxx RCLONE_CONFIG_SPACES_SECRET_ACCESS_KEY=xxx RCLONE_CONFIG_SPACES_ENDPOINT=ams3.digitaloceanspaces.com RCLONE_CONFIG_SPACES_ACL=public-read rclone sync -M --no-update-modtime -v  --exclude "/targets/**" bin/ "spaces:nethsecurity/dev/23.05.4/"
-   ```
-3. Move the packages from the `dev` channel to the `stable` channel:
-   ```
-   RCLONE_CONFIG_SPACES_TYPE=s3 RCLONE_CONFIG_SPACES_PROVIDER=DigitalOcean RCLONE_CONFIG_SPACES_ENV_AUTH=false RCLONE_CONFIG_SPACES_ACCESS_KEY_ID=xxx RCLONE_CONFIG_SPACES_SECRET_ACCESS_KEY=xxx RCLONE_CONFIG_SPACES_ENDPOINT=ams3.digitaloceanspaces.com RCLONE_CONFIG_SPACES_ACL=public-read rclone sync -M --no-update-modtime -v  --exclude "/targets/**" "spaces:nethsecurity/dev/23.05.4/" "spaces:nethsecurity/stable/23.05.4/"
-   ```
-4. Community repositories are now updated with the new packages. To update the subscription repositories, the same data must be copied to [parceler]() storage.
-   Assuming the parceler install is located at `distfeed.nethesis.it` and runs inside a podman container, execute:
-   ```
-   podman exec -ti parceler-php php artisan repository:sync nethsecurity
-   ```
-5. Search for the latest snapshot:
-   ```
-   podman exec -ti parceler-php php artisan repository:snapshots nethsecurity 
-   ```
-   Let's assume the latest snapshot is `2024-10-02T08:43:17+02:00`.
-6. If you want to push all the packages to all firewall without waiting the tier period, execute:
-   ```
-   podman exec -ti parceler-php php artisan repository:freeze nethsecurity 2024-10-02T08:43:17+02:00
-   ```
+Direct object-storage publication is no longer the standard stable release path. If an emergency manual publication is required, build the artifacts using a [local system](../build/#build-locally-for-a-release) and coordinate the repository update separately.
+
+Community repositories are updated by CI on branch push. To update the subscription repositories, the same data must be copied to enterprise repositories, refer to [parceler manual](https://github.com/nethesis/parceler) on how to do that.

@@ -14,6 +14,7 @@ parent: Design
 The distribution feed includes the following channels:
 
 - `dev` channel: this channel is intended for unstable and development releases.
+- `staging` channel: this channel contains pre-release builds and packages that passed QA and can be tested by end users.
 - `stable` channel: this channel is for stable releases.
 - `subscription` channel: this channel is reserved for stable releases that have undergone additional testing. Access to this channel is restricted to machines with a valid subscription.
 
@@ -28,47 +29,54 @@ released and the packages. The repository will receive updates compatible with t
 
 Here are some examples of releases and their corresponding repositories:
 
-1. Dev example: `8.6.0-dev+ac63c40f4.20250818092838` and it's repository available at `{{site.download_url}}/dev/8.6.0-dev+ac63c40f4.20250818092838`
+1. Dev example: `8.8.0-dev.42.20260604123010.a1b2c3d` and its repository is available at `{{site.download_url}}/dev/8.8.0-dev.42.20260604123010.a1b2c3d`
 
-2. Stable example: `8.6.0` and it's repository available at `{{site.download_url}}/stable/8.6.0`
+2. Staging example: `8.8.0` and its repository is available at `{{site.download_url}}/staging/8.8.0`
 
-3. Unstable example: `8.6.0-alpha1` and it's repository available at `{{site.download_url}}/dev/8.6.0-alpha1`
+3. Stable example: `8.8.0` and its repository is available at `{{site.download_url}}/stable/8.8.0`
 
-4. Branch example: `8.6.0-netifyd-v5.x+37a64ca8a` and it's repository available at `{{site.download_url}}/dev/8.6.0-netifyd-v5.x+37a64ca8a`
+4. Branch example: `8.8.0-PR123.17.20260604123010.a1b2c3d` and its repository is available at `{{site.download_url}}/PR123/8.8.0-PR123.17.20260604123010.a1b2c3d`
 
-### Change repository channel
+### APK repository configuration
 
-The `distfeed-setup` script simplifies the automatic setup of the repository channel, tailored to the version of the running image. 
+Repositories are now configured using apk variables instead of the usual rewrite of the feeds. This allows greater customization and standardization.
 
-Execute the script without any additional arguments to automatically configure the repository channel based on the version of the running image.
-The script is automatically executed when a subscription is enabled or disabled.
+The `/etc/apk/repositories.d/distfeeds.list` contains a standard entry:
+
+```
+https://${endpoint}/${version}/targets/${target_arch}/packages/packages.adb
+https://${endpoint}/${version}/packages/${package_arch}/base/packages.adb
+https://${endpoint}/${version}/packages/${package_arch}/luci/packages.adb
+https://${endpoint}/${version}/packages/${package_arch}/nethsecurity/packages.adb
+https://${endpoint}/${version}/packages/${package_arch}/packages/packages.adb
+```
+
+Since all scripts inside `/etc/apk/repositories.d/*list` are executed by alphabetical order, we can define the following:
+
+- `/etc/apk/repositories.d/99-defaults.list` this file should contain the defaults that are applied only if the variables are not set. It uses the `set -default` option for apk repositories that allows to set the variables if uset.
+
+- `/etc/apk/repositories.d/01-enterprise.list` is created only when there's a valid subscription, this overwrites the `endpoint` variable with the correct path and authentication.
+
+The script `distfeed-setup` is in charge of making and managing the main `distfeed.list` file and `01-enterprise.list` if needed.
 
 #### Customization options
 
-The behavior of the distfeed-setup script can be customized using the following environment variable:
+It's possible by nature of apk repositories override the variables added by adding the `/etc/apk/repositories.d/98-overrides.list`. This allows to overwrite previously set variables as the user sees fit.
 
-- `VERSION`: specify the NethSecurity version used inside the rolling repository URL.
-   The script typically extracts this information from the `/etc/os-release` file.
+The repository variables are generated in `/etc/apk/repositories.d/99-defaults.list`.
+They include `target_arch`, `package_arch`, `repo_channel`, `version`, and the default `endpoint`.
+If you need to override one of these values, create `/etc/apk/repositories.d/98-overrides.list` and write the variables there.
 
-Custom configuration example:
-```
-VERSION="8.8.0" distfeed-setup
-```
+If you want to change the base URL, add the variable override you need in `98-overrides.list`, `apk` will then handle by itself the replacement.
 
-If you want to change the base URL, set the UCI variable: `uci set ns-plug.config.repository_url=https://<your_server>`
-then, commit the changes with `uci commit ns-plug` and run `distfeed-setup` to apply the changes.
-
-Every image ships with the file `/etc/repo-channel` that contains the current repository channel. This is used by uci
-defaults to set the repository channel when the image is installed. To switch the repository channel, you can do as the
-following:
+Image updates work differently, they use the `ns-plug.config.repository_url` uci config with the `/etc/repo-channel`. To switch channels for images, do the following:
 
 ```bash
 echo "<channel>" > /etc/repo-channel
 uci set ns-plug.config.repository_url="https://updates.nethsecurity.nethserver.org/$(cat /etc/repo-channel)"
-uci commit
+uci commit ns-plug
 distfeed-setup
 ```
-
 You can now refresh the update page, and the new repository channel will be used.
 
 ### Force updates on a subscription machine
@@ -77,37 +85,36 @@ A machine with a valid subscription receives updates from the subscription chann
 The subscription channel contains stable releases that have undergone additional testing.
 Updates are pushed to the subscription channel after one week from the release date.
 
-If you have a machine with a valid subscription and want to force an update, you can use the following commands:
+If you have a machine with a valid subscription and want to force an update, you can do the following:
 
 ```bash
-cp /etc/apk/repositories.d/customfeeds.list /etc/apk/repositories.d/customfeeds.list.ori
-cat /rom/etc/apk/repositories.d/distfeeds.list | sed 's/dev/stable/g' > /etc/apk/repositories.d/customfeeds.list
+echo 'set repo_channel=stable' > /etc/apk/repositories.d/98-overrides.list
+echo 'set endpoint=updates.nethsecurity.nethserver.org/${repo_channel}' >> /etc/apk/repositories.d/98-overrides.list
 apk update
-apk list --upgradable | grep -oP '{\w+/\K[^}]+' | /usr/bin/xargs -r apk upgrade && echo "Update successful!"
+apk upgrade
 ```
 
-The customfeed.conf file takes precedence over distfeed.conf, so you can safely
-ignore errors like `apk_conf_parse_file: Duplicate src declaration`.
+You can replace the `repo_channel` with the following options:
+- `stable` packages released beforehand to community
+- `staging` packages yet to be released, but already been tested internally
 
-At the end, restore the original `customfeeds.conf`:
+At the end, you can move the file for later use.
 ```
-mv /etc/apk/repositories.d/customfeeds.list.ori /etc/apk/repositories.d/customfeeds.list
+mv /etc/apk/repositories.d/98-overrides.list /etc/apk/repositories.d/98-overrides.list.staging
 apk update
 ```
 
 ## Upstream OpenWrt repositories
 
-You can add custom feeds by changing the `/etc/apk/repositories.d/customfeeds.list` file.
+You can add custom feeds by adding the repos the `/etc/apk/repositories.d/customfeeds.list` file.
 
 To enable OpenWrt package repositories use the following commands
 ```bash
-source /etc/os-release
-VERSION=$(echo $OPENWRT_RELEASE | cut -d' ' -f3 | sed 's/^v//')
-cat << EOF > /etc/apk/repositories.d/customfeeds.list
-https://downloads.openwrt.org/releases/$VERSION/targets/x86/64/packages/packages.adb
-https://downloads.openwrt.org/releases/$VERSION/packages/x86_64/base/packages.adb
-https://downloads.openwrt.org/releases/$VERSION/packages/x86_64/luci/packages.adb
-https://downloads.openwrt.org/releases/$VERSION/packages/x86_64/packages/packages.adb
-https://downloads.openwrt.org/releases/$VERSION/packages/x86_64/routing/packages.adb
+cat << 'EOF' > /etc/apk/repositories.d/customfeeds.list
+https://downloads.openwrt.org/releases/${openwrt_version}/targets/${target_arch}/packages/packages.adb
+https://downloads.openwrt.org/releases/${openwrt_version}/packages/${package_arch}/base/packages.adb
+https://downloads.openwrt.org/releases/${openwrt_version}/packages/${package_arch}/luci/packages.adb
+https://downloads.openwrt.org/releases/${openwrt_version}/packages/${package_arch}/packages/packages.adb
+https://downloads.openwrt.org/releases/${openwrt_version}/packages/${package_arch}/routing/packages.adb
 EOF
 ```
