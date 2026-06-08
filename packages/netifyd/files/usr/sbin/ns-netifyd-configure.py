@@ -34,12 +34,18 @@ table inet netifyd {
     }
 
     # push input packets to userspace queues for DPI analysis
+{%- if firewall_traffic in ('full', 'inbound') %}
     chain nfq_input {
         type filter hook input priority filter + 10; policy accept;
         iifname lo accept
 
         # Skip untracked traffic
         ct state untracked accept
+{%- if firewall_traffic == 'inbound' %}
+        # Skip reply traffic for connections initiated by the firewall itself
+        # (e.g. DNS responses, monitoring ping replies)
+        ct direction reply accept
+{%- endif %}
         # Accept traffic matching bypass set
         ip saddr @nfq_bypass_v4 accept
         ip daddr @nfq_bypass_v4 accept
@@ -52,6 +58,7 @@ table inet netifyd {
         # Traffic to queues 54-57
         queue flags bypass to 54-57
     }
+{%- endif %}
 
     # push forward packets to userspace queues for DPI analysis
     chain nfq_forward {
@@ -72,6 +79,7 @@ table inet netifyd {
         queue flags bypass to 50-53
     }
 
+{%- if firewall_traffic == 'full' %}
     # push output packets to userspace queues for DPI analysis
     chain nfq_output {
         type filter hook output priority filter + 10; policy accept;
@@ -91,6 +99,8 @@ table inet netifyd {
         # Traffic to queues 54-57
         queue flags bypass to 54-57
     }
+{%- endif %}
+
 }
 """
 
@@ -131,11 +141,20 @@ def generate_nfq_table():
     # Format elements with optional comments for nftables
     v4_elements = _format_nft_elements(v4_raw)
     v6_elements = _format_nft_elements(v6_raw)
-    
+
+    # Read which firewall-local traffic to include in DPI analysis:
+    # 'full'    - analyze all firewall traffic (input + output + forward)
+    # 'inbound' - analyze only traffic initiated from outside toward the firewall (input + forward)
+    # 'forward' - analyze only forwarded traffic, ignore firewall-local traffic entirely
+    firewall_traffic = e_uci.get('netifyd', 'config', 'firewall_traffic', dtype=str, default='inbound')
+    if firewall_traffic not in ('full', 'inbound', 'forward'):
+        firewall_traffic = 'inbound'
+
     template = Environment(loader=BaseLoader()).from_string(NFQ_TABLE)
     render = template.render(
         v4_elements=v4_elements,
         v6_elements=v6_elements,
+        firewall_traffic=firewall_traffic,
     )
     
     # Apply nftables

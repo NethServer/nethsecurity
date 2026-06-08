@@ -63,3 +63,27 @@ uci del_list netifyd.config.bypassv4='192.168.1.0/24 | My network'
 uci commit netifyd
 reload_config
 ```
+
+## Firewall-local traffic analysis
+
+The `firewall_traffic` option controls how traffic to/from the firewall itself is handled. It accepts three values:
+
+| Value | Description |
+|---|---|
+| `full` | Analyze all firewall traffic: inbound, outbound (firewall-initiated), and forwarded |
+| `inbound` | Analyze only traffic initiated from outside toward the firewall, plus forwarded traffic (default) |
+| `forward` | Analyze only forwarded traffic; ignore all firewall-local traffic entirely |
+
+```bash
+# Default: only inbound connections to the firewall + forwarded traffic
+uci set netifyd.config.firewall_traffic='inbound'
+
+# Full analysis including firewall-originated connections (e.g. DNS, monitoring)
+uci set netifyd.config.firewall_traffic='full'
+
+# Forwarded traffic only, skip all local firewall traffic
+uci set netifyd.config.firewall_traffic='forward'
+
+uci commit netifyd
+reload_config
+```
