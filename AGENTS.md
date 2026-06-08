@@ -72,7 +72,7 @@ bundle install
 | `config/` | Diffconfig fragments per feature; `config/targets/<arch>.conf` for arch-specific config |
 | `files/` | Filesystem overlay copied verbatim into image |
 | `patches/` | Patches applied to upstream OpenWrt feeds |
-| `.github/workflows/` | CI/CD (build-image, release-stable, cleanup, docs, etc.) |
+| `.github/workflows/` | CI/CD (build-image, cleanup, docs, etc.) |
 
 ---
 
@@ -147,14 +147,15 @@ GIN_MODE=debug  # (instead of release)
 
 | Trigger | Channel | Version |
 |---|---|---|
-| Push to `main` | `dev` | `<base>-dev+<hash>.<timestamp>` |
-| Tag push | `stable` | tag value |
-| PR branch | branch-named | `<base>-<branch>+<hash>` |
+| Push to `main` | `dev` | `<base>-dev.<run>.<timestamp>.<hash>` |
+| Push to `staging` | `staging` | `<base>` |
+| Push to `release` | `stable` | `<base>` |
+| PR branch | branch-named | `<base>-PR<pr_number>.<run>.<timestamp>.<hash>` |
 
-**Packages-only stable release:**
+**Package/Image release:**
 1. Bump `PKG_VERSION` or `PKG_RELEASE` in `packages/<name>/Makefile`.
-2. Merge to `main`.
-3. Trigger [Release stable packages](https://github.com/NethServer/nethsecurity/actions/workflows/release-stable.yml) workflow manually to sync `dev` → `stable`.
+2. Merge the tested change to `release`.
+3. The `release` branch push publishes the stable channel automatically.
 
 **Build volumes** (persistent, deleted weekly): `nethsecurity_builder_${OWRT_VERSION}_{build,staging,cache,downloads,dl}`.
 

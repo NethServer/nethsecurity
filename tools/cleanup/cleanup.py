@@ -4,7 +4,7 @@
 # Cleanup old development builds from DigitalOcean Spaces:
 # - Keep the latest 5 versions of each channel
 #
-# Version format: 8.7.2-dev.<timestamp>.<hash> or 8.7.2-branch.<timestamp>.<hash>
+# Version format: 8.8.0-dev.<run_number>.<timestamp>.<hash>
 
 import os
 import boto3
@@ -38,13 +38,20 @@ for file in files:
         print(f'Skipping {file_name} as it is not a development build.')
         continue
     
-    # Extract timestamp from prerelease segment: "dev.<timestamp>.<hash>" or "branch.<timestamp>.<hash>"
+    # Extract timestamp from prerelease segment.
+    # Supported formats:
+    # - dev.<timestamp>.<hash>
+    # - dev.<run_number>.<timestamp>.<hash>
     prerelease_parts = version_parsed.prerelease.split('.')
     if len(prerelease_parts) < 3:
         print(f'Skipping {file_name} - prerelease segment does not contain timestamp.')
         continue
-    
-    timestamp = prerelease_parts[1]  # middle part is the timestamp
+
+    if len(prerelease_parts) >= 4:
+        timestamp = prerelease_parts[2]
+    else:
+        timestamp = prerelease_parts[1]
+
     parsed_files.append({
         'timestamp': timestamp,
         'file': file,

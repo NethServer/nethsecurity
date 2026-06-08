@@ -26,8 +26,9 @@ The build runs inside a [GitHub self-hosted runner](#self-hosted-runner).
 The GitHub actions also take care of publishing images and packages to the repository. The current logic is the following:
 
 - If the branch is `main`, the image will be built and published to the `dev` [channel](/design/distfeed/#channels).
-- If the branch is `main` and the tag is a stable version, the image will be built and published to the `stable` channel.
-- If the branch is other than `main`, the image will published under a dev branch that has the name of the branch as the name of the release.
+- If the branch is `staging`, the image will be built and published to the `staging` channel.
+- If the branch is `release`, the image will be built and published to the `stable` channel.
+- If the build is for a pull request, the image will be published under a branch channel named `PR<id>`.
 
 Artifacts will be created and available for download from the GitHub actions page for 90 days for every build.
 
@@ -76,7 +77,7 @@ During the start-up, the container will download netifyd plugins if configuratio
 The `build-nethsec.sh` script behavior can be changed by setting environment variables or by populating the `build.conf` file (git-ignored, local overrides only).
 
 **Variable loading order:**
-1. `build.conf.defaults` (versioned, always loaded first — contains canonical defaults)
+1. `build.conf.defaults` (versioned, always loaded first — contains the canonical build defaults tracked in Git)
 2. `build.conf` (git-ignored, optional — can override any variable)
 3. Environment variables set before calling `./build-nethsec.sh` (highest priority)
 
@@ -85,7 +86,7 @@ The `build-nethsec.sh` script behavior can be changed by setting environment var
 - `OWRT_VERSION`: specify the OpenWrt version to build, it can be either a TAG or a branch in the [GitHub OpenWRT repo](https://github.com/openwrt/openwrt); **required**
 - `NETHSECURITY_VERSION`: specify what to call the NethSecurity image; **required**
 - `TARGET`: specify the target to build; if not set default is `x86_64`
-- `REPO_CHANNEL`: specify the channel to publish the image to; if not set default is `dev`
+- `REPO_CHANNEL`: specify the channel to publish the image to; if not set, the build and CI default to `dev`
 - `BUILD_SEMVER_SUFFIX`: optional semver suffix appended to the image version only (not the distfeed URL). Use pre-release format (`-rc.1`, `-beta.2`) or metadata format (`+hotfix.1`, `+testing`) or both (`-rc.1+fix.1`).
 - `APK_PUB_KEY` and `APK_PRIV_KEY`: see [package signing section](#package-signing)
 
@@ -100,7 +101,7 @@ If you need to build some packages locally for a release, make sure the followin
 
 Then execute the build as described in the [Build locally](#build-locally) section.
 
-See the [manual release process](../development_process/#manually-releasing-packages) for additional info.
+See the [release process](../development_process/#release-process) for the branch-driven publish flow, the image bump workflow, and the tag-based draft release flow.
 
 ### Build a snapshot
 
@@ -112,38 +113,26 @@ Then build the image normally using the `build-nethsec.sh` script.
 
 ## Versioning
 
-The versioning system encompasses three types of versions:
+The release version depends on the channel that published it:
 
-- **Stable:** Stable versions, finalized and ready for production use. 
-- **Unstable:** Versions under active development, intended for testing and continuous development.
-- **Development:** Versions in active development, with additional commit details, used for debugging and internal testing.
+- `dev`: rolling development builds with a run number, timestamp, and commit hash
+- `staging`: pre-release builds using the base version
+- `stable`: final release builds using the base version
+- `PR<id>`: ephemeral pull-request builds using the same rolling format as `dev`
 
-
-The generic format for a version is as follows:
+For `dev` or PRs:
 
 ```
-<owrt_release>-ns.<nethsecurity_release>-<commit_since_last_tag>-g<commit_hash>
+8.8.0-dev.42.20260604123010.a1b2c3d
+8.8.0-PR123.17.20260604123010.a1b2c3d
 ```
 
-- `<owrt_release>`: Main version number of OpenWRT.
-- `<nethsecurity_release>`: NethSecurity security version in [semver](https://semver.org/) format.
-- `<commit_since_last_tag>`: Number of commits since the last version tag, present only in development versions.
-- `g<commit_hash>`: Unique identifier for the current commit, present only in development versions.
+For other channels:
 
-
-Stable version example:
 ```
-8.6.0
-```
-
-Unstable version example
-```
-8.6.0-beta.1
-```
-
-Development version example:
-```
-8.6.0-feature-branch-name-26d3f78
+8.8.0
+8.8.0-rc1
+9.0.0-beta
 ```
 
 ## Upstream version change
@@ -155,38 +144,28 @@ This ensures all developers and CI get the same default version.
 
 When releasing a new image, follow these steps:
 
-1. **Tag the stable release:**
-  - Example: `8.5.2`
+1. **Update the versioned build defaults**: Bump `NETHSECURITY_VERSION` in [build.conf.defaults](https://github.com/NethServer/nethsecurity/tree/main/build.conf.defaults) if this release needs a new base version.
 
-2. **Update the changelog:**
-  - Include the date of release and relevant changes inside the [administrator manual](https://github.com/NethServer/nethsecurity-docs).
+2. **Merge the release branch**: Push the tested change to `release` so CI publishes the final image and packages automatically.
 
-3. **Merge all documentation PRs:**
-  - Ensure all pending documentation pull requests are merged.
+3. **Create the Git tag:**
+  - Create the tag on the stable release commit in the NethSecurity repository.
+  - The tag is the human-facing release marker and is visible in the repository tags list on GitHub.
 
-4. **Execute documentation build:**
-  - Execute the build of the documentation on [Read the Docs](https://readthedocs.org/projects/nethsecurity-docs/) to include latest changes
-    and update the downaload links.
+4. **Draft the GitHub release:**
+  - Use the tag as the release name.
+  - Attach the manifest file and the SBOM file.
+  - Do not attach image artifacts.
 
-5. **Close all open issues:**
-  - Ensure all issues related to the release are closed.
+5. **Finalize the release notes:**
+  - Update the changelog with the date of release and relevant changes inside the [administrator manual](https://github.com/NethServer/nethsecurity-docs).
+  - Merge any pending documentation PRs and rebuild the docs if needed.
 
-6. **Close the milestone:**
-  - Close the relevant milestone on [GitHub](https://github.com/NethServer/nethsecurity/milestones).
-
-7. **Archive completed items:**
-  - Archive all items in the "Done" column of the [project board](https://github.com/orgs/NethServer/projects/10/views/2).
-
-8. **Release NethSecurity Controller:**
-  - Release the version of NethSecurity Controller on NethServer 8, if applicable.
-
-9. **Release the milestone inside the subscription repository:**
-  - Access distfeed.nethesis.it and release the [milestone](https://github.com/nethesis/parceler?tab=readme-ov-file#milestone-release):
-    the image with its own packages will be available also in the subscription repository.
-
-10. **Announce the release:**
-  - Post English announcement on [NethServer Community](https://community.nethserver.org).
-  - Post Italian announcement on [Nethesis Partner Portal](https://partner.nethesis.it).
+6. **Complete the rest of the release tasks:**
+  - Close related issues and milestones.
+  - Archive completed project-board items.
+  - Release NethSecurity Controller if applicable.
+  - Publish the user-facing announcement once the release draft is approved on [NethServer Community](https://community.nethserver.org) and [Nethesis Partner Portal](https://partner.nethesis.it).
 
 
 ## Image configuration
