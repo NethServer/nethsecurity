@@ -1002,10 +1002,7 @@ def is_ip_blocked():
     }
 
 def geoblocking_configuration(e_uci):
-    try:
-        feeds = list(e_uci.get_all('banip', 'global', 'ban_feed'))
-    except Exception:
-        feeds = []
+    feeds = list(e_uci.get('banip', 'global', 'ban_feed', list=True, default=[]))
     enabled = 'country' in feeds
     countries = get_countries_from_banip(e_uci)
     regions = [
@@ -1019,23 +1016,18 @@ def geoblocking_configuration(e_uci):
 
 def set_geoblocking_configuration(e_uci, payload):
 
-    # remove country backup files to avoid stale blocked IPs being restored
-    for backup_file in ['/tmp/banIP-backup/banIP.countryv4.gz', '/tmp/banIP-backup/banIP.countryv6.gz']:
-        try:
-            os.remove(backup_file)
-        except FileNotFoundError:
-            pass
-
     if 'enabled' not in payload:
         raise ValidationError('enabled', 'required')
     if not isinstance(payload['enabled'], bool):
         raise ValidationError('enabled', 'invalid', payload['enabled'])
     
+    if 'countries' not in payload:
+        raise ValidationError('countries', 'required')
+    if not isinstance(payload['countries'], list):
+        raise ValidationError('countries', 'invalid', payload['countries'])
+    
     # handle the country feed enable/disable
-    try:
-        feeds = list(e_uci.get_all('banip', 'global', 'ban_feed'))
-    except Exception:
-        feeds = []
+    feeds = list(e_uci.get('banip', 'global', 'ban_feed', list=True, default=[]))
     
     if payload['enabled']:
         # add 'country' feed if not present
@@ -1046,14 +1038,9 @@ def set_geoblocking_configuration(e_uci, payload):
         if 'country' in feeds:
             feeds.remove('country')
     
-    # handle countries if provided
-    if 'countries' in payload:
-        countries_list = payload['countries']
-        if not isinstance(countries_list, list):
-            raise ValidationError('countries', 'invalid', countries_list)
-        # convert country codes to lowercase
-        countries = [c.lower() for c in countries_list]
-        e_uci.set('banip', 'global', 'ban_country', countries)
+    # convert country codes to lowercase
+    countries = [c.lower() for c in payload['countries']]
+    e_uci.set('banip', 'global', 'ban_country', countries)
 
     # Update the feeds list
     e_uci.set('banip', 'global', 'ban_feed', feeds)
