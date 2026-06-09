@@ -5,14 +5,12 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-import base64
 import json
 import os
 import shutil
 import subprocess
 import sys
-import random
-import string
+from datetime import datetime
 
 from nethsec import utils
 
@@ -21,7 +19,7 @@ DOWNLOAD_PATH = '/var/run/ns-api-server/downloads/'
 PASSPHRASE_PATH = '/etc/backup.pass'
 
 def generate_random_file_name():
-    return 'backup-' + ''.join(random.choice(string.ascii_letters) for i in range(20))
+    return 'backup-' + datetime.now().strftime('%s') + '.tar.gz'
 
 
 def create_backup(encrypted=True):

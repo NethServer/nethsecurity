@@ -11,7 +11,7 @@
 set -e
 
 WORK_DIR="/var/backup"
-BACKUP="$WORK_DIR/backup.tar.gz"
+BACKUP="$WORK_DIR/backup-$(date +%s).tar.gz"
 MD5="$WORK_DIR/md5"
 MD5_LAST="/etc/backup.md5"
 PASSPHRASE="/etc/backup.pass"
