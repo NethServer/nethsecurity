@@ -5,14 +5,12 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-import base64
 import json
 import os
 import shutil
 import subprocess
 import sys
-import random
-import string
+from datetime import datetime
 
 from nethsec import utils
 
@@ -21,7 +19,7 @@ DOWNLOAD_PATH = '/var/run/ns-api-server/downloads/'
 PASSPHRASE_PATH = '/etc/backup.pass'
 
 def generate_random_file_name():
-    return 'backup-' + ''.join(random.choice(string.ascii_letters) for i in range(20))
+    return 'backup-' + datetime.now().strftime('%s') + '.tar.gz'
 
 
 def create_backup(encrypted=True):
@@ -170,21 +168,22 @@ elif cmd == 'call':
             print(json.dumps(utils.generic_error(f'remote list failed')))
 
     elif action == 'registered-backup':
-        if os.path.exists(PASSPHRASE_PATH):
+        if not os.path.exists(PASSPHRASE_PATH):
             print(utils.validation_error('passphrase', 'missing'))
-        try:
-            # create backup
-            file_name = create_backup()
-            backup_path = f'{DOWNLOAD_PATH}{file_name}'
-            # upload backup to server and remove it from filesystem
-            completed_process = subprocess.run(['/usr/sbin/remote-backup', 'upload', backup_path], check=True,
-                                               capture_output=True)
-            os.remove(backup_path)
-            print(json.dumps({'message': 'success'}))
-        except subprocess.CalledProcessError as error:
-            print(json.dumps(utils.generic_error(f'remote upload failed')))
-        except RuntimeError as error:
-            print(json.dumps(utils.generic_error(error.args[0])))
+        else:
+            try:
+                # create backup
+                file_name = create_backup()
+                backup_path = f'{DOWNLOAD_PATH}{file_name}'
+                # upload backup to server and remove it from filesystem
+                completed_process = subprocess.run(['/usr/sbin/remote-backup', 'upload', backup_path], check=True,
+                                                capture_output=True)
+                os.remove(backup_path)
+                print(json.dumps({'message': 'success'}))
+            except subprocess.CalledProcessError as error:
+                print(json.dumps(utils.generic_error(f'remote upload failed')))
+            except RuntimeError as error:
+                print(json.dumps(utils.generic_error(error.args[0])))
 
     elif action == 'registered-restore':
         try:
