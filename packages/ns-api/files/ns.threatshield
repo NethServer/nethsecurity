@@ -429,10 +429,7 @@ def get_countries_from_banip(e_uci):
         "oceania": [],
         "others": []
     }
-    try:
-        blocked_countries = [c.upper() for c in e_uci.get_all('banip', 'global', 'ban_country')]
-    except Exception:
-        blocked_countries = []
+    blocked_countries = [c.upper() for c in e_uci.get('banip', 'global', 'ban_country', list=True, default=[])]
     with open("/etc/banip/banip.countries", encoding="utf-8") as f:
         for line in f:
             if not line.strip():
@@ -1005,13 +1002,20 @@ def geoblocking_configuration(e_uci):
     feeds = list(e_uci.get('banip', 'global', 'ban_feed', list=True, default=[]))
     enabled = 'country' in feeds
     countries = get_countries_from_banip(e_uci)
-    regions = [
-        {region: countries_list}
+    regions = {
+        region: [c["code"] for c in countries_list]
         for region, countries_list in countries.items()
+    }
+    blocked_regions = [
+        c["code"]
+        for countries_list in countries.values()
+        for c in countries_list
+        if c["blocked"]
     ]
     return {
         "enabled": enabled,
-        "regions": regions
+        "regions": regions,
+        "blocked_regions": blocked_regions
     }
 
 def set_geoblocking_configuration(e_uci, payload):
@@ -1095,7 +1099,7 @@ if cmd == 'list':
         'dns-list-bypass': {},
         'dns-add-bypass': { 'address': '1.2.3.4' },
         'dns-delete-bypass': { 'address': '1.2.3.4' },
-        'geoblocking-configuration': {'enabled': True, 'regions': [{'europe': [{'code': 'IT', 'description': 'Italy', 'blocked': True}]}, {'americas': []}, {'asia': []}, {'africa': []}, {'oceania': []}, {'others': []}]},
+        'geoblocking-configuration': {'enabled': True, 'regions': {'europe': ['IT'], 'americas': [], 'asia': [], 'africa': ['DZ'], 'oceania': [], 'others': []}, 'blocked_regions': ['DZ', 'IT']},
         'set-geoblocking-configuration': {'enabled': True, 'countries': ['DZ', 'EG', 'US', 'BR']}
     }))
 elif cmd == 'call':
