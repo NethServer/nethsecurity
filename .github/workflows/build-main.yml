@@ -1,10 +1,12 @@
 name: "Build NethSecurity image (main)"
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - 'main'
     paths:
+      - '.github/workflows/**'
       - 'builder/**'
       - 'config/**'
       - 'files/**'
@@ -14,6 +16,7 @@ on:
       - 'build-nethsec.sh'
   pull_request:
     paths:
+      - '.github/workflows/**'
       - 'builder/**'
       - 'config/**'
       - 'files/**'
@@ -80,7 +83,7 @@ jobs:
     name: 'Run tools'
     runs-on: ubuntu-24.04
     needs: [vars, build]
-    if: ${{ github.event_name == 'push' }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}

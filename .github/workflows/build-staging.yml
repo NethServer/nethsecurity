@@ -1,10 +1,12 @@
 name: "Build NethSecurity image (staging)"
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - 'staging'
     paths:
+      - '.github/workflows/**'
       - 'builder/**'
       - 'config/**'
       - 'files/**'
@@ -21,6 +23,7 @@ jobs:
       owrt_version: ${{ steps.compute.outputs.owrt_version }}
       target: ${{ steps.compute.outputs.target }}
       base_version: ${{ steps.compute.outputs.base_version }}
+      build_semver_suffix: ${{ steps.compute.outputs.build_semver_suffix }}
       nethsecurity_version: ${{ steps.compute.outputs.nethsecurity_version }}
     steps:
       - uses: actions/checkout@v6
@@ -30,18 +33,20 @@ jobs:
           OWRT_VERSION=$(grep -oP 'OWRT_VERSION=\K.*' build.conf.defaults)
           TARGET=$(grep -oP 'TARGET=\K.*' build.conf.defaults)
           BASE_VERSION=$(grep -oP 'NETHSECURITY_VERSION=\K.*' build.conf.defaults)
+          BUILD_SEMVER_SUFFIX=$(grep -oP 'BUILD_SEMVER_SUFFIX=\K.*' build.conf.defaults || true)
 
           echo "owrt_version=${OWRT_VERSION}" >> $GITHUB_OUTPUT
           echo "target=${TARGET}" >> $GITHUB_OUTPUT
           echo "base_version=${BASE_VERSION}" >> $GITHUB_OUTPUT
-          echo "nethsecurity_version=${BASE_VERSION}" >> $GITHUB_OUTPUT
+          echo "build_semver_suffix=${BUILD_SEMVER_SUFFIX}" >> $GITHUB_OUTPUT
+          echo "nethsecurity_version=${BASE_VERSION}${BUILD_SEMVER_SUFFIX}" >> $GITHUB_OUTPUT
 
   build:
     needs: vars
     uses: ./.github/workflows/build-image.yml
     with:
       repo_channel: staging
-      build_semver_suffix: ''
+      build_semver_suffix: ${{ needs.vars.outputs.build_semver_suffix }}
       nethsecurity_version: ${{ needs.vars.outputs.nethsecurity_version }}
       owrt_version: ${{ needs.vars.outputs.owrt_version }}
       target: ${{ needs.vars.outputs.target }}
