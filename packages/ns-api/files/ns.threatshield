@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 #
-# Copyright (C) 2024 Nethesis S.r.l.
+# Copyright (C) 2026 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
@@ -20,6 +20,260 @@ from nethsec import utils, firewall
 import base64
 import time
 import subprocess
+
+## continent codes map
+
+continent_table = {
+    "AF": "asia",
+    "AX": "europe",
+    "AL": "europe",
+    "DZ": "africa",
+    "AS": "oceania",
+    "AD": "europe",
+    "AO": "africa",
+    "AI": "americas",
+    "AQ": "others",
+    "AG": "americas",
+    "AR": "americas",
+    "AM": "asia",
+    "AW": "americas",
+    "AU": "oceania",
+    "AT": "europe",
+    "AZ": "asia",
+    "BS": "americas",
+    "BH": "asia",
+    "BD": "asia",
+    "BB": "americas",
+    "BY": "europe",
+    "BE": "europe",
+    "BZ": "americas",
+    "BJ": "africa",
+    "BM": "americas",
+    "BT": "asia",
+    "BO": "americas",
+    "BQ": "americas",
+    "BA": "europe",
+    "BW": "africa",
+    "BV": "americas",
+    "BR": "americas",
+    "IO": "africa",
+    "BN": "asia",
+    "BG": "europe",
+    "BF": "africa",
+    "BI": "africa",
+    "KH": "asia",
+    "CM": "africa",
+    "CA": "americas",
+    "CV": "africa",
+    "KY": "americas",
+    "CF": "africa",
+    "TD": "africa",
+    "CL": "americas",
+    "CN": "asia",
+    "CX": "oceania",
+    "CC": "oceania",
+    "CO": "americas",
+    "KM": "africa",
+    "CG": "africa",
+    "CD": "africa",
+    "CK": "oceania",
+    "CR": "americas",
+    "CI": "africa",
+    "HR": "europe",
+    "CU": "americas",
+    "CW": "americas",
+    "CY": "asia",
+    "CZ": "europe",
+    "DK": "europe",
+    "DJ": "africa",
+    "DM": "americas",
+    "DO": "americas",
+    "EC": "americas",
+    "EG": "africa",
+    "SV": "americas",
+    "GQ": "africa",
+    "ER": "africa",
+    "EE": "europe",
+    "SZ": "africa",
+    "ET": "africa",
+    "FK": "americas",
+    "FO": "europe",
+    "FJ": "oceania",
+    "FI": "europe",
+    "FR": "europe",
+    "GF": "americas",
+    "PF": "oceania",
+    "TF": "africa",
+    "GA": "africa",
+    "GM": "africa",
+    "GE": "asia",
+    "DE": "europe",
+    "GH": "africa",
+    "GI": "europe",
+    "GR": "europe",
+    "GL": "americas",
+    "GD": "americas",
+    "GP": "americas",
+    "GU": "oceania",
+    "GT": "americas",
+    "GG": "europe",
+    "GN": "africa",
+    "GW": "africa",
+    "GY": "americas",
+    "HT": "americas",
+    "HM": "oceania",
+    "HN": "americas",
+    "HK": "asia",
+    "HU": "europe",
+    "IS": "europe",
+    "IN": "asia",
+    "ID": "asia",
+    "IR": "asia",
+    "IQ": "asia",
+    "IE": "europe",
+    "IM": "europe",
+    "IL": "asia",
+    "IT": "europe",
+    "JM": "americas",
+    "JP": "asia",
+    "JE": "europe",
+    "JO": "asia",
+    "KZ": "asia",
+    "KE": "africa",
+    "KI": "oceania",
+    "KW": "asia",
+    "KG": "asia",
+    "LA": "asia",
+    "LV": "europe",
+    "LB": "asia",
+    "LS": "africa",
+    "LR": "africa",
+    "LY": "africa",
+    "LI": "europe",
+    "LT": "europe",
+    "LU": "europe",
+    "MO": "asia",
+    "MG": "africa",
+    "MW": "africa",
+    "MY": "asia",
+    "MV": "asia",
+    "ML": "africa",
+    "MT": "europe",
+    "MH": "oceania",
+    "MA": "africa",
+    "MQ": "americas",
+    "MR": "africa",
+    "MU": "africa",
+    "YT": "africa",
+    "MX": "americas",
+    "FM": "oceania",
+    "MD": "europe",
+    "MC": "europe",
+    "MN": "asia",
+    "ME": "europe",
+    "MS": "americas",
+    "MZ": "africa",
+    "MM": "asia",
+    "NA": "africa",
+    "NR": "oceania",
+    "NP": "asia",
+    "NL": "europe",
+    "NC": "oceania",
+    "NZ": "oceania",
+    "NI": "americas",
+    "NE": "africa",
+    "NG": "africa",
+    "NU": "oceania",
+    "NF": "oceania",
+    "KP": "asia",
+    "MK": "europe",
+    "MP": "oceania",
+    "NO": "europe",
+    "OM": "asia",
+    "PK": "asia",
+    "PW": "oceania",
+    "PS": "asia",
+    "PA": "americas",
+    "PG": "oceania",
+    "PY": "americas",
+    "PE": "americas",
+    "PH": "asia",
+    "PN": "oceania",
+    "PL": "europe",
+    "PT": "europe",
+    "PR": "americas",
+    "QA": "asia",
+    "RE": "africa",
+    "RO": "europe",
+    "RU": "europe",
+    "RW": "africa",
+    "SH": "africa",
+    "BL": "americas",
+    "KN": "americas",
+    "LC": "americas",
+    "MF": "americas",
+    "PM": "americas",
+    "VC": "americas",
+    "WS": "oceania",
+    "SM": "europe",
+    "ST": "africa",
+    "SA": "asia",
+    "SN": "africa",
+    "RS": "europe",
+    "SC": "africa",
+    "SL": "africa",
+    "SG": "asia",
+    "SX": "americas",
+    "SK": "europe",
+    "SI": "europe",
+    "SB": "oceania",
+    "SO": "africa",
+    "ZA": "africa",
+    "GS": "americas",
+    "KR": "asia",
+    "SS": "africa",
+    "ES": "europe",
+    "LK": "asia",
+    "SD": "africa",
+    "SR": "americas",
+    "SJ": "europe",
+    "SE": "europe",
+    "CH": "europe",
+    "SY": "asia",
+    "TW": "asia",
+    "TJ": "asia",
+    "TZ": "africa",
+    "TH": "asia",
+    "TL": "asia",
+    "TG": "africa",
+    "TK": "oceania",
+    "TO": "oceania",
+    "TT": "americas",
+    "TN": "africa",
+    "TR": "asia",
+    "TM": "asia",
+    "TC": "americas",
+    "TV": "oceania",
+    "UG": "africa",
+    "UA": "europe",
+    "AE": "asia",
+    "GB": "europe",
+    "US": "americas",
+    "UM": "oceania",
+    "UY": "americas",
+    "UZ": "asia",
+    "VU": "oceania",
+    "VA": "europe",
+    "VE": "americas",
+    "VN": "asia",
+    "VG": "americas",
+    "VI": "americas",
+    "WF": "oceania",
+    "EH": "africa",
+    "YE": "asia",
+    "ZM": "africa",
+    "ZW": "africa"
+}
 
 ## Utilities
 
@@ -70,10 +324,8 @@ def list_feeds():
         with open('/etc/banip/banip.feeds') as f:
             return json.loads(f.read())
 
-
 def get_block_list():
     return get_allow_list('/etc/banip/banip.blocklist')
-
 
 def get_allow_list(file='/etc/banip/banip.allowlist'):
     ret = []
@@ -168,6 +420,31 @@ def get_confidence(f, enterprise=False):
         confidence = 5
     return confidence
 
+def get_countries_from_banip(e_uci):
+    result = {
+        "africa": [],
+        "americas": [],
+        "asia": [],
+        "europe": [],
+        "oceania": [],
+        "others": []
+    }
+    blocked_countries = [c.upper() for c in e_uci.get('banip', 'global', 'ban_country', list=True, default=[])]
+    with open("/etc/banip/banip.countries", encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            parts = line.split('\t')
+            code = parts[0].strip().upper()
+            description = parts[2].strip() if len(parts) > 2 else ""
+            continent = continent_table.get(code, "others")
+            result[continent].append({
+                "code": code,
+                "description": description,
+                "blocked": code in blocked_countries
+            })
+    return result
+
 ## APIs
 
 def list_blocklist(e_uci):
@@ -179,6 +456,9 @@ def list_blocklist(e_uci):
     except:
         enabled_feeds = []
     for f in feeds:
+        # skip the 'country' feed as it's handled separately by geoblocking
+        if f == 'country':
+            continue
         feed = feeds[f]
         enabled = f in enabled_feeds
 
@@ -718,6 +998,59 @@ def is_ip_blocked():
         'found': False
     }
 
+def geoblocking_configuration(e_uci):
+    feeds = list(e_uci.get('banip', 'global', 'ban_feed', list=True, default=[]))
+    enabled = 'country' in feeds
+    countries = get_countries_from_banip(e_uci)
+    regions = {
+        region: [c["code"] for c in countries_list]
+        for region, countries_list in countries.items()
+    }
+    blocked_regions = [
+        c["code"]
+        for countries_list in countries.values()
+        for c in countries_list
+        if c["blocked"]
+    ]
+    return {
+        "enabled": enabled,
+        "regions": regions,
+        "blocked_regions": blocked_regions
+    }
+
+def set_geoblocking_configuration(e_uci, payload):
+
+    if 'enabled' not in payload:
+        raise ValidationError('enabled', 'required')
+    if not isinstance(payload['enabled'], bool):
+        raise ValidationError('enabled', 'invalid', payload['enabled'])
+    
+    if 'countries' not in payload:
+        raise ValidationError('countries', 'required')
+    if not isinstance(payload['countries'], list):
+        raise ValidationError('countries', 'invalid', payload['countries'])
+    
+    # handle the country feed enable/disable
+    feeds = list(e_uci.get('banip', 'global', 'ban_feed', list=True, default=[]))
+    
+    if payload['enabled']:
+        # add 'country' feed if not present
+        if 'country' not in feeds:
+            feeds.append('country')
+    else:
+        # remove 'country' feed if present
+        if 'country' in feeds:
+            feeds.remove('country')
+    
+    # convert country codes to lowercase
+    countries = [c.lower() for c in payload['countries']]
+    e_uci.set('banip', 'global', 'ban_country', countries)
+
+    # Update the feeds list
+    e_uci.set('banip', 'global', 'ban_feed', feeds)
+    e_uci.save('banip')
+
+    return {'message': 'success'}
 
 cmd = sys.argv[1]
 
@@ -765,7 +1098,9 @@ if cmd == 'list':
         'dns-delete-blocked': {'address': '1.2.3.4'},
         'dns-list-bypass': {},
         'dns-add-bypass': { 'address': '1.2.3.4' },
-        'dns-delete-bypass': { 'address': '1.2.3.4' }
+        'dns-delete-bypass': { 'address': '1.2.3.4' },
+        'geoblocking-configuration': {'enabled': True, 'regions': {'europe': ['IT'], 'americas': [], 'asia': [], 'africa': ['DZ'], 'oceania': [], 'others': []}, 'blocked_regions': ['DZ', 'IT']},
+        'set-geoblocking-configuration': {'enabled': True, 'countries': ['DZ', 'EG', 'US', 'BR']}
     }))
 elif cmd == 'call':
     action = sys.argv[2]
@@ -852,6 +1187,11 @@ elif cmd == 'call':
         elif action == 'dns-delete-blocked':
             payload = json.loads(sys.stdin.read())
             ret = dns_delete_blocked(e_uci, payload)
+        elif action == 'geoblocking-configuration':
+            ret = geoblocking_configuration(e_uci)
+        elif action == 'set-geoblocking-configuration':
+            payload = json.loads(sys.stdin.read())
+            ret = set_geoblocking_configuration(e_uci, payload)
 
         print(json.dumps(ret))
     except ValidationError as ex:
