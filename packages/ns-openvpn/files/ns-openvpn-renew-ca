@@ -29,7 +29,7 @@ if [ -f /etc/openvpn/$instance/pki/ca.crt ]; then
         EASYRSA_REQ_CN=$cn /usr/bin/easyrsa build-server-full server nopass
         /usr/bin/easyrsa gen-crl
         for f in $(find /etc/openvpn/$instance/pki/issued -name \*.crt ! -name server.crt); do
-            name=$(basename $f | cut -d '.' -f 1)
+            name=$(basename "$f" .crt)
             /usr/bin/easyrsa revoke-issued "$name"
             /usr/bin/easyrsa build-client-full "$name" nopass
         done
