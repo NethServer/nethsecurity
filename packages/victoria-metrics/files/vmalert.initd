@@ -19,17 +19,25 @@ start_service() {
     config_get datasource_url main datasource_url "http://localhost:8428"
     config_get http_listen_addr main http_listen_addr "127.0.0.1:8081"
     
-    # Check if Mimir integration is configured in ns-plug
-    local mimir_url mimir_key mimir_secret notifier_url
+    # Forward alerts to the new my.nethesis.it during the migration window,
+    # mirroring send-heartbeat / send-inventory: enterprise systems POST to the
+    # credential-translation proxy at my.nethesis.it/proxy/alerts using the
+    # ns-plug credentials (system_id:secret), which the proxy maps to the new my
+    # credentials. vmalert appends /api/v2/alerts to the notifier URL. The my
+    # switch-off release will repoint this to the native collect path.
+    local system_id system_secret system_type alerts_disabled notifier_url notifier_user notifier_pass
     config_load ns-plug 2>/dev/null && {
-        config_get mimir_url config my_url ""
-        config_get mimir_key config my_system_key ""
-        config_get mimir_secret config my_system_secret ""
+        config_get system_id config system_id ""
+        config_get system_secret config secret ""
+        config_get system_type config type ""
+        # opt-out: set ns-plug.config.disable_my_alerts=1 for alert-proxy only mode
+        config_get_bool alerts_disabled config disable_my_alerts 0
     }
-    
-    # If all Mimir credentials are present, configure alert forwarding to Mimir
-    if [ -n "$mimir_url" ] && [ -n "$mimir_key" ] && [ -n "$mimir_secret" ]; then
-        notifier_url="${mimir_url%/}/collect/api/services/mimir/alertmanager"
+
+    if [ "$system_type" = "enterprise" ] && [ -n "$system_id" ] && [ -n "$system_secret" ] && [ "$alerts_disabled" = "0" ]; then
+        notifier_url="https://my.nethesis.it/proxy/alerts"
+        notifier_user="$system_id"
+        notifier_pass="$system_secret"
     else
         notifier_url=""
     fi
@@ -46,11 +54,11 @@ start_service() {
     # Always notify the local alert-proxy (handles unregistered machines gracefully)
     procd_append_param command -notifier.url="http://127.0.0.1:9095"
 
-    # Also forward to Mimir if credentials are configured
+    # Also forward alerts to my.nethesis.it for registered enterprise systems
     if [ -n "$notifier_url" ]; then
         procd_append_param command -notifier.url="$notifier_url"
-        procd_append_param command -notifier.basicAuth.username="$mimir_key"
-        procd_append_param command -notifier.basicAuth.password="$mimir_secret"
+        procd_append_param command -notifier.basicAuth.username="$notifier_user"
+        procd_append_param command -notifier.basicAuth.password="$notifier_pass"
     fi
     
     procd_set_param stdout 1
@@ -65,5 +73,5 @@ reload_service() {
 }
 
 service_triggers() {
-    procd_add_reload_trigger vmalert
+    procd_add_reload_trigger vmalert ns-plug
 }

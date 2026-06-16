@@ -105,29 +105,30 @@ Then restart vmalert:
 /etc/init.d/vmalert restart
 ```
 
-## Mimir Integration (ns-plug)
+## Forwarding alerts to my.nethesis.it
 
-Mimir is a multi-tenant Prometheus-compatible long-term storage and alerting system used by nextgen [my](https://github.com/NethServer/my/) monitoring
-platform.
-When Mimir is configured via ns-plug, vmalert automatically forwards alerts. No manual vmalert configuration needed.
-
-**Enable Mimir forwarding:**
-```bash
-uci set ns-plug.config.my_url='https://mimir.example.com'
-uci set ns-plug.config.my_system_key='your_api_key'
-uci set ns-plug.config.my_system_secret='your_api_secret'
-uci commit ns-plug
-/etc/init.d/vmalert restart
-```
+[my](https://github.com/NethServer/my/) uses Grafana Mimir as a multi-tenant
+alertmanager for cloud-side alert processing. Enterprise systems forward their
+alerts to it automatically, mirroring `send-heartbeat` / `send-inventory`:
+vmalert POSTs alerts to the credential-translation proxy at
+`https://my.nethesis.it/proxy/alerts` using the ns-plug credentials
+(`system_id` / `secret`), which the proxy maps to the new my credentials before
+forwarding them to the Mimir alertmanager. No manual configuration is needed —
+it is enabled whenever `ns-plug.config.type` is `enterprise` and the system is
+registered (`system_id` / `secret` set). vmalert always also notifies the local
+alert-proxy (`http://127.0.0.1:9095`), which handles the legacy path and
+unregistered machines.
 
 **Disable (alert-proxy only mode):**
 ```bash
-uci delete ns-plug.config.my_url
-uci delete ns-plug.config.my_system_key
-uci delete ns-plug.config.my_system_secret
+uci set ns-plug.config.disable_my_alerts='1'
 uci commit ns-plug
 /etc/init.d/vmalert restart
 ```
+
+> Migration note: the my switch-off release will repoint this from
+> `/proxy/alerts` to the native collect endpoint
+> (`/collect/api/services/mimir/alertmanager`) with rotated credentials.
 
 ## References
 

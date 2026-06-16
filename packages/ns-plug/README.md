@@ -154,5 +154,6 @@ if `endsAt` is in the future (or zero/missing) a **FAILURE** is sent; if `endsAt
 the past an **OK** is sent. HA recovery/failover event alerts override this default mapping so
 they can keep the legacy `ha:primary:failed` semantics.
 
-If Mimir credentials are configured in ns-plug UCI (`my_url`, `my_system_key`, `my_system_secret`),
-vmalert also forwards all alerts to the Mimir alertmanager for cloud-side processing.
+On enterprise systems vmalert also forwards alerts to my.nethesis.it through the
+credential-translation proxy (`https://my.nethesis.it/proxy/alerts`, authenticated
+with the ns-plug `system_id` / `secret`), mirroring send-heartbeat / send-inventory.
