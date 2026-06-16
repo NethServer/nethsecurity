@@ -194,6 +194,7 @@ define Package/ns-api/install
 	$(INSTALL_BIN) ./files/post-commit/restart-cron.py $(1)/usr/libexec/ns-api/post-commit
 	$(INSTALL_BIN) ./files/post-commit/update-timezone.py $(1)/usr/libexec/ns-api/post-commit
 	$(INSTALL_BIN) ./files/post-commit/restart-wireguard.py $(1)/usr/libexec/ns-api/post-commit
+	$(INSTALL_BIN) ./files/post-commit/clear-user-tokens.py $(1)/usr/libexec/ns-api/post-commit
 	$(INSTALL_BIN) ./files/pre-commit/clean-network.py $(1)/usr/libexec/ns-api/pre-commit
 	$(INSTALL_BIN) ./files/remove-pppoe-keepalive $(1)/usr/share/ns-api
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
