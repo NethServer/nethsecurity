@@ -73,5 +73,5 @@ reload_service() {
 }
 
 service_triggers() {
-    procd_add_reload_trigger vmalert
+    procd_add_reload_trigger vmalert ns-plug
 }
