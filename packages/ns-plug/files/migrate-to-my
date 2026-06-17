@@ -87,5 +87,13 @@ set ns-plug.config.migrated_at=$migrated_at
 commit ns-plug
 EOI
 
+# Repoint vmalert at the native Mimir endpoint right away. vmalert reloads on
+# ns-plug changes, but migrate-to-my does not trigger reload_config, so force a
+# targeted reload here: the running vmalert otherwise keeps its boot-time
+# (legacy) creds and POSTs to /proxy/alerts until the next reload. Reloading
+# now makes the alert path flip together with the credential rotation. Safe
+# no-op if victoria-metrics is not installed.
+/etc/init.d/vmalert reload 2>/dev/null || true
+
 logger -t migrate-to-my "migrated to my collect credentials"
 exit 0
