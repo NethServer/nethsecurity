@@ -1862,6 +1862,7 @@ f_main() {
 		#
 		src_domain="${src_url#*://}"
 		src_domain="${src_domain%%/*}"
+		src_domain="${src_domain##*@}"
 		if [ -n "${src_domain}" ] && [ "${adb_dnsallow}" = "1" ]; then
 			case " ${seen_domains} " in
 			*" ${src_domain} "*) ;;
