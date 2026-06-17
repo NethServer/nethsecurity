@@ -34,14 +34,14 @@ table inet netifyd {
     }
 
     # push input packets to userspace queues for DPI analysis
-{%- if firewall_traffic in ('full', 'inbound') %}
+{%- if 'input' in firewall_chains %}
     chain nfq_input {
         type filter hook input priority filter + 10; policy accept;
         iifname lo accept
 
         # Skip untracked traffic
         ct state untracked accept
-{%- if firewall_traffic == 'inbound' %}
+{%- if 'output' not in firewall_chains %}
         # Skip reply traffic for connections initiated by the firewall itself
         # (e.g. DNS responses, monitoring ping replies)
         ct direction reply accept
@@ -61,6 +61,7 @@ table inet netifyd {
 {%- endif %}
 
     # push forward packets to userspace queues for DPI analysis
+{%- if 'forward' in firewall_chains %}
     chain nfq_forward {
         type filter hook forward priority filter + 10; policy accept;
 
@@ -78,8 +79,9 @@ table inet netifyd {
         # Traffic to queues 50-53
         queue flags bypass to 50-53
     }
+{%- endif %}
 
-{%- if firewall_traffic == 'full' %}
+{%- if 'output' in firewall_chains %}
     # push output packets to userspace queues for DPI analysis
     chain nfq_output {
         type filter hook output priority filter + 10; policy accept;
@@ -142,19 +144,26 @@ def generate_nfq_table():
     v4_elements = _format_nft_elements(v4_raw)
     v6_elements = _format_nft_elements(v6_raw)
 
-    # Read which firewall-local traffic to include in DPI analysis:
-    # 'full'    - analyze all firewall traffic (input + output + forward)
-    # 'inbound' - analyze only traffic initiated from outside toward the firewall (input + forward)
-    # 'forward' - analyze only forwarded traffic, ignore firewall-local traffic entirely
-    firewall_traffic = e_uci.get('netifyd', 'config', 'firewall_traffic', dtype=str, default='inbound')
-    if firewall_traffic not in ('full', 'inbound', 'forward'):
-        firewall_traffic = 'inbound'
+    # Read which nftables chains to add for DPI analysis.
+    # Valid values: 'input', 'output', 'forward'.
+    # Defaults to all three chains if the option is missing.
+    valid_chains = {'input', 'output', 'forward'}
+    raw_chains = e_uci.get('netifyd', 'config', 'firewall_traffic', dtype=str, list=True, default=list(valid_chains))
+    firewall_chains = []
+    for chain in raw_chains:
+        if chain in valid_chains:
+            firewall_chains.append(chain)
+        else:
+            print(f"Warning: invalid firewall_traffic value '{chain}', ignoring. Valid values: {sorted(valid_chains)}")
+    if not firewall_chains:
+        print("Warning: no valid firewall_traffic chains configured, defaulting to all chains.")
+        firewall_chains = list(valid_chains)
 
     template = Environment(loader=BaseLoader()).from_string(NFQ_TABLE)
     render = template.render(
         v4_elements=v4_elements,
         v6_elements=v6_elements,
-        firewall_traffic=firewall_traffic,
+        firewall_chains=firewall_chains,
     )
     
     # Apply nftables
