@@ -7,6 +7,7 @@
 
 import os
 import subprocess
+import sys
 
 from euci import EUci
 from jinja2 import Environment, BaseLoader
@@ -154,9 +155,9 @@ def generate_nfq_table():
         if chain in valid_chains:
             firewall_chains.append(chain)
         else:
-            print(f"Warning: invalid firewall_traffic value '{chain}', ignoring. Valid values: {sorted(valid_chains)}")
+            print(f"Warning: invalid firewall_traffic value '{chain}', ignoring. Valid values: {sorted(valid_chains)}", file=sys.stderr)
     if not firewall_chains:
-        print("Warning: no valid firewall_traffic chains configured, defaulting to all chains.")
+        print("Warning: no valid firewall_traffic chains configured, defaulting to all chains.", file=sys.stderr)
         firewall_chains = list(valid_chains)
 
     template = Environment(loader=BaseLoader()).from_string(NFQ_TABLE)
@@ -173,7 +174,7 @@ def generate_nfq_table():
         subprocess.run(['nft', '-f', NFQ_TABLE_FILE], check=True, capture_output=True)
         os.unlink(NFQ_TABLE_FILE)
     except subprocess.CalledProcessError as e:
-        print(f"Error applying nftables configuration: {e.stderr.decode()}")
+        print(f"Error applying nftables configuration: {e.stderr.decode()}", file=sys.stderr)
 
 
 if __name__ == "__main__":
