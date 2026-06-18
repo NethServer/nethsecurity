@@ -7,15 +7,16 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=telegraf
 # renovate: datasource=github-tags depName=influxdata/telegraf
-PKG_VERSION:=1.38.4
+PKG_VERSION:=1.39.0
 PKG_RELEASE:=1
  
-PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
-PKG_SOURCE_URL:=https://codeload.github.com/influxdata/telegraf/tar.gz/v$(PKG_VERSION)?
+PKG_SOURCE_PROTO:=git
+PKG_SOURCE_URL:=https://github.com/influxdata/telegraf.git
+PKG_SOURCE_VERSION:=v$(PKG_VERSION)
 PKG_SOURCE_SUBDIR:=telegraf-$(PKG_VERSION)
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_SOURCE_SUBDIR)
+PKG_MIRROR_HASH:=skip
 
-PKG_HASH:=skip
 PKG_MAINTAINER:=Tommaso Bailetti <tommaso.bailetti@nethesis.it>
 PKG_LICENSE:=MIT
 
