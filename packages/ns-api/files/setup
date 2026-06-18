@@ -7,8 +7,8 @@
 
 . /usr/share/libubox/jshn.sh
 
-STATE_FILE="/tmp/setup.state"
-DEVICE_DB="/tmp/setup.devices"
+STATE_FILE="/run/setup.state"
+DEVICE_DB="/run/setup.devices"
 DEVICES_JSON=""
 RPC_OUTPUT=""
 WHIPTAIL_RESULT=""
@@ -56,6 +56,7 @@ cleanup() {
 	rm -f "$DEVICE_DB"
 }
 
+trap cleanup EXIT HUP INT TERM
 die() {
 	whiptail --title "Setup" --msgbox "$1" 10 70
 	exit 1
@@ -1025,6 +1026,7 @@ apply_keymap() {
 		/sbin/loadkmap < /usr/share/keymaps/it.map.bin || return 1
 	else
 		rm -f /etc/keymap || return 1
+		/sbin/loadkmap < /usr/share/keymaps/us.map.bin || return 1
 	fi
 	return 0
 }
