@@ -297,13 +297,13 @@ load_zone_interfaces() {
 
 device_record() {
 	device_name="$1"
-	awk -F '\t' -v device="$device_name" '$1 == device { print; exit }' "$DEVICE_DB"
+	awk -F '\t' -v device="$device_name" '$1 == device { print; exit }' "$DEVICE_DB" 2>/dev/null
 }
 
 device_field() {
 	device_name="$1"
 	field_number="$2"
-	awk -F '\t' -v device="$device_name" -v field="$field_number" '$1 == device { print $field; exit }' "$DEVICE_DB"
+	awk -F '\t' -v device="$device_name" -v field="$field_number" '$1 == device { print $field; exit }' "$DEVICE_DB" 2>/dev/null
 }
 
 device_kind() {
@@ -603,7 +603,7 @@ initialize_state() {
 }
 
 pick_keymap() {
-	run_dialog --title "Keymap" --radiolist "Select keymap" 12 60 2 \
+	run_dialog --title "Keymap" --cancel-button "Cancel" --radiolist "Select keyboard layout (keymap)" 12 60 2 \
 		it "Italian" "$( [ "$KEYMAP" = "it" ] && printf ON || printf OFF )" \
 		us "US (default)" "$( [ "$KEYMAP" = "us" ] && printf ON || printf OFF )" || return 0
 
@@ -665,19 +665,19 @@ prompt_value() {
 }
 
 pick_lan_iface() {
-	choice=$(pick_interface "Lan Interface" "Select the LAN interface" "$LAN_IFACE" "$LAN_INTERFACES") || return 0
+	choice=$(pick_interface "LAN Interface" "Select the LAN interface" "$LAN_IFACE" "$LAN_INTERFACES") || return 0
 	load_iface_state lan "$choice"
 	save_state
 }
 
 pick_lan_device() {
-	choice=$(pick_device "Lan Device" "Select the LAN network device" "$LAN_DEVICE") || return 0
+	choice=$(pick_device "LAN Device" "Select the LAN network device" "$LAN_DEVICE") || return 0
 	LAN_DEVICE="$choice"
 	save_state
 }
 
 pick_lan_proto() {
-	run_dialog --title "Lan Protocol" --radiolist "Select the LAN protocol" 12 60 2 \
+	run_dialog --title "LAN Protocol" --radiolist "Select the LAN protocol" 12 60 2 \
 		dhcp "Automatic configuration" "$( [ "$LAN_PROTO" = "dhcp" ] && printf ON || printf OFF )" \
 		static "Static IPv4 configuration" "$( [ "$LAN_PROTO" = "static" ] && printf ON || printf OFF )" \
 		|| return 0
@@ -694,28 +694,34 @@ pick_lan_proto() {
 
 pick_lan_ip() {
 	[ "$LAN_PROTO" = "static" ] || {
-		whiptail --title "Lan IPv4" --msgbox "LAN IPv4 address is only required for static LAN." 10 70
+		whiptail --title "LAN IPv4" --msgbox "LAN IPv4 address is only required for static LAN." 10 70
 		return 0
 	}
-	value=$(prompt_value "Lan IPv4" "Enter LAN IPv4 address in CIDR notation" "$LAN_IP") || return 0
-	LAN_IP="$value"
-	save_state
+	while true; do
+		value=$(prompt_value "LAN IPv4" "Enter LAN IPv4 address in CIDR notation (e.g. 192.168.1.1/24)" "$LAN_IP") || return 0
+		if validate_cidr "$value"; then
+			LAN_IP="$value"
+			save_state
+			return 0
+		fi
+		whiptail --title "LAN IPv4" --msgbox "Invalid address: '$value'\nExpected format: x.x.x.x/prefix (e.g. 192.168.1.1/24)" 10 70
+	done
 }
 
 pick_wan_iface() {
-	choice=$(pick_interface "Wan Interface" "Select the WAN interface" "$WAN_IFACE" "$WAN_INTERFACES") || return 0
+	choice=$(pick_interface "WAN Interface" "Select the WAN interface" "$WAN_IFACE" "$WAN_INTERFACES") || return 0
 	load_iface_state wan "$choice"
 	save_state
 }
 
 pick_wan_device() {
-	choice=$(pick_device "Wan Device" "Select the WAN network device" "$WAN_DEVICE") || return 0
+	choice=$(pick_device "WAN Device" "Select the WAN network device" "$WAN_DEVICE") || return 0
 	WAN_DEVICE="$choice"
 	save_state
 }
 
 pick_wan_proto() {
-	run_dialog --title "Wan Protocol" --radiolist "Select the WAN protocol" 12 60 2 \
+	run_dialog --title "WAN Protocol" --radiolist "Select the WAN protocol" 12 60 2 \
 		dhcp "Automatic configuration" "$( [ "$WAN_PROTO" = "dhcp" ] && printf ON || printf OFF )" \
 		static "Static IPv4 configuration" "$( [ "$WAN_PROTO" = "static" ] && printf ON || printf OFF )" \
 		|| return 0
@@ -735,58 +741,95 @@ pick_wan_proto() {
 
 pick_wan_ip() {
 	[ "$WAN_PROTO" = "static" ] || {
-		whiptail --title "Wan IPv4" --msgbox "WAN IPv4 address is only required for static WAN." 10 70
+		whiptail --title "WAN IPv4" --msgbox "WAN IPv4 address is only required for static WAN." 10 70
 		return 0
 	}
-	value=$(prompt_value "Wan IPv4" "Enter WAN IPv4 address in CIDR notation" "$WAN_IP") || return 0
-	WAN_IP="$value"
-	save_state
+	while true; do
+		value=$(prompt_value "WAN IPv4" "Enter WAN IPv4 address in CIDR notation (e.g. 1.2.3.4/24)" "$WAN_IP") || return 0
+		if validate_cidr "$value"; then
+			WAN_IP="$value"
+			save_state
+			return 0
+		fi
+		whiptail --title "WAN IPv4" --msgbox "Invalid address: '$value'\nExpected format: x.x.x.x/prefix (e.g. 1.2.3.4/24)" 10 70
+	done
 }
 
 pick_wan_gw() {
 	[ "$WAN_PROTO" = "static" ] || {
-		whiptail --title "Wan Gateway" --msgbox "WAN gateway is only required for static WAN." 10 70
+		whiptail --title "WAN Gateway" --msgbox "WAN gateway is only required for static WAN." 10 70
 		return 0
 	}
-	value=$(prompt_value "Wan Gateway" "Enter WAN IPv4 gateway" "$WAN_GW") || return 0
-	WAN_GW="$value"
-	save_state
+	while true; do
+		value=$(prompt_value "WAN Gateway" "Enter WAN IPv4 gateway (e.g. 1.2.3.1)" "$WAN_GW") || return 0
+		if validate_ipv4 "$value"; then
+			WAN_GW="$value"
+			save_state
+			return 0
+		fi
+		whiptail --title "WAN Gateway" --msgbox "Invalid address: '$value'\nExpected a valid IPv4 address (e.g. 1.2.3.1)" 10 70
+	done
 }
 
 network_menu() {
 	while true; do
-		set -- --title "Network" --menu "Choose a network setting" 18 70 7 \
-			"Lan Interface" "${LAN_IFACE:-unset}" \
-			"Lan" "${LAN_DEVICE:-unset}" \
-			"Lan Protocol" "${LAN_PROTO:-unset}" \
-			"Wan Interface" "${WAN_IFACE:-unset}" \
-			"Wan" "${WAN_DEVICE:-unset}" \
-			"Wan Protocol" "${WAN_PROTO:-unset}"
+		run_dialog --title "Network" --cancel-button "Back" --menu "Select the interface to configure" 14 70 3 \
+			LAN "Configure LAN, local network" \
+			WAN "Configure WAN, external network" \
+			apply "Apply network changes" || return 0
+
+		case "$WHIPTAIL_RESULT" in
+			LAN) lan_menu ;;
+			WAN) wan_menu ;;
+			apply) apply_changes ;;
+		esac
+	done
+}
+
+lan_menu() {
+	while true; do
+		set -- --title "LAN" --cancel-button "Back" --menu "Configure the LAN interface" 16 70 5 \
+			"Interface" "${LAN_IFACE:-unset}" \
+			"Device" "${LAN_DEVICE:-unset}" \
+			"Protocol" "${LAN_PROTO:-unset}"
 		if [ "$LAN_PROTO" = "static" ]; then
 			set -- "$@" \
-				"Lan IPv4" "${LAN_IP:-unset}"
+				"IPv4" "${LAN_IP:-unset}"
 		fi
-		if [ "$WAN_PROTO" = "static" ]; then
-			set -- "$@" \
-				"Wan IPv4" "${WAN_IP:-unset}" \
-				"Wan Gateway" "${WAN_GW:-unset}"
-		fi
-		set -- "$@" "Back" "Return to main menu"
 
 		run_dialog "$@" || return 0
 		selection="$WHIPTAIL_RESULT"
 
 		case "$selection" in
-			"Lan Interface") pick_lan_iface ;;
-			"Lan") pick_lan_device ;;
-			"Lan Protocol") pick_lan_proto ;;
-			"Lan IPv4") pick_lan_ip ;;
-			"Wan Interface") pick_wan_iface ;;
-			"Wan") pick_wan_device ;;
-			"Wan Protocol") pick_wan_proto ;;
-			"Wan IPv4") pick_wan_ip ;;
-			"Wan Gateway") pick_wan_gw ;;
-			"Back") return 0 ;;
+			"Interface") pick_lan_iface ;;
+			"Device") pick_lan_device ;;
+			"Protocol") pick_lan_proto ;;
+			"IPv4") pick_lan_ip ;;
+		esac
+	done
+}
+
+wan_menu() {
+	while true; do
+		set -- --title "WAN" --cancel-button "Back" --menu "Configure the WAN interface" 16 70 6 \
+			"Interface" "${WAN_IFACE:-unset}" \
+			"Device" "${WAN_DEVICE:-unset}" \
+			"Protocol" "${WAN_PROTO:-unset}"
+		if [ "$WAN_PROTO" = "static" ]; then
+			set -- "$@" \
+				"IPv4" "${WAN_IP:-unset}" \
+				"Gateway" "${WAN_GW:-unset}"
+		fi
+
+		run_dialog "$@" || return 0
+		selection="$WHIPTAIL_RESULT"
+
+		case "$selection" in
+			"Interface") pick_wan_iface ;;
+			"Device") pick_wan_device ;;
+			"Protocol") pick_wan_proto ;;
+			"IPv4") pick_wan_ip ;;
+			"Gateway") pick_wan_gw ;;
 		esac
 	done
 }
@@ -1038,7 +1081,7 @@ wan_has_changes() {
 
 apply_changes() {
 	if ! network_has_changes; then
-		whiptail --title "Setup" --msgbox "Keymap changes are applied immediately. No network changes to apply." 10 70
+		whiptail --title "Setup" --msgbox "No network changes to apply." 10 70
 		return 0
 	fi
 
@@ -1055,8 +1098,8 @@ apply_changes() {
 	else
 		lan_ip_summary='-'
 	fi
-	summary=$(printf 'Keymap: %s\nLan Device: %s\nLan Protocol: %s\nLan IPv4/CIDR: %s\nWan Device: %s\nWan Protocol: %s\nWan IPv4/CIDR: %s\nWan Gateway: %s' \
-		"$KEYMAP" "$LAN_DEVICE" "$LAN_PROTO" "$lan_ip_summary" "$WAN_DEVICE" "$WAN_PROTO" "$(display_value "$WAN_IP")" "$(display_value "$WAN_GW")")
+	summary=$(printf 'LAN Device: %s\nLAN Protocol: %s\nLAN IPv4/CIDR: %s\nWAN Device: %s\nWAN Protocol: %s\nWAN IPv4/CIDR: %s\nWAN Gateway: %s' \
+		"$LAN_DEVICE" "$LAN_PROTO" "$lan_ip_summary" "$WAN_DEVICE" "$WAN_PROTO" "$(display_value "$WAN_IP")" "$(display_value "$WAN_GW")")
 	whiptail --title "Confirm Changes" --yesno "$summary\n\nApply these changes?" 18 78 || return 0
 
 	if lan_has_changes; then
@@ -1087,20 +1130,23 @@ ensure_root() {
 	[ "$(id -u)" -eq 0 ] || die "This command must be run as root."
 }
 
+confirm_exit() {
+	network_has_changes || return 0
+	whiptail --title "Exit" --yesno "You have unsaved network changes.\nExit without applying?" 10 70
+}
+
 main_menu() {
 	while true; do
-		run_dialog --title "Setup" --menu "Choose an action" 16 70 4 \
-			network "Network" \
-			keymap "Keymap: ${KEYMAP}" \
-			apply "Apply Changes" \
-			exit "Exit Without Applying" || break
+		run_dialog --title "Setup" --cancel-button "Exit" --menu "Choose an action" 14 70 3 \
+			network "Configure network" \
+			keymap "Keyboard layout: ${KEYMAP}" \
+			exit "Exit without applying" || { confirm_exit && break; continue; }
 		selection="$WHIPTAIL_RESULT"
 
 		case "$selection" in
 			keymap) pick_keymap ;;
 			network) network_menu ;;
-			apply) apply_changes ;;
-			exit) break ;;
+			exit) confirm_exit && break ;;
 		esac
 	done
 
