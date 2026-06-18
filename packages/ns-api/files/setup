@@ -209,7 +209,7 @@ ip_for_interface() {
 		ipaddr=$(current_interface_value "$iface_name" ipaddr)
 		netmask=$(current_interface_value "$iface_name" netmask)
 		if [ -n "$ipaddr" ] && [ -n "$netmask" ] && [ "${ipaddr#*/}" = "$ipaddr" ]; then
-			mask_prefix=$(ipcalc.sh "$netmask" 2>/dev/null | grep PREFIX | cut -d= -f2)
+			mask_prefix=$(ipcalc.sh "$ipaddr/$netmask" 2>/dev/null | grep PREFIX | cut -d= -f2)
 			[ -n "$mask_prefix" ] && ipaddr="$ipaddr/$mask_prefix"
 		fi
 		printf '%s' "$ipaddr"
