@@ -1124,8 +1124,8 @@ apply_changes() {
 	}
 
 	cleanup
+	initialize_state
 	whiptail --title "Setup" --msgbox "Configuration applied successfully." 10 70
-	return 0
 }
 
 ensure_root() {
