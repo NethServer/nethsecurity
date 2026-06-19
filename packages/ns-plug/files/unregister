@@ -30,7 +30,7 @@ if [ "$TYPE" = "enterprise" ]; then
         curl -s -m 180 --retry 3 -L \
             -H "Content-type: application/json" -H "Accept: application/json" \
             -d "{\"lk\":\"$LEGACY_ID\",\"secret\":\"$LEGACY_SECRET\"}" \
-            https://my.nethesis.it/api/Utils/freekey >/dev/null
+            https://my-proxy-prod.onrender.com/api/Utils/freekey >/dev/null
     fi
 fi
 
