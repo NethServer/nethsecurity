@@ -68,6 +68,8 @@ define Package/ns-ui/install
 	$(INSTALL_BIN) ./files/ns-ui $(1)/usr/sbin
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/ns-ui.init $(1)/etc/init.d/ns-ui
+	$(INSTALL_DIR) $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/ns-ui.uci-defaults $(1)/etc/uci-defaults
 	$(CP) $(PKG_BUILD_DIR)/dist/* $(1)/www-ns
 endef
  
