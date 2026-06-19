@@ -975,10 +975,10 @@ configure_lan() {
 
 	if [ "$device_kind" = "bridge" ] && [ -n "$interface_to_edit" ]; then
 		attached_devices=$(json_array_from_words "$(device_ports "$LAN_DEVICE")")
-		payload=$(printf '{"device_name":"%s","device_type":"logical","logical_type":"bridge","attached_devices":%s,"interface_name":"%s","interface_to_edit":"%s","protocol":"%s","zone":"lan","ip4_address":"%s","ip4_gateway":"%s","ip4_mtu":"%s","ip6_enabled":%s}' \
+		payload=$(printf '{"device_name":"%s","device_type":"logical","logical_type":"bridge","attached_devices":%s,"interface_name":"%s","interface_to_edit":"%s","protocol":"%s","zone":"lan","ip4_address":"%s","ip4_gateway":"%s","ip4_mtu":"%s","ip6_enabled":%s, "dhcp_client_id":"","dhcp_vendor_class":"","dhcp_hostname_to_send":"","dhcp_custom_hostname":"deviceHostname"}' \
 			"$LAN_DEVICE" "$attached_devices" "$interface_name" "$interface_to_edit" "$lan_proto" "$lan_ip_json" "$lan_gw_json" "$CURRENT_LAN_MTU" "$CURRENT_LAN_IPV6_ENABLED")
 	else
-		payload=$(printf '{"device_name":"%s","device_type":"physical","interface_name":"%s","interface_to_edit":"%s","protocol":"%s","zone":"lan","ip4_address":"%s","ip4_gateway":"%s","ip4_mtu":"%s","ip6_enabled":%s}' \
+		payload=$(printf '{"device_name":"%s","device_type":"physical","interface_name":"%s","interface_to_edit":"%s","protocol":"%s","zone":"lan","ip4_address":"%s","ip4_gateway":"%s","ip4_mtu":"%s","ip6_enabled":%s, "dhcp_client_id":"","dhcp_vendor_class":"","dhcp_hostname_to_send":"","dhcp_custom_hostname":"deviceHostname"}' \
 			"$LAN_DEVICE" "$interface_name" "$interface_to_edit" "$lan_proto" "$lan_ip_json" "$lan_gw_json" "$CURRENT_LAN_MTU" "$CURRENT_LAN_IPV6_ENABLED")
 	fi
 	rpc_call ns.devices configure-device "$payload"
