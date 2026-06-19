@@ -32,7 +32,7 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Build the image
         env:
           OWRT_VERSION: ${{ inputs.owrt_version }}

@@ -26,7 +26,7 @@ jobs:
       build_semver_suffix: ${{ steps.compute.outputs.build_semver_suffix }}
       nethsecurity_version: ${{ steps.compute.outputs.nethsecurity_version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Compute build variables
         id: compute
         run: |
