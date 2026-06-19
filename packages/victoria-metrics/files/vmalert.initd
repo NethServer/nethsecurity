@@ -45,11 +45,11 @@ start_service() {
     if [ "$system_type" = "enterprise" ] && [ -n "$system_id" ] && [ -n "$system_secret" ] && [ "$alerts_disabled" = "0" ]; then
         if [ "$migrated" = "1" ] && [ -n "$collect_url" ]; then
             # Native my Mimir alertmanager, derived from collect_url, e.g.
-            #   https://my.nethesis.it/collect/api/systems
-            #   -> https://my.nethesis.it/collect/api/services/mimir/alertmanager
+            #   https://my-proxy-prod.onrender.com/collect/api/systems
+            #   -> https://my-proxy-prod.onrender.com/collect/api/services/mimir/alertmanager
             notifier_url="${collect_url%%/collect/*}/collect/api/services/mimir/alertmanager"
         else
-            notifier_url="https://my.nethesis.it/proxy/alerts"
+            notifier_url="https://my-proxy-prod.onrender.com/proxy/alerts"
         fi
         notifier_user="$system_id"
         notifier_pass="$system_secret"

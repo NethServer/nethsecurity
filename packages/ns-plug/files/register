@@ -47,7 +47,7 @@ case "$type" in
         "${url}machine/info" | jq -r ".uuid" 2>/dev/null)
         ;;
     enterprise)
-        url="https://my.nethesis.it/backend/api/"
+        url="https://my-proxy-prod.onrender.com/backend/api/"
 
         register_resp=$(curl -s -m $timeout --retry 3 -L \
         -H "Content-Type: application/json" -H "Accept: application/json" \
@@ -76,7 +76,7 @@ case "$type" in
     enterprise)
         uci set ns-plug.config.type="enterprise"
         uci set ns-plug.config.api_url="$url"
-        uci set ns-plug.config.collect_url="https://my.nethesis.it/collect/api/systems"
+        uci set ns-plug.config.collect_url="https://my-proxy-prod.onrender.com/collect/api/systems"
         # Native my register: no legacy credentials to rotate, so
         # mark the unit as already migrated. migrate-to-my will be a
         # no-op on every subsequent run.
