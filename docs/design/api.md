@@ -42,6 +42,11 @@ If you need to pass parameters to the API, add them inside the `payload` field:
 curl -s -H 'Content-Type: application/json' -k  https://localhost/api/ubus/call -H 'Authorization: Bearer <jwt_token>' --data '{"path": "ns.dashboard", "method": "counter", "payload": {"service": "hosts"}}'
 ```
 
+To retrieve the initial standalone dashboard data with one API call:
+```
+curl -s -H 'Content-Type: application/json' -k  https://localhost/api/ubus/call -H 'Authorization: Bearer <jwt_token>' --data '{"path": "ns.dashboard", "method": "summary", "payload": {}}' | jq
+```
+
 ### api-cli
 
 The `api-cli` wrapper needs valid user credentials.
@@ -72,6 +77,11 @@ api-cli --password mypass ns.dashboard system-info
 You can pass parameters to the APIs:
 ```
 /usr/bin/api-cli ns.dashboard counter --data '{"service": "hosts"}'
+```
+
+Or fetch the initial standalone dashboard payload:
+```
+api-cli ns.dashboard summary
 ```
 
 Example of bash script:
@@ -258,4 +268,3 @@ Test the new API:
 ```
 api-cli ns.example say --data '{"message": "hello world"}'
 ```
-

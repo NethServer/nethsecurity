@@ -2552,6 +2552,77 @@ Response example:
 }
 ```
 
+### summary
+
+Return the initial standalone dashboard data in a single response:
+```
+api-cli ns.dashboard summary
+```
+
+Response example:
+```json
+{
+  "result": {
+    "systemInfo": {
+      "uptime": 8500.37,
+      "load": [0.0205078125, 0.00927734375, 0],
+      "version": {
+        "arch": "x86_64",
+        "release": "NethSecurity 22.03.5"
+      },
+      "hostname": "NethSec",
+      "hardware": "Standard PC (Q35 + ICH9, 2009)",
+      "memory": {
+        "mem_total": 939032576,
+        "mem_available": 860221440
+      },
+      "storage": {
+        "/": {
+          "used_bytes": 175554560,
+          "available_bytes": 127582208
+        },
+        "/mnt/data": {
+          "used_bytes": 0,
+          "available_bytes": 0
+        },
+        "tmpfs": {
+          "used_bytes": 14372864,
+          "available_bytes": 502484992
+        }
+      }
+    },
+    "serviceStatus": {
+      "internet": "ok",
+      "dns-configured": "ok",
+      "mwan": "disabled",
+      "netifyd": "ok",
+      "openvpn_rw": "ok",
+      "banip": "ok",
+      "threat_shield_dns": "disabled",
+      "dedalo": "disabled"
+    },
+    "counters": {
+      "hosts": 14,
+      "openvpn_rw": 2,
+      "threat_shield_ip": 8
+    },
+    "tunnels": {
+      "ipsec": {
+        "enabled": 2,
+        "connected": 1
+      },
+      "ovpn": {
+        "enabled": 1,
+        "connected": 1
+      }
+    },
+    "threatShield": {
+      "monitoringEnabled": true
+    }
+  }
+}
+```
+
 ### traffic-interface
 
 Return an array of points describing the network traffic in the last hour.
