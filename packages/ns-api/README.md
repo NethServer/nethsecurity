@@ -2732,8 +2732,6 @@ Response example:
 {
   "lan": {
     "device": "br-lan",
-    "start": "",
-    "end": "",
     "active": true,
     "force": true,
     "options": {
@@ -2741,25 +2739,30 @@ Response example:
       "gateway": "192.168.100.1",
       "domain": "nethserver.org",
       "dns": "1.1.1.1 8.8.8.8",
-      "SIP ": "192.168.100.151"
+      "SIP": "192.168.100.151"
     },
     "zone": "lan",
-    "first": "192.168.100.2",
-    "last": "192.168.100.150",
+    "ranges": [
+      {
+        "first": "192.168.100.2",
+        "last": "192.168.100.150"
+      }
+    ],
     "ns_binding": 0
   },
   "blue": {
     "device": "eth2.1",
-    "start": "",
-    "end": "",
     "active": false,
     "force": false,
     "options": {},
     "zone": "",
+    "ranges": [],
     "ns_binding": 1
   }
 }
 ```
+
+The `ranges` field contains the list of active DHCP ranges configured for the interface. Multiple ranges are supported.
 
 ### list-dhcp-options
 
@@ -2808,12 +2811,22 @@ Successfull response example:
       "120": "192.168.100.151"
     }
   ],
-  "first": "192.168.100.2",
-  "last": "192.168.100.150",
+  "ranges": [
+    {
+      "first": "192.168.100.2",
+      "last": "192.168.100.150"
+    },
+    {
+      "first": "192.168.100.200",
+      "last": "192.168.100.220"
+    }
+  ],
   "leasetime": "12h",
   "active": true,
   "force": true,
-  "ns_binding": 0
+  "ns_binding": 0,
+  "class_start_ip": "192.168.100.1",
+  "class_end_ip": "192.168.100.254"
 }
 ```
 
@@ -2821,12 +2834,19 @@ Each element of the `options` array is a key-value object.
 The key is the DHCP option name or number, the value is the option value.
 Multiple values can be comma-separated.
 
+The `ranges` field contains the list of configured DHCP ranges. Multiple ranges are supported.
+The `class_start_ip` and `class_end_ip` fields represent the first and last usable IP addresses of the interface network (excluding network address and broadcast) and are used in the UI to check whether the entered IP is inside or outside the interface class range.
+
 ### edit-interface
 
-Change or add the DHCPv4 configuration for a given interface:
+Change or add the DHCPv4 configuration for a given interface. Multiple DHCP ranges are supported:
 ```
-api-cli ns.dhcp edit-interface --data '{"interface":"lan","first":"192.168.100.2","last":"192.168.100.150","active":true,"leasetime": "12h","force":true,"options":[{"gateway":"192.168.100.1"},{"domain":"nethserver.org"},{"dns":"1.1.1.1,8.8.8.8"},{"120":"192.168.100.151"}], "ns_binding": 0}'
+api-cli ns.dhcp edit-interface --data '{"interface":"lan","ranges":[{"first":"192.168.100.2","last":"192.168.100.150"},{"first":"192.168.100.200","last":"192.168.100.220"}],"active":true,"leasetime":"12h","force":true,"options":[{"gateway":"192.168.100.1"},{"domain":"nethserver.org"},{"dns":"1.1.1.1,8.8.8.8"},{"120":"192.168.100.151"}],"ns_binding":0}'
 ```
+
+The `ranges` field is an array of objects, each with `first` and `last` IP address fields defining a DHCP range.
+All ranges are saved with the same DHCP options, leasetime, and activation state.
+Existing ranges for the interface are fully replaced on each call.
 
 See [ns.dhcp get-interface][#get-interface] for the `options` array format.
 
@@ -2839,6 +2859,13 @@ Error response example:
 ```json
 {"error": "interface_not_found"}
 ```
+
+Validation errors:
+- `first_is_empty`: the `first` IP address of a range is empty
+- `last_is_empty`: the `last` IP address of a range is empty
+- `ip_out_of_interface_network`: the `first` or `last` IP address is not within the interface network
+- `last_must_be_greater_than_first`: the `last` IP address must be greater than `first`
+- `invalid` (ns_binding): `ns_binding` value is not 0, 1, or 2
 
 ### list-active-leases
 
