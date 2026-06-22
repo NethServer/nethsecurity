@@ -222,7 +222,7 @@ def list_active_leases():
         if 'mac' in ldata and 'ip' in ldata:
             static_leases.append(ldata['mac'].lower())
 
-    leasefile = u.get('dhcp', 'ns_dnsmasq', 'dhcp', 'leasefile', default='/tmp/dhcp.leases')
+    leasefile = u.get('dhcp', 'ns_dnsmasq', 'leasefile', default='/tmp/dhcp.leases')
     if not os.path.exists(leasefile):
         return ret
 
