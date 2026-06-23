@@ -7,7 +7,7 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-api-server
 # renovate: datasource=github-tags depName=NethServer/nethsecurity-api
-PKG_VERSION:=1.5.0
+PKG_VERSION:=1.5.1
 PKG_RELEASE:=3
  
 PKG_SOURCE:=ns-api-server-$(PKG_VERSION).tar.gz
