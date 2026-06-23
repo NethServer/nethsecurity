@@ -12,6 +12,7 @@ set -e
 
 WORK_DIR="/var/backup"
 BACKUP="$WORK_DIR/backup-$(date +%s).tar.gz"
+EXTRACTED_BACKUP="$WORK_DIR/extracted"
 MD5="$WORK_DIR/md5"
 MD5_LAST="/etc/backup.md5"
 PASSPHRASE="/etc/backup.pass"
@@ -44,8 +45,11 @@ if [ -f /etc/acme/http.header ]; then
 fi
 
 # Create the backup
-mkdir -p $WORK_DIR
-sysupgrade -k -b $BACKUP 2>/dev/null
+mkdir -p "$WORK_DIR"
+sysupgrade -k -b "$BACKUP" 2>/dev/null
+mkdir -p "$EXTRACTED_BACKUP"
+tar -xvf "$BACKUP" -C "$EXTRACTED_BACKUP"
+find "$EXTRACTED_BACKUP" -type f -exec md5sum {} \; > "$MD5"
 md5sum $BACKUP | awk '{print $1}' > $MD5
 
 # hack: restore acme working file
@@ -59,6 +63,6 @@ if [ ! -f "$MD5_LAST" ]; then
 fi
 
 # Send backup if the md5 is changed
-if [ -f "$MD5_LAST" ] && [ "$(cat $MD5_LAST)" != "$(cat $MD5)" ]; then
+if [ -f "$MD5_LAST" ] && ! md5sum -c -s "$MD5_LAST"; then
     send
 fi
