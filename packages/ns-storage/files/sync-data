@@ -15,4 +15,4 @@ do
     fi
 done
 
-exit $ext_code
+exit $exit_code
