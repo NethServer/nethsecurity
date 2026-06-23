@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 #
-# Copyright (C) 2023 Nethesis S.r.l.
+# Copyright (C) 2026 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
@@ -52,7 +52,6 @@ def list_custom_dhcp_options():
             continue
     return ret
 
-
 def list_dhcp_options():
     ret = {}
     pd = subprocess.run(["dnsmasq", "--help", "dhcp"], capture_output=True, text=True)
@@ -82,7 +81,7 @@ def list_interfaces():
     if not dhcps:
         dhcps = []
     for i in interfaces:
-        record = {"device": "", "start": "", "end": "", "active": False, "options": {}, "force": False, "ns_binding": 0 }
+        record = {"device": "", "active": False, "options": {}, "force": False, "ns_binding": 0, "ranges": [] }
         # skip loopback, bond devices, wans, aliases and interfaces with no IP address (e.g. DHCP interfaces)
         if i == "loopback" or i in wans or not ('ipaddr' in interfaces[i]) or interfaces[i].get('proto') == 'bonding' or interfaces[i].get('device', '').startswith('@'):
             continue
@@ -94,7 +93,7 @@ def list_interfaces():
             if 'interface' in ds and ds['interface'] == i:
                 if 'ignore' in ds and ds['ignore'] == "1":
                     continue
-                (record['first'], record['last']) = conf_to_range(interfaces[i]['ipaddr'], interfaces[i]['netmask'], ds.get('start', 100), ds.get('limit', 150))
+                (first, last) = conf_to_range(interfaces[i]['ipaddr'], interfaces[i]['netmask'], ds.get('start', 100), ds.get('limit', 150))
                 record['active'] = ds.get('dhcpv4', 'server') == 'server'
                 # handle existing active configurations:
                 # - old default was force off, as OpenWrt
@@ -111,7 +110,7 @@ def list_interfaces():
                         tmp = opt.split(",")
                         tmp[0] = tmp[0].removeprefix('option:')
                         record['options'][tmp[0]] = " ".join(tmp[1:])
-                break
+                record['ranges'].append({"first": first, "last": last})
         ret[i] = record
              
     return ret
@@ -125,66 +124,89 @@ def edit_interface(args):
     # ns-binding validation, this check is more controller-safe
     if 'ns_binding' in args and args['ns_binding'] not in [0, 1, 2]:
         return utils.validation_error("ns_binding", "invalid", args["ns_binding"])
-    # handle migrated dhcp config: issue #855
-    dhcp_id = args['interface']
+
+    ipaddr = u.get('network', args['interface'], 'ipaddr')
+    netmask = u.get('network', args['interface'], 'netmask')
+    network = ipaddress.ip_network(f"{ipaddr}/{netmask}", strict=False)
+    
+    # ranges validation
+    for r in args['ranges']:
+        r['first'] = r['first'].strip()
+        r['last'] = r['last'].strip()
+        if not r['first']:
+            return utils.validation_error("first", "first_is_empty", r["first"])
+        if not r['last']:
+            return utils.validation_error("last", "last_is_empty", r["last"])
+        first_ip = ipaddress.ip_address(r['first'])
+        last_ip = ipaddress.ip_address(r['last'])
+        if not (network.network_address < first_ip < network.broadcast_address):
+            return utils.validation_error("first", "ip_out_of_interface_network", r["first"])
+        if not (network.network_address < last_ip < network.broadcast_address):
+            return utils.validation_error("last", "ip_out_of_interface_network", r["last"])
+        if ip2int(r['last']) <= ip2int(r['first']):
+            return utils.validation_error("last", "last_must_be_greater_than_first", r["last"])
+
     dhcp_servers = utils.get_all_by_type(u, 'dhcp', 'dhcp')
     for server in dhcp_servers:
         if dhcp_servers[server]['interface'] == args['interface']:
-            dhcp_id = server
+            u.delete('dhcp', server)
 
-    u.set("dhcp", dhcp_id, 'dhcp')
-    ipaddr = u.get('network', args['interface'], 'ipaddr')
-    netmask = u.get('network', args['interface'], 'netmask')
-    args['first'] = args['first'].strip()
-    args['last'] = args['last'].strip()
-    if ip2int(args['first']) > ip2int(args['last']):
-        return utils.validation_error("last", "last_must_be_greater_than_first", args["last"])
-    (start, limit) = range_to_conf(ipaddr, netmask, args["first"].strip(), args["last"].strip())
-    if args['active']:
-        u.set("dhcp", dhcp_id, 'dhcpv4', 'server')
-    else:
-        u.set("dhcp", dhcp_id, 'dhcpv4', 'disabled')
-    u.set("dhcp", dhcp_id, "limit", limit)
-    u.set("dhcp", dhcp_id, "start", start)
-    u.set("dhcp", dhcp_id, "leasetime", args["leasetime"])
-    u.set("dhcp", dhcp_id, "interface", args['interface'])
-    u.set("dhcp", dhcp_id, "force", '1' if args.get('force', False) else '0')
-    u.set("dhcp", dhcp_id, "instance", "ns_dnsmasq")
-    if 'ns_binding' in args:
-        u.set("dhcp", dhcp_id, "ns_binding", args.get('ns_binding'))
-    opts = []
-    for opt in args['options']:
-        k = list(opt.keys())[0]
-        v = opt[k].strip().rstrip(',')
-        if v:
-            if k.isdigit(): # custom option, no "option" preffix
-                opts.append(f"{k},{v}")
-            else:
-                opts.append(f"option:{k},{v}")
-    u.set("dhcp", dhcp_id, "dhcp_option", opts)
-    u.set("dhcp", dhcp_id, "ignore", '0')
+    for r in args['ranges']:
+        dhcp_id = f"{args['interface']}_{utils.get_random_id()}"
+        (start, limit) = range_to_conf(ipaddr, netmask, r["first"], r["last"])
+        u.set("dhcp", dhcp_id, 'dhcp')
+        if args['active']:
+            u.set("dhcp", dhcp_id, 'dhcpv4', 'server')
+        else:
+            u.set("dhcp", dhcp_id, 'dhcpv4', 'disabled')
+        u.set("dhcp", dhcp_id, "limit", limit)
+        u.set("dhcp", dhcp_id, "start", start)
+        u.set("dhcp", dhcp_id, "leasetime", args["leasetime"])
+        u.set("dhcp", dhcp_id, "interface", args['interface'])
+        u.set("dhcp", dhcp_id, "force", '1' if args.get('force', False) else '0')
+        u.set("dhcp", dhcp_id, "instance", "ns_dnsmasq")
+        if 'ns_binding' in args:
+            u.set("dhcp", dhcp_id, "ns_binding", args.get('ns_binding'))
+        u.set("dhcp", dhcp_id, "ignore", '0')
+        opts = []
+        for opt in args['options']:
+            k = list(opt.keys())[0]
+            v = opt[k].strip().rstrip(',')
+            if v:
+                if k.isdigit(): # custom option, no "option" prefix
+                    opts.append(f"{k},{v}")
+                else:
+                    opts.append(f"option:{k},{v}")
+        u.set("dhcp", dhcp_id, "dhcp_option", opts)
+
     u.save("dhcp")
     return {"interface": args["interface"]}
 
 def get_interface(args):
     u = EUci()
-    ret = {"interface": args["interface"], "options": [], "first": "", "last": "", "active": False}
-    try:
-        items = utils.get_all_by_type(u, "dhcp", "dhcp")
-        for i in items:
-            if items[i].get('interface') == args['interface']:
-                dhcp = u.get_all('dhcp', i)
-        if not dhcp:
-            raise Exception # fallback to default
-    except:
-        dhcp = {"start": 100, "limit": 150, "leasetime": "12h", "dhcpv4": "disabled", "dhcp_option": []}
+    ret = {"interface": args["interface"], "options": [], "active": False, "ranges": []}
     try:
         interface = u.get_all("network", args["interface"])
     except:
         interface = {}
 
+    items = utils.get_all_by_type(u, "dhcp", "dhcp")
+    dhcp_sections = []
+    for i in items:
+        if items[i].get('interface') == args['interface'] and items[i].get('ignore', '0') != '1':
+            dhcp_sections.append(u.get_all('dhcp', i))
+
+    if not dhcp_sections:
+        dhcp_sections = [{"start": 100, "limit": 150, "leasetime": "12h", "dhcpv4": "disabled", "dhcp_option": []}]
+
+    # get options from the first dhcp section since they are the same for all sections
+    dhcp = dhcp_sections[0]
+
     if 'ipaddr' in interface:
-        (ret['first'], ret['last']) = conf_to_range(interface['ipaddr'], interface['netmask'], dhcp.get('start', 100), dhcp.get('limit', 150))
+        for ds in dhcp_sections:
+            (first, last) = conf_to_range(interface['ipaddr'], interface['netmask'], ds.get('start', 100), ds.get('limit', 150))
+            ret['ranges'].append({"first": first, "last": last})
+
     ret["leasetime"] = dhcp.get("leasetime")
     ret["active"] = dhcp.get("dhcpv4", "server") == "server"
     # handle existing active configurations:
@@ -201,6 +223,10 @@ def get_interface(args):
             tmp[0] = tmp[0].removeprefix('option:')
             ret["options"].append({tmp[0]: ",".join(tmp[1:])})
     ret['ns_binding'] = int(dhcp.get('ns_binding', 0))
+    if 'ipaddr' in interface and 'netmask' in interface:
+        network = ipaddress.ip_network(f"{interface['ipaddr']}/{interface['netmask']}", strict=False)
+        ret['class_start_ip'] = str(network.network_address + 1)
+        ret['class_end_ip'] = str(network.broadcast_address - 1)
 
     return ret
 
@@ -261,7 +287,6 @@ def is_reserved(u, mac, exclude_lease_id=''):
 
     return False
 
-
 def count_ip_occurrences(e_uci, ip):
     occurrences = 0
     for item in utils.get_all_by_type(e_uci, 'dhcp', 'host'):
@@ -271,7 +296,6 @@ def count_ip_occurrences(e_uci, ip):
         occurrences += 1
 
     return occurrences
-
 
 def add_static_lease(args):
     u = EUci()
@@ -346,8 +370,10 @@ if cmd == 'list':
         "get-interface": {"interface": "lan"},
         "edit-interface": {
             "interface": "lan",
-            "first": "192.168.100.2",
-            "last": "192.168.100.150",
+            "ranges": [
+                {"first": "192.168.100.2", "last": "192.168.100.150"},
+                {"first": "192.168.100.200", "last": "192.168.100.220"}
+            ],
             "leasetime": "12h",
             "active": True,
             "force": True,
