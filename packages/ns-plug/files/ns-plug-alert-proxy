@@ -42,6 +42,7 @@ LISTEN_ADDR = "127.0.0.1"
 LISTEN_PORT = 9095
 
 _DISK_PATH_MAP = {
+    "/overlay": "df:root:percent_bytes:free",
     "/": "df:root:percent_bytes:free",
     "/boot": "df:boot:percent_bytes:free",
 }
