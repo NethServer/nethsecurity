@@ -29,6 +29,7 @@ if endsAt is in the past the alert is OK.
 """
 
 import json
+import logging
 import re
 import sys
 import time
@@ -102,16 +103,14 @@ def _send_alert(system_id, secret, alerts_url, alert_id, status, retry=3):
     )
     try:
         with urllib.request.urlopen(req, timeout=60) as resp:
-            print(f"Alert sent: {alert_id} {status} → {resp.status}", file=sys.stderr)
+            logging.debug(f"Alert sent: {alert_id} {status} → {resp.status}")
     except Exception as ex:
         if retry > 0:
-            print(
-                f"Alert send failed: {alert_id} {ex} — retrying in 20s", file=sys.stderr
-            )
+            logging.warning(f"Alert send failed: {alert_id} {ex} — retrying in 20s")
             time.sleep(20)
             _send_alert(system_id, secret, alerts_url, alert_id, status, retry - 1)
         else:
-            print(f"Alert send aborted: {alert_id} {ex}", file=sys.stderr)
+            logging.warning(f"Alert send aborted: {alert_id} {ex}")
 
 
 class _AlertHandler(BaseHTTPRequestHandler):
@@ -125,7 +124,7 @@ class _AlertHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         if self.system_id is None or self.secret is None or self.alerts_url is None:
-            # Just drop the alert if not configured
+            logging.debug("Alert dropped (not registered): no system_id or secret")
             self.send_response(200)
             self.end_headers()
             return
@@ -150,10 +149,7 @@ class _AlertHandler(BaseHTTPRequestHandler):
 
             alert_id = _map_alert_id(alert_name, labels)
             if not alert_id:
-                print(
-                    f"Alert dropped (no mapping): {alert_name} {labels}",
-                    file=sys.stderr,
-                )
+                logging.debug(f"Alert dropped (no mapping): {alert_name} {labels}")
                 continue
 
             _send_alert(self.system_id, self.secret, self.alerts_url, alert_id, legacy_status)
@@ -174,8 +170,12 @@ class _ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
 
 
 def main():
+    uci = EUci()
+    loglevel_str = uci.get("ns-plug", "config", "alert_proxy_loglevel", default="warning")
+    loglevel = getattr(logging, loglevel_str.upper(), logging.WARNING)
+    logging.basicConfig(level=loglevel, format="%(message)s", stream=sys.stderr)
     server = _ThreadingHTTPServer((LISTEN_ADDR, LISTEN_PORT), _AlertHandler)
-    print(f"alert-proxy listening on {LISTEN_ADDR}:{LISTEN_PORT}", file=sys.stderr)
+    logging.info(f"alert-proxy listening on {LISTEN_ADDR}:{LISTEN_PORT}")
     server.serve_forever()
 
 
