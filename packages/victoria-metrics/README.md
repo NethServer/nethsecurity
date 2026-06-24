@@ -116,8 +116,18 @@ vmalert POSTs alerts to the credential-translation proxy at
 forwarding them to the Mimir alertmanager. No manual configuration is needed —
 it is enabled whenever `ns-plug.config.type` is `enterprise` and the system is
 registered (`system_id` / `secret` set). vmalert always also notifies the local
-alert-proxy (`http://127.0.0.1:9095`), which handles the legacy path and
+ns-plug-alert-proxy (`http://127.0.0.1:9095`), which handles the legacy path and
 unregistered machines.
+
+By default, ns-plug-alert proxy logs only when an alert can't be forwarded to legacy my.nethesis.it.
+To increase verbosity and debug all communications with the portal,
+set `ns-plug.config.alert_proxy_loglevel` to `info` or `debug` and restart ns-plug-alert-proxy:
+```bash
+uci set ns-plug.config.alert_proxy_loglevel='info'
+uci commit ns-plug
+/etc/init.d/ns-plug-alert-proxy restart
+```
+
 
 **Disable (alert-proxy only mode):**
 ```bash
