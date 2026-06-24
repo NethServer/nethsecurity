@@ -19,27 +19,40 @@ start_service() {
     config_get datasource_url main datasource_url "http://localhost:8428"
     config_get http_listen_addr main http_listen_addr "127.0.0.1:8081"
     
-    # Forward alerts to the new my.nethesis.it during the migration window,
-    # mirroring send-heartbeat / send-inventory: enterprise systems POST to the
-    # credential-translation proxy at my.nethesis.it/proxy/alerts using the
-    # ns-plug credentials (system_id:secret), which the proxy maps to the new my
-    # credentials. vmalert appends /api/v2/alerts to the notifier URL. The my
-    # switch-off release will repoint this to the native collect path.
-    local system_id system_secret system_type alerts_disabled notifier_url notifier_user notifier_pass
+    # Forward alerts to the new my for enterprise systems. Two windows:
+    #   - Pre-cutover (migrated!=1): POST to the credential-translation proxy at
+    #     my.nethesis.it/proxy/alerts with the still-legacy ns-plug credentials
+    #     (system_id:secret); the proxy maps them to the new my credentials.
+    #   - Post-cutover (migrated=1 + collect_url): migrate-to-my has rotated the
+    #     credentials to native my credentials, so POST straight to the native
+    #     Mimir alertmanager derived from collect_url — the legacy-only proxy
+    #     would 401 the rotated credentials. vmalert appends /api/v2/alerts, so
+    #     the notifier URL is the alertmanager base WITHOUT that suffix.
+    # Opt-out (disable_my_alerts=1) keeps the unit on the local alert-proxy only.
+    local system_id system_secret system_type alerts_disabled migrated collect_url
+    local notifier_url notifier_user notifier_pass
     config_load ns-plug 2>/dev/null && {
         config_get system_id config system_id ""
         config_get system_secret config secret ""
         config_get system_type config type ""
+        config_get migrated config migrated ""
+        config_get collect_url config collect_url ""
         # opt-out: set ns-plug.config.disable_my_alerts=1 for alert-proxy only mode
         config_get_bool alerts_disabled config disable_my_alerts 0
     }
 
+    notifier_url=""
     if [ "$system_type" = "enterprise" ] && [ -n "$system_id" ] && [ -n "$system_secret" ] && [ "$alerts_disabled" = "0" ]; then
-        notifier_url="https://my.nethesis.it/proxy/alerts"
+        if [ "$migrated" = "1" ] && [ -n "$collect_url" ]; then
+            # Native my Mimir alertmanager, derived from collect_url, e.g.
+            #   https://my-proxy-prod.onrender.com/collect/api/systems
+            #   -> https://my-proxy-prod.onrender.com/collect/api/services/mimir/alertmanager
+            notifier_url="${collect_url%%/collect/*}/collect/api/services/mimir/alertmanager"
+        else
+            notifier_url="https://my-proxy-prod.onrender.com/proxy/alerts"
+        fi
         notifier_user="$system_id"
         notifier_pass="$system_secret"
-    else
-        notifier_url=""
     fi
     
     procd_open_instance
