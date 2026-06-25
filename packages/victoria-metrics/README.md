@@ -81,12 +81,12 @@ Example: An alert with `for: 5m` takes 5 minutes to transition from pending → 
 ### Custom Alert Rules
 
 To add custom alerts, create a new YAML file in `/etc/vmalert/rules/`.
-Example `my_alerts.yaml`:
+Example `custom.yaml`:
 
 ```yaml
 groups:
   - name: "my_alerts"
-    interval: "30s"
+    interval: "5m"
     rules:
       - alert: MyAlert
         expr: 'metric_name > threshold'
@@ -103,6 +103,11 @@ groups:
 Then restart vmalert:
 ```bash
 /etc/init.d/vmalert restart
+```
+
+Make sure to store the alert inside the backup:
+```
+echo /etc/vmalert/rules/custom.yaml >> /etc/sysupgrade.conf
 ```
 
 ## Forwarding alerts to my.nethesis.it
