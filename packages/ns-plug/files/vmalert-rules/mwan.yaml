@@ -10,11 +10,11 @@
 
 groups:
   - name: "mwan"
-    interval: "60s"
+    interval: "5m"
     rules:
       - alert: WanDown
         expr: 'mwan_interface_online == 0'
-        for: "2m"
+        for: "5m"
         labels:
           severity: "critical"
           service: "network"
