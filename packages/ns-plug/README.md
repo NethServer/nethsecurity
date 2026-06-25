@@ -140,7 +140,6 @@ portal (my.nethesis.it or my.nethserver.com):
 |---|---|---|
 | `WanDown` | WAN interface offline for 2m | `wan:<interface>:down` |
 | `DiskSpaceCritical` | Disk usage > 90% for 2m | `df:root:percent_bytes:free` or `df:boot:percent_bytes:free` |
-| `BackupEncryptionDisabled` | Backup passphrase missing | `backup:config:notencrypted` |
 | `StorageStatus` | Storage status is error | `storage:status` |
 | `HaPrimaryFailed` | Backup node became master | `ha:primary:failed` |
 | `HaSyncFailed` | HA sync failure detected on the primary node | `ha:sync:failed` |
