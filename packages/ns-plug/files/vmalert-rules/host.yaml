@@ -5,12 +5,12 @@
 
 groups:
   - name: "host_and_hardware"
-    interval: "30s"
+    interval: "5m"
     rules:
       # CPU Monitoring
       - alert: HighCpuUsage
         expr: 'round(100 - avg(cpu_usage_idle), 0.1) > 70 unless round(100 - avg(cpu_usage_idle), 0.1) > 85'
-        for: "5m"
+        for: "10m"
         labels:
           severity: "info"
           service: "host"
@@ -22,7 +22,7 @@ groups:
 
       - alert: CriticalCpuUsage
         expr: 'round(100 - avg(cpu_usage_idle), 0.1) > 85'
-        for: "2m"
+        for: "5m"
         labels:
           severity: "warning"
           service: "host"
@@ -35,7 +35,7 @@ groups:
       # Memory Monitoring
       - alert: HighMemoryUsage
         expr: 'round((mem_used / mem_total) * 100, 0.1) > 80 unless round((mem_used / mem_total) * 100, 0.1) > 90'
-        for: "5m"
+        for: "10m"
         labels:
           severity: "info"
           service: "host"
@@ -47,7 +47,7 @@ groups:
 
       - alert: CriticalMemoryUsage
         expr: 'round((mem_used / mem_total) * 100, 0.1) > 90'
-        for: "2m"
+        for: "5m"
         labels:
           severity: "warning"
           service: "host"
@@ -60,7 +60,7 @@ groups:
       # Disk Space Monitoring
       - alert: DiskSpaceWarning
         expr: 'round((disk_used / disk_total) * 100, 0.1) > 80 unless round((disk_used / disk_total) * 100, 0.1) > 90'
-        for: "5m"
+        for: "10m"
         labels:
           severity: "warning"
           service: "storage"
@@ -72,7 +72,7 @@ groups:
 
       - alert: DiskSpaceCritical
         expr: 'round((disk_used / disk_total) * 100, 0.1) > 90'
-        for: "2m"
+        for: "5m"
         labels:
           severity: "critical"
           service: "storage"
@@ -85,7 +85,7 @@ groups:
       # System Load Monitoring
       - alert: HighSystemLoad
         expr: 'system_load1 / system_n_cpus > 2'
-        for: "5m"
+        for: "10m"
         labels:
           severity: "warning"
           service: "host"

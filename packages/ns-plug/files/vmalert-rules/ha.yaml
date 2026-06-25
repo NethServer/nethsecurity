@@ -4,10 +4,11 @@
 
 groups:
   - name: "ha"
-    interval: "30s"
+    interval: "60s"
     rules:
       - alert: HaPrimaryFailed
         expr: 'ha_alert_primary_failed_event{role="backup"} == 1'
+        for: "2m"
         labels:
           severity: "critical"
           service: "ha"
@@ -19,6 +20,7 @@ groups:
 
       - alert: HaSyncFailed
         expr: 'ha_alert_sync_failed_event{role="primary"} == 1'
+        for: "5m"
         labels:
           severity: "warning"
           service: "ha"

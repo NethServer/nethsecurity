@@ -4,10 +4,11 @@
 
 groups:
   - name: "storage"
-    interval: "30s"
+    interval: "5m"
     rules:
       - alert: StorageStatus
         expr: 'storage_status_error == 1'
+        for: "5m"
         labels:
           severity: "critical"
           service: "storage"

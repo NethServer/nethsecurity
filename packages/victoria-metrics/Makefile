@@ -63,8 +63,6 @@ define Package/victoria-metrics/install
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DATA) ./files/victoria-metrics.conf $(1)/etc/config/victoria-metrics
 	$(INSTALL_DATA) ./files/vmalert.conf $(1)/etc/config/vmalert
-	$(INSTALL_DIR) $(1)/etc/vmalert/rules
-	$(INSTALL_DATA) ./files/vmalert-rules/*.yaml $(1)/etc/vmalert/rules/
 endef
 
 define Package/victoria-metrics/postinst

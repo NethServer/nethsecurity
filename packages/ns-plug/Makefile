@@ -21,7 +21,7 @@ define Package/ns-plug
 	CATEGORY:=NethSecurity
 	TITLE:=NethSecurity controller client
 	URL:=https://github.com/NethServer/nethsecurity-controller/
-	DEPENDS:=+openvpn +lscpu +python3-nethsec +python3-yaml +telegraf
+	DEPENDS:=+openvpn +lscpu +python3-nethsec +python3-yaml +telegraf +victoria-metrics
 	PKGARCH:=all
 endef
  
@@ -46,6 +46,7 @@ if [ -z "$${IPKG_INSTROOT}" ]; then
   /etc/init.d/ns-plug restart
   /etc/init.d/ns-plug-alert-proxy enable
   /etc/init.d/ns-plug-alert-proxy restart
+  /etc/init.d/vmalert reload
 fi
 exit 0
 endef
@@ -106,6 +107,8 @@ define Package/ns-plug/install
 	$(INSTALL_BIN) ./files/mwan-hooks $(1)/usr/libexec/ns-plug
 	$(INSTALL_BIN) ./files/ns-plug-rsyslog-fixup.uci-default $(1)/etc/uci-defaults/rsyslog-fixup
 	$(INSTALL_BIN) ./files/99_ns-plug-netdata-cleanup.uci-default $(1)/etc/uci-defaults/99_ns-plug-netdata-cleanup
+	$(INSTALL_DIR) $(1)/etc/vmalert/rules
+	$(INSTALL_DATA) ./files/vmalert-rules/*.yaml $(1)/etc/vmalert/rules/
 endef
  
 $(eval $(call BuildPackage,ns-plug))
