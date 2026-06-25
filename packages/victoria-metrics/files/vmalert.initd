@@ -49,8 +49,7 @@ start_service() {
     procd_append_param command -datasource.url="$datasource_url"
     procd_append_param command -remoteRead.url="$datasource_url"
     procd_append_param command -remoteWrite.url="$datasource_url"
-    procd_append_param command -evaluationInterval=30s
-    
+
     # Always notify the local alert-proxy (handles unregistered machines gracefully)
     procd_append_param command -notifier.url="http://127.0.0.1:9095"
 
