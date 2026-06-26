@@ -133,14 +133,6 @@ uci commit ns-plug
 /etc/init.d/ns-plug-alert-proxy restart
 ```
 
-
-**Disable (alert-proxy only mode):**
-```bash
-uci set ns-plug.config.disable_my_alerts='1'
-uci commit ns-plug
-/etc/init.d/vmalert restart
-```
-
 > Migration note: the my switch-off release will repoint this from
 > `/proxy/alerts` to the native collect endpoint
 > (`/collect/api/services/mimir/alertmanager`) with rotated credentials.
