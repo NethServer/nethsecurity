@@ -110,6 +110,35 @@ Make sure to store the alert inside the backup:
 echo /etc/vmalert/rules/custom.yaml >> /etc/sysupgrade.conf
 ```
 
+Here is the complete Markdown documentation explaining this specific alerting logic. You can drop this directly into your repository's `README.md`.
+
+### Rule evaluation logic
+
+Most alerts are configured with a 5-minute evaluation interval and a 5-minute alert duration (`for`).
+This means that an alert must be continuously true for at least 5 minutes before it transitions from `Pending` to `Firing`.
+
+Example:
+```yaml
+groups:
+  - name: "host_and_hardware"
+    interval: "5m"  # How often the engine checks the metrics
+    rules:
+      - alert: CriticalCpuUsage
+        expr: 'round(100 - avg by(host) (cpu_usage_idle), 0.1) > 85'
+        for: "5m"   # How long the threshold must be breached to fire
+```
+
+Because the rule engine evaluations happen at discrete 5-minute ticks, an alert **requires two consecutive failed checks** to transition from a normal state to an active notification.
+
+The engine processes an active incident through three phases:
+
+1. **Clear State:** Metrics are healthy; no alerts are tracked.
+2. **Pending State:** The first evaluation tick catches a threshold breach. The engine records the timestamp and marks the alert as `Pending`.
+3. **Firing State:** At the next evaluation tick (exactly 5 minutes later), if the threshold is still breached, the engine verifies that > 5
+   minutes have passed since it entered `Pending`. The alert transitions to `Firing` and routes to notifications.
+
+Because real-world server incidents do not align perfectly with the monitoring engine's internal execution clock, notifications feature a variable delay window of 5 to 10 minutes from the actual start of the incident.
+
 ## Forwarding alerts to my.nethesis.it
 
 [my](https://github.com/NethServer/my/) uses Grafana Mimir as a multi-tenant
@@ -128,7 +157,7 @@ By default, ns-plug-alert proxy logs only when an alert can't be forwarded to le
 To increase verbosity and debug all communications with the portal,
 set `ns-plug.config.alert_proxy_loglevel` to `info` or `debug` and restart ns-plug-alert-proxy:
 ```bash
-uci set ns-plug.config.alert_proxy_loglevel='info'
+uci set ns-plug.config.alert_proxy_loglevel='debug'
 uci commit ns-plug
 /etc/init.d/ns-plug-alert-proxy restart
 ```
@@ -136,6 +165,63 @@ uci commit ns-plug
 > Migration note: the my switch-off release will repoint this from
 > `/proxy/alerts` to the native collect endpoint
 > (`/collect/api/services/mimir/alertmanager`) with rotated credentials.
+
+## Alert notifications
+
+System alerts are handled by vmalert (Victoria Metrics alert evaluation engine) which evaluates
+alert rules against metrics collected by telegraf.
+
+When a rule transitions from `Pending` to `Firing`, vmalert sends an Alertmanager notification to the following endponts:
+- ns-plug-alert-proxy, listening on port 9095, which forwards only some alerts to the legacy monitoring portal
+- https://my.nethesis.it/proxy/alerts, wich forwards all alerts to the new Mimir alertmanager
+
+vmalert sends a notification for firing alerts every `interval`, set to 5 minutes for most alerts, until the alert resolves.
+When the alert resolves, vmalert sends 4 notifications at 5-minute intervals to ensure the resolution is received by the alertmanager (or the proxy) even if the first notification is lost.
+
+**Migration note**
+
+When legacy my.nethesis.it will be replaced with the new one:
+- remove ns-plug-alert-proxy from the system (caveat: also my.nethserver.com will not receive alerts anymore)
+- change vmalert configuration to send alerts directly to the new Mimir alertmanager endpoint: replace `/proxy/alerts`
+  with the native collect endpoint `/collect/api/services/mimir/alertmanager` with rotated credentials.
+
+### ns-plug-alert-proxy
+
+The proxy forwards only the following legacy alerts:
+| Alert | Condition | Legacy alert_id |
+|---|---|---|
+| `WanDown` | WAN interface offline for 2m | `wan:<interface>:down` |
+| `DiskSpaceCritical` | Disk usage > 90% for 2m | `df:root:percent_bytes:free` or `df:boot:percent_bytes:free` |
+| `StorageStatus` | Storage status is error | `storage:status` |
+| `HaPrimaryFailed` | Backup node became master | `ha:primary:failed` |
+| `HaSyncFailed` | HA sync failure detected on the primary node | `ha:sync:failed` |
+
+All other alert are silently dropped by the proxy.
+If the machine does not have a subscription, all alerts are silently dropped.
+
+The proxy starts automatically at boot regardless of registration state.
+By default, firing/resolved state is determined from the Alertmanager-standard `endsAt` field:
+if `endsAt` is in the future (or zero/missing) a **FAILURE** is sent; if `endsAt` is in
+the past an **OK** is sent. HA recovery/failover event alerts override this default mapping so
+they can keep the legacy `ha:primary:failed` semantics.
+
+## Alert history
+
+The `vmalert` alerts keeps the state of all active alerts inside VictoriaMetrics using the remote-write protocol.
+In case of vmalert restart, the alert state is restored from VictoriaMetrics and the alert evaluation continues without losing any information.
+
+The state is stored using two specific time series:
+* `ALERTS`
+* `ALERTS_FOR_STATE`
+
+Because these are standard time series, they can be queried from VictoriaMetrics just like any other metric and used
+to retrieve the history of alerts and their state transitions.
+
+Query examples with curl, retrieve alerts from the last 24 hours:
+```
+curl 'http://localhost:8428/prometheus/api/v1/query_range' --data-raw "query=ALERTS_FOR_STATE&start=$(( $(date +%s) - 86400 ))&end=$(date +%s)&step=30s" | jq
+curl 'http://localhost:8428/prometheus/api/v1/query_range' --data-raw "query=ALERTS&start=$(( $(date +%s) - 86400 ))&end=$(date +%s)&step=30s" | jq
+```
 
 ## References
 

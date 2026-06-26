@@ -129,30 +129,4 @@ remote-backup download $(remote-backup list | jq -r .[0].file) - | gpg --batch -
 
 ## Alerts
 
-System alerts are handled by **vmalert** (Victoria Metrics alert evaluation engine) which evaluates
-alert rules against metrics collected by telegraf.
-
-When an alert fires or resolves, vmalert sends an Alertmanager-format webhook to `ns-plug-alert-proxy`
-running on `127.0.0.1:9095`. The proxy forwards the following alerts to the registered monitoring
-portal (my.nethesis.it or my.nethserver.com):
-
-| Alert | Condition | Legacy alert_id |
-|---|---|---|
-| `WanDown` | WAN interface offline for 2m | `wan:<interface>:down` |
-| `DiskSpaceCritical` | Disk usage > 90% for 2m | `df:root:percent_bytes:free` or `df:boot:percent_bytes:free` |
-| `StorageStatus` | Storage status is error | `storage:status` |
-| `HaPrimaryFailed` | Backup node became master | `ha:primary:failed` |
-| `HaSyncFailed` | HA sync failure detected on the primary node | `ha:sync:failed` |
-
-All other alert are silently dropped by the proxy.
-If the machine is not registered, all alerts are silently dropped.
-
-The proxy starts automatically at boot regardless of registration state.
-By default, firing/resolved state is determined from the Alertmanager-standard `endsAt` field:
-if `endsAt` is in the future (or zero/missing) a **FAILURE** is sent; if `endsAt` is in
-the past an **OK** is sent. HA recovery/failover event alerts override this default mapping so
-they can keep the legacy `ha:primary:failed` semantics.
-
-On enterprise systems vmalert also forwards alerts to my.nethesis.it through the
-credential-translation proxy (`https://my.nethesis.it/proxy/alerts`, authenticated
-with the ns-plug `system_id` / `secret`), mirroring send-heartbeat / send-inventory.
+See ..[Victoria Metrics README](../victoria-metrics/README.md) for details about alerting logic and forwarding to my.nethesis.it.
