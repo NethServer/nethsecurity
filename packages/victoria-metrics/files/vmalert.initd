@@ -30,11 +30,9 @@ start_service() {
         config_get system_id config system_id ""
         config_get system_secret config secret ""
         config_get system_type config type ""
-        # opt-out: set ns-plug.config.disable_my_alerts=1 for alert-proxy only mode
-        config_get_bool alerts_disabled config disable_my_alerts 0
     }
 
-    if [ "$system_type" = "enterprise" ] && [ -n "$system_id" ] && [ -n "$system_secret" ] && [ "$alerts_disabled" = "0" ]; then
+    if [ "$system_type" = "enterprise" ] && [ -n "$system_id" ] && [ -n "$system_secret" ]; then
         notifier_url="https://my.nethesis.it/proxy/alerts"
         notifier_user="$system_id"
         notifier_pass="$system_secret"
