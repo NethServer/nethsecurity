@@ -110,8 +110,6 @@ Make sure to store the alert inside the backup:
 echo /etc/vmalert/rules/custom.yaml >> /etc/sysupgrade.conf
 ```
 
-Here is the complete Markdown documentation explaining this specific alerting logic. You can drop this directly into your repository's `README.md`.
-
 ### Rule evaluation logic
 
 Most alerts are configured with a 5-minute evaluation interval and a 5-minute alert duration (`for`).
