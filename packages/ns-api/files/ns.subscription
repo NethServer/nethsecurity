@@ -61,6 +61,15 @@ def info():
     type = u.get('ns-plug', 'config', 'type', default='')
 
     ret = {"server_id": data["id"], "systemd_id": data["uuid"], "plan": data["subscription"]["subscription_plan"]["name"], "expiration": expiration, "active": active, "type": type}
+
+    # The new my has no per-system commercial plan. For enterprise units expose
+    # the organization explicitly (subscription-info threads organization.name)
+    # and default the plan label to "Nethesis Enterprise". Community units keep
+    # the real plan name untouched.
+    if type == "enterprise":
+        ret["organization"] = data.get("organization", "")
+        ret["plan"] = "Nethesis Enterprise"
+
     return ret
 
 
