@@ -7,15 +7,16 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=victoria-metrics
 # renovate: datasource=github-tags depName=VictoriaMetrics/VictoriaMetrics
-PKG_VERSION:=1.139.0
+PKG_VERSION:=1.142.0
 PKG_RELEASE:=1
  
-PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
-PKG_SOURCE_URL:=https://codeload.github.com/VictoriaMetrics/VictoriaMetrics/tar.gz/v$(PKG_VERSION)?
+PKG_SOURCE_PROTO:=git
+PKG_SOURCE_URL:=https://github.com/VictoriaMetrics/VictoriaMetrics.git
+PKG_SOURCE_VERSION:=v$(PKG_VERSION)
 PKG_SOURCE_SUBDIR:=VictoriaMetrics-$(PKG_VERSION)
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_SOURCE_SUBDIR)
+PKG_MIRROR_HASH:=skip
 
-PKG_HASH:=skip
 PKG_MAINTAINER:=Tommaso Bailetti <tommaso.bailetti@nethesis.it>
 PKG_LICENSE:=Apache-2.0
 
