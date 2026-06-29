@@ -1,0 +1,152 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-3.0-only
+#
+
+#
+# diagnostics.d plugin for NethSecurity health
+#
+# Checks core services, WAN connectivity, firewall, disk/overlay usage,
+# and DNS resolution. Outputs JSON PluginResult.
+#
+# Exit codes: 0=ok, 1=warning, 2=critical
+#
+
+# Use /usr/bin/jsonfilter if jq is not available
+JQ=$(command -v jq 2>/dev/null || echo "")
+
+overall="ok"
+
+worst() {
+    local a="$1" b="$2"
+    case "$a" in
+        critical) echo "critical" ;;
+        warning) [ "$b" = "critical" ] && echo "critical" || echo "warning" ;;
+        ok) echo "$b" ;;
+        *) echo "$b" ;;
+    esac
+}
+
+checks="["
+first=true
+
+add_check() {
+    local name="$1" status="$2" value="$3" details="$4"
+    [ "$first" = true ] && first=false || checks="$checks,"
+    if [ -n "$details" ]; then
+        checks="$checks{\"name\":\"$name\",\"status\":\"$status\",\"value\":\"$value\",\"details\":$details}"
+    else
+        checks="$checks{\"name\":\"$name\",\"status\":\"$status\",\"value\":\"$value\"}"
+    fi
+    overall=$(worst "$overall" "$status")
+}
+
+# 1. Core services
+services="firewall dnsmasq dropbear"
+svc_details="["
+svc_first=true
+svc_ok=0
+svc_total=0
+for svc in $services; do
+    svc_total=$((svc_total + 1))
+    if /etc/init.d/$svc enabled 2>/dev/null; then
+        state=$(/etc/init.d/$svc running 2>/dev/null && echo "running" || echo "stopped")
+    else
+        state="disabled"
+    fi
+    s="ok"
+    [ "$state" != "running" ] && s="critical"
+    [ "$state" = "disabled" ] && s="ok"  # disabled is fine
+    [ "$state" = "running" ] && svc_ok=$((svc_ok + 1))
+    [ "$svc_first" = true ] && svc_first=false || svc_details="$svc_details,"
+    svc_details="$svc_details{\"name\":\"$svc\",\"state\":\"$state\"}"
+done
+svc_details="$svc_details]"
+svc_status="ok"
+[ "$svc_ok" -lt "$svc_total" ] && svc_status="warning"
+add_check "core_services" "$svc_status" "$svc_ok/$svc_total running" "$svc_details"
+
+# 2. WAN connectivity
+wan_if=$(uci -q get network.wan.device || uci -q get network.wan.ifname)
+wan_proto=$(uci -q get network.wan.proto)
+wan_ip=""
+if [ -n "$wan_if" ]; then
+    wan_ip=$(ip -4 addr show dev "$wan_if" 2>/dev/null | grep -oP 'inet \K[0-9.]+' | head -1)
+fi
+
+if [ -n "$wan_ip" ]; then
+    wan_status="ok"
+    wan_value="$wan_ip"
+else
+    wan_status="warning"
+    wan_value="no IP"
+fi
+add_check "wan" "$wan_status" "$wan_value" "{\"interface\":\"$wan_if\",\"proto\":\"$wan_proto\",\"ip\":\"$wan_ip\"}"
+
+# 3. DNS resolution
+dns_result=$(nslookup nethesis.it 127.0.0.1 2>&1 | grep -c "Address.*[0-9]")
+if [ "$dns_result" -gt 1 ]; then
+    add_check "dns" "ok" "resolving"
+else
+    add_check "dns" "warning" "failing"
+    overall=$(worst "$overall" "warning")
+fi
+
+# 4. Overlay disk usage
+overlay_used=$(df /overlay 2>/dev/null | awk 'NR==2{print $5}' | tr -d '%')
+if [ -n "$overlay_used" ]; then
+    overlay_total=$(df /overlay 2>/dev/null | awk 'NR==2{print $2}')
+    overlay_avail=$(df /overlay 2>/dev/null | awk 'NR==2{print $4}')
+    if [ "$overlay_used" -gt 95 ]; then
+        disk_status="critical"
+    elif [ "$overlay_used" -gt 85 ]; then
+        disk_status="warning"
+    else
+        disk_status="ok"
+    fi
+    add_check "overlay_usage" "$disk_status" "${overlay_used}%" "{\"total_kb\":$overlay_total,\"available_kb\":$overlay_avail,\"used_pct\":$overlay_used}"
+fi
+
+# 5. Firewall status
+fw_status=$(nft list tables 2>&1 | grep -c "table")
+if [ "$fw_status" -gt 0 ]; then
+    # Count rules
+    rule_count=$(nft list ruleset 2>/dev/null | grep -c "^		")
+    add_check "firewall" "ok" "$fw_status tables" "{\"tables\":$fw_status,\"rules\":$rule_count}"
+else
+    add_check "firewall" "critical" "no tables loaded"
+fi
+
+# 6. Connected clients (DHCP leases)
+lease_count=0
+if [ -f /tmp/dhcp.leases ]; then
+    lease_count=$(wc -l < /tmp/dhcp.leases)
+fi
+add_check "dhcp_leases" "ok" "$lease_count"
+
+# 7. Uptime
+uptime_sec=$(cat /proc/uptime | awk '{printf "%d", $1}')
+days=$((uptime_sec / 86400))
+hours=$(( (uptime_sec % 86400) / 3600 ))
+mins=$(( (uptime_sec % 3600) / 60 ))
+add_check "uptime" "ok" "${days}d ${hours}h ${mins}m" "{\"days\":$days,\"hours\":$hours,\"minutes\":$mins,\"total_seconds\":$uptime_sec}"
+
+checks="$checks]"
+
+# Build summary
+ok_count=$(echo "$checks" | grep -o '"status":"ok"' | wc -l)
+warn_count=$(echo "$checks" | grep -o '"status":"warning"' | wc -l)
+crit_count=$(echo "$checks" | grep -o '"status":"critical"' | wc -l)
+
+cat << EOF
+{"id":"health","name":"NethSecurity Health","status":"$overall","summary":"$ok_count ok, $warn_count warning, $crit_count critical","checks":$checks}
+EOF
+
+# Exit code
+case "$overall" in
+    critical) exit 2 ;;
+    warning) exit 1 ;;
+    *) exit 0 ;;
+esac
