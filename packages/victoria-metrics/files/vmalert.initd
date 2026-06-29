@@ -28,8 +28,7 @@ start_service() {
     #     Mimir alertmanager derived from collect_url — the legacy-only proxy
     #     would 401 the rotated credentials. vmalert appends /api/v2/alerts, so
     #     the notifier URL is the alertmanager base WITHOUT that suffix.
-    # Opt-out (disable_my_alerts=1) keeps the unit on the local alert-proxy only.
-    local system_id system_secret system_type alerts_disabled migrated collect_url
+    local system_id system_secret system_type migrated collect_url
     local notifier_url notifier_user notifier_pass
     config_load ns-plug 2>/dev/null && {
         config_get system_id config system_id ""
@@ -37,12 +36,10 @@ start_service() {
         config_get system_type config type ""
         config_get migrated config migrated ""
         config_get collect_url config collect_url ""
-        # opt-out: set ns-plug.config.disable_my_alerts=1 for alert-proxy only mode
-        config_get_bool alerts_disabled config disable_my_alerts 0
     }
 
     notifier_url=""
-    if [ "$system_type" = "enterprise" ] && [ -n "$system_id" ] && [ -n "$system_secret" ] && [ "$alerts_disabled" = "0" ]; then
+    if [ "$system_type" = "enterprise" ] && [ -n "$system_id" ] && [ -n "$system_secret" ]; then
         if [ "$migrated" = "1" ] && [ -n "$collect_url" ]; then
             # Native my Mimir alertmanager, derived from collect_url, e.g.
             #   https://my-proxy-prod.onrender.com/collect/api/systems
