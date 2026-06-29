@@ -8,11 +8,16 @@ include $(TOPDIR)/rules.mk
 PKG_NAME:=ns-ui
 # renovate: datasource=github-releases depName=NethServer/nethsecurity-ui
 PKG_VERSION:=2.22.2
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/NethServer/nethsecurity-ui.git
-PKG_SOURCE_VERSION:=$(PKG_VERSION)
+# TEMP (my cutover): pinned to nethsecurity-ui#746 (feat/backup-my-api) so the image
+# bundles the my-native backup UI alongside this appliance cutover. The UI reads the
+# new collect backup payload; on a device still on backupd it would break, hence it must
+# ship together with this PR. BEFORE MERGING: revert to PKG_SOURCE_VERSION:=$(PKG_VERSION)
+# and bump PKG_VERSION to the nethsecurity-ui release that carries #746.
+PKG_SOURCE_VERSION:=661fd064ac5e24a7552b81a2916c0dbf327b1c87
 PKG_SOURCE_SUBDIR:=nethsecurity-ui-$(PKG_SOURCE_VERSION)
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_SOURCE_SUBDIR)
 PKG_MIRROR_HASH:=skip
