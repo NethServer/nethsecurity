@@ -2,7 +2,7 @@ module github.com/NethServer/nethsecurity-api
 
 go 1.23
 
-toolchain go1.23.7
+toolchain go1.26.4
 
 require (
 	github.com/Jeffail/gabs/v2 v2.7.0
