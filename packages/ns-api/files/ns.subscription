@@ -74,6 +74,11 @@ def info():
         ret["organization"] = data.get("organization", "")
         ret["plan"] = "Nethesis Enterprise"
         ret["system_url"] = f"https://my-proxy-prod.onrender.com/systems/{data['uuid']}"
+    else:
+        # Community: link the system to its my.nethserver.com page, matching ns8.
+        sub_id = (data.get("subscription") or {}).get("id")
+        if sub_id:
+            ret["system_url"] = f"https://my.nethserver.com/servers/{sub_id}"
 
     return ret
 
