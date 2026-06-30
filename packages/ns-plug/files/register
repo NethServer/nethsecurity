@@ -49,9 +49,21 @@ case "$type" in
     enterprise)
         url="https://my-proxy-prod.onrender.com/backend/api/"
 
-        register_resp=$(curl -s -m $timeout --retry 3 -L \
+        register_resp=$(curl -s -m $timeout --retry 3 -L -w '\n%{http_code}' \
         -H "Content-Type: application/json" -H "Accept: application/json" \
         -d '{"system_secret": "'$secret'"}' "${url}systems/register")
+        http_code=$(echo "$register_resp" | sed -n '$p')
+        register_resp=$(echo "$register_resp" | sed '$d')
+
+        # A system key is one-shot: once a system is registered on my it
+        # cannot be re-registered, because the key is never freed (licensing
+        # safeguard). The backend answers 409 in that case; surface it with a
+        # dedicated exit code (2) so ns.subscription can show a specific message
+        # instead of the generic "invalid secret / server not found".
+        if [ "$http_code" = "409" ]; then
+            >&2 echo "[ERROR] system already registered on my"
+            exit 2
+        fi
 
         system_id=$(echo "$register_resp" | jq -r '.data.system_key // empty' 2>/dev/null)
         ;;
