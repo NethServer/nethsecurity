@@ -10,11 +10,20 @@
   "branchNameStrict": true,
   "rebaseWhen": "never",
   "keepUpdatedLabel": "auto-update",
+  "constraints": {
+    "go": "1.23"
+  },
   "packageRules": [
     {
       "matchPaths": [
         "tools/**",
         "docs/**"
+      ],
+      "enabled": false
+    },
+    {
+      "matchPaths": [
+        "packages/ns-api-server/**"
       ],
       "enabled": false
     }
