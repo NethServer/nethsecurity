@@ -73,6 +73,7 @@ def info():
     if type == "enterprise":
         ret["organization"] = data.get("organization", "")
         ret["plan"] = "Nethesis Enterprise"
+        ret["system_url"] = f"https://my-proxy-prod.onrender.com/systems/{data['uuid']}"
 
     return ret
 
