@@ -53,9 +53,15 @@ start_service() {
 
     # Also forward alerts to my.nethesis.it for registered enterprise systems
     if [ -n "$notifier_url" ]; then
+        # Avoid leaking secret inside command line
+        local pass_file="/var/run/vmalert/notifier.pass"
+        mkdir -p /var/run/vmalert
+        chmod 700 /var/run/vmalert
+        ( umask 077; printf '%s' "$notifier_pass" > "$pass_file" )
+
         procd_append_param command -notifier.url="$notifier_url"
         procd_append_param command -notifier.basicAuth.username="$notifier_user"
-        procd_append_param command -notifier.basicAuth.password="$notifier_pass"
+        procd_append_param command -notifier.basicAuth.passwordFile="$pass_file"
     fi
     
     procd_set_param stdout 1
