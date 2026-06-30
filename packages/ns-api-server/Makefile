@@ -6,14 +6,10 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-api-server
-# renovate: datasource=github-tags depName=NethServer/nethsecurity-api
 PKG_VERSION:=1.5.1
 PKG_RELEASE:=3
- 
-PKG_SOURCE:=ns-api-server-$(PKG_VERSION).tar.gz
-PKG_BUILD_DIR=$(BUILD_DIR)/nethsecurity-api-$(PKG_VERSION)
-PKG_SOURCE_URL:=https://codeload.github.com/nethserver/nethsecurity-api/tar.gz/$(PKG_VERSION)?
-PKG_HASH:=skip
+
+PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
 
 PKG_MAINTAINER:=Giacomo Sanchietti <giacomo.sanchietti@nethesis.it>
 PKG_LICENSE:=GPL-3.0-only
@@ -26,7 +22,12 @@ GO_PKG:=github.com/NethServer/nethsecurity-api
 
 include $(INCLUDE_DIR)/package.mk
 include $(TOPDIR)/feeds/packages/lang/golang/golang-package.mk
- 
+
+define Build/Prepare
+	mkdir -p $(PKG_BUILD_DIR)
+	$(CP) ./files/src/. $(PKG_BUILD_DIR)/
+endef
+
 define Package/ns-api-server
 	SECTION:=base
 	CATEGORY:=NethSecurity
