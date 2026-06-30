@@ -22,7 +22,7 @@ define Package/ns-threat_shield
 	CATEGORY:=NethSecurity
 	TITLE:=Threat shield block list
 	URL:=https://github.com/NethServer/nethsecurity/
-	DEPENDS:=+wget-ssl +adblock +jq
+	DEPENDS:=+wget-ssl +adblock +jq +ns-api +rsyslog
 	PKGARCH:=all
 endef
  
@@ -57,6 +57,9 @@ define Package/ns-threat_shield/install
 	$(INSTALL_BIN) ./files/configure-banip-wans.py $(1)/usr/libexec/ns-api/pre-commit/
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/banip-defaults $(1)/etc/uci-defaults/99-nethsec-banip
+	$(INSTALL_BIN) ./files/35_ns-threat_shield $(1)/etc/uci-defaults/35_ns-threat_shield
+	$(INSTALL_DIR) $(1)/etc/rsyslog.d
+	$(INSTALL_CONF) ./files/rsyslog-banip.conf $(1)/etc/rsyslog.d/banip-services.conf
 	gzip -9n $(1)/usr/share/threat_shield/nethesis-dns.sources
 	gzip -9n $(1)/usr/share/threat_shield/community-dns.sources
 endef
@@ -66,6 +69,7 @@ define Package/ns-threat_shield/postinst
 if [ -z "$${IPKG_INSTROOT}" ]; then
   (. /etc/uci-defaults/20_threat_shield)
   rm -f /etc/uci-defaults/20_threat_shield
+  /etc/init.d/rsyslog restart
   /etc/init.d/cron restart
 fi
 exit 0
