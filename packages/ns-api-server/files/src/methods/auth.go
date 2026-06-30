@@ -27,7 +27,7 @@ import (
 	"github.com/fatih/structs"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
-	jwtl "github.com/golang-jwt/jwt"
+	jwtl "github.com/golang-jwt/jwt/v4"
 
 	"github.com/NethServer/nethsecurity-api/configuration"
 	"github.com/NethServer/nethsecurity-api/logs"
