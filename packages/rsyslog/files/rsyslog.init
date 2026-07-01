@@ -73,14 +73,16 @@ expand_config() {
 	if [ "${tcp_input}" -eq 1 ]; then
 		modules="${modules} imtcp"
 		config_get tcp_port syslog tcp_input_port
-		input_t="input(type=\"imtcp\" port=\"${tcp_port}\")"
+		config_get tcp_addr syslog tcp_input_address "127.0.0.1"
+		input_t="input(type=\"imtcp\" port=\"${tcp_port}\" address=\"${tcp_addr}\")"
 	fi
 
 	config_get_bool udp_input syslog udp_input
 	if [ "${udp_input}" -eq 1 ]; then
 		modules="${modules} imudp"
 		config_get udp_port syslog udp_input_port
-		input_u="input(type=\"imudp\" port=\"${udp_port}\")"
+		config_get udp_addr syslog udp_input_address "127.0.0.1"
+		input_u="input(type=\"imudp\" port=\"${udp_port}\" address=\"${udp_addr}\")"
 
 	fi
 	config_get template syslog default_template
