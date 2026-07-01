@@ -20,17 +20,21 @@ def register(args):
 
     secret = args["secret"]
 
-    try:
-        subprocess.run(["/usr/sbin/register", "enterprise", secret, '5'], check=True, capture_output=True)
+    enterprise = subprocess.run(["/usr/sbin/register", "enterprise", secret, '5'], capture_output=True)
+    if enterprise.returncode == 0:
         return {"result": "success"}
-    except:
-        pass
 
-    try:
-        subprocess.run(["/usr/sbin/register", "community", secret, '5'], check=True, capture_output=True)
+    # Exit code 2: the system is already registered on my and its key cannot be
+    # reused (one-shot registration). Report it as-is instead of falling back to
+    # community, so the UI can guide the user to create a new system.
+    if enterprise.returncode == 2:
+        return utils.generic_error("system_already_registered")
+
+    community = subprocess.run(["/usr/sbin/register", "community", secret, '5'], capture_output=True)
+    if community.returncode == 0:
         return {"result": "success"}
-    except:
-        return utils.generic_error("invalid_secret_or_server_not_found")
+
+    return utils.generic_error("invalid_secret_or_server_not_found")
 
 def unregister():
     try:
@@ -61,6 +65,21 @@ def info():
     type = u.get('ns-plug', 'config', 'type', default='')
 
     ret = {"server_id": data["id"], "systemd_id": data["uuid"], "plan": data["subscription"]["subscription_plan"]["name"], "expiration": expiration, "active": active, "type": type}
+
+    # The new my has no per-system commercial plan. For enterprise units expose
+    # the organization explicitly (subscription-info threads organization.name)
+    # and default the plan label to "Nethesis Enterprise". Community units keep
+    # the real plan name untouched.
+    if type == "enterprise":
+        ret["organization"] = data.get("organization", "")
+        ret["plan"] = "Nethesis Enterprise"
+        ret["system_url"] = f"https://my-proxy-prod.onrender.com/systems/{data['uuid']}"
+    else:
+        # Community: link the system to its my.nethserver.com page, matching ns8.
+        sub_id = (data.get("subscription") or {}).get("id")
+        if sub_id:
+            ret["system_url"] = f"https://my.nethserver.com/servers/{sub_id}"
+
     return ret
 
 
