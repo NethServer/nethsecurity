@@ -33,6 +33,7 @@ NETHSECURITY_VERSION=${NETHSECURITY_VERSION:?Missing NETHSECURITY_VERSION enviro
 REPO_CHANNEL=${REPO_CHANNEL:-dev}
 TARGET=${TARGET:-x86_64}
 BUILD_SEMVER_SUFFIX=${BUILD_SEMVER_SUFFIX:-}
+BUILD_VERBOSE=${BUILD_VERBOSE:-}
 
 if [ -f "./private-key.pem" ] && [ -f "./public-key.pem" ]; then
     APK_PRIV_KEY="$(cat ./private-key.pem)"
@@ -59,6 +60,7 @@ status=0
 podman run \
     --env APK_PRIV_KEY="$APK_PRIV_KEY" \
     --env APK_PUB_KEY="$APK_PUB_KEY" \
+    --env BUILD_VERBOSE="$BUILD_VERBOSE" \
     --name nethsecurity-builder \
     --interactive \
     --tty \

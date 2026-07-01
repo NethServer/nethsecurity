@@ -15,7 +15,9 @@ fi
 # if command $1 is a file or a executable, run it
 if which "$1" >/dev/null 2>&1; then
     exec "$@"
-else
+elif [ -n "$BUILD_VERBOSE" ]; then
     # Otherwise, assume it's a make command and run it
     exec make -j"$(nproc)" V=sc "$@"
+else
+    exec make -j"$(nproc)" "$@"
 fi

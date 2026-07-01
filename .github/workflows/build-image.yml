@@ -21,6 +21,10 @@ on:
       base_version:
         required: true
         type: string
+      build_verbose:
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   publish_images:
@@ -40,7 +44,36 @@ jobs:
           REPO_CHANNEL: ${{ inputs.repo_channel }}
           TARGET: ${{ inputs.target }}
           BUILD_SEMVER_SUFFIX: ${{ inputs.build_semver_suffix }}
+          BUILD_VERBOSE: ${{ inputs.build_verbose }}
         run: ./build-nethsec.sh
+      - name: Summarize build errors
+        if: failure()
+        run: |
+          {
+            echo "## Build failure logs"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          mapfile -t error_logs < <(
+            grep -rlE 'Error [0-9]+|\*\*\* \[.*\] Error' build-logs --include='*.txt' 2>/dev/null \
+              | xargs -r -I{} stat --format '%Y {}' {} \
+              | sort -rn \
+              | cut -d' ' -f2- \
+              | head -n 3
+          )
+
+          if [ "${#error_logs[@]}" -eq 0 ]; then
+            echo "No package error log found under \`build-logs/\`; download the \`build-logs\` artifact to inspect." >> "$GITHUB_STEP_SUMMARY"
+          else
+            for f in "${error_logs[@]}"; do
+              {
+                echo "### \`${f#build-logs/}\`"
+                echo '```'
+                tail -n 200 "$f"
+                echo '```'
+              } >> "$GITHUB_STEP_SUMMARY"
+            done
+          fi
       - name: Update latest_release file
         run: |
           FULL_VERSION="${{ inputs.nethsecurity_version }}"
