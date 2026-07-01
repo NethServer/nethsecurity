@@ -54,13 +54,7 @@ jobs:
             echo ""
           } >> "$GITHUB_STEP_SUMMARY"
 
-          mapfile -t error_logs < <(
-            grep -rlE 'Error [0-9]+|\*\*\* \[.*\] Error' build-logs --include='*.txt' 2>/dev/null \
-              | xargs -r -I{} stat --format '%Y {}' {} \
-              | sort -rn \
-              | cut -d' ' -f2- \
-              | head -n 3
-          )
+          mapfile -t error_logs < <(find build-logs -name 'error.txt' 2>/dev/null)
 
           if [ "${#error_logs[@]}" -eq 0 ]; then
             echo "No package error log found under \`build-logs/\`; download the \`build-logs\` artifact to inspect." >> "$GITHUB_STEP_SUMMARY"
@@ -69,7 +63,7 @@ jobs:
               {
                 echo "### \`${f#build-logs/}\`"
                 echo '```'
-                tail -n 200 "$f"
+                cat "$f"
                 echo '```'
               } >> "$GITHUB_STEP_SUMMARY"
             done
