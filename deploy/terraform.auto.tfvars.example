@@ -1,0 +1,16 @@
+do_token = "dop_v1_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+project  = "Aldo"
+domain   = "al.nethserver.net"
+sshkeys  = ["yourkey"]
+
+nodes = {
+  "ns1" = {
+    hostname = "ns1"
+    region   = "ams3"
+    size     = "s-1vcpu-2gb"
+    custom_image = {
+      name = "nethsecurity-8.7.2"
+      url  = "https://updates.nethsecurity.nethserver.org/stable/8.7.2/targets/x86/64/nethsecurity-8.7.2-x86-64-generic-squashfs-combined-efi.img.gz"
+    }
+  }
+}
