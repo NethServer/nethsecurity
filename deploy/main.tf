@@ -22,7 +22,7 @@ resource "digitalocean_custom_image" "this" {
   name         = "${each.value.custom_image.name}-${each.key}"
   url          = each.value.custom_image.url
   regions      = [each.value.region]
-  distribution = "Unknown"
+  distribution = "Unknown OS"
 }
 
 locals {
