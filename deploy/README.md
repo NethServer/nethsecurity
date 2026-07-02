@@ -1,6 +1,6 @@
 # NethSecurity deploy
 
-Basic Terraform config: create DO droplets (each with a public network and a private VPC network), point DNS at them.
+Basic OpenTofu config: create DO droplets (each with a public network and a private VPC network), point DNS at them.
 
 ## SSH keys
 
@@ -8,7 +8,7 @@ Basic Terraform config: create DO droplets (each with a public network and a pri
 
 ## Usage
 
-1.  Create `terraform.auto.tfvars` (see `terraform.auto.tfvars.example`):
+1.  Create `tofu.auto.tfvars` (see `tofu.auto.tfvars.example`):
 
         do_token = "secret"
         project  = "Aldo"
@@ -30,8 +30,8 @@ Basic Terraform config: create DO droplets (each with a public network and a pri
 
 2.  Init and apply:
 
-    terraform init
-    terraform apply
+    tofu init
+    tofu apply
 
 Outputs the IP and FQDN of every droplet in `nodes`, keyed by node key.
 
@@ -50,3 +50,10 @@ Imported from a URL (the DO image-import API only accepts a URL, no local upload
       name = "nethsecurity-8.7.2"
       url  = "https://updates.nethsecurity.nethserver.org/stable/8.7.2/targets/x86/64/nethsecurity-8.7.2-x86-64-generic-squashfs-combined-efi.img.gz"
     }
+
+Default images (x86/64, generic, squashfs-combined-efi):
+
+| Version | URL |
+|---|---|
+| 8.7.2 | https://updates.nethsecurity.nethserver.org/stable/8.7.2/targets/x86/64/nethsecurity-8.7.2-x86-64-generic-squashfs-combined-efi.img.gz |
+| 8.7.1 | https://updates.nethsecurity.nethserver.org/stable/8.7.1/targets/x86/64/nethsecurity-8.7.1-x86-64-generic-squashfs-combined-efi.img.gz |
