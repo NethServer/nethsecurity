@@ -29,7 +29,8 @@ define Package/acme-acmesh
   TITLE:=ACME client acme.sh wrapper script
   URL:=https://acme.sh
   PKGARCH:=all
-  PROVIDES:=acme-client
+  PROVIDES:=@acme
+  DEFAULT_VARIANT:=1
 endef
 
 define Package/acme-acmesh/description
