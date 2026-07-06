@@ -902,7 +902,7 @@ def __parse_set(blocklist):
 
 def list_active_blocks():
     try:
-        output_ipv4 = subprocess.run(["nft", "-j", "list", "set", "inet", "banIP", "blocklistv4"], check=True,
+        output_ipv4 = subprocess.run(["nft", "-j", "list", "set", "inet", "banIP", "blocklist.v4"], check=True,
                                     capture_output=True, text=True)
         data = json.loads(output_ipv4.stdout)
     except subprocess.CalledProcessError:
@@ -911,7 +911,7 @@ def list_active_blocks():
     blocks = __parse_set(data)
 
     try:
-        output_ipv6 = subprocess.run(["nft", "-j", "list", "set", "inet", "banIP", "blocklistv6"], check=True,
+        output_ipv6 = subprocess.run(["nft", "-j", "list", "set", "inet", "banIP", "blocklist.v6"], check=True,
                                     capture_output=True, text=True)
         data = json.loads(output_ipv6.stdout)
     except subprocess.CalledProcessError:
@@ -959,9 +959,9 @@ def remove_active_block():
         return validation_error("ip", "invalid", str(ip))
 
     if isinstance(ip, ipaddress.IPv4Address):
-        blocklist = "blocklistv4"
+        blocklist = "blocklist.v4"
     else:
-        blocklist = "blocklistv6"
+        blocklist = "blocklist.v6"
 
     try:
         subprocess.run(["nft", "delete", "element", "inet", "banIP", blocklist, "{" + str(ip) + "}"], check=True)
