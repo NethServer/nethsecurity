@@ -53,7 +53,11 @@ def save_license(content: str) -> None:
 def download_license() -> str:
     s = Session()
     retries = Retry(
-        total=20, backoff_factor=0.1, status_forcelist=range(500, 600), backoff_max=30
+        total=20,
+        backoff_factor=2,
+        status_forcelist=[408, 429, 500, 502, 503, 504],
+        backoff_max=300,
+        respect_retry_after_header=True,
     )
     s.mount(LICENSE_SERVER_ENDPOINT, HTTPAdapter(max_retries=retries))
     s.headers.update({"Accept": "application/json"})
@@ -70,7 +74,7 @@ def download_license() -> str:
         elif subscription == "enterprise":
             path = LICENSE_ENTERPRISE_ENDPOINT
 
-    response = s.get(LICENSE_SERVER_ENDPOINT + path, timeout=5)
+    response = s.get(LICENSE_SERVER_ENDPOINT + path, timeout=30)
     response.raise_for_status()
     return response.text
 

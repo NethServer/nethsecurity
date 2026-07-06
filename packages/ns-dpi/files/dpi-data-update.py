@@ -54,14 +54,18 @@ def save_data(filename: str, content: str) -> None:
 def download_data(endpoint: str, filename: str) -> None:
     s = Session()
     retries = Retry(
-        total=20, backoff_factor=0.1, status_forcelist=range(500, 600), backoff_max=30
+        total=20,
+        backoff_factor=30,
+        status_forcelist=[408, 429, 500, 502, 503, 504],
+        backoff_max=300,
+        respect_retry_after_header=True,
     )
     s.mount(DATA_SERVER_ENDPOINT, HTTPAdapter(max_retries=retries))
     s.headers.update({"Accept": "application/json"})
 
     try:
         logging.info(f"Downloading from {DATA_SERVER_ENDPOINT}{endpoint}")
-        response = s.get(DATA_SERVER_ENDPOINT + endpoint, timeout=5)
+        response = s.get(DATA_SERVER_ENDPOINT + endpoint, timeout=30)
         response.raise_for_status()
         content = response.text
 
