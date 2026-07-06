@@ -59,6 +59,9 @@ func main() {
 	// add default compression
 	router.Use(gzip.Gzip(gzip.DefaultCompression))
 
+	// accept headers only from localhost
+	router.SetTrustedProxies([]string{"127.0.0.1", "::1"})
+
 	// cors configuration only in debug mode GIN_MODE=debug (default)
 	if gin.Mode() == gin.DebugMode {
 		// gin gonic cors conf
