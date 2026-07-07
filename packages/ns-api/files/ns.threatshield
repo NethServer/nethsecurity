@@ -1026,22 +1026,15 @@ def set_geoblocking_configuration(e_uci, payload):
     
     # handle the country feed enable/disable
     feeds = list(e_uci.get('banip', 'global', 'ban_feed', list=True, default=[]))
-    ban_blockinput = list(e_uci.get('banip', 'global', 'ban_blockinput', list=True, default=[]))
-
+    
     if payload['enabled']:
         # add 'country' feed if not present
         if 'country' not in feeds:
             feeds.append('country')
-        if 'country' not in ban_blockinput:
-            ban_blockinput.append('country')
-            e_uci.set('banip', 'global', 'ban_blockinput', ban_blockinput)
     else:
         # remove 'country' feed if present
         if 'country' in feeds:
             feeds.remove('country')
-        if 'country' in ban_blockinput:
-            ban_blockinput.remove('country')
-            e_uci.set('banip', 'global', 'ban_blockinput', ban_blockinput)
     
     # convert country codes to lowercase
     countries = [c.lower() for c in payload['countries']]
