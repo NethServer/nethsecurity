@@ -101,10 +101,12 @@ uci set ns-plug.config.secret="$secret"
 uci set ns-plug.config.repository_url="https://$system_id:$secret@distfeed.nethesis.it/repository/$type/nethsecurity"
 uci commit ns-plug
 reload_config
-# Register the machine by sending the inventory for the first time
-send-inventory
+# Send the heartbeat first: it is near-instant and flips the system to
+# "active" on my right away; the (slower) inventory follows. Registration
+# success is still reported on the heartbeat result, as before.
 send-heartbeat
 exit_code=$?
+send-inventory
 
 # Execute register hooks
 for script in $(find /usr/share/ns-plug/hooks/register -maxdepth 1 -executable -type f,l | sort); do
