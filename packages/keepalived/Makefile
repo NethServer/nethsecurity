@@ -9,7 +9,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=keepalived
 PKG_VERSION:=2.3.3
-PKG_RELEASE:=4
+PKG_RELEASE:=5
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://www.keepalived.org/software
@@ -334,7 +334,7 @@ endef
 
 USER=keepalived
 USER_ID=60001
-USER_HOME=/usr/share/keepalived/rsync
+USER_HOME=/tmp/ha
 SUDO_DIR=/etc/sudoers.d
 SUDO_FILE=$(SUDO_DIR)/$(USER)
 KEYS_DIR=/etc/keepalived/keys
@@ -358,10 +358,6 @@ fi
 if ! grep -q "^$(USER):" /etc/passwd; then
 	user_add "$(USER)" "$(USER_ID)" "$(USER_ID)" "$(USER)" "$(USER_HOME)" "/bin/ash"
 fi
-
-mkdir -m 700 -p "$(USER_HOME)"
-mkdir -m 700 -p "$(USER_HOME)/.ssh"
-chown "$(USER)":"$(USER)" "$(USER_HOME)" -R
 
 [ ! -d "$(SUDO_DIR)" ] && mkdir "$(SUDO_DIR)"
 echo "$(USER) ALL= NOPASSWD:/usr/bin/rsync" > "$(SUDO_FILE)"

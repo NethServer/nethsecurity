@@ -10,7 +10,7 @@
 . /lib/functions/keepalived/ns.sh
 
 RSYNC_USER="root"
-RSYNC_HOME="/usr/share/keepalived/rsync"
+RSYNC_HOME="/tmp/ns-ha"
 
 utc_timestamp() {
 	date -u +%s
@@ -93,7 +93,7 @@ ha_sync_send() {
 	ssh_remote="$RSYNC_USER@$address"
 
 	# shellcheck disable=SC2086
-	timeout 10 ssh $ssh_options $ssh_remote mkdir -m 755 -p "/tmp" || {
+	timeout 10 ssh $ssh_options $ssh_remote mkdir -m 755 -p "$sync_dir" || {
 		log_err "Can not connect to $address. check key or connection"
 		update_last_sync_time "$cfg"
 		update_last_sync_status "$cfg" "SSH Connection Failed"

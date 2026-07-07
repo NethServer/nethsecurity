@@ -1,5 +1,5 @@
 #!/bin/sh
-# Sync selected entries from /usr/share/keepalived/rsync to root paths.
+# Sync selected entries from /tmp/ns-ha to root paths.
 #
 # Behavior:
 # - Reads a list of paths (one per line) from /tmp/restore_list.
@@ -9,15 +9,15 @@
 #   paths are treated as root-relative.
 # - Paths containing '..' are rejected to avoid directory traversal.
 # - If an entry refers to a directory: rsync -avr --delete
-#   /usr/share/keepalived/rsync/<dir>/ /<dir>/
+#   /tmp/ns-ha/<dir>/ /<dir>/
 # - If an entry refers to a regular file: rsync -avr
-#   /usr/share/keepalived/rsync/<file> /<file>
+#   /tmp/ns-ha/<file> /<file>
 # - If a listed entry does not exist in the source dir, a warning is logged
 #   and the entry is skipped.
 
 . /lib/functions/keepalived/common.sh
 
-SRC_DIR="/usr/share/keepalived/rsync"
+SRC_DIR="/tmp/ns-ha"
 RESTORE_LIST="$SRC_DIR/tmp/restore_list"
 
 # Do not execute on backup/master switch

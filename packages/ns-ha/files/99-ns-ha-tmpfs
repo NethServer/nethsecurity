@@ -1,0 +1,19 @@
+#!/bin/sh
+
+# Migrate HA sync staging dir to tmpfs and slow down sync interval
+# https://github.com/NethServer/nethsecurity/issues/1771
+
+if [ "$(uci -q get keepalived.ha_sync.interval)" = "60" ]; then
+    uci set keepalived.ha_sync.interval=600
+fi
+
+if [ "$(uci -q get keepalived.ha_peer.sync_dir)" = "/usr/share/keepalived/rsync" ]; then
+    uci set keepalived.ha_peer.sync_dir=/tmp/ns-ha
+fi
+
+uci commit keepalived
+
+# Drop the legacy staging area from persistent storage
+rm -rf /usr/share/keepalived/rsync
+
+exit 0

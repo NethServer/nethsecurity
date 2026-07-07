@@ -430,7 +430,7 @@ Apr 23 09:48:49 NethSec dropbear[8098]: Pubkey auth succeeded for 'root' with ss
 Apr 23 09:48:49 NethSec dropbear[8098]: Exit (root) from <192.168.100.238:37350>: Exited normally
 Apr 23 09:48:49 NethSec dropbear[8100]: Child connection from 192.168.100.238:37356
 Apr 23 09:48:49 NethSec dropbear[8100]: Pubkey auth succeeded for 'root' with ssh-rsa key SHA256:LDIBFC6gFHmIAUqdEWVi62ca/EUxZI7/08m2d76/hcQ from 192.168.100.238:37356
-Apr 23 09:48:49 NethSec sudo:     root : PWD=/root ; USER=root ; COMMAND=/usr/bin/rsync --server -nlogDtprRe.iLfxCIvu --log-format=X . /usr/share/keepalived/rsync
+Apr 23 09:48:49 NethSec sudo:     root : PWD=/root ; USER=root ; COMMAND=/usr/bin/rsync --server -nlogDtprRe.iLfxCIvu --log-format=X . /tmp/ns-ha
 Apr 23 09:48:49 NethSec dropbear[8100]: Exit (root) from <192.168.100.238:37356>: Exited normally
 ```
 
@@ -562,14 +562,14 @@ The primary node runs a specialized rsync script (`/etc/keepalived/scripts/ns-rs
   - Custom files added via the `keepalived.ha_peer.sync_list` UCI option
   - Excludes files listed in the `keepalived.ha_peer.exclude_list` UCI option
   The list is saved inside the file `/tmp/restore_list`
-- Copies files to the backup node's staging area at `/usr/share/keepalived/rsync/`
+- Copies files to the backup node's staging area at `/tmp/ns-ha/` (tmpfs, emptied at reboot)
 - Triggers a hotplug event on the backup node to notify that synchronization is complete
 
 #### Restore phase (hotplug): on the backup node
 
 The backup node doesn't automatically apply all transferred files. Instead, it uses a hotplug event fired
 by the primary node at the end of the rsync process.
-All files and directories inside `/usr/share/keepalived/rsync/tmp/restore_list` are copied to the original locations using `rsync`. For directories, `rsync` is invoked with `--delete` option to ensure exact mirroring.
+All files and directories inside `/tmp/ns-ha/tmp/restore_list` are copied to the original locations using `rsync`. For directories, `rsync` is invoked with `--delete` option to ensure exact mirroring.
 
 #### Adding new files to synchronization
 

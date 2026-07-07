@@ -488,7 +488,7 @@ def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, lan_interface,
     u.set('keepalived', 'ha_sync', 'vrrp_script')
     u.set('keepalived', 'ha_sync', 'name', 'ha_sync')
     u.set('keepalived', 'ha_sync', 'script', '/usr/libexec/ns-rsync.sh')
-    u.set('keepalived', 'ha_sync', 'interval', '60')
+    u.set('keepalived', 'ha_sync', 'interval', '600')
     u.set('keepalived', 'ha_sync', 'weight', '100')
 
     u.set('keepalived', 'lan_track', 'track_interface')
@@ -513,7 +513,7 @@ def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, lan_interface,
         u.set('keepalived', 'ha_peer', 'address', backup_node_ip)
         u.set('keepalived', 'ha_peer', 'sync', '1')
         u.set('keepalived', 'ha_peer', 'sync_mode', 'send')
-        u.set('keepalived', 'ha_peer', 'sync_dir', '/usr/share/keepalived/rsync')
+        u.set('keepalived', 'ha_peer', 'sync_dir', '/tmp/ns-ha')
         u.set('keepalived', 'ha_peer', 'ssh_port', '65022')
         u.set('keepalived', 'ha_peer', 'ssh_key', '/etc/keepalived/keys/id_rsa')
         u.set('keepalived', 'ha_peer', 'exclude_list', exclude_list)
@@ -563,7 +563,7 @@ def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, lan_interface,
         u.set('keepalived', 'ha_peer', 'address', primary_node_ip)
         u.set('keepalived', 'ha_peer', 'sync', '1')
         u.set('keepalived', 'ha_peer', 'sync_mode', 'receive')
-        u.set('keepalived', 'ha_peer', 'sync_dir', '/usr/share/keepalived/rsync')
+        u.set('keepalived', 'ha_peer', 'sync_dir', '/tmp/ns-ha')
         u.set('keepalived', 'ha_peer', 'ssh_pubkey', pubkey)
   
         u.set('keepalived', 'backup', 'vrrp_instance')
@@ -587,7 +587,7 @@ def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, lan_interface,
             file.write(pubkey + '\n')
 
         # Create the rsync directory if it doesn't exist
-        rsync_dir = '/usr/share/keepalived/rsync/etc/'
+        rsync_dir = '/tmp/ns-ha/etc/'
         os.makedirs(rsync_dir, exist_ok=True)
         # Change permissions of the rsync directory
         os.chmod(rsync_dir, 0o2775)
@@ -1039,9 +1039,10 @@ def reset(role, pubkey = ""):
     subprocess.run(['/etc/init.d/conntrackd', 'stop'], capture_output=True)
     subprocess.run(['/etc/init.d/conntrackd', 'disable'], capture_output=True)
 
-    # Remove files and directories
+    # Remove files and directories, including the legacy staging dir
+    shutil.rmtree('/tmp/ns-ha', ignore_errors=True)
+    shutil.rmtree('/usr/share/keepalived/rsync', ignore_errors=True)
     try:
-        shutil.rmtree('/usr/share/keepalived/rsync')
         os.remove('/etc/conntrackd/conntrackd.conf')
     except:
         pass

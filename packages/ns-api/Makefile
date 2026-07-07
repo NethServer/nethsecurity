@@ -7,7 +7,7 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-api
 PKG_VERSION:=3.7.0
-PKG_RELEASE:=1
+PKG_RELEASE:=2
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-api-$(PKG_VERSION)
 
