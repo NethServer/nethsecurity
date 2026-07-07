@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-ha
-PKG_VERSION:=0.0.5
+PKG_VERSION:=0.0.6
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-ha-$(PKG_VERSION)
@@ -29,6 +29,16 @@ define Package/ns-ha/description
 	Support High Availability configuration for NethSecurity
 endef
 
+define Package/ns-ha/postinst
+#!/bin/sh
+if [ -z "$${IPKG_INSTROOT}" ]; then
+  if [ "$$(uci -q get keepalived.globals.enabled)" = "1" ]; then
+    /etc/init.d/keepalived reload
+  fi
+fi
+exit 0
+endef
+
 # this is required, otherwise compile will fail
 define Build/Compile
 endef
@@ -41,6 +51,7 @@ define Package/ns-ha/install
 	$(INSTALL_DIR) $(1)/usr/libexec
 	$(INSTALL_DIR) $(1)/etc/keepalived/scripts/
 	$(INSTALL_DIR) $(1)/etc/profile.d/
+	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/ns-ha-disable $(1)/usr/libexec/
 	$(INSTALL_BIN) ./files/ns-ha-enable $(1)/usr/libexec/
 	$(INSTALL_BIN) ./files/ns-ha-export $(1)/usr/libexec/
@@ -78,6 +89,7 @@ define Package/ns-ha/install
 	$(INSTALL_DATA) ./files/99-ns-ha.sh $(1)/etc/profile.d
 	$(INSTALL_BIN) ./files/conntrackd.sh $(1)/usr/libexec/
 	$(INSTALL_BIN) ./files/ns-rsync.sh $(1)/usr/libexec/
+	$(INSTALL_BIN) ./files/99-ns-ha-tmpfs $(1)/etc/uci-defaults
 endef
 
 $(eval $(call BuildPackage,ns-ha))
