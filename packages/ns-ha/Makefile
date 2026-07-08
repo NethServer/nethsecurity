@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-ha
-PKG_VERSION:=0.0.6
+PKG_VERSION:=0.0.7
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-ha-$(PKG_VERSION)
@@ -79,6 +79,7 @@ define Package/ns-ha/install
 	$(INSTALL_DATA) ./files/800-dedalo $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/900-ns-plug $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/900-phonehome $(1)/etc/hotplug.d/keepalived
+	$(INSTALL_DATA) ./files/900-telegraf $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/900-msmtp $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/900-snmpd $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/900-ddns $(1)/etc/hotplug.d/keepalived

@@ -1,0 +1,33 @@
+#!/bin/sh
+
+# The backup node has no Internet access and dnsmasq refuses external queries,
+# so telegraf's internet ping/dns_query inputs flood the log with errors.
+# Disable those inputs while in backup state and re-enable them on master.
+# The drop-in files are moved aside (not deleted) so the config is preserved;
+# UCI is left untouched. telegraf runs with --watch-config and reloads itself.
+# shellcheck source=/dev/null
+. /lib/functions/keepalived/hotplug.sh
+
+set_service_name telegraf
+
+DROPINS="/etc/telegraf.conf.d/ping.conf /etc/telegraf.conf.d/dns.conf"
+
+toggle_internet_inputs() {
+    local action="$1"
+    local f
+    for f in $DROPINS; do
+        if [ "$action" = "disable" ]; then
+            [ -f "$f" ] && mv "$f" "$f.disabled"
+        elif [ "$action" = "enable" ]; then
+            [ -f "$f.disabled" ] && mv "$f.disabled" "$f"
+        fi
+    done
+}
+
+if [ "$ACTION" == "NOTIFY_BACKUP" ]; then
+    toggle_internet_inputs disable
+elif [ "$ACTION" == "NOTIFY_MASTER" ]; then
+    toggle_internet_inputs enable
+fi
+
+keepalived_hotplug
