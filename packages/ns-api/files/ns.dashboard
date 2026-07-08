@@ -50,13 +50,6 @@ def get_hardware():
             return f.read().lstrip().rstrip()
     return "Unknown"
 
-def _run(cmd):
-    try:
-        proc = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True)
-        return proc.stdout.rstrip().lstrip()
-    except:
-        return ''
-
 def get_memory():
     try:
         mem_total = None
@@ -137,6 +130,26 @@ def count_hosts():
 
 def count_openvpn_rw():
     return len(ovpn.list_connected_clients('ns_roadwarrior1').keys())
+
+def count_threat_shield_ip():
+    ret = 0
+    vm_url = "http://127.0.0.1:8428/api/v1/query"
+
+    def vm_query(expr):
+        params = urllib.parse.urlencode({"query": expr})
+        with urllib.request.urlopen(f"{vm_url}?{params}", timeout=5) as resp:
+            data = json.loads(resp.read())
+        result = data.get("data", {}).get("result", [])
+        return result[0].get("value", []) if result else []
+
+    try:
+        value = vm_query("banip_blocked_ips")
+        if value:
+            ret = int(float(value[1]))
+    except Exception:
+        pass
+
+    return ret
 
 def check_ts_dns():
     u = EUci()
@@ -369,7 +382,7 @@ def counter(service):
     if service == "hosts":
         ret = count_hosts()
     elif service == "threat_shield_ip":
-        ret = _run("grep -e \"$(date -d '-1 hour' +'%b %e %H:%M')\" -e \"$(date  +'%b %e %H:')\" /var/log/messages | grep -E 'banIP.+add IP|banIP.+drop|banIP.+reject' | wc -l")
+        ret = count_threat_shield_ip()
     elif service == "openvpn_rw":
         ret = count_openvpn_rw()
 
