@@ -23,7 +23,7 @@ include $(INCLUDE_DIR)/package.mk
 define Download/check_apk_packages
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_apk_packages.py
-	FILE:=check_apk_packages.py
+	FILE:=check_apk_packages-$(PKG_VERSION).py
 	HASH:=c6c62cb53d0dc3d909dd4d0c9003dd362f06c9eb0dfaabc3c2f70ac5c15f0cf
 endef
 $(eval $(call Download,check_apk_packages))
@@ -31,7 +31,7 @@ $(eval $(call Download,check_apk_packages))
 define Download/check_dhcp_leases
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_dhcp_leases.py
-	FILE:=check_dhcp_leases.py
+	FILE:=check_dhcp_leases-$(PKG_VERSION).py
 	HASH:=a26fece5b788faf3ee2531b8fd7ef149e8937056cdd28f9d11a79e7a79ce975d
 endef
 $(eval $(call Download,check_dhcp_leases))
@@ -39,7 +39,7 @@ $(eval $(call Download,check_dhcp_leases))
 define Download/check_dns_resolution
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_dns_resolution.py
-	FILE:=check_dns_resolution.py
+	FILE:=check_dns_resolution-$(PKG_VERSION).py
 	HASH:=7f3e41ee03eb68e49fdabc495e21462df39c1ae839de62a4a20b8cf8cd3c9d82
 endef
 $(eval $(call Download,check_dns_resolution))
@@ -47,7 +47,7 @@ $(eval $(call Download,check_dns_resolution))
 define Download/check_firewall_connections
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_firewall_connections.py
-	FILE:=check_firewall_connections.py
+	FILE:=check_firewall_connections-$(PKG_VERSION).py
 	HASH:=0e916e816843baa6e3b0f14790e40fef6a17d51efeb6c45cfb1f5e965c0f4551
 endef
 $(eval $(call Download,check_firewall_connections))
@@ -55,7 +55,7 @@ $(eval $(call Download,check_firewall_connections))
 define Download/check_firewall_rules
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_firewall_rules.py
-	FILE:=check_firewall_rules.py
+	FILE:=check_firewall_rules-$(PKG_VERSION).py
 	HASH:=238311e66223380fa22cf0360cef631ce65217e25be8c8da2fbf6c8effc22b90
 endef
 $(eval $(call Download,check_firewall_rules))
@@ -63,7 +63,7 @@ $(eval $(call Download,check_firewall_rules))
 define Download/check_firewall_traffic
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_firewall_traffic.py
-	FILE:=check_firewall_traffic.py
+	FILE:=check_firewall_traffic-$(PKG_VERSION).py
 	HASH:=fbb32b89c93dadc1a8a09ca8fee457268f3378b27cc92e7a88b1a01db62bba1e
 endef
 $(eval $(call Download,check_firewall_traffic))
@@ -71,7 +71,7 @@ $(eval $(call Download,check_firewall_traffic))
 define Download/check_ovpn_host2net
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_ovpn_host2net.py
-	FILE:=check_ovpn_host2net.py
+	FILE:=check_ovpn_host2net-$(PKG_VERSION).py
 	HASH:=32094f9732ae75f630ad9f75efbc914d9e8d8a87bb10e9a4adbbee32e3c76b03
 endef
 $(eval $(call Download,check_ovpn_host2net))
@@ -79,7 +79,7 @@ $(eval $(call Download,check_ovpn_host2net))
 define Download/check_root_access
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_root_access.py
-	FILE:=check_root_access.py
+	FILE:=check_root_access-$(PKG_VERSION).py
 	HASH:=305fe9ba1bfe4efa50348a3183fbd0666f9bb924c0b6ec08cee30fedd8e79e85
 endef
 $(eval $(call Download,check_root_access))
@@ -87,7 +87,7 @@ $(eval $(call Download,check_root_access))
 define Download/check_uptime
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_uptime.py
-	FILE:=check_uptime.py
+	FILE:=check_uptime-$(PKG_VERSION).py
 	HASH:=51995951c2592153d55a6bf5aeb58d76c394dfe3c76c27a1b0c4d32d6e5e2c0c
 endef
 $(eval $(call Download,check_uptime))
@@ -95,7 +95,7 @@ $(eval $(call Download,check_uptime))
 define Download/check_vpn_tunnels
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_vpn_tunnels.py
-	FILE:=check_vpn_tunnels.py
+	FILE:=check_vpn_tunnels-$(PKG_VERSION).py
 	HASH:=8a12d756d7fee87429cd1846359be6a43c2feb57f32c76b9e4c1a6b3e8b5c7f2
 endef
 $(eval $(call Download,check_vpn_tunnels))
@@ -103,7 +103,7 @@ $(eval $(call Download,check_vpn_tunnels))
 define Download/check_wan_status
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_wan_status.py
-	FILE:=check_wan_status.py
+	FILE:=check_wan_status-$(PKG_VERSION).py
 	HASH:=d10f72f902dc58ea9db983a7e50c2a38e2cc0ef72c9bf0a08c5e7b7d6e5f4a3c
 endef
 $(eval $(call Download,check_wan_status))
@@ -111,7 +111,7 @@ $(eval $(call Download,check_wan_status))
 define Download/check_wan_throughput
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_wan_throughput.py
-	FILE:=check_wan_throughput.py
+	FILE:=check_wan_throughput-$(PKG_VERSION).py
 	HASH:=6ba86bd3a4c3473ed8055744e47d978f8e31e6aff5c8b7a9e1d0c3b2f5a8d1e
 endef
 $(eval $(call Download,check_wan_throughput))
@@ -133,18 +133,18 @@ endef
 
 define Build/Prepare
 	mkdir -p $(PKG_BUILD_DIR)
-	$(CP) $(DL_DIR)/check_apk_packages.py $(PKG_BUILD_DIR)/check_apk_packages.py
-	$(CP) $(DL_DIR)/check_dhcp_leases.py $(PKG_BUILD_DIR)/check_dhcp_leases.py
-	$(CP) $(DL_DIR)/check_dns_resolution.py $(PKG_BUILD_DIR)/check_dns_resolution.py
-	$(CP) $(DL_DIR)/check_firewall_connections.py $(PKG_BUILD_DIR)/check_firewall_connections.py
-	$(CP) $(DL_DIR)/check_firewall_rules.py $(PKG_BUILD_DIR)/check_firewall_rules.py
-	$(CP) $(DL_DIR)/check_firewall_traffic.py $(PKG_BUILD_DIR)/check_firewall_traffic.py
-	$(CP) $(DL_DIR)/check_ovpn_host2net.py $(PKG_BUILD_DIR)/check_ovpn_host2net.py
-	$(CP) $(DL_DIR)/check_root_access.py $(PKG_BUILD_DIR)/check_root_access.py
-	$(CP) $(DL_DIR)/check_uptime.py $(PKG_BUILD_DIR)/check_uptime.py
-	$(CP) $(DL_DIR)/check_vpn_tunnels.py $(PKG_BUILD_DIR)/check_vpn_tunnels.py
-	$(CP) $(DL_DIR)/check_wan_status.py $(PKG_BUILD_DIR)/check_wan_status.py
-	$(CP) $(DL_DIR)/check_wan_throughput.py $(PKG_BUILD_DIR)/check_wan_throughput.py
+	$(CP) $(DL_DIR)/check_apk_packages-$(PKG_VERSION).py $(PKG_BUILD_DIR)/check_apk_packages.py
+	$(CP) $(DL_DIR)/check_dhcp_leases-$(PKG_VERSION).py $(PKG_BUILD_DIR)/check_dhcp_leases.py
+	$(CP) $(DL_DIR)/check_dns_resolution-$(PKG_VERSION).py $(PKG_BUILD_DIR)/check_dns_resolution.py
+	$(CP) $(DL_DIR)/check_firewall_connections-$(PKG_VERSION).py $(PKG_BUILD_DIR)/check_firewall_connections.py
+	$(CP) $(DL_DIR)/check_firewall_rules-$(PKG_VERSION).py $(PKG_BUILD_DIR)/check_firewall_rules.py
+	$(CP) $(DL_DIR)/check_firewall_traffic-$(PKG_VERSION).py $(PKG_BUILD_DIR)/check_firewall_traffic.py
+	$(CP) $(DL_DIR)/check_ovpn_host2net-$(PKG_VERSION).py $(PKG_BUILD_DIR)/check_ovpn_host2net.py
+	$(CP) $(DL_DIR)/check_root_access-$(PKG_VERSION).py $(PKG_BUILD_DIR)/check_root_access.py
+	$(CP) $(DL_DIR)/check_uptime-$(PKG_VERSION).py $(PKG_BUILD_DIR)/check_uptime.py
+	$(CP) $(DL_DIR)/check_vpn_tunnels-$(PKG_VERSION).py $(PKG_BUILD_DIR)/check_vpn_tunnels.py
+	$(CP) $(DL_DIR)/check_wan_status-$(PKG_VERSION).py $(PKG_BUILD_DIR)/check_wan_status.py
+	$(CP) $(DL_DIR)/check_wan_throughput-$(PKG_VERSION).py $(PKG_BUILD_DIR)/check_wan_throughput.py
 endef
 
 define Build/Compile
