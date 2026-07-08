@@ -41,6 +41,10 @@
       "description": "Pin victoria-logs to 1.50.x: minor and major version bumps require verification that they support the Go version shipped with the current OpenWrt version. Patch updates are allowed automatically.",
       "matchDepNames": ["VictoriaMetrics/VictoriaLogs"],
       "allowedVersions": "<=1.51"
+    },
+    {
+      "matchDepNames": ["checkmk-tools"],
+      "enabled": false
     }
   ],
   "vulnerabilityAlerts": {
