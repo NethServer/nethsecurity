@@ -2651,6 +2651,67 @@ Response example:
 }
 ```
 
+### dashboard-v2
+
+Aggregate of all data needed by the dashboard page, so the UI can poll a single method instead of one per card.
+The internet reachability check is not included: it pings remote hosts and can take tens of seconds, use `service-status` with `{"service": "internet"}` for it.
+
+Degradation contract: if a subsystem fails, its key is set to `null` and its name is appended to the `errors` array; the rest of the response is still populated.
+
+```
+api-cli ns.dashboard dashboard-v2
+```
+
+Response example:
+```json
+{
+  "result": {
+    "system": {
+      "uptime": 8500.37,
+      "load": [0.05, 0.09, 0.09],
+      "version": {"arch": "x86_64", "release": "NethSecurity 8 23.05.5"},
+      "hostname": "NethSec",
+      "hardware": "Standard PC (Q35 + ICH9, 2009)",
+      "memory": {"mem_total": 4090400768, "mem_available": 3126558720},
+      "storage": {
+        "/": {"used_bytes": 121634816, "available_bytes": 372244480},
+        "/mnt/data": {"used_bytes": 0, "available_bytes": 0},
+        "tmpfs": {"used_bytes": 8060928, "available_bytes": 2037137408}
+      }
+    },
+    "services": {
+      "dns_configured": "ok",
+      "mwan": "disabled",
+      "openvpn_rw": "disabled",
+      "threat_shield_dns": "ok",
+      "dedalo": "disabled",
+      "banip": "ok"
+    },
+    "counters": {
+      "hosts": 12,
+      "openvpn_rw": 0,
+      "threat_shield_ip": 3
+    },
+    "vpn": {
+      "ipsec": {"enabled": 1, "connected": 0},
+      "ovpn": {"enabled": 2, "connected": 1},
+      "wireguard": {"enabled_servers": 1, "active_peers": 3}
+    },
+    "threat_shield": {"logging_enabled": true},
+    "mac_binding": {"enabled": false},
+    "ips": {"enabled": true, "events": 42},
+    "ha": {
+      "status": "disabled",
+      "role": "unknown",
+      "state": "unknown",
+      "last_sync_status": "",
+      "last_sync_time": ""
+    },
+    "errors": []
+  }
+}
+```
+
 ## ns.subscription
 
 Manage server subscription for [my.nethesis.it](https://my.nethesis.it) and [my.nethserver.com](https://my.nethserver.com).
