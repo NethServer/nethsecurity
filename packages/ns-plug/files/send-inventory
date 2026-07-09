@@ -34,13 +34,19 @@ case "$TYPE" in
             exit 0
         fi
 
-        /usr/sbin/phonehome | /usr/bin/curl -m 180 --retry 3 -L -s -X POST \
+        # cron discards job output: surface failures (DNS, TLS,
+        # timeouts, HTTP errors) in syslog via logger.
+        err=$(/usr/sbin/phonehome | /usr/bin/curl -m 180 --retry 3 -L -sSf -X POST \
             --user "$SYSTEM_ID:$SYSTEM_SECRET" \
             -H "Content-Type: application/json" \
-            --data-binary @- "$COLLECT_URL/inventory" >/dev/null
+            --data-binary @- \
+            -o /dev/null -w 'HTTP %{http_code}' \
+            "$COLLECT_URL/inventory" 2>&1)
 
         if [ $? -eq 0 ]; then
             status="success"
+        else
+            logger -t send-inventory "inventory send failed: $err"
         fi
         ;;
     community)

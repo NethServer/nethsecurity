@@ -35,9 +35,13 @@ case "$TYPE" in
             exit 0
         fi
 
-        /usr/bin/curl -m 30 --retry 3 -L -s -X POST \
+        # cron discards job output: surface failures (DNS, TLS,
+        # timeouts, HTTP errors) in syslog via logger.
+        err=$(/usr/bin/curl -m 30 --retry 3 -L -sSf -X POST \
             --user "$SYSTEM_ID:$SYSTEM_SECRET" \
-            "$COLLECT_URL/heartbeat" >/dev/null
+            -o /dev/null -w 'HTTP %{http_code}' \
+            "$COLLECT_URL/heartbeat" 2>&1) || \
+            logger -t send-heartbeat "heartbeat send failed: $err"
         ;;
     community)
         URL=$(uci -q get ns-plug.config.alerts_url)"heartbeats/store"

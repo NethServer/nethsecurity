@@ -29,7 +29,12 @@ send() {
     if [ -s "$PASSPHRASE" ]; then
         # send encrypted backup
         gpg --batch -c --yes --passphrase-file "$PASSPHRASE" "$BACKUP"
-        remote-backup upload "$BACKUP.gpg"
+        # cron discards job output: surface upload failures in syslog.
+        # The md5 marker is not saved, so the next run retries.
+        if ! err=$(remote-backup upload "$BACKUP.gpg" 2>&1); then
+            logger -t send-backup "backup upload failed: $err"
+            exit 1
+        fi
         mv "$MD5" "$MD5_LAST"
     else
         # password not set, abort upload
