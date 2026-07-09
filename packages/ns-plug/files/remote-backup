@@ -55,8 +55,9 @@ if [ "$TYPE" = "enterprise" ]; then
 
     BASE="$COLLECT_URL/backups"
     # --fail-with-body: exit 22 on 4xx/5xx while still writing the body
-    # so the caller can inspect the error payload.
-    curl_args="--silent --location-trusted --fail-with-body --user $SYSTEM_ID:$SYSTEM_SECRET"
+    # so the caller can inspect the error payload. --show-error keeps
+    # curl's own message (DNS, TLS, timeout) on stderr despite --silent.
+    curl_args="--silent --show-error --location-trusted --fail-with-body --user $SYSTEM_ID:$SYSTEM_SECRET"
 
     case "$cmd" in
         list)
