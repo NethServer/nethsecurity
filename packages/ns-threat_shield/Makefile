@@ -61,6 +61,7 @@ define Package/ns-threat_shield/install
 	$(INSTALL_BIN) ./files/35_ns-threat_shield $(1)/etc/uci-defaults/35_ns-threat_shield
 	$(INSTALL_DIR) $(1)/etc/rsyslog.d
 	$(INSTALL_CONF) ./files/rsyslog-banip.conf $(1)/etc/rsyslog.d/banip-services.conf
+	$(INSTALL_BIN) ./files/rotate-banip $(1)/usr/sbin/rotate-banip
 	gzip -9n $(1)/usr/share/threat_shield/nethesis-dns.sources
 	gzip -9n $(1)/usr/share/threat_shield/community-dns.sources
 endef
