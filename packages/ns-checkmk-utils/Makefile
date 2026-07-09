@@ -7,7 +7,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=ns-checkmk-utils
 # renovate: datasource=github-tags depName=nethesis/checkmk-tools
-PKG_VERSION:=1.7.3
+PKG_VERSION:=1.7.4
 PKG_RELEASE:=1
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-checkmk-utils-$(PKG_VERSION)
@@ -24,7 +24,7 @@ define Download/check_apk_packages
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_apk_packages.py
 	FILE:=check_apk_packages-$(PKG_VERSION).py
-	HASH:=c85fc116edb1e75f59c0596a3e93913cc3cb2fdc30308a5c060c3f5c648bd26b
+	HASH:=137a0b7b1d390e079cb87853c141239a3ea153c1dbd7d7f4d35461e479ef6b8a
 endef
 $(eval $(call Download,check_apk_packages))
 
@@ -32,7 +32,7 @@ define Download/check_dhcp_leases
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_dhcp_leases.py
 	FILE:=check_dhcp_leases-$(PKG_VERSION).py
-	HASH:=42dbbd3ad2d9e45f97d9f383afaeae85dcf761ba18a13a7b42fa7f1b2c011b96
+	HASH:=04be52f99fd61f504a28e20971a6774780caec0b9785757130b2cb090c30470d
 endef
 $(eval $(call Download,check_dhcp_leases))
 
@@ -40,7 +40,7 @@ define Download/check_dns_resolution
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_dns_resolution.py
 	FILE:=check_dns_resolution-$(PKG_VERSION).py
-	HASH:=a2f1309d70a142d41a0e9fd3c47ffd7aba52727fd68ec33e1f60311a944792e5
+	HASH:=de7db1ea7c1ae62dab069af6a9f7539b2b76a485ae32ecd4a4a18d5c36840211
 endef
 $(eval $(call Download,check_dns_resolution))
 
@@ -48,7 +48,7 @@ define Download/check_firewall_connections
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_firewall_connections.py
 	FILE:=check_firewall_connections-$(PKG_VERSION).py
-	HASH:=68e259d3f9649c4c3447b97539d6d474e494e391d3f73b1fffd8a99b184e2eca
+	HASH:=60198e7267a2025da750a9135095d4211e198fdbce8beeb4ef12b3f0849b4801
 endef
 $(eval $(call Download,check_firewall_connections))
 
@@ -56,7 +56,7 @@ define Download/check_firewall_rules
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_firewall_rules.py
 	FILE:=check_firewall_rules-$(PKG_VERSION).py
-	HASH:=92e99de0482407a323c692750d265491aa0c62fe37589845cc8ff8cd5f59ddc8
+	HASH:=ceee4261b343fc1a345de16e0fe60a03f34c9da357d3a86041bcf3d6afa0c8a0
 endef
 $(eval $(call Download,check_firewall_rules))
 
@@ -64,7 +64,7 @@ define Download/check_firewall_traffic
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_firewall_traffic.py
 	FILE:=check_firewall_traffic-$(PKG_VERSION).py
-	HASH:=8ea2f633b359652496b176b40727bece6726b0be5c5aac08cc6e613f48596295
+	HASH:=53b4fac2a085442070e39c3a0aaa1ea04f411e881e6e4d803ee23f7fd28ab338
 endef
 $(eval $(call Download,check_firewall_traffic))
 
@@ -72,7 +72,7 @@ define Download/check_ovpn_host2net
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_ovpn_host2net.py
 	FILE:=check_ovpn_host2net-$(PKG_VERSION).py
-	HASH:=3680793726763ff7bd71d1a298d36dadb67be7b6c91831589ae86a70c6a19a94
+	HASH:=ba6775e8e4e07221d38478e9e0a95e5c45a57cc47096a8ca35a0265732cbbd57
 endef
 $(eval $(call Download,check_ovpn_host2net))
 
@@ -80,7 +80,7 @@ define Download/check_root_access
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_root_access.py
 	FILE:=check_root_access-$(PKG_VERSION).py
-	HASH:=84806b5dabb6985674caca02153fd022f996948bab20639b27553950cc350f2f
+	HASH:=875fc88daa629b06449b4afdf4ba3afaeba62bc5ce7507d7f366f00251a34f1f
 endef
 $(eval $(call Download,check_root_access))
 
@@ -88,7 +88,7 @@ define Download/check_uptime
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_uptime.py
 	FILE:=check_uptime-$(PKG_VERSION).py
-	HASH:=388a9a51887248df4248bb604da8059bc746f32732bba9cf8e232292f878cd28
+	HASH:=c7fdd501c8bb6f6be44638403ee917c9b38414e38331620acd8c3aca50f9ecf5
 endef
 $(eval $(call Download,check_uptime))
 
@@ -96,7 +96,7 @@ define Download/check_vpn_tunnels
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_vpn_tunnels.py
 	FILE:=check_vpn_tunnels-$(PKG_VERSION).py
-	HASH:=82a4701f041512840d88d54802295537ae6ab73cfbc07a990866684886e00d49
+	HASH:=1d7cd69f3615dd52bceb01ddee929a6b9df564e82f42f5d934a9d818a9b96667
 endef
 $(eval $(call Download,check_vpn_tunnels))
 
@@ -104,7 +104,7 @@ define Download/check_wan_status
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_wan_status.py
 	FILE:=check_wan_status-$(PKG_VERSION).py
-	HASH:=e245549eda4df50703cf98f10ef1f42dfeff3befd4d1a922cc17218521f0f69c
+	HASH:=7681b3bae32bccfa47f33413f6a8a9ba8a7f2869bb887488fac723d36b224a95
 endef
 $(eval $(call Download,check_wan_status))
 
@@ -112,7 +112,7 @@ define Download/check_wan_throughput
 	URL:=$(NS_CHECKMK_UTILS_BASE_URL)
 	URL_FILE:=check_wan_throughput.py
 	FILE:=check_wan_throughput-$(PKG_VERSION).py
-	HASH:=73326e5b3109e1f008c6f07e6497ec69f1d2886dd89e357b7b51096cc6e8958b
+	HASH:=1d1f9f0c78d58dd0a57491aa1029981ad683fc565c27fb262d3142a880fdbc51
 endef
 $(eval $(call Download,check_wan_throughput))
 
@@ -121,7 +121,7 @@ define Package/ns-checkmk-utils
 	CATEGORY:=NethSecurity
 	TITLE:=Check_MK NethSecurity utilities and plugins
 	URL:=https://github.com/nethesis/checkmk-tools
-	DEPENDS:=+checkmk-agent
+	DEPENDS:=+checkmk-agent +python3-base
 	PKGARCH:=all
 endef
 
