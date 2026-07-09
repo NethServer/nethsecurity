@@ -1,0 +1,10 @@
+# Undo the nginx access_log-to-syslog setup from a previous release:
+# access logging is disabled entirely, not just rerouted.
+[ "$(uci -q get nginx._lan.access_log)" = "syslog:server=unix:/dev/log,nohostname" ] || exit 0
+
+uci -q batch << EOI
+set nginx._lan.access_log=off
+commit nginx
+EOI
+
+exit 0

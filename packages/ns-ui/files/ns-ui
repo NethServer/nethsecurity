@@ -44,7 +44,7 @@ server {
 	ssl_session_cache shared:SSL:32k;
 	ssl_session_timeout 64m;
 	error_log syslog:server=unix:/dev/log,nohostname;
-	access_log syslog:server=unix:/dev/log,nohostname;
+	access_log off;
 	server_tokens $server_tokens;
 
 	# enable NS UI
