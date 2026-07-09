@@ -68,6 +68,7 @@ define Package/ns-threat_shield/postinst
 if [ -z "$${IPKG_INSTROOT}" ]; then
   (. /etc/uci-defaults/20_threat_shield)
   rm -f /etc/uci-defaults/20_threat_shield
+  /etc/init.d/rsyslog restart
   /etc/init.d/cron restart
 fi
 exit 0
