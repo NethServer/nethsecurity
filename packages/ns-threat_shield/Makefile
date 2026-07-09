@@ -22,7 +22,8 @@ define Package/ns-threat_shield
 	CATEGORY:=NethSecurity
 	TITLE:=Threat shield block list
 	URL:=https://github.com/NethServer/nethsecurity/
-	DEPENDS:=+wget-ssl +adblock +jq +ns-api +rsyslog
+	DEPENDS:=+wget-ssl +adblock +jq +ns-api
+	EXTRA_DEPENDS:=adblock (>=4.5.3), ns-api (>=3.6.2)
 	PKGARCH:=all
 endef
  
@@ -58,8 +59,6 @@ define Package/ns-threat_shield/install
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/banip-defaults $(1)/etc/uci-defaults/99-nethsec-banip
 	$(INSTALL_BIN) ./files/35_ns-threat_shield $(1)/etc/uci-defaults/35_ns-threat_shield
-	$(INSTALL_DIR) $(1)/etc/rsyslog.d
-	$(INSTALL_CONF) ./files/rsyslog-banip.conf $(1)/etc/rsyslog.d/banip-services.conf
 	gzip -9n $(1)/usr/share/threat_shield/nethesis-dns.sources
 	gzip -9n $(1)/usr/share/threat_shield/community-dns.sources
 endef
