@@ -89,15 +89,18 @@ def oidc_start(args):
     try:
         p = subprocess.run(['curl', '-s', '-L', '-m', '15', '--connect-timeout', '5', '-X', 'POST', '-w', '\n%{http_code}', '--url', f'https://{host}/api/auth/oidc/device/start', '--header', 'Content-Type: application/json', '--data-binary', json.dumps({"unit_name": unit_name})], check=True, capture_output=True, text=True)
         body, _, http_code = p.stdout.rpartition('\n')
+        # Expected outcomes of the user-provided host (manager without OIDC
+        # support, wrong/unreachable host) are validation errors: the UI
+        # shows them inline without the global error toast.
         if http_code == '404':
             # hotspot manager without OIDC device pairing support
-            return utils.generic_error("oidc_not_supported")
+            return utils.validation_error("host", "oidc_not_supported")
         resp = json.loads(body)
     except Exception as e:
         print(e, file=sys.stderr)
-        return utils.generic_error("pairing_start_failed")
+        return utils.validation_error("host", "pairing_start_failed")
     if 'device_code' not in resp or 'verification_url' not in resp:
-        return utils.generic_error("pairing_start_failed")
+        return utils.validation_error("host", "pairing_start_failed")
     # the device_code stays on the unit: the browser only ever sees the
     # verification_url (carrying the public pair_id)
     os.makedirs(tmp_dir, exist_ok = True)
@@ -132,7 +135,10 @@ def oidc_poll():
         return {"status": "success", "account_name": resp.get("account_name", "")}
     if status == "failed":
         os.remove(pairing_file)
-        return {"status": "failed", "error": resp.get("error", "unknown")}
+        # NB: don't name the key "error" — a top-level "error" key makes
+        # nethsecurity-api reply 500 (application-error convention) and the
+        # failed status would never reach the UI as data.
+        return {"status": "failed", "reason": resp.get("error", "unknown")}
     if status == "expired":
         os.remove(pairing_file)
         return {"status": "expired"}
