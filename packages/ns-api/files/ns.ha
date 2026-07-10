@@ -84,7 +84,7 @@ def get_device_from_ip(uci, ipaddr):
     return (None, None)
 
 def get_dhcp_leasefile(uci):
-    return uci.get('dhcp', 'ns_dnsmasq', 'dhcp', 'leasefile', default='/tmp/dhcp.leases')
+    return uci.get('dhcp', 'ns_dnsmasq', 'leasefile', default='/tmp/dhcp.leases')
 
 def get_main_vrrp_interface(uci):
     for section in utils.get_all_by_type(uci, 'keepalived', 'ipaddress'):
