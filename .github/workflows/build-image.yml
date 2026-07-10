@@ -35,6 +35,7 @@ jobs:
       APK_PRIV_KEY: ${{ secrets.APK_PRIV_KEY }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
+      HAS_DO_SPACE_CREDS: ${{ secrets.DO_SPACE_ACCESS_KEY != '' && secrets.DO_SPACE_SECRET_KEY != '' }}
     steps:
       - uses: actions/checkout@v7
       - name: Build the image
@@ -98,10 +99,10 @@ jobs:
           path: |
             build-logs
       - name: Setup rclone
-        if: ${{ secrets.DO_SPACE_ACCESS_KEY != '' && secrets.DO_SPACE_SECRET_KEY != '' }}
+        if: ${{ env.HAS_DO_SPACE_CREDS == 'true' }}
         uses: AnimMouse/setup-rclone@v1
       - name: Copy Packages to repo
-        if: ${{ secrets.DO_SPACE_ACCESS_KEY != '' && secrets.DO_SPACE_SECRET_KEY != '' }}
+        if: ${{ env.HAS_DO_SPACE_CREDS == 'true' }}
         env:
           RCLONE_CONFIG_REPO_PROVIDER: DigitalOcean
           RCLONE_CONFIG_REPO_TYPE: s3
@@ -130,10 +131,10 @@ jobs:
 
           rclone copy latest_release repo:nethsecurity/${{ inputs.repo_channel }}/ --progress
       - name: Archive packages (no repo secrets available)
-        if: ${{ secrets.DO_SPACE_ACCESS_KEY == '' || secrets.DO_SPACE_SECRET_KEY == '' }}
+        if: ${{ env.HAS_DO_SPACE_CREDS != 'true' }}
         run: tar -czf packages.tar.gz -C bin packages
       - name: Upload packages archive
-        if: ${{ secrets.DO_SPACE_ACCESS_KEY == '' || secrets.DO_SPACE_SECRET_KEY == '' }}
+        if: ${{ env.HAS_DO_SPACE_CREDS != 'true' }}
         uses: actions/upload-artifact@v7
         with:
           name: packages-archive
