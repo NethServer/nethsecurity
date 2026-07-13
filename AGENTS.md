@@ -199,7 +199,7 @@ Existing Python files (listed in `ruff.toml` under `extend-exclude`) are grandfa
 
 | Repo | Purpose |
 |---|---|
-| [NethServer/nethsecurity-api](https://github.com/NethServer/nethsecurity-api) | Go API server (ns-api-server); handles JWT auth, 2FA, proxies to ubus/rpcd |
+| [NethServer/nethsecurity-api](https://github.com/NethServer/nethsecurity-api) | Go API server (ns-api-server); handles JWT auth, 2FA, proxies to ubus/rpcd. **Vendored in-tree**: source lives at `packages/ns-api-server/files/src/` and is built directly from there (`Build/Prepare` copies it, no upstream fetch) — edit it in this repo, then mirror the change upstream to keep the two in sync |
 | [NethServer/python3-nethsec](https://github.com/NethServer/python3-nethsec) | Python utility library for APIs; used by all Python API scripts |
 | [NethServer/nethsecurity-ui](https://github.com/NethServer/nethsecurity-ui) | Vue 3 + Tailwind CSS management UI (standalone + controller modes); built as `ns-ui` package |
 | [NethServer/nethsecurity-monitoring](https://github.com/NethServer/nethsecurity-monitoring) | Go monitoring tools (ns-flows); reads netifyd flows, exposes REST API on localhost:8080 |
