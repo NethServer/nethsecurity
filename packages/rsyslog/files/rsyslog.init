@@ -99,6 +99,7 @@ expand_config() {
 	echo "${input_t}" >> ${CONFIG_FILE}
 	echo "${input_u}" >> ${CONFIG_FILE}
 	echo "\$ActionFileDefaultTemplate ${template}" >> ${CONFIG_FILE}
+	echo "\$CreateDirs off" >> ${CONFIG_FILE}
 	echo -e "${selectors}" >> ${CONFIG_FILE}
 	echo -e "${forwarders}" >> ${CONFIG_FILE}
 	echo -e "${includes}" >> ${CONFIG_FILE}
