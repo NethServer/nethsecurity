@@ -64,18 +64,35 @@ def __load_bypass_rules() -> list:
     return rules
 
 
-def __is_bypassed_entry(entry: str, bypass_rules: list) -> bool:
+def __exclude_bypassed(entry: str, bypass_rules: list) -> list:
+    """Remove any bypassed addresses from entry (a single IP or a CIDR network),
+    carving the bypassed portion out instead of dropping the whole entry.
+    Two CIDR networks are always either disjoint or one fully contains the other,
+    so overlap can only mean full coverage or a clean split via address_exclude()."""
     try:
-        addr = ipaddress.ip_address(entry)
+        net = ipaddress.ip_network(entry, strict=False)
     except ValueError:
-        return False
+        logging.warning(f'Ignoring invalid upstream entry: {entry!r}')
+        return []
 
+    remaining = [net]
     for rule in bypass_rules:
-        if isinstance(rule, (ipaddress.IPv4Network, ipaddress.IPv6Network)) and addr in rule:
-            return True
-        if isinstance(rule, (ipaddress.IPv4Address, ipaddress.IPv6Address)) and addr == rule:
-            return True
-    return False
+        rule_net = rule if isinstance(rule, (ipaddress.IPv4Network, ipaddress.IPv6Network)) else ipaddress.ip_network(rule)
+        if rule_net.version != net.version:
+            continue
+        next_remaining = []
+        for candidate in remaining:
+            if not candidate.overlaps(rule_net):
+                next_remaining.append(candidate)
+            elif candidate.prefixlen < rule_net.prefixlen:
+                # candidate is bigger than the bypass rule, carve the bypassed part out
+                next_remaining.extend(candidate.address_exclude(rule_net))
+            # else candidate is fully covered by (or equal to) the bypass rule: drop it
+        remaining = next_remaining
+        if not remaining:
+            break
+
+    return [str(r) for r in remaining]
 
 
 def __refresh_uci():
@@ -196,7 +213,7 @@ def __add_bypass_ipset():
         e_uci.set('firewall', 'ns_flashstart_bypass', 'ns_tag', ['automated'])
     e_uci.set('firewall', 'ns_flashstart_bypass', 'name', 'flashstart-bypass')
     e_uci.set('firewall', 'ns_flashstart_bypass', 'enabled', 1)
-    e_uci.set('firewall', 'ns_flashstart_bypass', 'match', 'net')
+    e_uci.set('firewall', 'ns_flashstart_bypass', 'match', 'src_net')
     e_uci.set('firewall', 'ns_flashstart_bypass', 'family', 'inet')
     # fetch the bypass list from flashstart
     bypass_list = sorted([entry for entry in e_uci.get('flashstart', 'global', 'bypass', list=True, dtype=str, default=[])
@@ -312,7 +329,7 @@ def __sync_pro_plus_profiles():
                 e_uci.set('firewall', ip_set_id, 'ns_tag', ['automated'])
             e_uci.set('firewall', ip_set_id, 'name', f'flashstart-ipset-{profile["id"]}')
             e_uci.set('firewall', ip_set_id, 'enabled', 1)
-            e_uci.set('firewall', ip_set_id, 'match', 'net')
+            e_uci.set('firewall', ip_set_id, 'match', 'src_net')
             e_uci.set('firewall', ip_set_id, 'family', 'inet')
             e_uci.set('firewall', ip_set_id, 'ns_flashstart_dns_code', profile['dns_code'])
             # remote event handling is really in bad shape, this value is just a reference for easier retrieval
@@ -376,8 +393,11 @@ def __sync_pro_plus_profiles():
             continue
         ipset_dns_code = e_uci.get('firewall', ip_set, 'ns_flashstart_dns_code', default='')
         if ipset_dns_code in active_sessions:
-            upstream_entries = sorted(list(set(active_sessions.get(ipset_dns_code))))
-            upstream_entries = [entry for entry in upstream_entries if not __is_bypassed_entry(entry, bypass_rules)]
+            candidate_entries = sorted(set(active_sessions.get(ipset_dns_code)))
+            upstream_entries = []
+            for entry in candidate_entries:
+                upstream_entries.extend(__exclude_bypassed(entry, bypass_rules))
+            upstream_entries = sorted(set(upstream_entries))
         else:
             upstream_entries = []
         # check if ipset entries are the same
