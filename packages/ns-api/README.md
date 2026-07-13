@@ -7854,7 +7854,7 @@ Response example:
 }
 ```
 
-The `enabled` attribute tells if the user has activated the NAT helper; the `loaded` attribute tells if the module of the NAT helper is currently loaded in the kernel.
+The `enabled` attribute tells if the user has activated the NAT helper; the `loaded` attribute tells if the module of the NAT helper is currently loaded in the kernel. On a fresh installation no helper is loaded by default.
 
 Every NAT helper has its own set of parameters; this API returns either the configured value for each parameter (if the helper is enabled) or the default value.
 

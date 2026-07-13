@@ -9,13 +9,10 @@
 > /etc/modules.d/ns-nathelpers
 
 # Configure FTP helpers
-for m in $(/usr/bin/apk info -L kmod-nf-nathelper 2>/dev/null | grep -e '\\.ko$' | sed 's|.*/||;s|\\.ko$||'); do
-    echo $m >> /etc/modules.d/ns-nathelpers
-done
-
-# Configure all extra helpers
-for m in $(/usr/bin/apk info -L kmod-nf-nathelper-extra 2>/dev/null | grep -e '\\.ko$' | sed 's|.*/||;s|\\.ko$||'); do
-    echo $m >> /etc/modules.d/ns-nathelpers
+for pkg in $(/usr/bin/apk list --installed 2>/dev/null | awk '{print $1}' | grep '^kmod-nf-nathelper' | sed 's/-[0-9].*//' | sort -u); do
+    for m in $(/usr/bin/apk info -L "$pkg" 2>/dev/null | grep -e '\.ko$' | sed 's|.*/||;s|\.ko$||'); do
+        echo $m >> /etc/modules.d/ns-nathelpers
+    done
 done
 
 # Load all helpers
