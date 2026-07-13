@@ -57,17 +57,17 @@ DEFAULT_PARAMS = {
 
 
 def get_nat_helper_names():
-    # collect the modules from every installed kmod-nf-nathelper* package
+    # collect the modules shipped by every installed kmod-nf-nathelper* package;
     # extra helpers are split across per-protocol sub-packages.
-    proc = subprocess.run("/usr/bin/apk list --installed 2>/dev/null | awk '{print $1}' | grep '^kmod-nf-nathelper' | sed 's/-[0-9].*//' | sort -u",
-                          shell=True, check=True, capture_output=True, text=True)
-    packages = proc.stdout.split()
+    proc = subprocess.run(["/usr/bin/apk", "query", "--installed", "--format", "json",
+                           "--fields", "name,contents", "kmod-nf-nathelper*"],
+                          check=True, capture_output=True, text=True)
 
     nat_helpers = []
-    for package in packages:
-        proc = subprocess.run(f"/usr/bin/apk info -L {package} 2>/dev/null | grep -e '\\.ko$' | sed 's|.*/||;s|\\.ko$||'",
-                              shell=True, capture_output=True, text=True)
-        nat_helpers += proc.stdout.splitlines()
+    for package in json.loads(proc.stdout):
+        for path in package.get("contents", []):
+            if path.endswith(".ko"):
+                nat_helpers.append(path.split("/")[-1][:-len(".ko")])
 
     return sorted(set(nat_helpers))
 

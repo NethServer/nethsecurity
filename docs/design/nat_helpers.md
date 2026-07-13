@@ -18,9 +18,9 @@ After migration, all NAT helpers are enabled and loaded to preserve NethServer 7
 The helpers are provided as kernel modules by the `kmod-nf-nathelper*` packages.
 List all the available helpers with:
 ```
-for pkg in $(apk list --installed 2>/dev/null | awk '{print $1}' | grep '^kmod-nf-nathelper' | sed 's/-[0-9].*//' | sort -u); do
-    apk info -L "$pkg" 2>/dev/null | grep -e '\.ko$' | sed 's|.*/||;s|\.ko$||'
-done | sort -u
+apk query --installed --format json --fields contents 'kmod-nf-nathelper*' \
+    | jq -r '.[].contents[] | select(endswith(".ko")) | split("/")[-1] | rtrimstr(".ko")' \
+    | sort -u
 ```
 
 Helpers grouped by the package that provides them:

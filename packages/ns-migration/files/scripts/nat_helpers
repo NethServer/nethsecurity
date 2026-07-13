@@ -8,12 +8,10 @@
 
 > /etc/modules.d/ns-nathelpers
 
-# Configure FTP helpers
-for pkg in $(/usr/bin/apk list --installed 2>/dev/null | awk '{print $1}' | grep '^kmod-nf-nathelper' | sed 's/-[0-9].*//' | sort -u); do
-    for m in $(/usr/bin/apk info -L "$pkg" 2>/dev/null | grep -e '\.ko$' | sed 's|.*/||;s|\.ko$||'); do
-        echo $m >> /etc/modules.d/ns-nathelpers
-    done
-done
+# Enable all conntrack/NAT helper modules shipped by the kmod-nf-nathelper* packages
+/usr/bin/apk query --installed --format json --fields contents 'kmod-nf-nathelper*' 2>/dev/null \
+    | jq -r '.[].contents[] | select(endswith(".ko")) | split("/")[-1] | rtrimstr(".ko")' \
+    >> /etc/modules.d/ns-nathelpers
 
 # Load all helpers
 for m in $(cat /etc/modules.d/ns-nathelpers); do
