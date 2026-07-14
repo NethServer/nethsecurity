@@ -1,0 +1,40 @@
+diff --git a/net/coova-chilli/patches/080-fix-chilli-syslog-tag.patch b/net/coova-chilli/patches/080-fix-chilli-syslog-tag.patch
+new file mode 100644
+index 000000000..a1b2c3d
+--- /dev/null
++++ b/net/coova-chilli/patches/080-fix-chilli-syslog-tag.patch
+@@ -0,0 +1,34 @@
++--- a/src/chilli.c
+++++ b/src/chilli.c
++@@ -7263,8 +7263,13 @@ int chilli_main(int argc, char **argv) {
++
++   syslog_ident = basename(argv[0]);
++
++-  /* Start out also logging to stderr until we load options. */
++-  openlog(syslog_ident, syslog_options|syslog_debug_options, LOG_DAEMON);
+++  /*
+++   * Do not mirror to stderr (LOG_PERROR) even during early options
+++   * processing: under procd (--fg with stdout/stderr captured), stderr
+++   * is itself forwarded into syslog, so LOG_PERROR here would cause
+++   * every message logged before the options are loaded to be doubled.
+++   */
+++  openlog(syslog_ident, syslog_options, LOG_DAEMON);
++
++   options_init();
++
++--- a/src/main-opt.c
+++++ b/src/main-opt.c
++@@ -333,6 +333,13 @@ int main(int argc, char **argv) {
++
++   options_init();
++
+++  /*
+++   * chilli_opt is exec()'d fresh by opt_run() (options.c), so it never
+++   * inherits the parent chilli process's openlog() state. Without this,
+++   * every syslog() call below logs with no ident/tag at all.
+++   */
+++  openlog(basename(argv[0]), LOG_PID, LOG_DAEMON);
+++
++   memset(&args_info, 0, sizeof(args_info));
++
++   if (cmdline_parser2(argc, argv, &args_info, 1, 1, 1) != 0) {
