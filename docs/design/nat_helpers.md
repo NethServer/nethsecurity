@@ -9,37 +9,36 @@ parent: Design
 NAT helpers management is implemented by `ns.nathelpers` API of `ns-api` package. The rest of this page provides some low-level details regarding NAT helpers.
 
 The image contains already all commonly used NAT helpers,
-but helpers are not loaded by default on a new installation.
+but helpers are not loaded by default on a new installation:
+NethSecurity ships empty `/etc/modules.d/nf-nathelper-*` files to neutralize
+the autoload shipped by the `kmod-nf-nathelper-*` packages.
 
-Please note that after migration, all NAT helpers are loaded
-by default to preserve NethServer 7 behavior.
+After migration, all NAT helpers are enabled and loaded to preserve NethServer 7 behavior.
 
-The `kmod-nf-nathelper` package provides the following helpers:
-`apk info -L kmod-nf-nathelper 2>/dev/null | grep -e '\\.ko$' | sed 's|.*/||;s|\\.ko$||'`
+The helpers are provided as kernel modules by the `kmod-nf-nathelper*` packages.
+List all the available helpers with:
 ```
-nf_nat_ftp
-nf_conntrack_ftp
+apk query --installed --format json --fields contents 'kmod-nf-nathelper*' \
+    | jq -r '.[].contents[] | select(endswith(".ko")) | split("/")[-1] | rtrimstr(".ko")' \
+    | sort -u
 ```
 
-The `kmod-nf-nathelper-extra` package provides the following helpers:
-`apk info -L kmod-nf-nathelper 2>/dev/null | grep -e '\\.ko$' | sed 's|.*/||;s|\\.ko$||'`
-```
-nf_conntrack_pptp
-nf_conntrack_broadcast
-nf_conntrack_amanda
-nf_nat_h323
-nf_conntrack_tftp
-nf_conntrack_sip
-nf_nat_pptp
-nf_conntrack_snmp
-nf_nat_amanda
-nf_nat_tftp
-nf_conntrack_irc
-nf_nat_sip
-nf_nat_snmp_basic
-nf_conntrack_h323
-nf_nat_irc
-```
+Helpers grouped by the package that provides them:
+
+| Package | Helpers |
+| --- | --- |
+| `kmod-nf-nathelper` | `nf_conntrack_ftp`, `nf_nat_ftp` |
+| `kmod-nf-nathelper-amanda` | `nf_conntrack_amanda`, `nf_nat_amanda` |
+| `kmod-nf-nathelper-broadcast` | `nf_conntrack_broadcast` |
+| `kmod-nf-nathelper-h323` | `nf_conntrack_h323`, `nf_nat_h323` |
+| `kmod-nf-nathelper-irc` | `nf_conntrack_irc`, `nf_nat_irc` |
+| `kmod-nf-nathelper-netbios` | `nf_conntrack_netbios_ns` |
+| `kmod-nf-nathelper-pptp` | `nf_conntrack_pptp`, `nf_nat_pptp` |
+| `kmod-nf-nathelper-sane` | `nf_conntrack_sane` |
+| `kmod-nf-nathelper-sip` | `nf_conntrack_sip`, `nf_nat_sip` |
+| `kmod-nf-nathelper-snmp` | `nf_conntrack_snmp`, `nf_nat_snmp_basic` |
+| `kmod-nf-nathelper-tftp` | `nf_conntrack_tftp`, `nf_nat_tftp` |
+| `kmod-nf-nathelper-extra` | *(meta-package, no modules)* |
 
 ## Enable FTP helper
 

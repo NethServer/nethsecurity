@@ -148,7 +148,6 @@ Differences since NS7:
 
 - zones are migrated as CIDR networks
 - rules using non-existing zones will be disabled
-- NAT helpers are disabled by default
 - wan interfaces will accept extra traffic:
 
   - DHCP replies (`Allow-DHCP-Renew` and `Allow-DHCPv6` rules)
@@ -164,7 +163,7 @@ The following NS7 features will not be migrated:
 - `MACValidation` (MAC Binding), you can replicate the same behavior by deleting the forwarding from lan to wan and then creating 
    a rule accepting traffic from a list of MAC addresses (`src_mac` option, see [suggested solution](https://forum.openwrt.org/t/block-all-except-mac-address-list/124879/8?))
 - `Policy` option: `strict` policy will be converted to `permissive`; you can replicate the same behavior by deleting forwarding rules for involved zones
-- `SipAlg` option: application level gateway (ALG) are disabled by default; if you need to enable NAT helper see [suggested solution](https://forum.openwrt.org/t/solved-incoming-calls-not-reaching-hosts-on-the-network/77568/2)
+- `SipAlg` option: the per-firewall SIP ALG toggle is not migrated. To preserve NethServer 7 behavior all NAT helpers (SIP ALG included) are enabled after migration; disable the ones you don't need through the `ns.nathelpers` API
 
 ## MultiWAN
 
