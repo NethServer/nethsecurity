@@ -53,6 +53,7 @@ if [ "$type" = "enterprise" ]; then
         {
             uuid: ($s.system_id // ""),
             id: ($s.system_key // ""),
+            system_name: ($s.name // ""),
             organization: ($s.organization.name // ""),
             subscription: {
                 status: (if $s.registered and (($s.suspended // false) | not) then "valid" else "invalid" end),

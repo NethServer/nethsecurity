@@ -74,6 +74,9 @@ def info():
     # the real plan name untouched.
     if type == "enterprise":
         ret["organization"] = data.get("organization", "")
+        # The system name given on my at creation time (threaded by
+        # subscription-info from the collect /info payload).
+        ret["system_name"] = data.get("system_name", "")
         ret["plan"] = "Nethesis Enterprise"
         ret["system_url"] = f"https://my-proxy-prod.onrender.com/systems/{data['uuid']}"
     else:
