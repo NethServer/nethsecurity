@@ -22,7 +22,7 @@ jobs:
       CDN_NAME: 'updates.nethsecurity.nethserver.org'
     steps:
       - name: Setup rclone
-        uses: AnimMouse/setup-rclone@v1
+        uses: AnimMouse/setup-rclone@e17fb0f092a6547544387f4ef0518a209fc69b0a
       - name: Find REPO_CHANNEL
         id: repo_channel
         run: |

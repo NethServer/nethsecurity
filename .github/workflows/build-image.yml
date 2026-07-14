@@ -100,7 +100,7 @@ jobs:
             build-logs
       - name: Setup rclone
         if: ${{ env.HAS_DO_SPACE_CREDS == 'true' }}
-        uses: AnimMouse/setup-rclone@v1
+        uses: AnimMouse/setup-rclone@e17fb0f092a6547544387f4ef0518a209fc69b0a
       - name: Copy Packages to repo
         if: ${{ env.HAS_DO_SPACE_CREDS == 'true' }}
         env:
