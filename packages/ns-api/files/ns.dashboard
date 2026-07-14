@@ -391,94 +391,6 @@ def list_wans():
 
     return ret
 
-def wireguard_summary():
-    # mirrors ns.wireguard list-servers, but returns only the counters needed
-    # by the dashboard: enabled server instances and their active peers
-    ret = {"enabled_servers": 0, "active_peers": 0}
-    u = EUci()
-    servers = set()
-    interfaces = utils.get_all_by_type(u, "network", "interface")
-    for i in interfaces:
-        interface = interfaces[i]
-        if interface.get("proto") == "wireguard" and interface.get("ns_type", "") == "server":
-            servers.add(i)
-            if not u.get("network", i, "disabled", dtype=bool, default=False):
-                ret["enabled_servers"] += 1
-    if not servers:
-        return ret
-    try:
-        result = subprocess.run("wg-json", check=True, capture_output=True)
-        wg_data = json.loads(result.stdout)
-        now = time.time()
-        for iface in wg_data:
-            if iface not in servers:
-                continue
-            for peer in wg_data[iface].get("peers", {}).values():
-                # a peer is active if its latest handshake happened within the
-                # last 2 minutes, same as __active_peers() in ns.wireguard
-                if "latestHandshake" in peer and (now - peer["latestHandshake"]) < 120:
-                    ret["active_peers"] += 1
-    except:
-        pass
-    return ret
-
-def threat_shield_summary():
-    # logging flags as in ns.threatshield list-settings
-    u = EUci()
-    logging_enabled = any(
-        u.get("banip", "global", opt, default="0") == "1"
-        for opt in ("ban_logprerouting", "ban_loginput", "ban_logforwardwan", "ban_logforwardlan")
-    )
-    return {"logging_enabled": logging_enabled}
-
-def mac_binding_summary():
-    # binding is active if any non-ignored dhcp section has ns_binding != 0,
-    # same as what the UI derives from ns.dhcp list-interfaces
-    u = EUci()
-    enabled = False
-    for section in utils.get_all_by_type(u, "dhcp", "dhcp").values():
-        if section.get("ignore", "0") == "1":
-            continue
-        try:
-            if int(section.get("ns_binding", "0")) != 0:
-                enabled = True
-                break
-        except ValueError:
-            continue
-    return {"enabled": enabled}
-
-def ips_status():
-    # mirrors ns.snort status
-    events = 0
-    last_day = datetime.now() - timedelta(days=1)
-    for file in glob("/var/log/snort/*_json.txt"):
-        for line in open(file):
-            raw = json.loads(line)
-            if datetime.strptime(raw.get("timestamp"), "%y/%m/%d-%H:%M:%S.%f") < last_day:
-                continue
-            events += 1
-    u = EUci()
-    enabled = u.get("snort", "snort", "enabled", dtype=bool, default=False)
-    return {"enabled": enabled, "events": events}
-
-def ha_status_summary():
-    u = EUci()
-    configured = False
-    for role in ("primary", "backup"):
-        try:
-            u.get("keepalived", role)
-            configured = True
-            break
-        except:
-            continue
-    if not configured:
-        # fast path: HA not configured, avoid spawning ns.ha which signals
-        # keepalived and sleeps
-        return {"status": "disabled", "role": "unknown", "state": "unknown", "last_sync_status": "", "last_sync_time": ""}
-    proc = subprocess.run(["/usr/libexec/rpcd/ns.ha", "call", "status"], input="{}", capture_output=True, text=True, check=True)
-    full = json.loads(proc.stdout)
-    return {k: full.get(k) for k in ("status", "role", "state", "last_sync_status", "last_sync_time")}
-
 def dashboard_v2():
     # aggregate of all data needed by the dashboard page, so the UI can poll a
     # single method instead of ~17. The internet reachability check is NOT
@@ -512,12 +424,7 @@ def dashboard_v2():
     ret["vpn"] = {
         "ipsec": section("vpn.ipsec", ipsec_tunnels),
         "ovpn": section("vpn.ovpn", ovpn_tunnels),
-        "wireguard": section("vpn.wireguard", wireguard_summary),
     }
-    ret["threat_shield"] = section("threat_shield", threat_shield_summary)
-    ret["mac_binding"] = section("mac_binding", mac_binding_summary)
-    ret["ips"] = section("ips", ips_status)
-    ret["ha"] = section("ha", ha_status_summary)
     return ret
 
 cmd = sys.argv[1]
