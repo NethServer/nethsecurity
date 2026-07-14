@@ -8,10 +8,11 @@
 import os
 import subprocess
 import sys
-import tempfile
 
 from euci import EUci
 from jinja2 import Environment, BaseLoader
+
+NFQ_TABLE_FILE = '/tmp/netifyd-nfq-table-definition.nft'
 
 
 NFQ_TABLE = """
@@ -166,17 +167,14 @@ def generate_nfq_table():
         firewall_chains=firewall_chains,
     )
     
-    # Apply nftables: write to a securely-created file under /run (root-only,
-    # not world-writable) to avoid symlink attacks against a predictable /tmp path
-    fd, nfq_table_file = tempfile.mkstemp(suffix='.nft', prefix='netifyd-nfq-table-', dir='/run')
+    # Apply nftables
+    with open(NFQ_TABLE_FILE, 'w') as f:
+        f.write(render)
     try:
-        with os.fdopen(fd, 'w') as f:
-            f.write(render)
-        subprocess.run(['nft', '-f', nfq_table_file], check=True, capture_output=True)
+        subprocess.run(['nft', '-f', NFQ_TABLE_FILE], check=True, capture_output=True)
+        os.unlink(NFQ_TABLE_FILE)
     except subprocess.CalledProcessError as e:
         print(f"Error applying nftables configuration: {e.stderr.decode()}", file=sys.stderr)
-    finally:
-        os.unlink(nfq_table_file)
 
 
 if __name__ == "__main__":
