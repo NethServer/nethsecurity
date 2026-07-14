@@ -1,9 +1,9 @@
 diff --git a/net/coova-chilli/patches/080-fix-chilli-syslog-tag.patch b/net/coova-chilli/patches/080-fix-chilli-syslog-tag.patch
 new file mode 100644
-index 000000000..a1b2c3d
+index 000000000..b2c3d4e
 --- /dev/null
 +++ b/net/coova-chilli/patches/080-fix-chilli-syslog-tag.patch
-@@ -0,0 +1,34 @@
+@@ -0,0 +1,51 @@
 +--- a/src/chilli.c
 ++++ b/src/chilli.c
 +@@ -7263,8 +7263,13 @@ int chilli_main(int argc, char **argv) {
@@ -38,3 +38,20 @@ index 000000000..a1b2c3d
 +   memset(&args_info, 0, sizeof(args_info));
 +
 +   if (cmdline_parser2(argc, argv, &args_info, 1, 1, 1) != 0) {
++--- a/src/main-proxy.c
+++++ b/src/main-proxy.c
++@@ -1073,6 +1073,14 @@ int main(int argc, char **argv) {
++
++   int max_conn_time = 60;
++
+++  /*
+++   * chilli_proxy is its own binary/main() and never called openlog()
+++   * before this, so all its syslog() calls (below, and shared code
+++   * such as options_load()/chilli_signals()'s handlers) logged with
+++   * no ident/tag at all.
+++   */
+++  openlog(basename(argv[0]), LOG_PID, LOG_DAEMON);
+++
++   options_init();
++
++   selfpipe = selfpipe_init();
