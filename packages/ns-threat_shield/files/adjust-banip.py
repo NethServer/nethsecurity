@@ -18,7 +18,8 @@ if 'banip' in changes or 'network' in changes:
     if 'banip' in changes and any('ban_country' in op for op in changes['banip']):
         for backup_file in ['/tmp/banIP-backup/banIP.countryv4.gz', '/tmp/banIP-backup/banIP.countryv6.gz']:
             try:
-                os.remove(backup_file)
+                if not os.path.islink(backup_file):
+                    os.remove(backup_file)
             except FileNotFoundError:
                 pass
     
