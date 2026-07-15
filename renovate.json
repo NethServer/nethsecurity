@@ -11,8 +11,9 @@
   "rebaseWhen": "never",
   "keepUpdatedLabel": "auto-update",
   "constraints": {
-    "go": "1.23"
+    "go": "1.26"
   },
+  "constraintsFiltering": "strict",
   "packageRules": [
     {
       "matchPaths": [
