@@ -40,6 +40,7 @@ GO_PKG_TAGS:= \
 	inputs.mem \
 	inputs.net \
 	inputs.netstat \
+	inputs.nftables \
 	inputs.nstat \
 	inputs.ping \
 	inputs.processes \
