@@ -47,8 +47,10 @@ GO_PKG_TAGS:= \
 	inputs.sensors \
 	inputs.system \
 	inputs.wireguard \
+	inputs.tail \
 	outputs.influxdb \
 	outputs.prometheus_client \
+	parsers.grok \
 	parsers.json_v2
 
 include $(INCLUDE_DIR)/package.mk

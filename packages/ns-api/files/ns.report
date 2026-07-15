@@ -19,6 +19,13 @@ import urllib.parse
 import urllib.request
 from euci import EUci
 
+# VictoriaMetrics HTTP API base URL
+try:
+    _vm_addr = EUci().get("victoria-metrics", "main", "http_listen_addr", default="127.0.0.1:8428")
+except Exception:
+    _vm_addr = "127.0.0.1:8428"
+VM_URL = f"http://{_vm_addr}"
+
 ## Utility functions
 
 def format_hourly_data(hourly_data):
@@ -333,7 +340,7 @@ def get_victoria_metrics_ping_data(host):
     ret_latency = {"labels": ["time", "minimum", "maximum", "average"], "data": []}
     ret_quality = {"labels": ["time", "returned"], "data": []}
 
-    vm_url = "http://127.0.0.1:8428/api/v1/query_range"
+    vm_url = f"{VM_URL}/api/v1/query_range"
     now = int(time.time())
     one_hour_ago = now - 3600
     timeout = 5
