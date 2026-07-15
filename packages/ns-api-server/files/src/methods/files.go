@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/NethServer/nethsecurity-api/configuration"
 	"github.com/NethServer/nethsecurity-api/response"
@@ -22,6 +23,16 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+// safeFilePath joins baseDir and the user-supplied name, then verifies the
+// cleaned result stays within baseDir. Returns false on traversal attempts.
+func safeFilePath(baseDir, name string) (string, bool) {
+	filePath := filepath.Join(baseDir, name) // Join cleans "../" segments
+	if !strings.HasPrefix(filePath, baseDir+string(os.PathSeparator)) {
+		return "", false
+	}
+	return filePath, true
+}
 
 func UploadFile(c *gin.Context) {
 	//check limit size
@@ -70,8 +81,16 @@ func DownloadFile(c *gin.Context) {
 	// get filename
 	fileName := c.Param("filename")
 
-	// compose filepath
-	filePath := filepath.Join(configuration.Config.DownloadFilePath, fileName)
+	// compose filepath and reject path traversal attempts
+	filePath, ok := safeFilePath(configuration.Config.DownloadFilePath, fileName)
+	if !ok {
+		c.JSON(http.StatusBadRequest, structs.Map(response.StatusBadRequest{
+			Code:    400,
+			Message: "invalid filename",
+			Data:    fileName,
+		}))
+		return
+	}
 
 	// open file
 	fileData, err := os.Open(filePath)
@@ -122,8 +141,16 @@ func DeleteFile(c *gin.Context) {
 	// get filename
 	fileName := c.Param("filename")
 
-	// compose filepath
-	filePath := filepath.Join(configuration.Config.DownloadFilePath, fileName)
+	// compose filepath and reject path traversal attempts
+	filePath, ok := safeFilePath(configuration.Config.DownloadFilePath, fileName)
+	if !ok {
+		c.JSON(http.StatusBadRequest, structs.Map(response.StatusBadRequest{
+			Code:    400,
+			Message: "invalid filename",
+			Data:    fileName,
+		}))
+		return
+	}
 
 	// remove file
 	err := os.Remove(filePath)
