@@ -33,8 +33,8 @@ GO_PKG_TAGS:= \
 	inputs.cpu \
 	inputs.disk \
 	inputs.diskio \
-	inputs.ethtool \
 	inputs.dns_query \
+	inputs.ethtool \
 	inputs.exec \
 	inputs.file \
 	inputs.mem \
@@ -45,6 +45,7 @@ GO_PKG_TAGS:= \
 	inputs.processes \
 	inputs.sensors \
 	inputs.system \
+	inputs.wireguard \
 	outputs.influxdb \
 	outputs.prometheus_client \
 	parsers.json_v2
