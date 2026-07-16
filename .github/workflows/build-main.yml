@@ -59,7 +59,7 @@ jobs:
           echo "base_version=${BASE_VERSION}" >> $GITHUB_OUTPUT
 
           if [[ "${{ github.event_name }}" == 'pull_request' ]]; then
-            CHANNEL_NAME="PR${{ github.event.number }}"
+            CHANNEL_NAME="pr${{ github.event.number }}"
             BUILD_SEMVER_SUFFIX="-${CHANNEL_NAME}.${RUN_NUMBER}.${TIMESTAMP}.${COMMIT_HASH}"
             FULL_VERSION="${BASE_VERSION}${BUILD_SEMVER_SUFFIX}"
             echo "repo_channel=${CHANNEL_NAME}" >> $GITHUB_OUTPUT

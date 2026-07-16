@@ -27,7 +27,7 @@ jobs:
         id: repo_channel
         run: |
           if [[ "${{ github.event_name }}" == 'pull_request' ]]; then
-            echo "REPO_CHANNEL=PR${{ github.event.number }}" >> "$GITHUB_OUTPUT"
+            echo "REPO_CHANNEL=pr${{ github.event.number }}" >> "$GITHUB_OUTPUT"
           elif [[ "${{ github.event_name }}" == 'workflow_dispatch' && -n "${{ github.event.inputs.channel }}" ]]; then
             echo "REPO_CHANNEL=${{ github.event.inputs.channel }}" >> "$GITHUB_OUTPUT"
           fi
