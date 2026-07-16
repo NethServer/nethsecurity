@@ -14,6 +14,8 @@ TOKENS_DIR=${WORK_DIR}/tokens
 SECRETS_DIR=/etc/ns-api-server
 UPLOAD_FILE_PATH=${WORK_DIR}/uploads
 UPLOAD_FILE_MAX_SIZE=128 # 128MB
+GLOBAL_RATE_LIMIT_AVERAGE=25 # max sustained requests per second per client IP, 0 disables
+GLOBAL_RATE_LIMIT_BURST=100 # burst allowance above the average
 
 boot() {
     local boot_delay="$(uci_get ns-ui.config.api_server_delay)"
@@ -44,7 +46,9 @@ start_service() {
         SECRETS_DIR=${SECRETS_DIR} \
         TOKENS_DIR=${TOKENS_DIR} \
         UPLOAD_FILE_PATH=${UPLOAD_FILE_PATH} \
-        UPLOAD_FILE_MAX_SIZE=${UPLOAD_FILE_MAX_SIZE}
+        UPLOAD_FILE_MAX_SIZE=${UPLOAD_FILE_MAX_SIZE} \
+        GLOBAL_RATE_LIMIT_AVERAGE=${GLOBAL_RATE_LIMIT_AVERAGE} \
+        GLOBAL_RATE_LIMIT_BURST=${GLOBAL_RATE_LIMIT_BURST}
 
     procd_set_param stdout 1
     procd_set_param stderr 1

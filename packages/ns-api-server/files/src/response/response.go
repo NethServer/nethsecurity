@@ -62,6 +62,18 @@ type StatusConflict struct {
 	Data    interface{} `json:"data" structs:"data"`
 }
 
+type StatusRequestEntityTooLarge struct {
+	Code    int         `json:"code" example:"413" structs:"code"`
+	Message string      `json:"message" example:"Request entity too large" structs:"message"`
+	Data    interface{} `json:"data" structs:"data"`
+}
+
+type StatusTooManyRequests struct {
+	Code    int         `json:"code" example:"429" structs:"code"`
+	Message string      `json:"message" example:"Too many requests" structs:"message"`
+	Data    interface{} `json:"data" structs:"data"`
+}
+
 type StatusInternalServerError struct {
 	Code    int         `json:"code" example:"500" structs:"code"`
 	Message string      `json:"message" example:"Internal server error" structs:"message"`

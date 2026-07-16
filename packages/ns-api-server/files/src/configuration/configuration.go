@@ -30,6 +30,11 @@ type Configuration struct {
 	UploadFileMaxSize int64  `json:"upload_file_max_size"`
 	UploadFilePath    string `json:"upload_file_path"`
 	DownloadFilePath  string `json:"download_file_path"`
+
+	// Generous global per-IP rate limit applied to every API route as a coarse
+	// safety net; 0 disables it
+	GlobalRateLimitAverage int `json:"global_rate_limit_average"`
+	GlobalRateLimitBurst   int `json:"global_rate_limit_burst"`
 }
 
 var Config = Configuration{}
@@ -90,5 +95,17 @@ func Init() {
 		Config.UploadFileMaxSize, _ = strconv.ParseInt(os.Getenv("UPLOAD_FILE_MAX_SIZE"), 10, 64)
 	} else {
 		Config.UploadFileMaxSize = 32
+	}
+
+	if v, err := strconv.Atoi(os.Getenv("GLOBAL_RATE_LIMIT_AVERAGE")); err == nil {
+		Config.GlobalRateLimitAverage = v
+	} else {
+		Config.GlobalRateLimitAverage = 25
+	}
+
+	if v, err := strconv.Atoi(os.Getenv("GLOBAL_RATE_LIMIT_BURST")); err == nil {
+		Config.GlobalRateLimitBurst = v
+	} else {
+		Config.GlobalRateLimitBurst = 100
 	}
 }

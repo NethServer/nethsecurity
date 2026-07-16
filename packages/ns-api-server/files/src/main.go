@@ -19,6 +19,7 @@ import (
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/robfig/cron/v3"
+	"golang.org/x/time/rate"
 
 	"github.com/NethServer/nethsecurity-api/configuration"
 	"github.com/NethServer/nethsecurity-api/logs"
@@ -62,6 +63,16 @@ func main() {
 	// accept headers only from localhost
 	router.SetTrustedProxies([]string{"127.0.0.1", "::1"})
 
+	// Generous global per-IP rate limit as a coarse safety net across all
+	// routes (a looser second layer behind the tighter per-route body limits
+	// on the pre-auth routes below). Set GLOBAL_RATE_LIMIT_AVERAGE=0 to disable.
+	if configuration.Config.GlobalRateLimitAverage > 0 {
+		router.Use(middleware.RateLimiter(
+			rate.Limit(configuration.Config.GlobalRateLimitAverage),
+			configuration.Config.GlobalRateLimitBurst,
+		))
+	}
+
 	// cors configuration only in debug mode GIN_MODE=debug (default)
 	if gin.Mode() == gin.DebugMode {
 		// gin gonic cors conf
@@ -74,12 +85,14 @@ func main() {
 	// define api group
 	api := router.Group("/api")
 
-	// define login and logout endpoint
-	api.POST("/login", middleware.InstanceJWT().LoginHandler)
-	api.POST("/logout", middleware.InstanceJWT().LogoutHandler)
+	// define login and logout endpoint. BodyLimit caps each request's size;
+	// the global per-IP rate limiter (see above) bounds request frequency
+	// across every route, including these pre-authentication ones.
+	api.POST("/login", middleware.BodyLimit(32<<10), middleware.InstanceJWT().LoginHandler)
+	api.POST("/logout", middleware.BodyLimit(1<<10), middleware.InstanceJWT().LogoutHandler)
 
 	// 2FA APIs
-	api.POST("/2fa/otp-verify", methods.OTPVerify)
+	api.POST("/2fa/otp-verify", middleware.BodyLimit(32<<10), methods.OTPVerify)
 
 	// define JWT middleware
 	authGroup := api.Group("/", middleware.InstanceJWT().MiddlewareFunc())
