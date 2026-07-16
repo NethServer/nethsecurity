@@ -2510,6 +2510,7 @@ case "${adb_action}" in
 	;;
 # Start NethSecurity patch
 "nft-reload")
+	f_temp
 	f_nftremove
 	f_nftadd
 	;;
