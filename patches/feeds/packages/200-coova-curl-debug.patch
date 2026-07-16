@@ -367,3 +367,21 @@ index 000000000..d438ac382
 +     curl_easy_setopt(curl, CURLOPT_USERAGENT, "CoovaChilli " VERSION);
 +     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
 +     curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1);
+diff --git a/net/coova-chilli/patches/080-fix-tls-verify.patch b/net/coova-chilli/patches/080-fix-tls-verify.patch
+new file mode 100644
+index 000000000..0f1e2d3c4
+--- /dev/null
++++ b/net/coova-chilli/patches/080-fix-tls-verify.patch
+@@ -0,0 +1,12 @@
++--- a/src/main-proxy.c
+++++ b/src/main-proxy.c
++@@ -529,7 +529,8 @@
++       curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0);
++     }
++ 
++-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0);
+++    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+++    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
++     curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_DEFAULT);
++ 
++     curl_easy_setopt(curl, CURLOPT_VERBOSE, /*debug ? 1 :*/ 0);
