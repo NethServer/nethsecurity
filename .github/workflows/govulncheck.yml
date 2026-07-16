@@ -1,0 +1,53 @@
+name: "govulncheck"
+
+on:
+  push:
+    branches:
+      - "main"
+    paths:
+      - ".github/workflows/govulncheck.yml"
+      - "packages/ns-api-server/files/src/**"
+      # add new Go packages here too as: "packages/<pkg>/files/src/**"
+  pull_request:
+    paths:
+      - ".github/workflows/govulncheck.yml"
+      - "packages/ns-api-server/files/src/**"
+      # add new Go packages here too as: "packages/<pkg>/files/src/**"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  govulncheck:
+    name: "Scan ${{ matrix.name }}"
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ns-api-server
+            path: packages/ns-api-server/files/src
+          # add new Go packages here as: { name: <pkg>, path: packages/<pkg>/files/src }
+    defaults:
+      run:
+        working-directory: ${{ matrix.path }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: ${{ matrix.path }}/go.mod
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Run govulncheck
+        run: govulncheck -format sarif ./... > govulncheck.sarif
+        continue-on-error: true
+
+      - name: Upload SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: ${{ matrix.path }}/govulncheck.sarif
+          category: govulncheck-${{ matrix.name }}
