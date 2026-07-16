@@ -15,6 +15,7 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/google/uuid v1.6.0
 	github.com/robfig/cron/v3 v3.0.1
+	golang.org/x/time v0.15.0
 )
 
 require (
