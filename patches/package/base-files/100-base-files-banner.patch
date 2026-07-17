@@ -1,0 +1,19 @@
+diff --git base-files/files/etc/banner base-files/files/etc/banner
+index e871a96ce1..78c68eb381 100644
+--- base-files/files/etc/banner
++++ base-files/files/etc/banner
+@@ -1,8 +1,6 @@
+-  _______                     ________        __
+- |       |.-----.-----.-----.|  |  |  |.----.|  |_
+- |   -   ||  _  |  -__|     ||  |  |  ||   _||   _|
+- |_______||   __|_____|__|__||________||__|  |____|
+-          |__| W I R E L E S S   F R E E D O M
+- -----------------------------------------------------
+- %D %V, %C Dave's Guitar
+- -----------------------------------------------------
++
++%D %V
++
++ * Documentation: https://docs.nethsecurity.org
++ * Network: run "setup" to fix network problems
++
