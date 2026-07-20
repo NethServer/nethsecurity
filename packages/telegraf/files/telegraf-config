@@ -25,10 +25,11 @@ PING_TEMPLATE = """# Ping input plugin - monitors ICMP ping to configured hosts
 {% if pings -%}
 [[inputs.ping]]
   urls = [{{ pings|map('tojson')|join(', ') }}]
-  method = "native"
+  method = "exec"
   count = 1
-  ping_interval = 1.0
+  ping_interval = 2.0
   deadline = 10
+  log_level = "error"
 
   [inputs.ping.tags]
     influxdb_db = "ping-metrics"
