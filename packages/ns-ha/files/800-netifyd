@@ -1,6 +1,7 @@
 #!/bin/sh
 
 . /lib/functions/keepalived/hotplug.sh
+. /lib/functions/keepalived/ns.sh
 
 set_service_name netifyd
 
@@ -13,10 +14,14 @@ if [ "$ACTION" == "NOTIFY_MASTER" ]; then
     for service in $services; do
         /etc/init.d/$service restart
     done
+    update_cron "enable" "dpi-license-update dpi-data-update dpi-update"
 elif [ "$ACTION" == "NOTIFY_BACKUP" ]; then
     for service in $services; do
         /etc/init.d/$service stop
     done
+    update_cron "disable" "dpi-license-update dpi-data-update dpi-update"
+elif [ "$ACTION" == "NOTIFY_SYNC" ]; then
+    update_cron "disable" "dpi-license-update dpi-data-update dpi-update"
 fi
 
 keepalived_hotplug
