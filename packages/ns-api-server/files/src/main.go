@@ -10,9 +10,10 @@
 package main
 
 import (
-	"github.com/NethServer/nethsecurity-api/sudo"
 	"io"
 	"net/http"
+
+	"github.com/NethServer/nethsecurity-api/sudo"
 
 	"github.com/fatih/structs"
 	"github.com/gin-contrib/cors"
@@ -114,6 +115,12 @@ func main() {
 	authGroup.GET("/files/:filename", methods.DownloadFile)
 	authGroup.POST("/files", methods.UploadFile)
 	authGroup.DELETE("/files/:filename", methods.DeleteFile)
+
+	// reverse proxies to VictoriaMetrics/vmalert
+	victoriaMetricsProxy := methods.NewReverseProxy(configuration.Config.VictoriaMetricsURL)
+	authGroup.Any("/metrics/query", methods.ProxyTo(victoriaMetricsProxy, "/api/v1/query"))
+	authGroup.Any("/metrics/query_range", methods.ProxyTo(victoriaMetricsProxy, "/api/v1/query_range"))
+	authGroup.Any("/alerts/alerts", methods.ProxyTo(methods.NewReverseProxy(configuration.Config.VMAlertURL), "/api/v1/alerts"))
 
 	// handle missing endpoint
 	router.NoRoute(func(c *gin.Context) {
