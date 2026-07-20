@@ -8,7 +8,7 @@ set_service_name acme
 set_restart_if_master
 set_stop_if_backup
 
-if [ "$ACTION" == "NOTIFY_BACKUP" ]; then
+if [ "$ACTION" == "NOTIFY_BACKUP" ] || [ "$ACTION" == "NOTIFY_SYNC" ]; then
     update_cron "disable" "acme"
 elif [ "$ACTION" == "NOTIFY_MASTER" ]; then
     update_cron "enable" "acme"

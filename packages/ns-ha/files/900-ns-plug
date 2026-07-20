@@ -12,10 +12,11 @@ set_stop_if_backup
 RESTORE_LIST="/tmp/ns-ha/tmp/restore_list"
 
 if [ "$ACTION" == "NOTIFY_BACKUP" ]; then
-    update_cron "disable" "send-heartbeat send-backup send-inventory" "ns-push-reports"
+    update_cron "disable" "send-heartbeat send-backup send-inventory ns-push-reports update-packages"
 elif [ "$ACTION" == "NOTIFY_MASTER" ]; then
-    update_cron "enable" "send-heartbeat send-backup send-inventory" "ns-push-reports"
+    update_cron "enable" "send-heartbeat send-backup send-inventory ns-push-reports update-packages"
 elif [ "$ACTION" == "NOTIFY_SYNC" ]; then
+    update_cron "disable" "send-heartbeat send-backup send-inventory ns-push-reports update-packages"
     # Remove backup.pass if it has been unset on the primary
     if ! grep -q /etc/backup.pass "$RESTORE_LIST" && [ -f /etc/backup.pass ]; then
         rm -f /etc/backup.pass
