@@ -28,7 +28,7 @@ PING_TEMPLATE = """# Ping input plugin - monitors ICMP ping to configured hosts
   method = "exec"
   count = 1
   ping_interval = 2.0
-  deadline = 10
+  timeout = "1s"
   log_level = "error"
 
   [inputs.ping.tags]
