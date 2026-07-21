@@ -6,7 +6,6 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=ns-checkmk-utils
-# renovate: datasource=github-tags depName=nethesis/checkmk-tools
 PKG_VERSION:=1.7.7
 PKG_RELEASE:=1
 
