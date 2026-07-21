@@ -39,6 +39,22 @@ start_service() {
         echo "$SECRET_JWT" > ${WORK_DIR}/secret_jwt
     fi
 
+    # read the config address for proxy fallback
+    config_load victoria-metrics
+    local vm_http_listen_addr
+    config_get vm_http_listen_addr main http_listen_addr "127.0.0.1:8428"
+    # a host-less "addr" (e.g. ":8428") binds all interfaces; reach it via loopback
+    case "$vm_http_listen_addr" in
+        :*) vm_http_listen_addr="127.0.0.1${vm_http_listen_addr}" ;;
+    esac
+
+    config_load vmalert
+    local vmalert_http_listen_addr
+    config_get vmalert_http_listen_addr main http_listen_addr "127.0.0.1:8082"
+    case "$vmalert_http_listen_addr" in
+        :*) vmalert_http_listen_addr="127.0.0.1${vmalert_http_listen_addr}" ;;
+    esac
+
     procd_set_param env GIN_MODE=release \
         LISTEN_ADDRESS=127.0.0.1:8090 \
         SECRET_JWT="${SECRET_JWT}" \
@@ -47,6 +63,8 @@ start_service() {
         TOKENS_DIR=${TOKENS_DIR} \
         UPLOAD_FILE_PATH=${UPLOAD_FILE_PATH} \
         UPLOAD_FILE_MAX_SIZE=${UPLOAD_FILE_MAX_SIZE} \
+        VICTORIA_METRICS_URL="http://${vm_http_listen_addr}" \
+        VMALERT_URL="http://${vmalert_http_listen_addr}" \
         GLOBAL_RATE_LIMIT_AVERAGE=${GLOBAL_RATE_LIMIT_AVERAGE} \
         GLOBAL_RATE_LIMIT_BURST=${GLOBAL_RATE_LIMIT_BURST}
 
@@ -57,6 +75,11 @@ start_service() {
     procd_close_instance
 }
 
+service_triggers() {
+    procd_add_reload_trigger victoria-metrics vmalert
+}
+
 reload_service() {
-   procd_send_signal ns-api-server '*' USR1
+    stop
+    start
 }
