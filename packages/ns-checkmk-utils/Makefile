@@ -115,27 +115,6 @@ define Package/ns-checkmk-utils/description
 	tailored for NethSecurity firewall systems.
 endef
 
-# check_apk_packages, check_opkg_packages, check_martian_packets, and
-# check_uptime are excluded/removed from the production check set (see
-# script-check-nsec8/full/README.md in nethesis/checkmk-tools) but may still
-# be present on disk from a previous package version - clean up both the
-# extensionless legacy names and any .py-suffixed leftovers so an upgrade
-# never leaves stale duplicate CheckMK services behind.
-define Package/ns-checkmk-utils/postinst
-#!/bin/sh
-if [ -z "$${IPKG_INSTROOT}" ]; then
-  rm -f /usr/lib/check_mk_agent/local/check_apk_packages
-  rm -f /usr/lib/check_mk_agent/local/check_apk_packages.py
-  rm -f /usr/lib/check_mk_agent/local/check_opkg_packages
-  rm -f /usr/lib/check_mk_agent/local/check_opkg_packages.py
-  rm -f /usr/lib/check_mk_agent/local/check_martian_packets
-  rm -f /usr/lib/check_mk_agent/local/check_martian_packets.py
-  rm -f /usr/lib/check_mk_agent/local/check_uptime
-  rm -f /usr/lib/check_mk_agent/local/check_uptime.py
-fi
-exit 0
-endef
-
 define Build/Prepare
 	mkdir -p $(PKG_BUILD_DIR)
 	$(CP) $(DL_DIR)/check_dhcp_leases-$(PKG_VERSION).py $(PKG_BUILD_DIR)/check_dhcp_leases.py
