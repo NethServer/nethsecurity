@@ -57,8 +57,10 @@ func main() {
 	// init routers
 	router := gin.Default()
 
-	// add default compression
-	router.Use(gzip.Gzip(gzip.DefaultCompression))
+	// add default compression, excluding file downloads/uploads: DownloadFile
+	// sets Content-Length manually and gzip re-encoding an already-compressed
+	// archive on top of it causes a Content-Length mismatch on the client
+	router.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedPaths([]string{"/api/files"})))
 
 	// accept headers only from localhost
 	router.SetTrustedProxies([]string{"127.0.0.1", "::1"})
