@@ -18,6 +18,13 @@ import urllib.request
 from euci import EUci
 from nethsec import utils, ovpn
 
+# VictoriaMetrics HTTP API base URL
+try:
+    _vm_addr = EUci().get("victoria-metrics", "main", "http_listen_addr", default="127.0.0.1:8428")
+except Exception:
+    _vm_addr = "127.0.0.1:8428"
+VM_URL = f"http://{_vm_addr}"
+
 def get_uptime():
     with open('/proc/uptime', 'r') as f:
         uptime_seconds = float(f.readline().split()[0])
@@ -49,13 +56,6 @@ def get_hardware():
         with open('/sys/firmware/devicetree/base/model') as f:
             return f.read().lstrip().rstrip()
     return "Unknown"
-
-def _run(cmd):
-    try:
-        proc = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True)
-        return proc.stdout.rstrip().lstrip()
-    except:
-        return ''
 
 def get_memory():
     try:
@@ -137,6 +137,25 @@ def count_hosts():
 
 def count_openvpn_rw():
     return len(ovpn.list_connected_clients('ns_roadwarrior1').keys())
+
+def count_threat_shield_ip():
+    ret = 0
+
+    def vm_query(expr):
+        params = urllib.parse.urlencode({"query": expr})
+        with urllib.request.urlopen(f"{VM_URL}/api/v1/query?{params}", timeout=5) as resp:
+            data = json.loads(resp.read())
+        result = data.get("data", {}).get("result", [])
+        return result[0].get("value", []) if result else []
+
+    try:
+        value = vm_query("sum(count_over_time(banip_packet_len[1h]))")
+        if value:
+            ret = int(float(value[1]))
+    except Exception:
+        pass
+
+    return ret
 
 def check_ts_dns():
     u = EUci()
@@ -276,7 +295,7 @@ def system_info():
 
 def interface_traffic(interface):
     ret = {"labels": [], "data": []}
-    vm_url = "http://127.0.0.1:8428/api/v1/query_range"
+    vm_url = f"{VM_URL}/api/v1/query_range"
     now = int(time.time())
     one_hour_ago = now - 3600
 
@@ -369,7 +388,7 @@ def counter(service):
     if service == "hosts":
         ret = count_hosts()
     elif service == "threat_shield_ip":
-        ret = _run("grep -e \"$(date -d '-1 hour' +'%b %e %H:%M')\" -e \"$(date  +'%b %e %H:')\" /var/log/messages | grep -E 'banIP.+add IP|banIP.+drop|banIP.+reject' | wc -l")
+        ret = count_threat_shield_ip()
     elif service == "openvpn_rw":
         ret = count_openvpn_rw()
 

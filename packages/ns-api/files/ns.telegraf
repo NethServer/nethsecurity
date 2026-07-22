@@ -70,8 +70,17 @@ def set_config(config):
     return {"success": True}
 
 
-VM_URL = "http://127.0.0.1:8428/api/v1/query_range"
-VM_ALERTS_URL = "http://127.0.0.1:8082/api/v1/alerts"
+# VictoriaMetrics and vmalert HTTP API base URL
+_vm_addr = "127.0.0.1:8428"
+_vmalert_addr = "127.0.0.1:8082"
+try:
+    _euci = EUci()
+    _vm_addr = _euci.get("victoria-metrics", "main", "http_listen_addr", default=_vm_addr)
+    _vmalert_addr = _euci.get("vmalert", "main", "http_listen_addr", default=_vmalert_addr)
+except Exception:
+    pass
+VM_URL = f"http://{_vm_addr}"
+VM_ALERTS_URL = f"http://{_vmalert_addr}"
 
 
 def _get_interface_to_zone_map():
@@ -123,7 +132,7 @@ def _vm_query(expr, start, end, step):
     params = urllib.parse.urlencode(
         {"query": expr, "start": start, "end": end, "step": step}
     )
-    with urllib.request.urlopen(f"{VM_URL}?{params}", timeout=10) as resp:
+    with urllib.request.urlopen(f"{VM_URL}/api/v1/query_range?{params}", timeout=10) as resp:
         data = json.loads(resp.read())
     return data.get("data", {}).get("result", [])
 
@@ -141,7 +150,7 @@ def _single_series(results):
 
 def list_alerts():
     try:
-        with urllib.request.urlopen(VM_ALERTS_URL, timeout=10) as resp:
+        with urllib.request.urlopen(f"{VM_ALERTS_URL}/api/v1/alerts", timeout=10) as resp:
             data = json.loads(resp.read())
     except (TimeoutError, urllib.error.URLError):
         return {"error": "cannot_retrieve_alerts"}
