@@ -31,6 +31,9 @@ type Configuration struct {
 	UploadFilePath    string `json:"upload_file_path"`
 	DownloadFilePath  string `json:"download_file_path"`
 
+	VictoriaMetricsURL string `json:"victoria_metrics_url"`
+	VMAlertURL         string `json:"vmalert_url"`
+
 	// Generous global per-IP rate limit applied to every API route as a coarse
 	// safety net; 0 disables it
 	GlobalRateLimitAverage int `json:"global_rate_limit_average"`
@@ -95,6 +98,18 @@ func Init() {
 		Config.UploadFileMaxSize, _ = strconv.ParseInt(os.Getenv("UPLOAD_FILE_MAX_SIZE"), 10, 64)
 	} else {
 		Config.UploadFileMaxSize = 32
+	}
+
+	if os.Getenv("VICTORIA_METRICS_URL") != "" {
+		Config.VictoriaMetricsURL = os.Getenv("VICTORIA_METRICS_URL")
+	} else {
+		Config.VictoriaMetricsURL = "http://127.0.0.1:8428"
+	}
+
+	if os.Getenv("VMALERT_URL") != "" {
+		Config.VMAlertURL = os.Getenv("VMALERT_URL")
+	} else {
+		Config.VMAlertURL = "http://127.0.0.1:8082"
 	}
 
 	if v, err := strconv.Atoi(os.Getenv("GLOBAL_RATE_LIMIT_AVERAGE")); err == nil {
