@@ -15,6 +15,8 @@ import subprocess
 import time
 import urllib.parse
 import urllib.request
+from datetime import datetime, timedelta
+from glob import glob
 from euci import EUci
 from nethsec import utils, ovpn
 
@@ -389,10 +391,46 @@ def list_wans():
 
     return ret
 
+def dashboard_v2():
+    # aggregate of all data needed by the dashboard page, so the UI can poll a
+    # single method instead of ~17. The internet reachability check is NOT
+    # included on purpose: it pings remote hosts and can take tens of seconds,
+    # it stays on the dedicated service-status method.
+    # A failing subsystem must not break the whole response: its key degrades
+    # to null and its name is appended to "errors".
+    ret = {"errors": []}
+
+    def section(name, fn):
+        try:
+            return fn()
+        except Exception:
+            ret["errors"].append(name)
+            return None
+
+    ret["system"] = section("system", system_info)
+    ret["services"] = {
+        "dns_configured": section("services.dns_configured", check_dns_configured),
+        "mwan": section("services.mwan", check_mwan), 
+        "openvpn_rw": section("services.openvpn_rw", check_openvpn_rw),
+        "threat_shield_dns": section("services.threat_shield_dns", check_ts_dns),
+        "dedalo": section("services.dedalo", check_dedalo),
+        "banip": section("services.banip", check_banip),
+    }
+    ret["counters"] = {
+        "hosts": section("counters.hosts", count_hosts),
+        "openvpn_rw": section("counters.openvpn_rw", count_openvpn_rw),
+        "threat_shield_ip": section("counters.threat_shield_ip", lambda: int(counter("threat_shield_ip")["count"])),
+    }
+    ret["vpn"] = {
+        "ipsec": section("vpn.ipsec", ipsec_tunnels),
+        "ovpn": section("vpn.ovpn", ovpn_tunnels),
+    }
+    return ret
+
 cmd = sys.argv[1]
 
 if cmd == 'list':
-    print(json.dumps({"system-info": {}, "list-wans":{}, "service-status": {"service": "myservice"}, "counter": {"service": "hosts"}, "interface-traffic": {"interface": "eth0"}, "ipsec-tunnels": {}, "ovpn-tunnels": {}}))
+    print(json.dumps({"system-info": {}, "list-wans":{}, "service-status": {"service": "myservice"}, "counter": {"service": "hosts"}, "interface-traffic": {"interface": "eth0"}, "ipsec-tunnels": {}, "ovpn-tunnels": {}, "dashboard-v2": {}}))
 elif cmd == 'call':
     action = sys.argv[2]
     if action == "system-info":
@@ -412,5 +450,7 @@ elif cmd == 'call':
         ret = ipsec_tunnels()
     elif action == "ovpn-tunnels":
         ret = ovpn_tunnels()
+    elif action == "dashboard-v2":
+        ret = dashboard_v2()
 
     print(json.dumps({"result": ret}))
