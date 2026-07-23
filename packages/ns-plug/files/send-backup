@@ -20,14 +20,20 @@ function send {
     if [ -s $PASSPHRASE ]; then
         # send encrypted backup
         gpg --batch -c --yes --passphrase-file $PASSPHRASE $BACKUP
-        remote-backup upload "$BACKUP.gpg"
+        # cron discards job output: surface upload failures in syslog.
+        # The md5 marker is not saved, so the next run retries.
+        if ! err=$(remote-backup upload "$BACKUP.gpg" 2>&1); then
+            logger -t send-backup "backup upload failed: $err"
+            rm -f "$BACKUP" "$BACKUP.gpg"
+            exit 1
+        fi
         mv $MD5 $MD5_LAST
     else
         # password not set, abort upload
         exit 4
     fi
     rm -f "$BACKUP" "$BACKUP.gpg"
-    exit $?
+    exit 0
 }
 
 SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
@@ -37,6 +43,12 @@ if [ -z "$SYSTEM_ID" ] || [ -z "$SYSTEM_SECRET" ]; then
     # System ID and System secret not found, configure ns-plug to enable it
     exit 0
 fi
+
+# remote-backup handles the enterprise/community branching and calls
+# migrate-to-my when needed; this script just prepares the payload and
+# delegates the upload. An enterprise unit still waiting on the
+# migration surfaces its error through remote-backup, which is caught
+# by set -e above.
 
 # hack: avoid to backup non-config file
 if [ -f /etc/acme/http.header ]; then
