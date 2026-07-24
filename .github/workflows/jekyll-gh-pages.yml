@@ -5,7 +5,7 @@ on:
   # Runs on pushes targeting the default branch
   push:
     branches: ["main"]
-    paths: ["docs/**", "packages/**/README.md"]
+    paths: ["docs/**", "packages/**/README.md", "packages/python3-nethsec/src/**"]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -39,6 +39,27 @@ jobs:
         with:
           source: ./docs
           destination: ./_site
+      # Generate the python3-nethsec API reference into the built site, so it is
+      # published as a subpath of the existing documentation (/apidocs/python3-nethsec/).
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Generate python3-nethsec API documentation
+        working-directory: packages/python3-nethsec
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install docutils pydoctor
+          pydoctor \
+              --project-name=python3-nethsec \
+              --project-url=https://github.com/$GITHUB_REPOSITORY \
+              --html-viewsource-base=https://github.com/$GITHUB_REPOSITORY/tree/$GITHUB_SHA \
+              --make-html \
+              --html-output="$GITHUB_WORKSPACE/_site/apidocs/python3-nethsec" \
+              --project-base-dir="$(pwd)" \
+              --docformat=restructuredtext \
+              --intersphinx=https://docs.python.org/3/objects.inv \
+              ./src/nethsec
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
 
