@@ -42,13 +42,11 @@ Output: `bin/` (image + packages) and `build-logs/`.
 
 **Build system is pure OpenWrt `make`** — no npm, pip, go build, or other language-specific tooling. All derivation runs inside the container.
 
-**Docs preview** (only when a local docs build is explicitly needed):
-```bash
-cd docs
-bundle config set --local path 'vendor/bundle'
-bundle install
-./prepare.sh && bundle exec jekyll serve
-```
+**Docs preview** (only when a local docs build is explicitly needed): see
+[`docs/README.md`](docs/README.md). The `github-pages` gems do not build on
+recent host Ruby (4.x), so the site is built in a `ruby:3.3` container and the
+`python3-nethsec` API docs are generated on top with pydoctor; the built
+`_site` is then served statically.
 
 ---
 
