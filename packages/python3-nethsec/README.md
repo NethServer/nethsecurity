@@ -76,9 +76,11 @@ package directory (`packages/python3-nethsec`) execute:
 ./test.sh
 ```
 
-The test container is built and published by the `python3-nethsec-test-image`
-GitHub Actions workflow; `test.sh` pulls `ghcr.io/nethserver/nethsecurity/python3-nethsec-test`
-(override the tag with the `IMAGETAG` environment variable, default `latest`).
+On the first run `test.sh` builds the test image locally (see `Containerfile`),
+so no registry access is needed. Delete the image to force a rebuild after
+changing the `Containerfile`. The `python3-nethsec-test-image` GitHub Actions
+workflow also builds and publishes the image to
+`ghcr.io/nethserver/nethsecurity/python3-nethsec-test` for reuse.
 
 ## Packaging in NethSecurity
 
