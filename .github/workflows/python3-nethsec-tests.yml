@@ -1,0 +1,31 @@
+name: "python3-nethsec tests"
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/python3-nethsec-tests.yml"
+      - "packages/python3-nethsec/**"
+      - "!packages/python3-nethsec/builder/**"
+  pull_request:
+    paths:
+      - ".github/workflows/python3-nethsec-tests.yml"
+      - "packages/python3-nethsec/**"
+      - "!packages/python3-nethsec/builder/**"
+
+jobs:
+  run_tests:
+    name: "Run tests"
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: packages/python3-nethsec
+    env:
+      # The test image is source-independent (source is bind-mounted at runtime).
+      # Use the 'main' tag on the main branch, 'latest' everywhere else — raw
+      # github.ref_name is '<n>/merge' on PRs, which is not a valid image tag.
+      IMAGETAG: ${{ github.ref_name == 'main' && 'main' || 'latest' }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: test
+        run: ./test.sh

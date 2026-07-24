@@ -6,19 +6,14 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=python3-nethsec
-# renovate: datasource=github-tags depName=NethServer/python3-nethsec
 PKG_VERSION:=1.7.1
 PKG_RELEASE:=1
- 
+
 PKG_MAINTAINER:=Giacomo Sanchietti <giacomo.sanchietti@nethesis.it>
 PKG_LICENSE:=GPL-3.0-only
+PKG_LICENSE_FILES:=LICENSE
 
-PKG_SOURCE_PROTO:=git
-PKG_SOURCE_URL:=https://github.com/NethServer/python3-nethsec.git
-PKG_SOURCE_VERSION:=$(PKG_VERSION)
-PKG_SOURCE_SUBDIR:=python3-nethsec-$(PKG_SOURCE_VERSION)
-PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_SOURCE_SUBDIR)
-PKG_MIRROR_HASH:=skip
+PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
 
 PYTHON3_PKG_WHEEL_NAME=nethsec
 PYTHON3_PKG_WHEEL_VERSION:=$(PKG_VERSION)
@@ -30,13 +25,24 @@ define Package/python3-nethsec
 	SECTION:=base
 	CATEGORY:=NethSecurity
 	TITLE:=NethSecurity python libraries
-	URL:=https://github.com/NethServer/python3-nethsec/
+	URL:=https://github.com/NethServer/nethsecurity/tree/master/packages/python3-nethsec
 	DEPENDS:=+python3-uci +python3-libpass
 	PKGARCH:=all
 endef
- 
+
 define Package/python3-nethsec/description
     NethSecurity python utilities
+endef
+
+# Source lives in this repository under ./src, so build the wheel from the
+# local tree instead of fetching it. Only the files needed to build the wheel
+# are copied; tests/ and the CI helpers are intentionally left out.
+define Build/Prepare
+	mkdir -p $(PKG_BUILD_DIR)
+	$(CP) ./src $(PKG_BUILD_DIR)/
+	$(CP) ./setup.py $(PKG_BUILD_DIR)/
+	# setup.py reads README.md for the wheel long_description
+	$(CP) ./README.md $(PKG_BUILD_DIR)/
 endef
 
 $(eval $(call Py3Package,python3-nethsec))
