@@ -1,0 +1,49 @@
+name: "python3-nethsec scans"
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/python3-nethsec-scans.yml"
+      - "packages/python3-nethsec/**"
+  pull_request:
+    paths:
+      - ".github/workflows/python3-nethsec-scans.yml"
+      - "packages/python3-nethsec/**"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  sbom:
+    name: SBOM
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Generate SPDX SBOM
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          scan-type: fs
+          scan-ref: packages/python3-nethsec
+          format: spdx-json
+          output: sbom.spdx.json
+      - name: Generate Sarif Report
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          scan-type: fs
+          scan-ref: packages/python3-nethsec
+          format: sarif
+          output: trivy.sarif.json
+      - name: Upload report to GitHub
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy.sarif.json
+          category: trivy-python3-nethsec
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: python3-nethsec-sbom
+          path: sbom.spdx.json
