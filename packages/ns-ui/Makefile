@@ -17,7 +17,7 @@ PKG_SOURCE_URL:=https://github.com/NethServer/nethsecurity-ui.git
 # new collect backup payload; on a device still on backupd it would break, hence it must
 # ship together with this PR. BEFORE MERGING: revert to PKG_SOURCE_VERSION:=$(PKG_VERSION)
 # and bump PKG_VERSION to the nethsecurity-ui release that carries #746.
-PKG_SOURCE_VERSION:=2cacc724f98367ed39b04d496ca9cca42702825d
+PKG_SOURCE_VERSION:=5b489e2b2c4b5011975af4c91fd5236c2c9969ab
 PKG_SOURCE_SUBDIR:=nethsecurity-ui-$(PKG_SOURCE_VERSION)
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_SOURCE_SUBDIR)
 PKG_MIRROR_HASH:=skip
