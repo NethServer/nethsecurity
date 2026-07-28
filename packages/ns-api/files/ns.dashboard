@@ -151,7 +151,7 @@ def count_threat_shield_ip():
         return result[0].get("value", []) if result else []
 
     try:
-        value = vm_query("sum(count_over_time(banip_packet_len[1h]))")
+        value = vm_query("sum(count_over_time(banip_blocked_bytes[1h]))")
         if value:
             ret = int(float(value[1]))
     except Exception:
