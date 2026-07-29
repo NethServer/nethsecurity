@@ -6,7 +6,8 @@
 #
 
 USE_PROCD=1
-START=99
+# required by netifyd
+START=97
 
 start_service() {
 	config_load ns-stats

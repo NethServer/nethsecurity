@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
+# depends on victoria-metrics, ns-plug-alert-proxy
 START=95
 STOP=5
 USE_PROCD=1
