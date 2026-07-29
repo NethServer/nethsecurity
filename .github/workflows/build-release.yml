@@ -51,7 +51,7 @@ jobs:
     needs: vars
     uses: ./.github/workflows/build-image.yml
     with:
-      repo_channel: release
+      repo_channel: stable
       build_semver_suffix: ${{ needs.vars.outputs.build_semver_suffix }}
       nethsecurity_version: ${{ needs.vars.outputs.nethsecurity_version }}
       owrt_version: ${{ needs.vars.outputs.owrt_version }}
