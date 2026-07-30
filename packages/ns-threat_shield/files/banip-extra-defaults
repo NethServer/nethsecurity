@@ -1,0 +1,22 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# set banIP default log file to /var/log/messages
+case "$(uci -q get banip.global.ban_logreadfile)" in
+	"" | "/var/log/banip.log")
+		uci -q set banip.global.ban_logreadfile="/var/log/messages"
+		;;
+esac
+
+# enable packet counters on the banIP chains and set elements
+if [ -z "$(uci -q get banip.global.ban_nftcount)" ]; then
+	uci -q set banip.global.ban_nftcount="1"
+fi
+
+[ -n "$(uci -q changes banip)" ] && uci -q commit banip
+
+exit 0
