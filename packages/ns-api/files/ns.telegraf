@@ -160,6 +160,7 @@ def metrics_history(args):
     start = int(args.get("start", now - 86400))
     end = int(args.get("end", now))
     step = int(args.get("step", 300))
+    rate_window = f"{max(step, 30)}s"
 
     def q(expr):
         try:
@@ -180,8 +181,8 @@ def metrics_history(args):
     # Traffic per interface – exclude loopback and intermediate functional blocks (ifb*)
     # Organize traffic by interface with zone name labels
     interface_map = _get_interface_to_zone_map()
-    recv_results = q('rate(net_bytes_recv{interface!~"lo|ifb.*"}[5m])')
-    sent_results = q('rate(net_bytes_sent{interface!~"lo|ifb.*"}[5m])')
+    recv_results = q(f'rate(net_bytes_recv{{interface!~"lo|ifb.*"}}[{rate_window}])')
+    sent_results = q(f'rate(net_bytes_sent{{interface!~"lo|ifb.*"}}[{rate_window}])')
 
     traffic_labels: list = []
     for r in recv_results + sent_results:
@@ -239,8 +240,8 @@ def metrics_history(args):
     }
 
     # Disk I/O – sum across all non-loop block devices
-    s_read = single('sum(rate(diskio_read_bytes{name!~"loop.*"}[5m]))')
-    s_write = single('sum(rate(diskio_write_bytes{name!~"loop.*"}[5m]))')
+    s_read = single(f'sum(rate(diskio_read_bytes{{name!~"loop.*"}}[{rate_window}]))')
+    s_write = single(f'sum(rate(diskio_write_bytes{{name!~"loop.*"}}[{rate_window}]))')
     diskio = {
         "labels": s_read["labels"],
         "datasets": [
@@ -285,8 +286,8 @@ def metrics_history(args):
     }
 
     # Packets Rx/Tx – sum across all interfaces
-    s_rx = single("sum(rate(net_packets_recv[5m]))")
-    s_tx = single("sum(rate(net_packets_sent[5m]))")
+    s_rx = single(f'sum(rate(net_packets_recv{{interface!~"lo|ifb.*"}}[{rate_window}]))')
+    s_tx = single(f'sum(rate(net_packets_sent{{interface!~"lo|ifb.*"}}[{rate_window}]))')
     packets = {
         "labels": s_rx["labels"],
         "datasets": [
