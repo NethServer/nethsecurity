@@ -55,11 +55,16 @@ jobs:
               --project-url=https://github.com/$GITHUB_REPOSITORY \
               --html-viewsource-base=https://github.com/$GITHUB_REPOSITORY/tree/$GITHUB_SHA \
               --make-html \
-              --html-output="$GITHUB_WORKSPACE/_site/apidocs/python3-nethsec" \
+              --html-output="$RUNNER_TEMP/python3-nethsec-apidocs" \
               --project-base-dir="$(pwd)" \
               --docformat=restructuredtext \
               --intersphinx=https://docs.python.org/3/objects.inv \
               ./src/nethsec
+          # actions/jekyll-build-pages runs as a root-owned Docker container, so
+          # ./_site is root-owned. Write pydoctor's output to a runner-owned temp
+          # dir above, then copy it in with sudo instead of writing into _site directly.
+          sudo mkdir -p "$GITHUB_WORKSPACE/_site/apidocs"
+          sudo cp -r "$RUNNER_TEMP/python3-nethsec-apidocs" "$GITHUB_WORKSPACE/_site/apidocs/python3-nethsec"
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
 
