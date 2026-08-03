@@ -20,7 +20,7 @@ jobs:
         working-directory: packages/python3-nethsec
     steps:
       - uses: actions/checkout@v7
-      # test.sh builds the test image locally when it is not already present,
-      # so the tests do not depend on a published (and possibly private) image.
+      # test.sh always builds the test image locally from the Containerfile, so
+      # the tests do not depend on a published (and possibly private) image.
       - id: test
         run: ./test.sh

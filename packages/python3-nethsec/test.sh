@@ -8,15 +8,13 @@
 #
 # The container assumes the source code is mounted inside /app
 #
-IMAGE=ghcr.io/nethserver/nethsecurity/python3-nethsec-test
-IMAGETAG=${IMAGETAG:-latest}
+IMAGE=python3-nethsec-test
 
-# Build the test image locally if it is not already available. This keeps the
-# tests self-contained: no need to pull a published image or log into a
-# registry, in CI or on a developer machine. Remove the image to force a
-# rebuild after changing the Containerfile.
-if ! podman image exists "${IMAGE}:${IMAGETAG}"; then
-    "$(dirname "$0")/builder/build.sh"
-fi
+set -e
 
-podman run --rm --tty --volume .:/app:Z "${IMAGE}:${IMAGETAG}"
+# Always rebuild from the Containerfile: podman's layer cache makes this cheap
+# when nothing changed, and a modified Containerfile can never be shadowed by a
+# stale image.
+podman build --force-rm --layers --jobs 0 --tag "${IMAGE}" "$(dirname "$0")"
+
+podman run --rm --tty --volume .:/app:Z "${IMAGE}"
