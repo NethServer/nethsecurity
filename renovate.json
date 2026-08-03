@@ -11,7 +11,8 @@
   "rebaseWhen": "never",
   "keepUpdatedLabel": "auto-update",
   "constraints": {
-    "go": "1.26"
+    "go": "1.26",
+    "python": "3.13.9"
   },
   "constraintsFiltering": "strict",
   "packageRules": [
