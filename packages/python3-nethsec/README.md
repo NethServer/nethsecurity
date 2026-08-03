@@ -1,6 +1,6 @@
 # python3-nethsec
 
-Python3 library for NethSecurity
+Python3 library for NethSecurity.
 
 Requirements:
 
@@ -8,6 +8,10 @@ Requirements:
 * [pyuci](https://gitlab.nic.cz/turris/pyuci)
 
 [![Run tests](https://github.com/NethServer/nethsecurity/actions/workflows/python3-nethsec-tests.yml/badge.svg?branch=main)](https://github.com/NethServer/nethsecurity/actions/workflows/python3-nethsec-tests.yml)
+
+## Reference
+
+Library reference: [https://dev.nethsecurity.org/apidocs/python3-nethsec/](https://dev.nethsecurity.org/apidocs/python3-nethsec/).
 
 ## Usage
 
@@ -32,7 +36,7 @@ firewall.apply(u)
 Documentation can be generated using [pydoctor](https://pydoctor.readthedocs.io) or [pydoc](https://docs.python.org/3/library/pydoc.html).
 
 Documentation is automatically generated at each new commit on master branch.
-Online doc is hosted on [GitHub pages](https://nethserver.github.io/python3-nethsec).
+Online doc is hosted on [GitHub pages](https://dev.nethsecurity.org/apidocs/python3-nethsec/).
 
 Generate doc using pydoctor:
 ```
@@ -83,13 +87,6 @@ Podman's layer cache keeps the rebuild fast when nothing changed.
 ## Packaging in NethSecurity
 
 This library is built into the NethSecurity image as the `python3-nethsec`
-OpenWrt package. The `nethsec` wheel is built from the local `./src` tree — the
-source is **not** fetched from an external repository.
+OpenWrt package. The `nethsec` wheel is built from the local `./src` tree.
 
-When releasing a new version, bump **both** in lockstep:
-
-- `PKG_VERSION` (and `PKG_RELEASE`) in `Makefile`
-- `version` in `setup.py`
-
-`PYTHON3_PKG_WHEEL_VERSION` uses `PKG_VERSION` to locate the wheel produced by
-`setup.py`, so the two values must match or the install step will fail.
+When releasing a new version, bump `PKG_VERSION` (and `PKG_RELEASE`) in `Makefile`.
