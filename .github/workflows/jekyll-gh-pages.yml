@@ -42,7 +42,7 @@ jobs:
       # Generate the python3-nethsec API reference into the built site, so it is
       # published as a subpath of the existing documentation (/apidocs/python3-nethsec/).
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - name: Generate python3-nethsec API documentation
