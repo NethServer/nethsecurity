@@ -227,3 +227,30 @@ def test_check_password():
     shadow = utils.shadow_password(password)
     assert utils.check_password(password, shadow) == True
     assert utils.check_password("wrong_password", shadow) == False
+
+def test_validate_username_valid():
+    for name in ["alice", "bob.smith", "user@example.com", "a-b_c", "A1"]:
+        utils.validate_username(name)
+
+def test_validate_username_invalid():
+    for name in ["", None, "poc'; touch /tmp/x; '", "a$(id)b", "../../etc/passwd", "a\nb", "a b", "a/b"]:
+        with pytest.raises(utils.ValidationError) as e:
+            utils.validate_username(name)
+        assert e.value.parameter == 'name'
+        assert e.value.message == 'invalid_name'
+
+def test_validate_username_custom_parameter():
+    with pytest.raises(utils.ValidationError) as e:
+        utils.validate_username("bad;name", "users")
+    assert e.value.parameter == 'users'
+    assert e.value.message == 'invalid_name'
+
+def test_validate_uci_name_valid():
+    for name in ["alice", "bob_smith", "A1"]:
+        utils.validate_uci_name(name)
+
+def test_validate_uci_name_invalid():
+    for name in ["bob.smith", "user@example.com", "a-b", "", "a b", "poc'; touch /tmp/x; '", "a$(id)b", "../../etc/passwd", "a\nb"]:
+        with pytest.raises(utils.ValidationError) as e:
+            utils.validate_uci_name(name)
+        assert e.value.message == 'invalid_name'
