@@ -157,13 +157,28 @@ def list_user_expirations(openvpninstance):
         return ret
     return ret
 
+def user_pki_path(instance, subdir, filename):
+    # resolve a user-derived filename under the instance PKI directory,
+    # rejecting anything that would escape it
+    base = os.path.realpath(f"/etc/openvpn/{instance}/pki/{subdir}")
+    path = os.path.realpath(os.path.join(base, filename))
+    if path != base and not path.startswith(base + os.sep):
+        return None
+    return path
+
 def get_cert_expiration(instance, user):
     # used for migrated certificates not present inside the index
-    p = subprocess.run(f"openssl x509 -enddate -noout -in '/etc/openvpn/{instance}/pki/issued/{user}.crt' | sed 's/notAfter=//'", shell=True, capture_output=True, text=True)
+    crt_path = user_pki_path(instance, "issued", f"{user}.crt")
+    if not crt_path:
+        return 0
     try:
-       dt = datetime.strptime(p.stdout.strip(), "%b %d %H:%M:%S %Y %Z")
-       return dt.timestamp()
-    except:
+        p = subprocess.run(
+            ["openssl", "x509", "-enddate", "-noout", "-in", crt_path],
+            capture_output=True, text=True, check=True
+        )
+        dt = datetime.strptime(p.stdout.strip().removeprefix("notAfter="), "%b %d %H:%M:%S %Y %Z")
+        return dt.timestamp()
+    except Exception:
         return 0
 
 def generate_2fa_secret():
@@ -734,7 +749,10 @@ def add_user(args):
     if user_id == None:
         return utils.validation_error("username", "user_not_in_db", args["username"])
 
-    if os.path.exists(f"/etc/openvpn/{ovpninstance}/pki/issued/{args['username']}.crt"):
+    crt_path = user_pki_path(ovpninstance, "issued", f"{args['username']}.crt")
+    if not crt_path:
+        return utils.validation_error("username", "invalid_username", args["username"])
+    if os.path.exists(crt_path):
         return utils.validation_error("username", "user_certificate_already_exists", args["username"])
     if "ipaddr" in args and args["ipaddr"]:
         valid, error = is_valid_ip(ovpninstance, args["ipaddr"])
@@ -854,9 +872,11 @@ def delete_user(ovpninstance, username):
     
 def regenerate_user_certificate(ovpninstance, user, expiration):
     pki_dir = f"/etc/openvpn/{ovpninstance}/pki"
-    req_f = f"{pki_dir}/reqs/{user}.req"
-    key_f = f"{pki_dir}/private/{user}.key"
-    crt_f = f"{pki_dir}/issued/{user}.crt"
+    req_f = user_pki_path(ovpninstance, "reqs", f"{user}.req")
+    key_f = user_pki_path(ovpninstance, "private", f"{user}.key")
+    crt_f = user_pki_path(ovpninstance, "issued", f"{user}.crt")
+    if not (req_f and key_f and crt_f):
+        return utils.validation_error("username", "invalid_username", user)
 
     for file_path in [req_f, key_f, crt_f]:
         if os.path.exists(file_path):
@@ -876,9 +896,11 @@ def regenerate_user_certificate(ovpninstance, user, expiration):
 
 def download_user_certificate(ovpninstance, username):
     cert_dir=f"/etc/openvpn/{ovpninstance}/pki"
-    if not os.path.exists(os.path.join(cert_dir, f"issued/{username}.crt")):
+    crt_path = user_pki_path(ovpninstance, "issued", f"{username}.crt")
+    key_path = user_pki_path(ovpninstance, "private", f"{username}.key")
+    if not crt_path or not key_path or not os.path.exists(crt_path):
         return utils.validation_error("user", "user_not_found", username)
-    pem = slurp(os.path.join(cert_dir, "ca.crt")) + slurp(os.path.join(cert_dir, f"issued/{username}.crt")) + slurp(os.path.join(cert_dir, f"private/{username}.key"))
+    pem = slurp(os.path.join(cert_dir, "ca.crt")) + slurp(crt_path) + slurp(key_path)
     return {"data": pem}
 
 def download_all_user_configurations(ovpninstance):
@@ -911,8 +933,9 @@ def download_all_user_configurations(ovpninstance):
 
 def download_user_configuration(ovpninstance, username):
     cert_dir=f"/etc/openvpn/{ovpninstance}/pki"
-    crt_file = os.path.join(cert_dir, f"issued/{username}.crt")
-    if not os.path.exists(crt_file):
+    crt_file = user_pki_path(ovpninstance, "issued", f"{username}.crt")
+    key_file = user_pki_path(ovpninstance, "private", f"{username}.key")
+    if not crt_file or not key_file or not os.path.exists(crt_file):
         return utils.validation_error("username", "user_not_found", username)
     u = EUci()
     config = ''
@@ -939,7 +962,7 @@ def download_user_configuration(ovpninstance, username):
         config = config + f"remote {hostname()}"
     config = config + f'<ca>\n{slurp(os.path.join(cert_dir, "ca.crt"))}\n</ca>\n'
     config = config + f'<cert>\n{slurp(crt_file)}\n</cert>\n'
-    config = config + f'<key>\n{slurp(os.path.join(cert_dir, f"private/{username}.key"))}\n</key>\n'
+    config = config + f'<key>\n{slurp(key_file)}\n</key>\n'
     for option in ["auth", "digest", "compress"]:
         try:
             config = config + f'{option} {u.get("openvpn", ovpninstance, option)}\n'
