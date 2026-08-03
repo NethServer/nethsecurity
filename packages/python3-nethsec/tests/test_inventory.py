@@ -1314,11 +1314,80 @@ def test_info_image_updates_available_current_newer():
 def test_info_image_updates_available_command_fails():
 	"""Test info_image_updates_available when command fails"""
 	u = EUci()
-	
+
 	mock_result = MagicMock()
 	mock_result.returncode = 1
 	mock_result.stdout = ''
-	
+
 	with patch('subprocess.run', return_value=mock_result):
 		result = inventory.info_image_updates_available(u)
 		assert result is False
+
+def test_fact_extra_packages_with_extras(tmp_path):
+	"""Test fact_extra_packages reports packages present in current world but not in base world"""
+	u = EUci()
+
+	base_file = tmp_path.joinpath('apk_world_base')
+	base_file.write_text("bash\nlibc\nnginx-ssl\n")
+
+	cur_file = tmp_path.joinpath('apk_world')
+	cur_file.write_text("bash\nlibc\nnginx-ssl\ncheckmk-agent\nnut-server\n")
+
+	with patch('nethsec.inventory.APK_WORLD', str(cur_file)), patch('nethsec.inventory.APK_WORLD_BASE', str(base_file)):
+		result = inventory.fact_extra_packages(u)
+		assert result == {'count': 2, 'packages': ['checkmk-agent', 'nut-server']}
+
+def test_fact_extra_packages_no_extras(tmp_path):
+	"""Test fact_extra_packages reports no extras when current and base worlds match"""
+	u = EUci()
+
+	base_file = tmp_path.joinpath('apk_world_base')
+	base_file.write_text("bash\nlibc\nnginx-ssl\n")
+
+	cur_file = tmp_path.joinpath('apk_world')
+	cur_file.write_text("bash\nlibc\nnginx-ssl\n")
+
+	with patch('nethsec.inventory.APK_WORLD', str(cur_file)), patch('nethsec.inventory.APK_WORLD_BASE', str(base_file)):
+		result = inventory.fact_extra_packages(u)
+		assert result == {'count': 0, 'packages': []}
+
+def test_fact_extra_packages_missing_base_world(tmp_path):
+	"""Test fact_extra_packages returns empty result when the base world file is missing"""
+	u = EUci()
+
+	base_file = tmp_path.joinpath('apk_world_base_missing')
+
+	cur_file = tmp_path.joinpath('apk_world')
+	cur_file.write_text("bash\nlibc\nnginx-ssl\ncheckmk-agent\n")
+
+	with patch('nethsec.inventory.APK_WORLD', str(cur_file)), patch('nethsec.inventory.APK_WORLD_BASE', str(base_file)):
+		result = inventory.fact_extra_packages(u)
+		assert result == {'count': 0, 'packages': []}
+
+def test_fact_extra_packages_strips_version_constraints(tmp_path):
+	"""Test fact_extra_packages strips version constraints before comparing package names"""
+	u = EUci()
+
+	base_file = tmp_path.joinpath('apk_world_base')
+	base_file.write_text("base-files=1711~f5dae5ece4\nlibc=1.2.5-r5\n")
+
+	cur_file = tmp_path.joinpath('apk_world')
+	cur_file.write_text("base-files=1712~aaaaaaaaaa\nlibc=1.2.6-r0\ncheckmk-agent\n")
+
+	with patch('nethsec.inventory.APK_WORLD', str(cur_file)), patch('nethsec.inventory.APK_WORLD_BASE', str(base_file)):
+		result = inventory.fact_extra_packages(u)
+		assert result == {'count': 1, 'packages': ['checkmk-agent']}
+
+def test_fact_extra_packages_ignores_noise_lines(tmp_path):
+	"""Test fact_extra_packages ignores blank lines, comments, and '!' lines in the current world"""
+	u = EUci()
+
+	base_file = tmp_path.joinpath('apk_world_base')
+	base_file.write_text("bash\nlibc\nnginx-ssl\n")
+
+	cur_file = tmp_path.joinpath('apk_world')
+	cur_file.write_text("bash\nlibc\nnginx-ssl\n\n# comment\n!conflictpkg\n")
+
+	with patch('nethsec.inventory.APK_WORLD', str(cur_file)), patch('nethsec.inventory.APK_WORLD_BASE', str(base_file)):
+		result = inventory.fact_extra_packages(u)
+		assert result == {'count': 0, 'packages': []}

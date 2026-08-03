@@ -19,6 +19,9 @@ import hashlib
 from socket import inet_ntoa
 from struct import pack
 
+APK_WORLD = '/etc/apk/world'
+APK_WORLD_BASE = '/rom/etc/apk/world'
+
 ## Utilities
 
 def _run(cmd):
@@ -85,6 +88,21 @@ def _get_cpu_field(field, cpu_info):
             return f['data']
 
     return ''
+
+def _read_apk_world(path):
+    names = set()
+    try:
+        with open(path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#') or line.startswith('!'):
+                    continue
+                name = re.split(r'[<>=~]', line, maxsplit=1)[0].strip()
+                if name:
+                    names.add(name)
+    except:
+        pass
+    return names
 
 def anonymize(value, uci: EUci):
     if fact_subscription_status(uci).get('status', 'no') != "no":
@@ -591,6 +609,31 @@ def fact_dpi(uci: EUci):
         if uci.get('dpi', rule, 'enabled', default='0') == '1':
             ret["rules"] += 1
     return ret
+
+def fact_extra_packages(uci: EUci):
+    """
+    List the packages installed by the administrator on top of the base image.
+
+    The base image package set is read from /rom/etc/apk/world, the read-only
+    squashfs lower layer, while the current one is read from /etc/apk/world.
+    Since 'apk add <pkg>' appends only <pkg> itself, and not its dependencies,
+    the difference between the two files is the set of packages explicitly
+    installed after the image was built.
+    If the base world file is missing or unreadable, no package is reported:
+    this avoids reporting the whole world as administrator-installed.
+
+    Arguments:
+      - uci -- EUci pointer, unused, kept for consistency with other facts
+
+    Returns:
+      - a dictionary with the following keys:
+        - count -- number of extra packages
+        - packages -- sorted list of extra package names
+    """
+    base = _read_apk_world(APK_WORLD_BASE)
+    current = _read_apk_world(APK_WORLD)
+    extras = sorted(current - base) if base else []
+    return {'count': len(extras), 'packages': extras}
 
 def fact_dhcp_server(uci: EUci):
     result = {
