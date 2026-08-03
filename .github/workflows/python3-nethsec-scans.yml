@@ -24,14 +24,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Generate SPDX SBOM
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: packages/python3-nethsec
           format: spdx-json
           output: sbom.spdx.json
       - name: Generate Sarif Report
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: packages/python3-nethsec
