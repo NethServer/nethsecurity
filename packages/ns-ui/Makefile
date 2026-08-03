@@ -62,8 +62,6 @@ define Package/ns-ui/install
 	$(INSTALL_DIR) $(1)/www-ns
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DIR) $(1)/usr/sbin
-	$(INSTALL_DIR) $(1)/etc/nginx/conf.d
-	$(INSTALL_CONF) ./files/00ns.locations $(1)/etc/nginx/conf.d/
 	$(INSTALL_CONF) ./files/config $(1)/etc/config/ns-ui
 	$(INSTALL_BIN) ./files/ns-ui $(1)/usr/sbin
 	$(INSTALL_DIR) $(1)/etc/init.d
