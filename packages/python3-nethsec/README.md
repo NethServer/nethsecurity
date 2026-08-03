@@ -76,11 +76,9 @@ package directory (`packages/python3-nethsec`) execute:
 ./test.sh
 ```
 
-On the first run `test.sh` builds the test image locally (see `Containerfile`),
-so no registry access is needed. Delete the image to force a rebuild after
-changing the `Containerfile`. The `python3-nethsec-test-image` GitHub Actions
-workflow also builds and publishes the image to
-`ghcr.io/nethserver/nethsecurity/python3-nethsec-test` for reuse.
+`test.sh` rebuilds the test image from the `Containerfile` on every run, so no
+registry access is needed and a `Containerfile` change is always picked up.
+Podman's layer cache keeps the rebuild fast when nothing changed.
 
 ## Packaging in NethSecurity
 
