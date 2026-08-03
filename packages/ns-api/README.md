@@ -5809,6 +5809,7 @@ Response example:
 
 May raise the following validation errors:
 - db_already_exists
+- invalid_name if `name` contains characters other than letters, digits and underscores
 
 ### edit-ldap-database
 
@@ -5877,6 +5878,7 @@ Response example:
 
 May raise the following validation errors:
 - db_already_exists
+- invalid_name if `name` contains characters other than letters, digits and underscores
 
 ### edit-local-database
 
@@ -5925,6 +5927,7 @@ Extra fields will be added to user object.
 May raise the following validation errors:
 - user_already_exists
 - db_not_local
+- invalid_name if `name` contains characters other than letters, digits, dots, underscores, at signs and hyphens
 
 ### edit-local-user
 
@@ -5978,6 +5981,7 @@ Extra fields will be added to user object.
 May raise the following validation errors:
 - user_already_exists
 - db_not_remote
+- invalid_name if `name` contains characters other than letters, digits, dots, underscores, at signs and hyphens
 
 ### edit-remote-user
 

@@ -81,6 +81,8 @@ config ldap 'ad1'
 	option schema 'ad'
 ```
 
+The database `name` is used directly as the UCI section id, so when creating a new database it can only contain letters, digits and underscores.
+
 ## Users
 
 A user is a dynamic entity representing a user with all physical and virtual devices belonging to a person like PCs, mobile phones or VPN road warrior accesses.
@@ -92,6 +94,8 @@ Users are saved inside the `/etc/config/users` UCI configuration file with the f
 User objects are identified by a random section name, but they both contain:
 - a field named `database` which is a reference to the associated database, like `main`
 - a special field named `name` which must be unique inside the associated database
+
+When creating a new user, the `name` field can only contain letters, digits, dots (`.`), underscores, at signs (`@`) and hyphens (e.g. `alice`, `bob.smith`, `user@example.com`). The same rule applies to group names and to the members of a group.
 
 ## Local users
 
