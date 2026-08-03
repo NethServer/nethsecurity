@@ -13,6 +13,8 @@ NSUI_API_LOCATIONS_FILE=/etc/nginx/conf.d/ns-ui-api.inc
 LUCI_FILE=/etc/nginx/conf.d/luci.locations
 
 # Shared API locations, included by both the default and extra ns-ui instances
+# This is being put here instead of statically due to the following issue:
+# https://github.com/NethServer/nethsecurity/issues/1834
 cat <<'EOF' > "$NSUI_API_LOCATIONS_FILE"
 # body size limits on unauthenticated routes to prevent memory exhaustion
 location = /api/login {
