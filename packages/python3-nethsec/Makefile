@@ -17,6 +17,9 @@ PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
 
 PYTHON3_PKG_WHEEL_NAME=nethsec
 PYTHON3_PKG_WHEEL_VERSION:=$(PKG_VERSION)
+# setup.py has no hardcoded version: it reads NETHSEC_PKG_VERSION so PKG_VERSION
+# above stays the single source of truth for the wheel version.
+PYTHON3_PKG_BUILD_VARS:=NETHSEC_PKG_VERSION=$(PKG_VERSION)
 
 include $(INCLUDE_DIR)/package.mk
 include $(TOPDIR)/feeds/packages/lang/python/python3-package.mk

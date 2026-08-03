@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import os
+
 from setuptools import setup, find_packages
 
 with open("README.md", "r") as fh:
@@ -7,7 +9,8 @@ with open("README.md", "r") as fh:
 
 setup(
     name = 'nethsec',
-    version = '1.7.1',
+    # Set by the OpenWrt Makefile (PKG_VERSION); falls back for local/dev builds.
+    version = os.environ.get('NETHSEC_PKG_VERSION', '0.0.0'),
     author = 'Giacomo Sanchietti',
     author_email = 'giacomo.sanchietti@nethesis.it',
     description = 'Utilities for NethSecurity development',
