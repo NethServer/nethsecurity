@@ -20,6 +20,11 @@ on:
       - 'patches/**'
       - 'build.conf.defaults'
       - 'build-nethsec.sh'
+      - '!packages/python3-nethsec/tests/**'
+      - '!packages/python3-nethsec/test.sh'
+      - '!packages/python3-nethsec/pytest.ini'
+      - '!packages/python3-nethsec/requirements.txt'
+      - '!packages/python3-nethsec/Containerfile'
 
 jobs:
   vars:
