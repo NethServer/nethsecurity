@@ -73,6 +73,39 @@ def sanitize(name):
     name = name.removesuffix('_')
     return name
 
+_VALID_USERNAME = re.compile(r'^[a-zA-Z0-9._@-]+$')
+
+def validate_username(name, parameter='name'):
+    '''
+    Ensure the given user/group name is safe to store and to use as a
+    filesystem/certificate component. Allows dotted and email-style logins
+    (e.g. 'first.last', 'user@example.com') coming from local or LDAP databases.
+
+    Arguments:
+      - name -- the name to validate
+      - parameter -- the parameter name to report in the ValidationError (default: 'name')
+
+    Raises:
+      - ValidationError if the name is empty or contains disallowed characters
+    '''
+    if not name or not _VALID_USERNAME.fullmatch(name):
+        raise ValidationError(parameter, 'invalid_name', name)
+
+def validate_uci_name(name, parameter='name'):
+    '''
+    Ensure the given name is safe to use as a UCI section identifier,
+    i.e. it would not be altered by sanitize().
+
+    Arguments:
+      - name -- the name to validate
+      - parameter -- the parameter name to report in the ValidationError (default: 'name')
+
+    Raises:
+      - ValidationError if the name is empty or would be altered by sanitize()
+    '''
+    if not name or sanitize(name) != name:
+        raise ValidationError(parameter, 'invalid_name', name)
+
 def get_all_by_type(uci, config, utype):
     '''
     Return all sections of the given utype from the given config

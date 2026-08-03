@@ -258,6 +258,7 @@ def add_ldap_database(uci, name, uri, schema, base_dn, user_dn, user_attr, user_
   Returns:
     - The database identifier
   '''
+  utils.validate_uci_name(name)
   if uci.get('users', name, default=None):
       raise utils.ValidationError('name', 'db_already_exists', name)
   ldap = uci.set('users', name, 'ldap')
@@ -372,6 +373,7 @@ def add_local_database(uci, name, description=""):
   Returns:
     - The database identifier  
   '''
+  utils.validate_uci_name(name)
   if uci.get('users', name, default=None):
       raise utils.ValidationError('name', 'db_already_exists', name)
   local = uci.set('users', name, 'local')
@@ -482,6 +484,7 @@ def add_local_user(uci, name, password="", description="", database="main", extr
     Returns:
       - The user identifier
     '''
+    utils.validate_username(name)
     if get_user_by_name(uci, name, database):
         raise utils.ValidationError('name', 'user_already_exists', name)
     if get_database_type(uci, database) != "local":
@@ -583,6 +586,9 @@ def add_local_group(uci, name, users=[], description="", database="main"):
     Returns:
       - The group identifier
     '''
+    utils.validate_username(name)
+    for u in users:
+        utils.validate_username(u, 'users')
     if get_group_by_name(uci, name, database):
         raise utils.ValidationError('name', 'group_already_exists', name)
     if get_database_type(uci, database) != "local":
@@ -611,6 +617,8 @@ def edit_local_group(uci, name, users=[], description="", database="main"):
     Returns:
       - The group identifier
     '''
+    for u in users:
+        utils.validate_username(u, 'users')
     group = get_group_by_name(uci, name, database)
     if not group:
         raise utils.ValidationError('name', 'group_not_found', name)
@@ -655,6 +663,7 @@ def add_remote_user(uci, name, database, extra_fields={}):
     Returns:
       - The user identifier
     '''
+    utils.validate_username(name)
     if get_user_by_name(uci, name, database):
         raise utils.ValidationError('name', 'user_already_exists', name)
     if get_database_type(uci, database) != "ldap":

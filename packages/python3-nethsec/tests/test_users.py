@@ -498,6 +498,91 @@ def test_remove_admin_user(tmp_path):
             found = True
     assert not found
 
+def test_add_local_user_invalid_name(tmp_path):
+    u = _setup_db(tmp_path)
+    for name in ["poc'; touch /tmp/PWNED; '", "a$(id)b", "../../etc/passwd", "a\nb"]:
+        with pytest.raises(utils.ValidationError) as e:
+            users.add_local_user(u, name, password="nethesis", database="second")
+        assert e.value.parameter == 'name'
+        assert e.value.message == 'invalid_name'
+
+def test_add_remote_user_invalid_name(tmp_path):
+    u = _setup_db(tmp_path)
+    for name in ["poc'; touch /tmp/PWNED; '", "a$(id)b", "../../etc/passwd", "a\nb"]:
+        with pytest.raises(utils.ValidationError) as e:
+            users.add_remote_user(u, name, "ldap2")
+        assert e.value.parameter == 'name'
+        assert e.value.message == 'invalid_name'
+
+def test_add_local_user_valid_dotted_name(tmp_path):
+    u = _setup_db(tmp_path)
+    users.add_local_user(u, "bob.smith", password="nethesis", database="second")
+    assert users.get_user_by_name(u, "bob.smith", "second") is not None
+    users.add_local_user(u, "user@example.com", password="nethesis", database="second")
+    assert users.get_user_by_name(u, "user@example.com", "second") is not None
+
+def test_add_remote_user_valid_dotted_name(tmp_path):
+    u = _setup_db(tmp_path)
+    users.add_remote_user(u, "bob.smith", "ldap2")
+    assert users.get_user_by_name(u, "bob.smith", "ldap2") is not None
+    users.add_remote_user(u, "user@example.com", "ldap2")
+    assert users.get_user_by_name(u, "user@example.com", "ldap2") is not None
+
+def test_add_local_group_invalid_name(tmp_path):
+    u = _setup_db(tmp_path)
+    with pytest.raises(utils.ValidationError) as e:
+        users.add_local_group(u, "bad;group", ["goofy"], "mydesc", database="second")
+    assert e.value.parameter == 'name'
+    assert e.value.message == 'invalid_name'
+
+def test_add_local_group_invalid_member(tmp_path):
+    u = _setup_db(tmp_path)
+    with pytest.raises(utils.ValidationError) as e:
+        users.add_local_group(u, "newgroup", ["goofy", "a$(id)b"], "mydesc", database="second")
+    assert e.value.parameter == 'users'
+    assert e.value.message == 'invalid_name'
+
+def test_edit_local_group_invalid_member(tmp_path):
+    u = _setup_db(tmp_path)
+    with pytest.raises(utils.ValidationError) as e:
+        users.edit_local_group(u, "vip", ["goofy", "a\nb"], "mydesc2", database="main")
+    assert e.value.parameter == 'users'
+    assert e.value.message == 'invalid_name'
+
+def test_add_local_database_invalid_name(tmp_path):
+    u = _setup_db(tmp_path)
+    for name in ["my.db", "db@x"]:
+        with pytest.raises(utils.ValidationError) as e:
+            users.add_local_database(u, name, "Some database")
+        assert e.value.message == 'invalid_name'
+
+def test_add_ldap_database_invalid_name(tmp_path):
+    u = _setup_db(tmp_path)
+    for name in ["my.ldap", "ldap@x"]:
+        with pytest.raises(utils.ValidationError) as e:
+            users.add_ldap_database(u, name, "ldap://1.2.3.4", "ad", "dc=test,dc=org", "cn=users,dc=test,dc=org", "cn", "cn")
+        assert e.value.message == 'invalid_name'
+
+def test_edit_delete_local_user_preexisting_dotted_name(tmp_path):
+    # Simulate a pre-existing/migrated user record with a dotted name that
+    # bypasses validate_username (which now blocks such names at creation
+    # time). Editing and deleting such legacy records must keep working.
+    u = _setup_db(tmp_path)
+    u.set('users', 'u_dotted', 'user')
+    u.set('users', 'u_dotted', 'name', 'bob.smith')
+    u.set('users', 'u_dotted', 'database', 'third')
+    u.set('users', 'u_dotted', 'description', 'Legacy dotted user')
+    u.save('users')
+
+    id = users.edit_local_user(u, "bob.smith", password="newpass", description="updated", database="third")
+    assert id == 'u_dotted'
+    user = users.get_user_by_name(u, "bob.smith", "third")
+    assert users.check_password("newpass", user["password"])
+    assert user["description"] == "updated"
+
+    assert users.delete_local_user(u, "bob.smith", database="third")
+    assert users.get_user_by_name(u, "bob.smith", "third") is None
+
 def test_get_database(tmp_path):
     u = _setup_db(tmp_path)
     assert users.get_database(u, "third") == {
