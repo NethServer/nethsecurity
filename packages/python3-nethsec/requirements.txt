@@ -1,4 +1,4 @@
-coverage==7.6.12
+coverage==7.15.3
 pydoctor==24.11.2
 pytest==8.3.5
 pytest-mock==3.14.0
