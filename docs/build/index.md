@@ -140,28 +140,128 @@ For other channels:
 To change the OpenWrt version used by NethSecurity, update the `OWRT_VERSION` variable inside the `build.conf.defaults` file (versioned, always tracked by Git).
 This ensures all developers and CI get the same default version.
 
+## Upstream security tracking
+
+The `packages` feed is pinned by the OpenWrt release we build against, so a package's version normally
+moves only when `OWRT_VERSION` moves. That is the right default for most of the image, but it is not
+safe for everything, because the OpenWrt release branches receive almost no security backports.
+
+nginx is the worked example. At the time of writing the `openwrt-25.12` feed branch still ships nginx
+1.26.3 and `openwrt-24.10` ships 1.26.1, which never received the 1.26.3 security fix. The `master`
+feed itself stayed on 1.26.3 for fifteen months and skipped the whole 1.28 stable branch.
+
+NethSecurity has already tried both extremes for nginx and both failed the same way:
+
+- a fork was added under `packages/nginx` in November 2023 at nginx 1.25.2 and removed in March 2026
+  still at 1.25.2, twenty-eight months without a single bump
+- reverting to the feed then left us on whatever the pinned feed happened to ship
+
+Neither mechanism was at fault. In both regimes nobody was watching nginx releases, and a stale
+version is silent: a frozen fork keeps building forever and nothing ever fails. Both mechanism
+switches also dropped the version on the floor, because the switch was the only moment anyone looked.
+
+The policy below therefore fixes ownership, not mechanism.
+
+### Default: follow OpenWrt
+
+Do not diverge from the pinned feed. Versions move when `OWRT_VERSION` moves. This applies to
+everything not named on the tracked list.
+
+### Tracked packages
+
+A package joins the tracked list when both of these hold:
+
+- it processes untrusted network input directly, so it is attack surface
+- its upstream maintains a stable branch with security-only releases
+
+Currently tracked: **nginx**, stable branch 1.30.x.
+
+Rules for a tracked package:
+
+- **Watched by Renovate, always.** A tracked package that Renovate cannot see will go stale. This is
+  not a guideline, it is the one control that distinguishes this policy from the two attempts that
+  failed. See [Renovate wiring](#renovate-wiring) below.
+- **Compare against the upstream project, never against OpenWrt.** The whole point of tracking a
+  package is that OpenWrt's version is stale, so OpenWrt cannot be the reference. Renovate must read
+  the upstream project's own releases: for nginx that is `github.com/nginx/nginx` and its `release-*`
+  tags, which is nginx's own repository, not a distribution package index.
+- **Stable branch only.** Never ship an upstream mainline release. For nginx that means 1.30.x, never
+  1.31.x. Inside a stable branch releases are security-only, so bumps stay cheap: patches keep
+  applying and runtime behaviour does not drift.
+- **Adopt a new stable branch within one release cycle of it opening.** The expensive part of an
+  upgrade is the branch jump, not the point release; deferring it is what turned a routine bump into
+  a fifteen-month gap. Adopting a branch requires reading upstream's `*) Change:` entries between the
+  old and new version and testing the affected paths on a device.
+- **Open the bump within a week of an upstream security release.** Security updates skip the one-week
+  repository hold, see [development process](../development_process/#publish-packages).
+
+### Mechanism: patch, not fork
+
+Use a [package patch](#package-patches) that changes only `PKG_VERSION`, `PKG_RELEASE` and `PKG_HASH`.
+Keep the version out of the patch filename so the file is stable and Renovate can edit it in place:
+`patches/feeds/packages/101-nginx-track-stable.patch`.
+
+A patch is preferred over a fork here because the divergence is version-only. We carry three lines and
+inherit every other fix the feed makes to that package, including its build patches and its
+third-party module pins. Fork under `packages/` only when we also need to change the package's own
+code, as with `adblock`, `banip` and `mwan3`.
+
+Two obligations come with the patch mechanism:
+
+- The patch must carry a header comment stating the base version it patches, why we are ahead of the
+  feed, and how to refresh `PKG_HASH`. `patch` ignores leading comment lines.
+- When `OWRT_VERSION` moves, the patch stops applying and aborts the container build. **Re-target the
+  hunk against the new base version. Do not delete the patch to unbreak the build** — that silently
+  downgrades the package. Delete it only once the feed ships a version greater than or equal to ours.
+
+### Renovate wiring
+
+Renovate cannot use the `customManagers:makefileVersions` preset on a patch file, so a tracked package
+needs a `customManagers` entry in `renovate.json` matching the patch and capturing the added
+`PKG_VERSION` line. Renovate rewrites only the captured occurrence, so the `-PKG_VERSION` context
+line is left intact and the patch keeps applying. Pair it with a `packageRules` entry bounding the
+version to the stable branch.
+
+Renovate cannot compute `PKG_HASH`, so its pull request will fail the build until the hash is
+refreshed by hand in the same PR:
+
+```
+curl -sL https://nginx.org/download/nginx-<version>.tar.gz | sha256sum
+```
+
+Treat that failing Renovate PR as the notification it is. It is the signal that was missing for
+twenty-eight months.
+
+### Any change of mechanism
+
+Adding or removing a fork or a patch for a tracked package must state the effective package version
+before and after the change in the pull request description, and must not lower it. Both previous
+nginx mechanism switches regressed the version without anyone noticing.
+
 ## Release new image checklist
 
 When releasing a new image, follow these steps:
 
 1. **Update the versioned build defaults**: Bump `NETHSECURITY_VERSION` in [build.conf.defaults](https://github.com/NethServer/nethsecurity/tree/main/build.conf.defaults) if this release needs a new base version.
 
-2. **Merge the release branch**: Push the tested change to `release` so CI publishes the final image and packages automatically.
+2. **Check the tracked packages**: Confirm each package on the [tracked list](#tracked-packages) is on the current upstream stable release, and that no pending Renovate pull request for one is still open. See [Upstream security tracking](#upstream-security-tracking).
 
-3. **Create the Git tag:**
+3. **Merge the release branch**: Push the tested change to `release` so CI publishes the final image and packages automatically.
+
+4. **Create the Git tag:**
   - Create the tag on the stable release commit in the NethSecurity repository.
   - The tag is the human-facing release marker and is visible in the repository tags list on GitHub.
 
-4. **Draft the GitHub release:**
+5. **Draft the GitHub release:**
   - Use the tag as the release name.
   - Attach the manifest file and the SBOM file.
   - Do not attach image artifacts.
 
-5. **Finalize the release notes:**
+6. **Finalize the release notes:**
   - Update the changelog with the date of release and relevant changes inside the [administrator manual](https://github.com/NethServer/nethsecurity-docs).
   - Merge any pending documentation PRs and rebuild the docs if needed.
 
-6. **Complete the rest of the release tasks:**
+7. **Complete the rest of the release tasks:**
   - Close related issues and milestones.
   - Archive completed project-board items.
   - Release NethSecurity Controller if applicable.

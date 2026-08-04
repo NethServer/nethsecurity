@@ -82,6 +82,7 @@ recent host Ruby (4.x), so the site is built in a `ruby:3.3` container and the
 - **Do not set `PKG_SOURCE_URL`** when package code lives in this repo. Set it only when fetching from external GitHub releases.
 - To add a package to the image, create a corresponding `config/<feature>.conf` fragment that enables it at build time.
 - Renovate manages external package versions via magic comments in Makefiles: `# renovate: datasource=github-tags depName=Org/Repo`
+- A few upstream feed packages are deliberately kept ahead of the pinned OpenWrt feed for security reasons (currently nginx). Before touching one, read the **Upstream security tracking** section in [`docs/build/index.md`](docs/build/index.md): tracked packages follow the upstream *stable* branch only, diverge via a version-only patch under `patches/feeds/packages/` rather than a fork, and must stay visible to Renovate. Never delete such a patch to unbreak a build — that silently downgrades the package.
 
 ---
 
