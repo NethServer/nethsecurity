@@ -14,7 +14,27 @@
     "go": "1.26"
   },
   "constraintsFiltering": "strict",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Track nginx releases from nginx upstream (github.com/nginx/nginx, release-* tags), NOT from the OpenWrt packages feed, which lags upstream by months. Feeds patches/feeds/packages/101-nginx-track-stable.patch. Renovate bumps PKG_VERSION only; PKG_HASH must be refreshed by hand in the same PR.",
+      "managerFilePatterns": [
+        "/^patches/feeds/packages/101-nginx-track-stable\\.patch$/"
+      ],
+      "matchStrings": [
+        "\\n\\+PKG_VERSION:=(?<currentValue>[0-9.]+)\\n"
+      ],
+      "depNameTemplate": "nginx/nginx",
+      "datasourceTemplate": "github-tags",
+      "extractVersionTemplate": "^release-(?<version>.*)$"
+    }
+  ],
   "packageRules": [
+    {
+      "description": "Track the nginx stable branch only: mainline releases (odd minor) are not supported for production use. Raise this bound when adopting a new stable branch, and review upstream's 'Change:' entries before doing so.",
+      "matchDepNames": ["nginx/nginx"],
+      "allowedVersions": "<1.31"
+    },
     {
       "matchPaths": [
         "tools/**",

@@ -1,0 +1,36 @@
+# Carry the current nginx stable release ahead of the OpenWrt packages feed.
+# See the "Upstream security tracking" section of docs/build/.
+#
+# The feed revision pinned by OWRT_VERSION lags nginx upstream by months and
+# the OpenWrt release branches receive no nginx security backports, so we
+# track the stable branch ourselves.
+#
+# Renovate updates the PKG_VERSION line below. PKG_HASH is not derivable by
+# Renovate and must be refreshed by hand in the same pull request:
+#
+#   curl -sL https://nginx.org/download/nginx-<version>.tar.gz | sha256sum
+#
+# Do NOT delete this patch to unbreak the build after an OWRT_VERSION bump:
+# that silently downgrades nginx. Re-target the hunk against the new feed
+# version instead, and remove the patch only once the feed itself ships a
+# version greater than or equal to the one below.
+
+diff --git a/net/nginx/Makefile b/net/nginx/Makefile
+--- a/net/nginx/Makefile
++++ b/net/nginx/Makefile
+@@ -8,12 +8,12 @@
+ include $(TOPDIR)/rules.mk
+
+ PKG_NAME:=nginx
+-PKG_VERSION:=1.26.3
+-PKG_RELEASE:=4
++PKG_VERSION:=1.30.4
++PKG_RELEASE:=1
+
+ PKG_SOURCE:=nginx-$(PKG_VERSION).tar.gz
+ PKG_SOURCE_URL:=https://nginx.org/download/
+-PKG_HASH:=69ee2b237744036e61d24b836668aad3040dda461fe6f570f1787eab570c75aa
++PKG_HASH:=4261dc90e9e47c1c4041276e9aaa3d48ebe2e664f728e14fa95ae6c67d57a08b
+
+ PKG_MAINTAINER:=Thomas Heil <heil@terminal-consulting.de> \
+ 				Christian Marangi <ansuelsmth@gmail.com>
