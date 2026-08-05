@@ -1,6 +1,6 @@
 coverage==7.15.3
-pydoctor==24.11.2
-pytest==9.1.1
+pydoctor==25.10.1
+pytest==9.0.3
 pytest-mock==3.15.1
 pyuci==0.10.3
 libpass==1.9.3
