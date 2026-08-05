@@ -1,5 +1,5 @@
 coverage==7.6.12
-pydoctor==24.11.2
+pydoctor==25.10.1
 pytest==9.0.3
 pytest-mock==3.14.0
 pyuci==0.10.3
