@@ -19,7 +19,18 @@ VAR_BASE = '/var'
 def log(msg):
     syslog.syslog(syslog.LOG_INFO, f"openvpn-merge-connections-db: {msg}")
 
+def _count_records(db):
+    try:
+        conn = sqlite3.connect(db)
+        count = conn.execute("SELECT COUNT(*) FROM connections").fetchone()[0]
+        conn.close()
+        return count
+    except Exception:
+        return 0
+
 def _merge_var_into_storage(var_db, storage_db):
+    # Returns the number of records actually written to storage
+    moved = 0
     try:
         src = sqlite3.connect(var_db)
         dst = sqlite3.connect(storage_db)
@@ -38,6 +49,7 @@ def _merge_var_into_storage(var_db, storage_db):
                     (common_name, virtual_ip_addr, remote_ip_addr, start_time,
                      duration, bytes_received, bytes_sent)
                 )
+                moved += 1
             else:
                 # complete record on /var, could be a client connected from storage or from /var itself
                 # try to make an update on the storage first (client connected from storage and disconnected from /var)
@@ -57,23 +69,23 @@ def _merge_var_into_storage(var_db, storage_db):
                         (common_name, virtual_ip_addr, remote_ip_addr, start_time,
                          duration, bytes_received, bytes_sent, common_name, start_time)
                     )
+                    moved += dst.execute("SELECT changes()").fetchone()[0]
+                else:
+                    moved += 1
         dst.commit()
         dst.close()
         src.execute("DELETE FROM connections")
         src.commit()
         src.close()
+        return moved
     except Exception:
-        pass
-
-log("[OpenVPN RW merge script] Script started")
+        return 0
 
 if not os.path.isdir(STORAGE_BASE):
-    log(f"[OpenVPN RW merge script] Storage not available ({STORAGE_BASE} not found), exiting...")
     raise SystemExit(0)
 
 var_openvpn = os.path.join(VAR_BASE, 'openvpn')
 if not os.path.isdir(var_openvpn):
-    log(f"[OpenVPN RW merge script] {var_openvpn} not found, exiting...")
     raise SystemExit(0)
 
 for instance in os.listdir(var_openvpn):
@@ -86,7 +98,7 @@ for instance in os.listdir(var_openvpn):
 
     if not os.path.exists(storage_db):
         # db on storage not existing, copy /var DB to storage and clear /var
-        log(f"[OpenVPN RW merge script] Instance {instance}: storage DB not found, copying from /var...")
+        merged = _count_records(var_db)
         os.makedirs(storage_dir, exist_ok=True)
         subprocess.run(['cp', '-a', var_db, storage_db], check=True)
         try:
@@ -96,18 +108,10 @@ for instance in os.listdir(var_openvpn):
             src.close()
         except Exception:
             pass
-        log(f"[OpenVPN RW merge script] Instance {instance}: copy done")
     else:
         # Storage DB exists: merge any /var rows that arrived while storage was absent
-        try:
-            _count_conn = sqlite3.connect(storage_db)
-            _count = _count_conn.execute("SELECT COUNT(*) FROM connections").fetchone()[0]
-            _count_conn.close()
-            log(f"[OpenVPN RW merge script] Instance {instance}: storage DB has {_count} record(s) before merge")
-        except Exception:
-            pass
-        log(f"[OpenVPN RW merge script] Instance {instance}: merging /var into storage")
-        _merge_var_into_storage(var_db, storage_db)
-        log(f"[OpenVPN RW merge script] Instance {instance}: merge done")
+        merged = _merge_var_into_storage(var_db, storage_db)
 
-log("[OpenVPN RW merge script] Script finished")
+    # Log only when connection records have actually been moved to storage
+    if merged:
+        log(f"instance {instance}: moved {merged} connection record(s) from {var_db} to {storage_db}")
