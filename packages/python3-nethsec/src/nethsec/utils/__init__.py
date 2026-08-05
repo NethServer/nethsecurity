@@ -24,7 +24,7 @@ def get_random_id():
     Random ids:
       - have a length of 11 characters
       - are sanitized accordingly to UCI conventions (see 'sanitize' function)
-      - start with ns\_ prefix
+      - start with ns_ prefix
 
     Arguments:
       - name -- the name of the section
@@ -44,7 +44,7 @@ def get_id(name, length = 100):
     All auto-generated NethSecurity ids:
 
       - have a maximum length of 100 characters
-      - start with ns\_ prefix
+      - start with ns_ prefix
       - are sanitized accordingly to UCI conventions
 
     Arguments:
