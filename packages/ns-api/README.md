@@ -4274,22 +4274,21 @@ Example response:
 
 ```json
 {
-   "values": [
-      {
-         "file": "882e399c4e6562da3cfa43e886d82454c1b6311392608100801ad0e19307e8b3.bin",
-         "name": "Cool backup"
-      },
-      {
-         "file": "2fc23dae2cfa1ac1aafe074f7662cb0a2fc23dae2cfa1ac1aafe074f7662cb0a.bin",
-         "name": "Not so cool backup"
-      },
-      {
-         "file": "83174ecdae5e5de26942c026c37d30b31793b667d35a8bb62794da153853c8f0.bin",
-         "name": "Very old backup"
-      }
-   ]
+   "values": {
+      "backups": [
+         {
+            "created": 1785370035,
+            "id": "0910bc860a4211dd7c05bb13503ff767ea7247a6d3be0e31048b226470350f7c.gpg",
+            "mimetype": "application/pgp-encrypted",
+            "name": "0910bc860a4211dd7c05bb13503ff767ea7247a6d3be0e31048b226470350f7c.gpg",
+            "size": 92942
+         }
+      ]
+   }
 }
 ```
+
+If no backup exists, `backups` is an empty list.
 
 ### registered-backup
 
