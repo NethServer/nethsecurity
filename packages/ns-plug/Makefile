@@ -81,6 +81,7 @@ define Package/ns-plug/install
 	$(INSTALL_BIN) ./files/ns-plug $(1)/usr/sbin/ns-plug
 	$(INSTALL_BIN) ./files/ns-plug-alert-proxy $(1)/usr/sbin/ns-plug-alert-proxy
 	$(INSTALL_BIN) ./files/distfeed-setup $(1)/usr/sbin/distfeed-setup
+	$(INSTALL_BIN) ./files/apk-official $(1)/usr/sbin/apk-official
 	$(INSTALL_BIN) ./files/remote-backup $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/send-backup $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/send-heartbeat $(1)/usr/sbin

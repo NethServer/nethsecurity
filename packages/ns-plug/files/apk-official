@@ -1,0 +1,26 @@
+#!/bin/bash
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Runs a single apk subcommand with the user-added customfeeds.list
+# (docs/design/distfeed.md "Upstream OpenWrt repositories") temporarily
+# excluded, so automatic update paths never install a package that bypassed
+# the NethSecurity distfeed/QA channel. Serialized via flock so overlapping
+# invocations (cron, UI, manual admin apk use) don't race on the file.
+
+LOCK=/var/run/apk-official.lock
+CUSTOMFEEDS=/etc/apk/repositories.d/customfeeds.list
+DISABLED="${CUSTOMFEEDS}.disabled"
+
+exec 9>"$LOCK"
+flock 9
+
+[ -f "$CUSTOMFEEDS" ] && mv "$CUSTOMFEEDS" "$DISABLED"
+apk "$@"
+status=$?
+[ -f "$DISABLED" ] && mv "$DISABLED" "$CUSTOMFEEDS"
+
+exit $status
