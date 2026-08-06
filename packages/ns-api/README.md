@@ -8730,6 +8730,23 @@ Parameters:
 
 The following APIs are available for managing High Availability (HA) configuration. 
 
+Most methods below act on the peer node over SSH. Because the payload is re-parsed by the
+shell of the peer, every parameter is checked against a strict allow-list before use, and a
+rejected value returns a validation error instead of being sent:
+
+| Parameter | Accepted values | Validation error |
+| --- | --- | --- |
+| `role` | `primary` or `backup` | `invalid_role` |
+| `lan_interface`, `interface` | a UCI section name, i.e. `[A-Za-z0-9_]+` | `invalid_name` |
+| `primary_node_ip`, `backup_node_ip` | a bare IP address | `invalid_ip_address` |
+| `virtual_ip` | an IP address, with an optional `/prefix` | `invalid_ip_address` |
+| `pubkey` | an OpenSSH public key line (`ssh-rsa`, `ssh-ed25519` or `ecdsa-sha2-nistp*`, base64 blob, optional comment); key options such as `command=` are not allowed | `invalid_pubkey` |
+| `password` | the keepalived VRRP secret, up to 32 alphanumeric chars | `invalid_password` |
+| `image` | a non-empty path, normalized to an absolute one before being handed to `scp` | `image_is_required` |
+
+`ssh_password` is not restricted: it is handed to `sshpass` as a separate argument and
+never reaches a shell.
+
 #### import-network-config
 
 Imports network configuration for HA setup.
