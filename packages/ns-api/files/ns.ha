@@ -17,11 +17,13 @@ import hashlib
 import time
 from nethsec import utils
 from jinja2 import Template
+import ipaddress
+import shlex
 import tempfile
 import shutil
 import re
 
-### Utilities functions
+### Utilities constants
 
 conntrack_ji_template = """
 Sync {
@@ -75,6 +77,66 @@ General {
     }
 }
 """
+
+### Input validation
+#
+# Every remote call below ends up being re-parsed by the shell of the peer node,
+# so user supplied values are checked against a positive charset before use.
+
+# An OpenSSH public key line: type, base64 blob and an optional comment.
+# Key options (command=, environment=, ...) are intentionally not allowed: the key
+# is appended to /etc/dropbear/authorized_keys as is.
+_VALID_PUBKEY = re.compile(r'(ssh-rsa|ssh-ed25519|ecdsa-sha2-nistp(256|384|521)) [A-Za-z0-9+/]+={0,3}( \S+)?')
+# keepalived auth_pass, generated as the first 8 chars of a SHA1 hex digest
+_VALID_AUTH_PASS = re.compile(r'[A-Za-z0-9]{1,32}')
+
+def validate_role(role):
+    if role not in ('primary', 'backup'):
+        raise utils.ValidationError('role', 'invalid_role', role)
+
+def validate_ip(value, parameter):
+    try:
+        ipaddress.ip_address(value)
+    except (ValueError, TypeError):
+        raise utils.ValidationError(parameter, 'invalid_ip_address', value)
+
+def validate_virtual_ip(value, parameter='virtual_ip'):
+    # A virtual IP can be written both as a bare address and as address/prefix,
+    # with host bits set: ip_interface accepts both and rejects everything else.
+    try:
+        ipaddress.ip_interface(value)
+    except (ValueError, TypeError):
+        raise utils.ValidationError(parameter, 'invalid_ip_address', value)
+
+def validate_pubkey(value, parameter='pubkey'):
+    if not value or not _VALID_PUBKEY.fullmatch(value.strip()):
+        raise utils.ValidationError(parameter, 'invalid_pubkey', value)
+
+def validate_auth_pass(value, parameter='password'):
+    if not value or not _VALID_AUTH_PASS.fullmatch(value):
+        raise utils.ValidationError(parameter, 'invalid_password', value)
+
+def remote_rpcd_command(script, method, payload):
+    """
+    Build the shell command that feeds a JSON payload to an rpcd script on the peer node.
+
+    The payload must be quoted for the *remote* shell: ssh_execute passes the whole
+    command as a single argv to ssh, but the remote shell re-parses it, and json.dumps
+    escapes double quotes and backslashes without escaping single quotes.
+    shlex.quote takes care of the quoting, while 'printf %s' is used instead of 'echo'
+    because busybox echo interprets backslash escapes and would corrupt the JSON.
+
+    Arguments:
+      - script -- absolute path of the rpcd script on the remote node
+      - method -- the method to call
+      - payload -- a dictionary to be serialized as the method input
+
+    Returns:
+      - the command to be passed to ssh_execute or execute_remote_command
+    """
+    return f"printf '%s' {shlex.quote(json.dumps(payload))} | {script} call {method}"
+
+### Utilities functions
 
 def get_device_from_ip(uci, ipaddr):
     for n in utils.get_all_by_type(uci, 'network', 'interface'):
@@ -139,7 +201,7 @@ def ssh_upload_file(local_file_path, remote_file_path, host, port=22, username='
     # First create the destination directory
     destination_dir = os.path.dirname(remote_file_path)
     if destination_dir:
-        _, _, returncode = ssh_execute(f"mkdir -p {destination_dir}", host, port, username, password, private_key_path)
+        _, _, returncode = ssh_execute(f"mkdir -p {shlex.quote(destination_dir)}", host, port, username, password, private_key_path)
         if returncode != 0:
             return False
     scp_cmd = ['scp', '-o', 'StrictHostKeyChecking=no']
@@ -351,6 +413,11 @@ def add_lan_interface(role, primary_node_ip, backup_node_ip, virtual_ip):
     # for interfaces that handle a DHCP server: dnsmasq requires the interface has a static IP
     # address in the same network of the DHCP range.
 
+    validate_role(role)
+    validate_ip(primary_node_ip, 'primary_node_ip')
+    validate_ip(backup_node_ip, 'backup_node_ip')
+    validate_virtual_ip(virtual_ip)
+
     u = EUci()
     if role == "primary":
         kinstance_name = 'primary'
@@ -370,11 +437,10 @@ def add_lan_interface(role, primary_node_ip, backup_node_ip, virtual_ip):
         raise utils.ValidationError(f'{role}_node_ip', 'device_name_too_long_for_ha')
 
     if role == "primary":
-        validate_command = json.dumps({
+        output, error = execute_remote_command(remote_rpcd_command('/usr/libexec/rpcd/ns.ha', 'validate-requirements', {
             "role": "backup",
             "lan_interface": interface
-        })
-        output, error = execute_remote_command(f"echo '{validate_command}' | /usr/libexec/rpcd/ns.ha call validate-requirements")
+        }))
         if error:
               raise utils.ValidationError('error_executing_validate_requirements_on_backup_node', error)
         if output:
@@ -419,14 +485,12 @@ def add_lan_interface(role, primary_node_ip, backup_node_ip, virtual_ip):
 
     if role == 'primary':
         # Execute the add-interface API on the backup node
-        command = json.dumps({
+        output, error = execute_remote_command(remote_rpcd_command('/usr/libexec/rpcd/ns.ha', 'add-lan-interface', {
             "role": "backup",
             "primary_node_ip": primary_node_ip,
             "backup_node_ip": backup_node_ip,
             "virtual_ip": virtual_ip
-        })
-
-        output, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call add-lan-interface")
+        }))
         if error:
             return utils.generic_error("error_executing_add_lan_interface_on_backup_node")
 
@@ -437,6 +501,18 @@ def add_lan_interface(role, primary_node_ip, backup_node_ip, virtual_ip):
 # This function initializes the local node for high availability (HA) using Keepalived.
 # It is called locally on the primary node and remotly using SSH on the backup node.
 def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, lan_interface, pubkey = "", password = ""):
+    validate_role(role)
+    validate_ip(primary_node_ip, 'primary_node_ip')
+    validate_ip(backup_node_ip, 'backup_node_ip')
+    validate_virtual_ip(virtual_ip)
+    utils.validate_uci_name(lan_interface, 'lan_interface')
+    if role == 'backup':
+        # The backup node receives the key and the VRRP password from the primary node:
+        # the key is appended to authorized_keys and the password is written to
+        # keepalived.conf, so both must be checked before use.
+        validate_pubkey(pubkey)
+        validate_auth_pass(password)
+
     u = EUci()
     sync_list = [
         '/etc/ha',
@@ -619,6 +695,7 @@ def init_local(role, primary_node_ip, backup_node_ip, virtual_ip, lan_interface,
 
 # This function assumes it's called on the primary node
 def init_remote(ssh_password, lan_interface):
+    utils.validate_uci_name(lan_interface, 'lan_interface')
     u = EUci()
     # Check if it's running on the primary node and the primary node is already configured
     try:
@@ -651,7 +728,7 @@ def init_remote(ssh_password, lan_interface):
             break
     if not virtual_ip:
         return utils.generic_error("no_virtual_ip_found")
-    init_local_command = json.dumps({
+    init_local_command = remote_rpcd_command('/usr/libexec/rpcd/ns.ha', 'init-local', {
         "role": "backup",
         "primary_node_ip": primary_node_ip,
         "backup_node_ip": backup_node_ip,
@@ -663,7 +740,7 @@ def init_remote(ssh_password, lan_interface):
 
     # Execute the init-local command on the backup
     stdout, stderr, returncode = ssh_execute(
-        f"echo '{init_local_command}' | /usr/libexec/rpcd/ns.ha call init-local",
+        init_local_command,
         backup_node_ip,
         port=22,
         password=ssh_password
@@ -728,6 +805,8 @@ def status():
     return ret
 
 def validate_requirements(role, lan_interface):
+    validate_role(role)
+    utils.validate_uci_name(lan_interface, 'lan_interface')
     errors = []
     errors = errors + validate_network(lan_interface)
     if role == "primary":
@@ -736,17 +815,19 @@ def validate_requirements(role, lan_interface):
     return {"success": len(errors) == 0, "errors": errors}
 
 def check_remote(backup_node_ip, ssh_password, lan_interface):
+    validate_ip(backup_node_ip, 'backup_node_ip')
+    utils.validate_uci_name(lan_interface, 'lan_interface')
     errors = []
 
     # Call validate-configuration on the remote node
-    validate_command = json.dumps({
+    validate_command = remote_rpcd_command('/usr/libexec/rpcd/ns.ha', 'validate-requirements', {
         "role": "backup",
         "lan_interface": lan_interface
     })
 
     try:
         stdout, stderr, returncode = ssh_execute(
-            f"echo '{validate_command}' | /usr/libexec/rpcd/ns.ha call validate-requirements",
+            validate_command,
             backup_node_ip,
             port=22,
             password=ssh_password
@@ -802,6 +883,9 @@ def list_vips():
     return { "vips": vips }
 
 def add_vip(role, interface, virtual_ip):
+    validate_role(role)
+    utils.validate_uci_name(interface, 'interface')
+    validate_virtual_ip(virtual_ip)
     u = EUci()
     # Retrive interfaces configured for HA
     ha_configured_interfaces = [iface['name'] for iface in list_interfaces()['interfaces'] if iface['ha_configured']]
@@ -812,11 +896,10 @@ def add_vip(role, interface, virtual_ip):
     if role == 'primary':
         kinstance_name = 'primary'
 
-        validate_command = json.dumps({
+        output, error = execute_remote_command(remote_rpcd_command('/usr/libexec/rpcd/ns.ha', 'validate-requirements', {
             "role": "backup",
             "lan_interface": interface
-        })
-        output, error = execute_remote_command(f"echo '{validate_command}' | /usr/libexec/rpcd/ns.ha call validate-requirements")
+        }))
         if error:
               raise utils.ValidationError('error_executing_validate_requirements_on_backup_node', error)
         if output:
@@ -845,13 +928,11 @@ def add_vip(role, interface, virtual_ip):
 
     if role == 'primary':
         # Execute the add-interface API on the backup node
-        command = json.dumps({
+        output, error = execute_remote_command(remote_rpcd_command('/usr/libexec/rpcd/ns.ha', 'add-vip', {
             "role": "backup",
             "interface": interface,
             "virtual_ip": virtual_ip
-        })
-
-        output, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call add-vip")
+        }))
         if error:
             return utils.generic_error("error_executing_add_vip_on_backup_node")
 
@@ -860,6 +941,9 @@ def add_vip(role, interface, virtual_ip):
         return { "success": True }
 
 def remove_vip(role, interface, virtual_ip):
+    validate_role(role)
+    utils.validate_uci_name(interface, 'interface')
+    validate_virtual_ip(virtual_ip)
     u = EUci()
     # Retrive interfaces configured for HA
     ha_configured_interfaces = [iface['name'] for iface in list_interfaces()['interfaces'] if iface['ha_configured']]
@@ -899,13 +983,11 @@ def remove_vip(role, interface, virtual_ip):
 
     if role == 'primary':
         # Execute the add-interface API on the backup node
-        command = json.dumps({
+        output, error = execute_remote_command(remote_rpcd_command('/usr/libexec/rpcd/ns.ha', 'remove-vip', {
             "role": "backup",
             "interface": interface,
             "virtual_ip": virtual_ip
-        })
-
-        output, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call remove-vip")
+        }))
         if error:
             return utils.generic_error("error_executing_remove_vip_on_backup_node")
 
@@ -914,6 +996,8 @@ def remove_vip(role, interface, virtual_ip):
         return { "success": True }
 
 def remove_interface(role, interface):
+    validate_role(role)
+    utils.validate_uci_name(interface, 'interface')
     u = EUci()
     # Retrive interfaces configured for HA
     ha_configured_interfaces = [iface['name'] for iface in list_interfaces()['interfaces'] if iface['ha_configured']]
@@ -978,12 +1062,10 @@ def remove_interface(role, interface):
 
     if role == 'primary':
         # Execute the add-interface API on the backup node
-        command = json.dumps({
+        output, error = execute_remote_command(remote_rpcd_command('/usr/libexec/rpcd/ns.ha', 'remove-interface', {
             "role": "backup",
             "interface": interface
-        })
-
-        output, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call remove-interface")
+        }))
         if error:
             return utils.generic_error("error_executing_remove_interface_on_backup_node")
 
@@ -992,6 +1074,11 @@ def remove_interface(role, interface):
         return { "success": True }
 
 def upgrade_remote(image):
+    # The image is handed to scp as an argument: normalize it to an absolute path so a
+    # value starting with '-' can't be parsed as an scp option.
+    if not image:
+        raise utils.ValidationError('image', 'image_is_required', image)
+    image = os.path.abspath(image)
     if not os.path.isfile(image):
         return utils.generic_error("image_file_not_found")
 
@@ -1000,18 +1087,21 @@ def upgrade_remote(image):
         return utils.generic_error("error_uploading_image_to_backup_node")
 
     # Prepare the upgrade command
-    upgrade_command = json.dumps({
+    upgrade_command = remote_rpcd_command('/usr/libexec/rpcd/ns.update', 'install-uploaded-image', {
         "image": "upgrade.img"
     })
 
     # Execute the upgrade command on the backup node
-    _, stderr = execute_remote_command(f"echo '{upgrade_command}' | /usr/libexec/rpcd/ns.update call install-uploaded-image")
+    _, stderr = execute_remote_command(upgrade_command)
     if stderr:
         return utils.generic_error("error_executing_upgrade_on_backup_node")
     return {"result": "success"}
 
 def reset(role, pubkey = ""):
     # Reset the HA configuration
+    validate_role(role)
+    if pubkey:
+        validate_pubkey(pubkey)
     uci = EUci()
 
     # Load SSH configuration to be used later
@@ -1089,12 +1179,12 @@ def reset(role, pubkey = ""):
 
     if role == 'primary':
         # Execute the reset API on the backup node
-        command = json.dumps({
+        command = remote_rpcd_command('/usr/libexec/rpcd/ns.ha', 'reset', {
             "role": "backup",
             "pubkey": pubkey
         })
 
-        output, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call reset", backup_node_ip=backup_node_ip, port=port)
+        output, error = execute_remote_command(command, backup_node_ip=backup_node_ip, port=port)
 
         # Remove ssh key after using it inside the execute_remote_command
         try:
@@ -1110,15 +1200,16 @@ def reset(role, pubkey = ""):
         return { "success": True }
 
 def disable(role):
+    validate_role(role)
     uci = EUci()
     if role == "primary":
         # Execute on backup
-        command = json.dumps({
+        command = remote_rpcd_command('/usr/libexec/rpcd/ns.ha', 'disable', {
             "role": "backup"
         })
         port = uci.get('dropbear', 'ha_link', 'Port')
         backup_node_ip = uci.get('keepalived', 'ha_peer', 'address')
-        _, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call disable", backup_node_ip=backup_node_ip, port=port)
+        _, error = execute_remote_command(command, backup_node_ip=backup_node_ip, port=port)
         if error:
             return utils.generic_error("error_executing_disable_on_backup_node")
 
@@ -1132,15 +1223,16 @@ def disable(role):
     return { "success": True }
 
 def enable(role):
+    validate_role(role)
     uci = EUci()
     if role == "primary":
         # Execute on backup
-        command = json.dumps({
+        command = remote_rpcd_command('/usr/libexec/rpcd/ns.ha', 'enable', {
             "role": "backup"
         })
         port = uci.get('dropbear', 'ha_link', 'Port')
         backup_node_ip = uci.get('keepalived', 'ha_peer', 'address')
-        _, error = execute_remote_command(f"echo '{command}' | /usr/libexec/rpcd/ns.ha call enable", backup_node_ip=backup_node_ip, port=port)
+        _, error = execute_remote_command(command, backup_node_ip=backup_node_ip, port=port)
         if error:
             return utils.generic_error("error_executing_enable_on_backup_node")
 
@@ -1196,38 +1288,43 @@ if cmd == 'list':
         }))
 else:
     action = sys.argv[2]
-    if action == "status":
-        ret = status()
-    elif action == "list-interfaces":
-        ret = list_interfaces()
-    elif action == "list-vips":
-        ret = list_vips()
-    else:
-        # Paramaters:
-        args = json.loads(sys.stdin.read())
-        if action == "init-local":
-            ret = init_local(args.get('role'), args.get('primary_node_ip'), args.get('backup_node_ip'), args.get('virtual_ip'), args.get('lan_interface'), args.get('pubkey'), args.get('password'))
-        elif action == "init-remote":
-            ret = init_remote(args.get('ssh_password'), args.get('lan_interface'))
-        elif action == "add-lan-interface":
-            ret = add_lan_interface(args.get('role'), args.get('primary_node_ip'), args.get('backup_node_ip'), args.get('virtual_ip'))
-        elif action == "remove-interface":
-            ret = remove_interface(args.get('role'), args.get('interface'))
-        elif action == "check-remote":
-            ret = check_remote(args.get('backup_node_ip'), args.get('ssh_password'), args.get('lan_interface'))
-        elif action == "validate-requirements":
-            ret = validate_requirements(args.get('role'), args.get('lan_interface'))
-        elif action == "add-vip":
-            ret = add_vip(args.get('role'), args.get('interface'), args.get('virtual_ip'))
-        elif action == "remove-vip":
-            ret = remove_vip(args.get('role'), args.get('interface'), args.get('virtual_ip'))
-        elif action == "reset":
-            ret = reset(args.get('role'), args.get('pubkey'))
-        elif action == "upgrade-remote":
-            ret = upgrade_remote(args.get('image'))
-        elif action == "disable":
-            ret = disable(args.get('role'))
-        elif action == "enable":
-            ret = enable(args.get('role'))
+    try:
+        if action == "status":
+            ret = status()
+        elif action == "list-interfaces":
+            ret = list_interfaces()
+        elif action == "list-vips":
+            ret = list_vips()
+        else:
+            # Paramaters:
+            args = json.loads(sys.stdin.read())
+            if action == "init-local":
+                ret = init_local(args.get('role'), args.get('primary_node_ip'), args.get('backup_node_ip'), args.get('virtual_ip'), args.get('lan_interface'), args.get('pubkey'), args.get('password'))
+            elif action == "init-remote":
+                ret = init_remote(args.get('ssh_password'), args.get('lan_interface'))
+            elif action == "add-lan-interface":
+                ret = add_lan_interface(args.get('role'), args.get('primary_node_ip'), args.get('backup_node_ip'), args.get('virtual_ip'))
+            elif action == "remove-interface":
+                ret = remove_interface(args.get('role'), args.get('interface'))
+            elif action == "check-remote":
+                ret = check_remote(args.get('backup_node_ip'), args.get('ssh_password'), args.get('lan_interface'))
+            elif action == "validate-requirements":
+                ret = validate_requirements(args.get('role'), args.get('lan_interface'))
+            elif action == "add-vip":
+                ret = add_vip(args.get('role'), args.get('interface'), args.get('virtual_ip'))
+            elif action == "remove-vip":
+                ret = remove_vip(args.get('role'), args.get('interface'), args.get('virtual_ip'))
+            elif action == "reset":
+                ret = reset(args.get('role'), args.get('pubkey'))
+            elif action == "upgrade-remote":
+                ret = upgrade_remote(args.get('image'))
+            elif action == "disable":
+                ret = disable(args.get('role'))
+            elif action == "enable":
+                ret = enable(args.get('role'))
+            else:
+                ret = utils.generic_error("unknown_action")
 
-    print(json.dumps(ret))
+        print(json.dumps(ret))
+    except utils.ValidationError as e:
+        print(json.dumps(utils.validation_error(e.parameter, e.message, e.value)))
