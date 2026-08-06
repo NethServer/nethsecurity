@@ -1,0 +1,36 @@
+# Raise fw4's open-file limit so large rulesets can be applied.
+# PKG_RELEASE is bumped so this ships as a package update, without a new image.
+# https://github.com/NethServer/nethsecurity/issues/1869
+--- firewall4.ori/Makefile
++++ firewall4/Makefile
+@@ -5,7 +5,7 @@
+ include $(TOPDIR)/rules.mk
+ 
+ PKG_NAME:=firewall4
+-PKG_RELEASE:=2
++PKG_RELEASE:=3
+ 
+ PKG_SOURCE_PROTO:=git
+ PKG_SOURCE_URL=$(PROJECT_GIT)/project/firewall4.git
+--- firewall4.ori/patches/20-raise-nofile-ulimit.patch	1970-01-01 00:00:00.000000000 +0000
++++ firewall4/patches/20-raise-nofile-ulimit.patch	1970-01-01 00:00:00.000000000 +0000
+@@ -0,0 +1,19 @@
++Raise the open-file limit before rendering the ruleset.
++
++Each template include() holds its file descriptor until the whole render
++ends, so a large ruleset exhausts the 1024 soft limit and the render
++aborts, leaving the new ruleset unapplied. Proper fix belongs in ucode.
++
++--- a/root/sbin/fw4
+++++ b/root/sbin/fw4
++@@ -2,6 +2,10 @@
++ 
++ set -o pipefail
++ 
+++# Each template include() holds its fd until the render ends, so a large
+++# ruleset exceeds the default 1024 limit. See NethSecurity issue #1869.
+++ulimit -HSn 8192 2>/dev/null
+++
++ MAIN=/usr/share/firewall4/main.uc
++ LOCK=/var/run/fw4.lock
++ STATE=/var/run/fw4.state
