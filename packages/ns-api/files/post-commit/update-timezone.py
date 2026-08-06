@@ -27,4 +27,7 @@ if 'system' in changes:
         subprocess.run(["/bin/ln", "-sf", f"/usr/share/zoneinfo/{zonename_normalized}", "/etc/localtime"], check=True, capture_output=True)
     
     if timezone_value:
-        subprocess.run(["/bin/sh", "-c", f"echo '{timezone_value}' > /tmp/TZ"], check=True, capture_output=True)
+        # Write the file directly instead of going through a shell: the value comes
+        # from UCI and must never be interpreted as a command.
+        with open('/tmp/TZ', 'w') as tz_file:
+            tz_file.write(timezone_value + '\n')
