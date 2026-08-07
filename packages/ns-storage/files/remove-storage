@@ -37,9 +37,16 @@ sync && sleep 5
 umount -f /mnt/data
 rm -rf /mnt/data
 
-# Removing parition
+# Release the partition being removed. Only one partition may carry the
+# ns_data label, otherwise a storage created later would be mounted over
+# /mnt/data alongside this one.
 if [ "$rom_disk" == "$data_disk" ]; then
-    parted "/dev/${data_disk}" rm 3
+    # Partition carved out of the OS disk: give the space back
+    parted -s "/dev/${data_disk}" rm "$(cat "/sys/class/block/${data_part}/partition")"
+else
+    # Secondary drive: keep the partition so its logs can still be
+    # inspected, just drop the label
+    tune2fs -L "" "/dev/${data_part}" >/dev/null
 fi
 
 # Restore dnsmasq to /tmp before the storage disappears.
