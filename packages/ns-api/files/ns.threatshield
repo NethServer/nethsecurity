@@ -736,12 +736,37 @@ def dns_list_zones(e_uci):
         zones.append(zone['name'])
     return { 'data': zones }
 
+def dns_get_enforced_zones(e_uci):
+    # the user selection is stored in ns_tsdns_zones: adb_nftdevforce holds the
+    # devices derived from it and can't be mapped back to zones without ambiguity
+    zones = list(e_uci.get('adblock', 'global', 'ns_tsdns_zones', list=True, default=[]))
+    if zones:
+        return zones
+    # before the switch to device-based enforcement the selection was stored inside
+    # adb_nftdevforce: keep reading it until the migration has run
+    return list(e_uci.get('adblock', 'global', 'adb_nftdevforce', list=True, default=['lan']))
+
+def dns_zones_to_devices(e_uci, zones):
+    # adb_nftdevforce is rendered as an nft iifname match, so it needs the devices
+    # of the selected zones and not the zone names
+    devices = []
+    for zone in zones:
+        for device in utils.get_all_devices_by_zone(e_uci, zone, exclude_aliases=True):
+            if device not in devices:
+                devices.append(device)
+    return sorted(devices)
+
+def dns_set_enforced_devices(e_uci, zones):
+    devices = dns_zones_to_devices(e_uci, zones)
+    if devices:
+        e_uci.set('adblock', 'global', 'adb_nftdevforce', devices)
+    elif e_uci.get('adblock', 'global', 'adb_nftdevforce', list=True, default=[]):
+        # no device in the selected zones: adblock skips the enforcement altogether
+        e_uci.delete('adblock', 'global', 'adb_nftdevforce')
+
 def dns_list_settings(e_uci):
     ts_enabled = e_uci.get('adblock', 'global', 'ts_enabled', default='0')
-    try:
-        zones = list(e_uci.get_all('adblock', 'global', 'adb_nftdevforce'))
-    except:
-        zones = ['lan']
+    zones = dns_get_enforced_zones(e_uci)
     try:
         ports = list(e_uci.get_all('adblock', 'global', 'adb_nftportforce'))
     except:
@@ -750,13 +775,15 @@ def dns_list_settings(e_uci):
 
 def dns_edit_settings(e_uci, payload):
     if payload['enabled']:
-        if 'zones' in payload and 'wan' in payload['zones']:
-            raise ValidationError('zones', 'wan_zone_not_allowed', payload['zones'])
+        zones = payload.get('zones', ['lan'])
+        if 'wan' in zones:
+            raise ValidationError('zones', 'wan_zone_not_allowed', zones)
         e_uci.set('adblock', 'global', 'ts_enabled', '1')
         e_uci.set('adblock', 'global', 'adb_enabled', '1')
         e_uci.set('adblock', 'global', 'adb_triggerdelay', '30')
         e_uci.set('adblock', 'global', 'adb_nftforce', '1')
-        e_uci.set('adblock', 'global', 'adb_nftdevforce', payload.get('zones', ['lan']))
+        e_uci.set('adblock', 'global', 'ns_tsdns_zones', zones)
+        dns_set_enforced_devices(e_uci, zones)
         e_uci.set('adblock', 'global', 'adb_nftportforce', payload.get('ports', ['53', '853']))
     else:
         e_uci.set('adblock', 'global', 'ts_enabled', '0')

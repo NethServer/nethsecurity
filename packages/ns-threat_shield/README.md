@@ -52,9 +52,16 @@ ts-ip
 Threat shield DNS (`ts-dns`) is a special configuration for [adblock](https://github.com/openwrt/packages/tree/master/net/adblock).
 The `ts-dns` is invoked every time adblock is started or reloaded.
 
-The package adds a new option to `adblock`:
+The package adds new options to `adblock`:
 
 - `ts_enabled`: if set to `1`, it enables the download of enterprise categories and community free categories.
+- `ns_tsdns_zones`: the firewall zones where the local DNS enforcement is applied.
+
+Since adblock 4.5.5 the enforcement is rendered as nft rules matching on `iifname`, so the
+`adb_nftdevforce` option needs network devices and not zone names. It is therefore a derived
+value: it is computed from `ns_tsdns_zones` by the API and kept aligned with the network setup
+by the `configure-adblock-devices` pre-commit hook, so that adding an interface to an enforced
+zone does not leave its DNS traffic unfiltered. Do not edit `adb_nftdevforce` by hand.
 
 If `ts_enabled` is set to 1:
 
