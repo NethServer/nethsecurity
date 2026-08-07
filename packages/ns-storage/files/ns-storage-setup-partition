@@ -29,14 +29,16 @@ end=$(echo $free_part | awk -F':' '{print $3}')
 start_new=${start_current::-3}
 # preserve some space for future use
 start_new=$((start_new + preserve))
-
-# handle nvme
-if [[ "$dev" =~ ^/dev/nvme ]]; then
-  part="${dev}p3"
+# create new partition
+parted -s --fix -a optimal ${dev} unit MiB mkpart primary ext4 ${start_new}MiB 100% &>/dev/null
+# mkfs on newly created partition number 3
+part=$(lsblk $dev -o KNAME | sed -n \$p)
+part_no=$(echo $part | sed -E 's/.*(.)/\1/')
+if [ ${part_no} == 3 ]
+then
+    mkfs.ext4 -q -F -L ns_data /dev/${part} >/dev/null
 else
-  part="${dev}3"
+    echo "ERROR: Wrong partition number ${part_no}"
+    exit 1
 fi
-
-parted -s --fix -a optimal ${dev} unit MiB mkpart ext4 ${start_new}MiB 100% &>/dev/null
-mkfs.ext4 -q -F -L ns_data "${part}" &>/dev/null
-echo '{"device": "'${part}'"}'
+echo '{"device": "/dev/'${part}'"}'
