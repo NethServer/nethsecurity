@@ -10,20 +10,22 @@ set -e
 rom_part=$(lsblk -l --json | jq -r '.blockdevices[] | select(any(.mountpoints[]; . == "/boot")) | .name')
 rom_disk=$(lsblk -lno pkname /dev/$rom_part)
 
+# Both stay empty when no storage is mounted, e.g. on factory reset
 data_part=$(lsblk -l --json | jq -r '.blockdevices[] | select(any(.mountpoints[]; . == "/mnt/data")) | .name')
-data_disk=$(lsblk -lno pkname /dev/$data_part)
+data_disk=''
+[ -n "$data_part" ] && data_disk=$(lsblk -lno pkname "/dev/$data_part")
 
 # Removing auto-mount
-uci delete fstab.ns_data
+uci -q delete fstab.ns_data || :
 uci commit fstab
 
 # Configuring rsyslog
-uci delete rsyslog.ns_data
+uci -q delete rsyslog.ns_data || :
 uci commit rsyslog
 /etc/init.d/rsyslog restart
 
 # Removing sync-data cron job
-crontab -l | grep -v "/usr/sbin/sync-data" | sort | uniq | crontab -
+(crontab -l 2>/dev/null || :) | grep -v "/usr/sbin/sync-data" | sort | uniq | crontab -
 /etc/init.d/cron restart
 
 # Stop process that will prevent umount
@@ -34,13 +36,17 @@ crontab -l | grep -v "/usr/sbin/sync-data" | sort | uniq | crontab -
 sync && sleep 5
 
 # Umounting data device
-umount -f /mnt/data
+if grep -q " /mnt/data " /proc/mounts; then
+    umount -f /mnt/data
+fi
 rm -rf /mnt/data
 
 # Release the partition being removed. Only one partition may carry the
 # ns_data label, otherwise a storage created later would be mounted over
 # /mnt/data alongside this one.
-if [ "$rom_disk" == "$data_disk" ]; then
+if [ -z "$data_part" ]; then
+    : # no storage was mounted, nothing to release
+elif [ "$rom_disk" == "$data_disk" ]; then
     # Partition carved out of the OS disk: give the space back
     parted -s "/dev/${data_disk}" rm "$(cat "/sys/class/block/${data_part}/partition")"
 else
