@@ -11,8 +11,15 @@
 set -e
 
 part=$(lsblk -ln | grep "/rom" | uniq | awk '{print $1}')
-dev="/dev/$(lsblk -lno pkname /dev/$part)"
+disk=$(lsblk -lno pkname /dev/$part)
+dev="/dev/$disk"
 preserve=${1:-100}
+
+# List the partition numbers currently present on $dev
+list_partitions()
+{
+    parted -s -m "$dev" print 2>/dev/null | awk -F':' '/^[0-9]+:/ {print $1}' | sort -n
+}
 
 # find free space
 free_part=$(parted -s -m $dev unit MiB print free 2>/dev/null | grep free | tail -n -1)
@@ -30,15 +37,30 @@ start_new=${start_current::-3}
 # preserve some space for future use
 start_new=$((start_new + preserve))
 # create new partition
+before=$(list_partitions)
 parted -s --fix -a optimal ${dev} unit MiB mkpart primary ext4 ${start_new}MiB 100% &>/dev/null
-# mkfs on newly created partition number 3
-part=$(lsblk $dev -o KNAME | sed -n \$p)
-part_no=$(echo $part | sed -E 's/.*(.)/\1/')
-if [ ${part_no} == 3 ]
-then
-    mkfs.ext4 -q -F -L ns_data /dev/${part} >/dev/null
-else
-    echo "ERROR: Wrong partition number ${part_no}"
+partprobe "$dev" >/dev/null 2>&1 || :
+
+# the partition number is assigned by parted, so read back the one that appeared
+part_no=$(printf '%s\n%s\n' "$before" "$(list_partitions)" | sort -n | uniq -u)
+if [ "$(echo "$part_no" | wc -l)" -ne 1 ] || [ -z "$part_no" ]; then
+    echo "ERROR: Cannot identify the partition created on ${dev}"
     exit 1
 fi
+
+# map the partition number to its kernel name, without guessing the naming scheme
+part=''
+for pfile in /sys/block/"$disk"/*/partition; do
+    [ -e "$pfile" ] || continue
+    if [ "$(cat "$pfile")" == "$part_no" ]; then
+        part=$(basename "$(dirname "$pfile")")
+        break
+    fi
+done
+if [ -z "$part" ]; then
+    echo "ERROR: Partition ${part_no} not found on ${dev}"
+    exit 1
+fi
+
+mkfs.ext4 -q -F -L ns_data /dev/${part} >/dev/null
 echo '{"device": "/dev/'${part}'"}'
