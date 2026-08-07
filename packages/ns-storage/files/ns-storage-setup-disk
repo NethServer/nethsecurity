@@ -6,7 +6,7 @@
 
 #
 # Create a single ext4 partition on the given device.
-# Paramters:
+# Parameters:
 # - device, like '/dev/sdb'
 #
 
@@ -26,7 +26,15 @@ mount | grep -q "$device" && eerror "Device '$device' is already mounted"
 
 # cleanup partitions
 dd if=/dev/zero of="$device" bs=512 count=1 conv=notrunc 2>/dev/null
-# create a single ext4 partition
+# create a single partition
 parted -s -a optimal "$device" mklabel gpt -- mkpart primary  1 -1 >/dev/null
-mkfs.ext4 -q -F -L ns_data "$device"1 >/dev/null
-echo '{"device": "'${device}1'"}'
+# mkfs on newly created partition number 1
+partition=$(lsblk $device -o KNAME | sed -n \$p)
+partition_no=$(echo $partition | sed -E 's/.*(.)/\1/')
+if [ "$partition_no" -eq 1 ]
+then
+    mkfs.ext4 -q -F -L ns_data /dev/"$partition" >/dev/null
+else
+    eerror "Wrong partition number '$partition_no'"
+fi
+echo '{"device": "/dev/'$partition'"}'
