@@ -55,7 +55,7 @@ if [ "$nsui_enable" == "1" ]; then
 
 location / {
 	root /www-ns;
-	try_files \$uri \$uri/ /index.html;
+	try_files \$uri \$uri/ =404;
 }
 
 include $NSUI_API_LOCATIONS_FILE;
@@ -97,7 +97,7 @@ server {
 		gzip on;
 		gzip_types text/css application/javascript image/svg+xml;
 		root /www-ns;
-		try_files \$uri \$uri/ /index.html;
+		try_files \$uri \$uri/ =404;
 	}
 
 	include $NSUI_API_LOCATIONS_FILE;
