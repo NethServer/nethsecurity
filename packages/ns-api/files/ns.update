@@ -73,6 +73,24 @@ def check_package_updates():
     ret.sort(key=lambda package: package["package"])
     return {"updates": ret}
 
+def list_installed_packages():
+    try:
+        p = subprocess.run(["/usr/bin/apk", "query", "--installed", "--format", "json",
+                            "--fields", "name,version,description", "*"],
+                           check=True, capture_output=True, text=True)
+    except Exception as e:
+        print(e, file=sys.stderr)
+        return utils.generic_error("apk_query_failed")
+    ret = []
+    for package in json.loads(p.stdout):
+        ret.append({
+            "name": package.get("name", ""),
+            "version": package.get("version", ""),
+            "description": package.get("description", "")
+        })
+    ret.sort(key=lambda package: package["name"])
+    return {"packages": ret}
+
 def get_package_updates_lat_check():
     return {"lastCheck": last_package_check()}
 
@@ -184,6 +202,7 @@ if cmd == "list":
         json.dumps(
             {
                 "check-package-updates": {},
+                "list-installed-packages": {},
                 "get-package-updates-last-check": {},
                 "get-automatic-updates-status": {},
                 "install-package-updates": {},
@@ -201,6 +220,8 @@ elif cmd == "call":
     action = sys.argv[2]
     if action == "check-package-updates":
         ret = check_package_updates()
+    elif action == "list-installed-packages":
+        ret = list_installed_packages()
     elif action == "get-package-updates-last-check":
         ret = get_package_updates_lat_check()
     elif action == "get-automatic-updates-status":
