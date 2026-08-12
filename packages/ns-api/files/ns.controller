@@ -50,6 +50,14 @@ def get_version():
                 return version.replace("-", " ", 1)
     return version
 
+def get_package_version(package):
+    # installed version of an apk package, or an empty string if it is not installed
+    try:
+        output = subprocess.run(["apk", "list", "-I", package], capture_output=True, text=True).stdout.strip()
+        return output.split()[0].removeprefix(f"{package}-") if output else ""
+    except (subprocess.SubprocessError, IndexError):
+        return ""
+
 def parse_key(line):
     # parse key: <type> <data> <comment>
     tmp = line.strip().split(" ")
@@ -123,7 +131,11 @@ def info():
     ret["fqdn"] = get_hostname()
     ret["system_id"] = u.get("ns-plug", "config", "system_id", default="")
     ret["subscription_type"] = u.get("ns-plug", "config", "type", default="")
-    ret["api_version"] = subprocess.run(["apk", "list", "-I", "ns-api"], capture_output=True, text=True).stdout.strip().split()[0].removeprefix("ns-api-")
+    ret["api_version"] = get_package_version("ns-api")
+    # reported separately from api_version: the controller uses it to decide whether this unit can
+    # serve its own UI under the controller's per-unit path prefix, and the two packages are
+    # versioned independently
+    ret["ui_version"] = get_package_version("ns-ui")
     return ret
 
 def add_ssh_key(ssh_key):

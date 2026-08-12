@@ -10,6 +10,7 @@ set -e
 NSUI_FILE=/etc/nginx/conf.d/00ns.locations
 NSUI_EXTRA_FILE=/etc/nginx/conf.d/ns-ui.conf
 NSUI_API_LOCATIONS_FILE=/etc/nginx/conf.d/ns-ui-api.inc
+NSUI_STATIC_LOCATIONS_FILE=/etc/nginx/conf.d/ns-ui-static.inc
 LUCI_FILE=/etc/nginx/conf.d/luci.locations
 
 # Shared API locations, included by both the default and extra ns-ui instances
@@ -17,32 +18,76 @@ LUCI_FILE=/etc/nginx/conf.d/luci.locations
 # https://github.com/NethServer/nethsecurity/issues/1834
 cat <<'EOF' > "$NSUI_API_LOCATIONS_FILE"
 # body size limits on unauthenticated routes to prevent memory exhaustion
+# X-Forwarded-For is appended, not overwritten: when a controller proxies this unit, $remote_addr
+# is the controller's VPN address, so overwriting would collapse every remote client into one
+# address and make rate limiting and audit logs useless.
 location = /api/login {
 	client_max_body_size 32k;
 	proxy_set_header Host $host;
-	proxy_set_header X-Forwarded-For $remote_addr;
+	proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 	proxy_pass http://127.0.0.1:8090;
 }
 
 location = /api/logout {
 	client_max_body_size 1k;
 	proxy_set_header Host $host;
-	proxy_set_header X-Forwarded-For $remote_addr;
+	proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 	proxy_pass http://127.0.0.1:8090;
 }
 
 location = /api/2fa/otp-verify {
 	client_max_body_size 32k;
 	proxy_set_header Host $host;
-	proxy_set_header X-Forwarded-For $remote_addr;
+	proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 	proxy_pass http://127.0.0.1:8090;
 }
 
 location /api/ {
 	proxy_set_header Host $host;
-	proxy_set_header X-Forwarded-For $remote_addr;
+	proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 	proxy_pass http://127.0.0.1:8090/api/;
 	proxy_read_timeout 180s;
+}
+EOF
+
+# Shared static locations, included by both the default and extra ns-ui instances.
+#
+# Cache headers matter more than they look: index.html references content-hashed chunks, and
+# without them browsers apply heuristic freshness and can serve a stale index.html for days. After
+# a package upgrade the chunks it names are gone, try_files returns 404 and the UI is a white
+# screen until a hard reload.
+cat <<'EOF' > "$NSUI_STATIC_LOCATIONS_FILE"
+location / {
+	gzip on;
+	gzip_types text/css application/javascript image/svg+xml;
+	root /www-ns;
+	try_files $uri $uri/ =404;
+}
+
+# hashed filenames, so these are safe to keep forever
+location /assets/ {
+	gzip on;
+	gzip_types text/css application/javascript image/svg+xml;
+	root /www-ns;
+	try_files $uri =404;
+	expires 1y;
+	add_header Cache-Control "public, immutable";
+}
+
+# unhashed, and the entry point to everything else: must always be revalidated
+location = /index.html {
+	root /www-ns;
+	add_header Cache-Control "no-cache";
+}
+
+location = /branding.js {
+	root /www-ns;
+	add_header Cache-Control "no-cache";
+}
+
+location = /favicon.ico {
+	root /www-ns;
+	add_header Cache-Control "no-cache";
 }
 EOF
 
@@ -53,11 +98,7 @@ if [ "$nsui_enable" == "1" ]; then
     cat <<EOF > "$NSUI_FILE"
 # NethSecurity UI and API
 
-location / {
-	root /www-ns;
-	try_files \$uri \$uri/ =404;
-}
-
+include $NSUI_STATIC_LOCATIONS_FILE;
 include $NSUI_API_LOCATIONS_FILE;
 EOF
 else
@@ -93,13 +134,7 @@ server {
 	server_tokens $server_tokens;
 
 	# enable NS UI
-	location / {
-		gzip on;
-		gzip_types text/css application/javascript image/svg+xml;
-		root /www-ns;
-		try_files \$uri \$uri/ =404;
-	}
-
+	include $NSUI_STATIC_LOCATIONS_FILE;
 	include $NSUI_API_LOCATIONS_FILE;
 }
 EOF
