@@ -20,11 +20,9 @@ if 'adblock' in changes or 'firewall' in changes or 'network' in changes:
     zones = list(uci.get('adblock', 'global', 'ns_tsdns_zones', list=True, default=[]))
 
     if zones:
-        devices = []
+        devices = set()
         for zone in zones:
-            for device in utils.get_all_devices_by_zone(uci, zone, exclude_aliases=True):
-                if device not in devices:
-                    devices.append(device)
+            devices.update(utils.get_all_devices_by_zone(uci, zone, exclude_aliases=True))
         # keep a stable order, the value is compared before being rewritten
         devices = sorted(devices)
 

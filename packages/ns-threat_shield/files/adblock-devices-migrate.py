@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-# this script is supposed to be run by the 36_ns-threat_shield uci defaults
+# this script is supposed to be run by the 96_ns-threat_shield uci defaults
 #
 # Up to adblock 4.1.5 the local DNS enforcement was configured through adb_zonelist,
 # holding firewall zone names, and adblock turned it into uci redirect sections
@@ -18,7 +18,7 @@
 import subprocess
 
 from euci import EUci
-from nethsec import utils
+from nethsec import firewall, utils
 
 
 def migrate_zones():
@@ -32,19 +32,23 @@ def migrate_zones():
     if not zones:
         return False
 
-    devices = []
-    for zone in zones:
-        for device in utils.get_all_devices_by_zone(e_uci, zone, exclude_aliases=True):
-            if device not in devices:
-                devices.append(device)
-
-    if not devices:
-        # the stored values are not zone names, or the zones have no interface:
-        # leave the configuration untouched rather than clearing it
+    if not all(firewall.zone_exists(e_uci, zone) for zone in zones):
+        # the stored values are device names already, or zones that no longer exist:
+        # they can't be mapped back to a selection, leave the configuration untouched
         return False
 
+    devices = set()
+    for zone in zones:
+        devices.update(utils.get_all_devices_by_zone(e_uci, zone, exclude_aliases=True))
+
+    # record the selection even when it yields no device, so the API keeps reporting
+    # the zones the user picked instead of falling back to the default one
     e_uci.set('adblock', 'global', 'ns_tsdns_zones', zones)
-    e_uci.set('adblock', 'global', 'adb_nftdevforce', sorted(devices))
+    if devices:
+        e_uci.set('adblock', 'global', 'adb_nftdevforce', sorted(devices))
+    else:
+        # no device in the selected zones: adblock skips the enforcement altogether
+        e_uci.delete('adblock', 'global', 'adb_nftdevforce')
     e_uci.commit('adblock')
     return True
 

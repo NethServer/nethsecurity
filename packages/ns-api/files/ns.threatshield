@@ -736,24 +736,12 @@ def dns_list_zones(e_uci):
         zones.append(zone['name'])
     return { 'data': zones }
 
-def dns_get_enforced_zones(e_uci):
-    # the user selection is stored in ns_tsdns_zones: adb_nftdevforce holds the
-    # devices derived from it and can't be mapped back to zones without ambiguity
-    zones = list(e_uci.get('adblock', 'global', 'ns_tsdns_zones', list=True, default=[]))
-    if zones:
-        return zones
-    # before the switch to device-based enforcement the selection was stored inside
-    # adb_nftdevforce: keep reading it until the migration has run
-    return list(e_uci.get('adblock', 'global', 'adb_nftdevforce', list=True, default=['lan']))
-
 def dns_zones_to_devices(e_uci, zones):
     # adb_nftdevforce is rendered as an nft iifname match, so it needs the devices
     # of the selected zones and not the zone names
-    devices = []
+    devices = set()
     for zone in zones:
-        for device in utils.get_all_devices_by_zone(e_uci, zone, exclude_aliases=True):
-            if device not in devices:
-                devices.append(device)
+        devices.update(utils.get_all_devices_by_zone(e_uci, zone, exclude_aliases=True))
     return sorted(devices)
 
 def dns_set_enforced_devices(e_uci, zones):
@@ -766,7 +754,11 @@ def dns_set_enforced_devices(e_uci, zones):
 
 def dns_list_settings(e_uci):
     ts_enabled = e_uci.get('adblock', 'global', 'ts_enabled', default='0')
-    zones = dns_get_enforced_zones(e_uci)
+    # the user selection is stored in ns_tsdns_zones: adb_nftdevforce holds the devices
+    # derived from it and can't be mapped back to zones without ambiguity. Installations
+    # predating the device-based enforcement are converted by 96_ns-threat_shield, so the
+    # option is always set at this point
+    zones = list(e_uci.get('adblock', 'global', 'ns_tsdns_zones', list=True, default=['lan']))
     try:
         ports = list(e_uci.get_all('adblock', 'global', 'adb_nftportforce'))
     except:
