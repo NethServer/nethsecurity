@@ -7,12 +7,14 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-ui
 # renovate: datasource=github-releases depName=NethServer/nethsecurity-ui
-PKG_VERSION:=2.23.3
+PKG_VERSION:=2.24.0
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/NethServer/nethsecurity-ui.git
-PKG_SOURCE_VERSION:=$(PKG_VERSION)
+# PKG_VERSION is what the controller gates on (ns-api reports it as info.ui_version), but renovate
+# maintains it independently of this SHA. Once the UI release is tagged, use $(PKG_VERSION) here.
+PKG_SOURCE_VERSION:=82b3c57b7e4d3d2c0fe79ffece3811b0d078148e
 PKG_SOURCE_SUBDIR:=nethsecurity-ui-$(PKG_SOURCE_VERSION)
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_SOURCE_SUBDIR)
 PKG_MIRROR_HASH:=skip
