@@ -43,6 +43,7 @@ define Package/ns-threat_shield/install
 	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/unregister
 	$(INSTALL_DIR) $(1)/usr/libexec/ns-api/post-commit
 	$(INSTALL_DIR) $(1)/usr/libexec/ns-api/pre-commit
+	$(INSTALL_DIR) $(1)/usr/libexec
 	$(INSTALL_BIN) ./files/ts-dns $(1)/usr/sbin/ts-dns
 	$(INSTALL_BIN) ./files/ts-ip $(1)/usr/sbin/ts-ip
 	$(INSTALL_BIN) ./files/20_threat_shield $(1)/etc/uci-defaults
@@ -56,9 +57,12 @@ define Package/ns-threat_shield/install
 	$(INSTALL_DATA) ./files/banip.nethesis.feeds $(1)/etc/banip
 	$(INSTALL_BIN) ./files/adjust-banip.py $(1)/usr/libexec/ns-api/post-commit/
 	$(INSTALL_BIN) ./files/configure-banip-wans.py $(1)/usr/libexec/ns-api/pre-commit/
+	$(INSTALL_BIN) ./files/configure-adblock-devices.py $(1)/usr/libexec/ns-api/pre-commit/
+	$(INSTALL_BIN) ./files/adblock-devices-migrate.py $(1)/usr/libexec/ts-dns-migrate-devices
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/banip-defaults $(1)/etc/uci-defaults/99-nethsec-banip
 	$(INSTALL_BIN) ./files/35_ns-threat_shield $(1)/etc/uci-defaults/35_ns-threat_shield
+	$(INSTALL_BIN) ./files/96_ns-threat_shield $(1)/etc/uci-defaults/96_ns-threat_shield
 	gzip -9n $(1)/usr/share/threat_shield/nethesis-dns.sources
 	gzip -9n $(1)/usr/share/threat_shield/community-dns.sources
 endef
