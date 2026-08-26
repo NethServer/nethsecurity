@@ -53,11 +53,11 @@ def check_package_updates():
     try:
         # download metadata only if they are older than 5 minutes
         if (time.time() - last_package_check()) > 300:
-            subprocess.run(["/usr/bin/apk", "update"], check=True, capture_output=True)
+            subprocess.run(["/usr/sbin/apk-official", "update"], check=True, capture_output=True)
     except Exception as e:
         print(e, file=sys.stderr)
         return utils.generic_error("apk_update_failed")
-    p = subprocess.run(["/usr/bin/apk", "list", "--upgradable"], check=True, capture_output=True, text=True)
+    p = subprocess.run(["/usr/sbin/apk-official", "list", "--upgradable"], check=True, capture_output=True, text=True)
     for line in p.stdout.split("\n"):
         if not line:
             continue

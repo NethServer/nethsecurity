@@ -8,12 +8,14 @@
 # setup default variables
 . /etc/openwrt_release
 . /etc/os-release
+openwrt_version="$(cat /etc/openwrt_version)"
+openwrt_version="${openwrt_version#v}"
 cat << EOF > /etc/apk/repositories.d/99-defaults.list
 # This file is handled by nethsecurity and should not be edited manually. Changes will be overwritten.
 # Create a 98-overrides.list file to override these values if needed.
 set -default target_arch=$DISTRIB_TARGET
 set -default package_arch=$DISTRIB_ARCH
-set -default openwrt_version=$(cat /etc/openwrt_version)
+set -default openwrt_version=$openwrt_version
 set -default repo_channel=$(cat /etc/repo-channel)
 set -default version=$VERSION_ID
 EOF

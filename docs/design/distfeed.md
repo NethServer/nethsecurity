@@ -118,3 +118,9 @@ https://downloads.openwrt.org/releases/${openwrt_version}/packages/${package_arc
 https://downloads.openwrt.org/releases/${openwrt_version}/packages/${package_arch}/routing/packages.adb
 EOF
 ```
+
+Packages from `customfeeds.list` are not rebuilt or QA'd by NethSecurity, so the nightly
+package-update cron and the UI's package update check/install flow never consider them: both
+run `apk` through `/usr/sbin/apk-official`, which temporarily moves `customfeeds.list` aside for
+the duration of a single `apk` call and restores it afterwards. Direct/manual `apk` invocations
+are unaffected and still see `customfeeds.list` normally.
