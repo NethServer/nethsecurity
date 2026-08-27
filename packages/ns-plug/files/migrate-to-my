@@ -95,5 +95,15 @@ EOI
 # no-op if victoria-metrics is not installed.
 /etc/init.d/vmalert reload 2>/dev/null || true
 
+# The enterprise feeds hold the credentials inside their URLs, written at
+# registration: rotating the pair here would leave them authenticating as the
+# legacy system, which works only until the old my goes away. Re-run just the
+# feed hooks -- the other register hooks act on a first registration.
+for feed_setup in /usr/sbin/ts-ip /usr/sbin/ts-dns /usr/sbin/distfeed-setup; do
+    [ -x "$feed_setup" ] && "$feed_setup" || true
+done
+/etc/init.d/banip reload 2>/dev/null || true
+/etc/init.d/adblock reload 2>/dev/null || true
+
 logger -t migrate-to-my "migrated to my collect credentials"
 exit 0
