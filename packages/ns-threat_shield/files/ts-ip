@@ -33,8 +33,17 @@ TYPE=$(uci -q get ns-plug.config.type)
 if [ ! -z "$SYSTEM_SECRET" ] && [ ! -z "$SYSTEM_ID" ]; then
     jq -s '.[0] * .[1]' /etc/banip/banip.nethesis.feeds /etc/banip/banip.feeds \
 	    | sed -e "s/__USER__/$SYSTEM_ID/" -e "s/__PASSWORD__/$SYSTEM_SECRET/" -e "s/__TYPE__/$TYPE/" > /etc/banip/banip.custom.feeds
-    if ! uci -q get banip.global.ban_allowurl | grep -q bl.nethesis.it; then
-        uci add_list banip.global.ban_allowurl="https://$SYSTEM_ID:$SYSTEM_SECRET@bl.nethesis.it/plain/$TYPE/nethesis-blacklists/whitelist.global"
+    # The credentials are part of the URL, so an entry written before a key
+    # rotation keeps fetching as the old pair. Enforce one entry, the current
+    # one: compare the whole set, and del_list per entry (a multi-line value
+    # matches nothing).
+    allow_current="https://$SYSTEM_ID:$SYSTEM_SECRET@bl.nethesis.it/plain/$TYPE/nethesis-blacklists/whitelist.global"
+    allow_have=$(uci -q get banip.global.ban_allowurl | tr " " "\n" | grep bl.nethesis.it)
+    if [ "$allow_have" != "$allow_current" ]; then
+        for allow_stale in $allow_have; do
+            uci del_list banip.global.ban_allowurl="$allow_stale"
+        done
+        uci add_list banip.global.ban_allowurl="$allow_current"
         uci commit banip
     fi
 else
