@@ -52,9 +52,9 @@ sysupgrade -q -k -b "$BACKUP"
 rm -rf "$EXTRACTED_BACKUP"
 mkdir -p "$EXTRACTED_BACKUP"
 tar -zxf "$BACKUP" -C "$EXTRACTED_BACKUP"
-find "$EXTRACTED_BACKUP" -type f -exec md5sum {} \; > "$MD5"
+find "$EXTRACTED_BACKUP" -type f -exec md5sum {} \; | sort > "$MD5"
 
-# Send backup if there is no md5 saved, or if the md5 changed
-if [ ! -f "$MD5_LAST" ] || ! md5sum -c -s "$MD5_LAST"; then
+# Send backup if there is no md5 list saved, or if the md5 list changed
+if [ ! -f "$MD5_LAST" ] || ! cmp -s "$MD5" "$MD5_LAST"; then
     send
 fi
