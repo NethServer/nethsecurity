@@ -1,0 +1,13 @@
+{
+  "support-tunnel-manager": {
+    "description": "support-tunnel session manager",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.support-tunnel": [
+          "*"
+        ]
+      }
+    }
+  }
+}
