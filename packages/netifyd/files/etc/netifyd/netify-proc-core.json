@@ -1,5 +1,24 @@
 {
     "format": "json",
     "compressor": "none",
-    "sinks": { }
+    "sinks": {
+        "sink-http": {
+            "legacy": {
+                "enable": false,
+                "types": [ "legacy-http" ],
+                "format": "json",
+                "compressor": "gz"
+            }
+        },
+        "sink-mqtt": {
+            "flows": {
+                "enable": false,
+                "types": [ "stream-flows" ]
+            },
+            "stats": {
+                "enable": false,
+                "types": [ "stream-stats" ]
+            }
+        }
+    }
 }
