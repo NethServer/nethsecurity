@@ -6,6 +6,7 @@ Tools:
 
 - cleanup: used by `cleanup.yml` to remove old image versions from the CDN
 - issue-comment: used by `build-image.yml` to comment on issues when a PR is merged into the main branch
+- netifyd-update: refresh the netifyd binaries pinned by the `netifyd` package
 
 ## cleanup
 
@@ -73,3 +74,30 @@ The script will:
 Generated changelos are saved in the current directory:
 - core-changes.md
 - packages-changes.md
+
+## netifyd-update
+
+Refresh the netifyd binaries used by the `netifyd` package.
+
+The script:
+- reads the upstream index (`SOURCES` at the top of the script, one entry per architecture)
+- downloads the apk of every package listed in `PACKAGES`
+- extracts them with `apk extract`
+- writes `packages/netifyd/netify-dist.mk` with file name, soname, unversioned link and
+  sha256 of each shipped binary, per architecture
+- copies the real files (not the symlinks, they are recreated at install time) into
+  `tools/netifyd-update/dist/<arch>/`, laid out as the Makefile downloads them
+
+Requirements: `apk-tools` (`dnf install apk-tools` or `apt-get install apk-tools`) and
+the Python dependencies in `requirements.txt`.
+
+Usage example:
+```
+pip install -r requirements.txt
+tools/netifyd-update/netifyd-update.py update
+```
+
+Use `--force` to remove an existing `work/` and `dist/` from a previous run and redo it.
+
+The `dist/` tree must then be published manually to the netifyd-dist mirror, under
+`netifyd-<version>/<dist>/`.
