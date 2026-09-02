@@ -394,14 +394,16 @@ def fact_threat_shield(uci: EUci):
     ret = { 'enabled': False, 'community': 0, 'enterprise': 0, 'geoblocking': 0 }
     ret['enabled'] = uci.get('banip', 'global', 'ban_enabled', default='0') == '1'
     try:
-        for feed in uci.get_all("banip", "global", "ban_feed"):
+        feeds = uci.get_all("banip", "global", "ban_feed")
+        for feed in feeds:
             if feed.startswith("nethesis") or feed.startswith("yoroi"):
                 ret['enterprise'] += 1
             else:
                 ret['community'] += 1
+        if 'country' in feeds:
+            ret['geoblocking'] = len(uci.get('banip', 'global', 'ban_country', list=True, default=[]))
     except:
         pass
-    ret['geoblocking'] = len(uci.get('banip', 'global', 'ban_country', list=True, default=[]))
     return ret
 
 def fact_adblock(uci: EUci):
