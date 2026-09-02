@@ -865,7 +865,7 @@ def test_fact_rpcd_users(tmp_path):
      
 def test_fact_threat_shield(tmp_path):
 	u = _setup_db(tmp_path)
-	assert inventory.fact_threat_shield(u) == {"enabled": True, "community": 1, "enterprise": 1}
+	assert inventory.fact_threat_shield(u) == {"enabled": True, "community": 1, "enterprise": 1, "geoblocking": 0}
      
 def test_fact_ui(tmp_path):
 	u = _setup_db(tmp_path)

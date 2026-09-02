@@ -391,7 +391,7 @@ def fact_rpcd_users(uci: EUci):
     return { 'count': count }
 
 def fact_threat_shield(uci: EUci):
-    ret = { 'enabled': False, 'community': 0, 'enterprise': 0 }
+    ret = { 'enabled': False, 'community': 0, 'enterprise': 0, 'geoblocking': 0 }
     ret['enabled'] = uci.get('banip', 'global', 'ban_enabled', default='0') == '1'
     try:
         for feed in uci.get_all("banip", "global", "ban_feed"):
@@ -401,6 +401,7 @@ def fact_threat_shield(uci: EUci):
                 ret['community'] += 1
     except:
         pass
+    ret['geoblocking'] = len(uci.get('banip', 'global', 'ban_country', list=True, default=[]))
     return ret
 
 def fact_adblock(uci: EUci):
