@@ -13,6 +13,8 @@ import os.path
 import subprocess
 import logging
 from os import environ
+import semver
+import json
 
 
 SUBSCRIPTION_SERVER = "https://sp.nethesis.it"
@@ -24,11 +26,9 @@ CATEGORIES_FILENAME = "netify-categories.json"
 def get_netifyd_version() -> str:
     try:
         result = subprocess.run(
-            ["netifyd", "--version"], capture_output=True, text=True
+            ["apk", "query", "--format", "json", "--field", "version", "netifyd"], capture_output=True, text=True
         )
-        for line in (result.stdout + result.stderr).splitlines():
-            if "Netify Agent/" in line:
-                return line.split("/")[1].split(" ")[0]
+        return json.loads(result.stdout.strip())[0]["version"].split("-")[0]
     except Exception as e:
         logging.warning(f"Failed to get netifyd version: {e}")
     return ""
