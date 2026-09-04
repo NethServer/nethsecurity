@@ -2482,9 +2482,12 @@ adb_mailcmd="$(f_cmd msmtp optional)"
 adb_logreadcmd="$(f_cmd logread optional)"
 adb_nftcmd="$(f_cmd nft)"
 
+# initial system load
+#
+[ -S "/var/run/ubus/ubus.sock" ] && f_load
+
 # handle different adblock actions
 #
-f_load
 case "${adb_action}" in
 "stop")
 	f_temp
