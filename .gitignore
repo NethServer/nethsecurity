@@ -5,4 +5,5 @@ build-logs
 build.conf
 netify-flow-actions
 netify-agent-stats-plugin
-scripts/netifyd-apks
+tools/netifyd-update/work/
+tools/netifyd-update/dist/
