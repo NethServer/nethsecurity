@@ -2696,7 +2696,7 @@ f_monitor() {
 			case "${log_type}" in
 			tail)
 				"${ban_logreadcmd}" -qf "${ban_logreadfile}" 2>/dev/null |
-					"${ban_grepcmd}" -e "${ban_logterm}" 2>/dev/null
+					"${ban_grepcmd}" --line-buffered -e "${ban_logterm}" 2>/dev/null
 				;;
 			logread)
 				"${ban_logreadcmd}" -fe "${ban_logterm}" 2>/dev/null

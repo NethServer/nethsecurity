@@ -462,7 +462,7 @@ def list_blocklist(e_uci):
         feed = feeds[f]
         enabled = f in enabled_feeds
 
-        if 'nethesis-blacklists' in feed.get('url_4'):
+        if 'nethesis' in feed.get('url_4'):
             type = 'enterprise'
         else:
             type = 'community'

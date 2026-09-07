@@ -23,12 +23,12 @@
 		"chain": "in",
 		"descr": "Yoroi suspicious - Level 2"
 	},
-	"nethesisinsights": {
+	"nethesisinsightslvl2": {
 		"url_4": "https://__USER__:__PASSWORD__@insights.nethesis.it/v1/blocklist",
 		"url_6": "https://__USER__:__PASSWORD__@insights.nethesis.it/v1/blocklist",
 		"rule": "feed 1",
 		"chain": "in",
-		"descr": "Nethesis Insights - attackers reported by the fleet"
+		"descr": "Nethesis Insights - Level 2"
 	},
 	"nethesislvl3": {
 		"url_4": "https://__USER__:__PASSWORD__@bl.nethesis.it/plain/__TYPE__/nethesis-blacklists/nethesis_level3.netset",
