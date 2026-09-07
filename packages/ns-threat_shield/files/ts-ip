@@ -37,6 +37,13 @@ if [ ! -z "$SYSTEM_SECRET" ] && [ ! -z "$SYSTEM_ID" ]; then
         uci add_list banip.global.ban_allowurl="https://$SYSTEM_ID:$SYSTEM_SECRET@bl.nethesis.it/plain/$TYPE/nethesis-blacklists/whitelist.global"
         uci commit banip
     fi
+    # report the IPs blocked by the banip log service and consume the aggregated
+    # blocklist built by Nethesis Insights from the reports of the whole fleet
+    uci set banip.global.ban_blockhook="/usr/libexec/ts-insights-hook"
+    if ! uci -q get banip.global.ban_feed | grep -q -w nethesisinsights; then
+        uci add_list banip.global.ban_feed="nethesisinsights"
+    fi
+    uci commit banip
 else
     allow=$(uci -q get banip.global.ban_allowurl | tr " " "\n" | grep bl.nethesis.it)
     if [ "$allow" != "" ]; then
@@ -52,4 +59,10 @@ else
         uci commit banip
     fi
     > /etc/banip/banip.custom.feeds
+    # stop reporting to Nethesis Insights, the nethesisinsights feed is already
+    # removed along with the other enterprise feeds
+    if [ -n "$(uci -q get banip.global.ban_blockhook)" ]; then
+        uci -q delete banip.global.ban_blockhook
+        uci commit banip
+    fi
 fi

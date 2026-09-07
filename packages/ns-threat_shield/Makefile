@@ -7,7 +7,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-threat_shield
-PKG_VERSION:=1.0.1
+PKG_VERSION:=1.1.0
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-threat_shield-$(PKG_VERSION)
@@ -46,6 +46,8 @@ define Package/ns-threat_shield/install
 	$(INSTALL_DIR) $(1)/usr/libexec
 	$(INSTALL_BIN) ./files/ts-dns $(1)/usr/sbin/ts-dns
 	$(INSTALL_BIN) ./files/ts-ip $(1)/usr/sbin/ts-ip
+	$(INSTALL_BIN) ./files/ts-insights-report.py $(1)/usr/sbin/ts-insights-report
+	$(INSTALL_BIN) ./files/ts-insights-hook $(1)/usr/libexec/ts-insights-hook
 	$(INSTALL_BIN) ./files/20_threat_shield $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/ts-dns.hook $(1)/usr/share/ns-plug/hooks/register/90ts-dns
 	$(INSTALL_BIN) ./files/ts-dns.hook $(1)/usr/share/ns-plug/hooks/unregister/90ts-dns
@@ -62,6 +64,7 @@ define Package/ns-threat_shield/install
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/banip-defaults $(1)/etc/uci-defaults/99-nethsec-banip
 	$(INSTALL_BIN) ./files/banip-extra-defaults $(1)/etc/uci-defaults/96-nethsec-banip-extra
+	$(INSTALL_BIN) ./files/banip-insights-defaults $(1)/etc/uci-defaults/97-nethsec-banip-insights
 	$(INSTALL_BIN) ./files/35_ns-threat_shield $(1)/etc/uci-defaults/35_ns-threat_shield
 	$(INSTALL_BIN) ./files/96_ns-threat_shield $(1)/etc/uci-defaults/96_ns-threat_shield
 	gzip -9n $(1)/usr/share/threat_shield/nethesis-dns.sources
@@ -84,6 +87,7 @@ define Package/ns-threat_shield/prerm
 if [ -z "$${IPKG_INSTROOT}" ]; then
 	crontab -l | grep -v "/etc/init.d/banip reload" | sort | uniq | crontab -
 	crontab -l | grep -v "/etc/init.d/adblock" | sort | uniq | crontab -
+	crontab -l | grep -v "/usr/sbin/ts-insights-report" | sort | uniq | crontab -
 fi
 exit 0
 endef
