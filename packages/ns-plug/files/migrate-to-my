@@ -58,15 +58,15 @@ resp=$(/usr/bin/curl --silent --location-trusted --fail-with-body \
     --max-time 30 --retry 2 \
     --user "$SYSTEM_ID:$SYSTEM_SECRET" \
     https://my-proxy-prod.onrender.com/proxy/credentials 2>/dev/null) || {
-    logger -t migrate-to-my "credential fetch failed; will retry on next run"
-    exit 0
+    echo "credential fetch failed; will retry on next run"
+    exit 1
 }
 
 new_key=$(echo "$resp" | jq -r '.data.system_key // empty' 2>/dev/null)
 new_secret=$(echo "$resp" | jq -r '.data.system_secret // empty' 2>/dev/null)
 if [ -z "$new_key" ] || [ -z "$new_secret" ]; then
-    logger -t migrate-to-my "credentials missing in response"
-    exit 0
+    echo "credentials missing in response"
+    exit 2
 fi
 
 # Rotate atomically; legacy pair preserved for audit / rollback.
@@ -99,5 +99,5 @@ done
 /etc/init.d/banip reload 2>/dev/null || true
 /etc/init.d/adblock reload 2>/dev/null || true
 
-logger -t migrate-to-my "migrated to my collect credentials"
+echo "migrated to my collect credentials"
 exit 0
