@@ -12,6 +12,10 @@ USE_PROCD=1
 PROG="/usr/bin/vmalert"
 RULE_DIR="/etc/vmalert/rules"
 
+function append_params() {
+    procd_append_param command $@
+}
+
 start_service() {
     config_load vmalert 2>/dev/null || true
     
@@ -50,7 +54,11 @@ start_service() {
     else
         procd_append_param command -notifier.blackhole
     fi
-    
+
+    # config_load ns-plug above discards vmalert's parsed UCI state
+    config_load vmalert 2>/dev/null || true
+    config_list_foreach main additional_parameters append_params
+
     procd_set_param stdout 1
     procd_set_param stderr 1
     procd_set_param respawn 3600 5 5
