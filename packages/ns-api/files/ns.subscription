@@ -78,6 +78,8 @@ def info():
         if sub_id:
             ret["system_url"] = f"https://my.nethserver.com/servers/{sub_id}"
 
+    ret["migrated"] = u.get('ns-plug', 'config', 'migrated', dtype=bool, default=False)
+
     return ret
 
 
