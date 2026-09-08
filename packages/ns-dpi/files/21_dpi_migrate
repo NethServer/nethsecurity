@@ -1,0 +1,13 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Migrate /etc/config/dpi from the schema used before application groups existed. Safe to run on every
+# boot: dpi-migrate is a no-op once there is nothing left in the old schema.
+
+set -e
+
+/usr/sbin/dpi-migrate
