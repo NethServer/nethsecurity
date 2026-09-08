@@ -42,11 +42,21 @@ case "$type" in
         "${url}machine/info" | jq -r ".uuid" 2>/dev/null)
         ;;
     enterprise)
-        url="https://my.nethesis.it/api/"
+        url="https://my-proxy-prod.onrender.com/backend/api/"
 
-        system_id=$(curl -s -m $timeout --retry 3 -L \
+        register_resp=$(curl -s -m $timeout --retry 3 -L -w '\n%{http_code}' \
         -H "Content-Type: application/json" -H "Accept: application/json" \
-        -d '{"secret": "'$secret'"}' "${url}systems/info" | jq -r ".uuid" 2>/dev/null)
+        -d '{"system_secret": "'$secret'"}' "${url}systems/register")
+        http_code=$(echo "$register_resp" | sed -n '$p')
+        register_resp=$(echo "$register_resp" | sed '$d')
+
+        # A system key is one-shot.
+        if [ "$http_code" = "409" ]; then
+            >&2 echo "[ERROR] system already registered on my"
+            exit 2
+        fi
+
+        system_id=$(echo "$register_resp" | jq -r '.data.system_key // empty' 2>/dev/null)
         ;;
     *)
         exit_error "Invalid type '$type'"
@@ -68,9 +78,10 @@ case "$type" in
         ;;
     enterprise)
         uci set ns-plug.config.type="enterprise"
-        uci set ns-plug.config.alerts_url="https://my.nethesis.it/isa/"
         uci set ns-plug.config.api_url="$url"
-        uci set ns-plug.config.inventory_url="https://my.nethesis.it/isa/inventory/store/"
+        uci set ns-plug.config.collect_url="https://my-proxy-prod.onrender.com/collect/api/systems"
+        uci set ns-plug.config.notifier_url=https://my-proxy-prod.onrender.com/collect/api/services/mimir/alertmanager
+        uci set ns-plug.config.migrated="1"
         ;;
 esac
 
@@ -79,9 +90,8 @@ uci set ns-plug.config.secret="$secret"
 uci set ns-plug.config.repository_url="https://$system_id:$secret@distfeed.nethesis.it/repository/$type/nethsecurity"
 uci commit ns-plug
 reload_config
-# Register the machine by sending the inventory for the first time
-send-inventory
 send-heartbeat
+send-inventory
 exit_code=$?
 
 # Execute register hooks

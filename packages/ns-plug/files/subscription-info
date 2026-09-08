@@ -22,13 +22,33 @@ fi
 
 type=$(uci -q get ns-plug.config.type)
 secret=$(uci -q get ns-plug.config.secret)
-url=$(uci -q get ns-plug.config.api_url | sed 's/\/$//')
 
 if [ "$type" = "enterprise" ]; then
-    curl -f -s -m $timeout --retry-delay 1 --retry 2 -L \
-        -H "Content-Type: application/json" -H "Accept: application/json" \
-        -d '{"secret": "'$secret'"}' "$url/systems/info"
+    resp=$(/usr/bin/curl -f -s -m $timeout --retry-delay 1 --retry 2 -L \
+        -H "Accept: application/json" \
+        --user "$system_id:$secret" \
+        "$(uci -q get ns-plug.config.collect_url)/info") || exit $?
+
+    jq -c '
+        .data as $s |
+        {
+            uuid: ($s.system_id // ""),
+            id: ($s.system_key // ""),
+            system_name: ($s.name // ""),
+            organization: ($s.organization.name // ""),
+            subscription: {
+                status: (if $s.registered and (($s.suspended // false) | not) then "valid" else "invalid" end),
+                valid_until: null,
+                subscription_plan: { name: ($s.organization.name // "-") }
+            }
+        }
+    ' <<EOF
+$resp
+EOF
+
 else
+    url=$(uci -q get ns-plug.config.api_url | sed 's/\/$//')
+
     curl -f -s -m $timeout --retry-delay 1 --retry 2 -L \
         -H "Content-Type: application/json" -H "Accept: application/json" \
         -H "Authorization: token $secret" \

@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-plug
-PKG_VERSION:=1.3.2
+PKG_VERSION:=1.4.0_beta
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-plug-$(PKG_VERSION)
@@ -21,7 +21,7 @@ define Package/ns-plug
 	CATEGORY:=NethSecurity
 	TITLE:=NethSecurity controller client
 	URL:=https://github.com/NethServer/nethsecurity-controller/
-	DEPENDS:=+openvpn +lscpu +python3-nethsec +python3-yaml +telegraf +victoria-metrics
+	DEPENDS:=+openvpn +lscpu +python3-nethsec +python3-yaml +telegraf +victoria-metrics +jq
 	PKGARCH:=all
 endef
  
@@ -44,9 +44,8 @@ if [ -z "$${IPKG_INSTROOT}" ]; then
   /etc/init.d/cron restart
   /usr/libexec/ns-plug/40_ns-plug_mwan_hooks
   /etc/init.d/ns-plug restart
-  /etc/init.d/ns-plug-alert-proxy enable
-  /etc/init.d/ns-plug-alert-proxy restart
   /etc/init.d/vmalert reload
+  /usr/libexec/migrate-to-my
 fi
 exit 0
 endef
@@ -58,8 +57,6 @@ if [ -z "$${IPKG_INSTROOT}" ]; then
   crontab -l | grep -v "/usr/sbin/send-inventory" | sort | uniq | crontab -
   crontab -l | grep -v "/usr/sbin/send-heartbeat" | sort | uniq | crontab -
   sed -i '/\/usr\/libexec\/ns-plug\/mwan-hooks/d' /etc/mwan3.user
-  /etc/init.d/ns-plug-alert-proxy stop
-  /etc/init.d/ns-plug-alert-proxy disable
 fi
 exit 0
 endef
@@ -77,11 +74,10 @@ define Package/ns-plug/install
 	$(INSTALL_DIR) $(1)/usr/libexec/ns-plug
 	$(INSTALL_DIR) $(1)/usr/libexec/mwan-hooks
 	$(INSTALL_BIN) ./files/ns-plug.init $(1)/etc/init.d/ns-plug
-	$(INSTALL_BIN) ./files/ns-plug-alert-proxy.init $(1)/etc/init.d/ns-plug-alert-proxy
 	$(INSTALL_BIN) ./files/ns-plug $(1)/usr/sbin/ns-plug
-	$(INSTALL_BIN) ./files/ns-plug-alert-proxy $(1)/usr/sbin/ns-plug-alert-proxy
 	$(INSTALL_BIN) ./files/distfeed-setup $(1)/usr/sbin/distfeed-setup
 	$(INSTALL_BIN) ./files/apk-official $(1)/usr/sbin/apk-official
+	$(INSTALL_BIN) ./files/migrate-to-my $(1)/usr/libexec
 	$(INSTALL_BIN) ./files/remote-backup $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/send-backup $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/send-heartbeat $(1)/usr/sbin

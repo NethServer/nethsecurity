@@ -19,6 +19,7 @@ from euci import EUci
 
 tmp_dir = "/var/run/"
 token_file = f"{tmp_dir}/dedalo_token"
+pairing_file = f"{tmp_dir}/dedalo_pairing.json"
 opts = ["network", "hotspot_id", "unit_name", "unit_description", "interface"]
 
 ## Utilities
@@ -45,23 +46,103 @@ def setup(u):
 def login(args):
     u = EUci()
     try:
-        p = subprocess.run(['curl', '-L', '--url', f'https://{args["host"]}/api/login', '--header', 'Content-Type: application/json', '--data-binary', json.dumps(args)], check=True, capture_output=True, text=True)
+        p = subprocess.run(['curl', '-L', '-m', '15', '--connect-timeout', '5', '--url', f'https://{args["host"]}/api/login', '--header', 'Content-Type: application/json', '--data-binary', json.dumps(args)], check=True, capture_output=True, text=True)
         resp = json.loads(p.stdout)
         if 'token' in resp:
-            setup(u)
-            u.set("dedalo", "config", "splash_page", f'http://{args["host"]}/wings')
-            u.set("dedalo", "config", "aaa_url", f'https://{args["host"]}/wax/aaa')
-            u.set("dedalo", "config", "api_url", f'https://{args["host"]}/api')
-            u.commit("dedalo")
-            os.makedirs(tmp_dir, exist_ok = True)
-            with open(token_file, "w") as fp:
-                fp.write(resp["token"])
+            _connect_to_host(u, args["host"], resp["token"])
             return {"response": "success"}
         else:
             return utils.generic_error("login_failed")
     except Exception as e:
         print(e, file=sys.stderr)
         return {"success": False}
+
+
+def _connect_to_host(u, host, token, account_name="", account_user=""):
+    # same side effects as a successful password login: point the unit at
+    # the chosen hotspot manager and store the session token; the account
+    # info (from OIDC pairing) is kept to show who the unit is linked to
+    setup(u)
+    u.set("dedalo", "config", "splash_page", f'http://{host}/wings')
+    u.set("dedalo", "config", "aaa_url", f'https://{host}/wax/aaa')
+    u.set("dedalo", "config", "api_url", f'https://{host}/api')
+    for opt, value in (("account_name", account_name), ("account_user", account_user)):
+        if value:
+            u.set("dedalo", "config", opt, value)
+        else:
+            try:
+                u.delete("dedalo", "config", opt)
+            except:
+                pass
+    u.commit("dedalo")
+    os.makedirs(tmp_dir, exist_ok = True)
+    with open(token_file, "w") as fp:
+        fp.write(token)
+
+def oidc_start(args):
+    host = args.get("host") or "my.nethspot.com"
+    u = EUci()
+    unit_name = u.get("dedalo", "config", "unit_name", default="")
+    if not unit_name:
+        with open('/proc/sys/kernel/hostname', 'r') as fp:
+            unit_name = fp.read().strip()
+    try:
+        p = subprocess.run(['curl', '-s', '-L', '-m', '15', '--connect-timeout', '5', '-X', 'POST', '-w', '\n%{http_code}', '--url', f'https://{host}/api/auth/oidc/device/start', '--header', 'Content-Type: application/json', '--data-binary', json.dumps({"unit_name": unit_name})], check=True, capture_output=True, text=True)
+        body, _, http_code = p.stdout.rpartition('\n')
+        # Expected outcomes of the user-provided host (manager without OIDC
+        # support, wrong/unreachable host) are validation errors: the UI
+        # shows them inline without the global error toast.
+        if http_code == '404':
+            # hotspot manager without OIDC device pairing support
+            return utils.validation_error("host", "oidc_not_supported")
+        resp = json.loads(body)
+    except Exception as e:
+        print(e, file=sys.stderr)
+        return utils.validation_error("host", "pairing_start_failed")
+    if 'device_code' not in resp or 'verification_url' not in resp:
+        return utils.validation_error("host", "pairing_start_failed")
+    # the device_code stays on the unit: the browser only ever sees the
+    # verification_url (carrying the public pair_id)
+    os.makedirs(tmp_dir, exist_ok = True)
+    fd = os.open(pairing_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, 'w') as fp:
+        json.dump({"host": host, "device_code": resp["device_code"]}, fp)
+    return {
+        "verification_url": resp["verification_url"],
+        "expires_in": resp.get("expires_in", 600),
+        "interval": resp.get("interval", 2),
+    }
+
+def oidc_poll():
+    u = EUci()
+    try:
+        with open(pairing_file, 'r') as fp:
+            pairing = json.load(fp)
+    except:
+        return utils.generic_error("no_pairing_in_progress")
+    host = pairing["host"]
+    try:
+        p = subprocess.run(['curl', '-s', '-L', '-m', '15', '--connect-timeout', '5', '--url', f'https://{host}/api/auth/oidc/device/poll', '--header', 'Content-Type: application/json', '--data-binary', json.dumps({"device_code": pairing["device_code"]})], check=True, capture_output=True, text=True)
+        resp = json.loads(p.stdout)
+    except Exception as e:
+        # transient error talking to the hotspot manager: keep polling
+        print(e, file=sys.stderr)
+        return {"status": "pending"}
+    status = resp.get("status", "")
+    if status == "ready":
+        os.remove(pairing_file)
+        _connect_to_host(u, host, resp["token"], resp.get("account_name", ""), resp.get("logged_by", ""))
+        return {"status": "success", "account_name": resp.get("account_name", "")}
+    if status == "failed":
+        os.remove(pairing_file)
+        # NB: don't name the key "error" — a top-level "error" key makes
+        # nethsecurity-api reply 500 (application-error convention) and the
+        # failed status would never reach the UI as data.
+        return {"status": "failed", "reason": resp.get("error", "unknown")}
+    if status == "expired":
+        os.remove(pairing_file)
+        return {"status": "expired"}
+    return {"status": "pending"}
 
 def list_sessions():
     process = subprocess.run(["/usr/bin/dedalo", "query", "list"], capture_output=True, text=True)
@@ -131,7 +212,7 @@ def list_parents():
     u = EUci()
     try:
         api_url = u.get("dedalo", "config", "api_url")
-        p = subprocess.run(['curl', '-L', '-s', '--url', f'{api_url}/hotspots', '--header', f"Token: {_get_token()}"], capture_output=True, text=True)
+        p = subprocess.run(['curl', '-L', '-s', '-m', '15', '--connect-timeout', '5', '--url', f'{api_url}/hotspots', '--header', f"Token: {_get_token()}"], capture_output=True, text=True)
         resp = json.loads(p.stdout)
         for p in resp["data"]:
             parents.append({"id": p["id"], "name": p["name"], "description": p["description"]})
@@ -148,6 +229,12 @@ def unregister():
     except Exception as e:
         print(e, file=sys.stderr)
         return utils.generic_error("unregister_failed")
+    try:
+        u.delete("dedalo", "config", "account_name")
+        u.delete("dedalo", "config", "account_user")
+        u.commit("dedalo")
+    except:
+        pass
     try:
         firewall.delete_linked_sections(EUci(), "dedalo/config")
         subprocess.run(["/sbin/ifdown", "dedalo"], capture_output=True, check=True)
@@ -178,6 +265,10 @@ def get_configuration():
         with open('/proc/sys/kernel/hostname', 'r') as fp:
             ret["unit_name"] = fp.read().strip()
     ret["connected"] = os.path.exists(token_file)
+    ret["account_name"] = u.get("dedalo", "config", "account_name", default="")
+    ret["account_user"] = u.get("dedalo", "config", "account_user", default="")
+    api_url = u.get("dedalo", "config", "api_url", default="")
+    ret["manager_host"] = api_url.replace("https://", "").replace("/api", "")
     return {"configuration": ret}
 
 def set_configuration(args):
@@ -259,6 +350,8 @@ cmd = sys.argv[1]
 if cmd == 'list':
     print(json.dumps({
         "login": {"host": "my.nethspot.com", "username": "myuser", "password": "mypassword"},
+        "oidc-start": {"host": "my.nethspot.com"},
+        "oidc-poll": {},
         "list-sessions": {},
         "list-parents": {},
         "list-devices": {},
@@ -285,6 +378,11 @@ else:
     elif action == "login":
         args = json.loads(sys.stdin.read())
         ret = login(args)
+    elif action == "oidc-start":
+        args = json.loads(sys.stdin.read())
+        ret = oidc_start(args)
+    elif action == "oidc-poll":
+        ret = oidc_poll()
     elif action == "set-configuration":
         args = json.loads(sys.stdin.read())
         ret = set_configuration(args)
