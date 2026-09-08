@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 #
-# Copyright (C) 2023 Nethesis S.r.l.
+# Copyright (C) 2026 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
@@ -22,45 +22,66 @@ if cmd == 'list':
         },
         'list-rules': {},
         'add-rule': {
+            'name': 'str',
             'enabled': False,
-            'device': 'str',
-            'applications': 'str',
-            'protocols': 'str'
-        },
-        'delete-rule': {
-            'config-name': 'str'
+            'action': 'str',
+            'source': [],
+            'appgroups': [],
+            'position': 'str'
         },
         'edit-rule': {
-            'config-name': 'str',
+            'id': 'str',
+            'name': 'str',
             'enabled': False,
-            'device': 'str',
-            'applications': 'str',
-            'protocols': 'str'
+            'action': 'str',
+            'source': [],
+            'appgroups': []
         },
-        'add-exemption': {
-            'criteria': 'str',
-            'description': 'str',
-            'enabled': False
+        'delete-rule': {
+            'id': 'str'
         },
-        'delete-exemption': {
-            'config-name': 'str'
+        'rename-rule': {
+            'id': 'str',
+            'name': 'str'
         },
-        'edit-exemption': {
-            'config-name': 'str',
-            'criteria': 'str',
-            'description': 'str',
-            'enabled': False
+        'enable-rule': {
+            'id': 'str'
         },
-        'list-exemptions': {},
-        'list-devices': {},
-        'list-popular': {
-            'limit': 32,
-            'page': 32
+        'disable-rule': {
+            'id': 'str'
+        },
+        'order-rules': {
+            'order': ['ns_1234', 'ns_5678']
         },
         'list-application-categories': {},
         'list-application-catalog': {},
+        'list-loaded-applications': {},
         'list-protocol-categories': {},
-        'list-protocol-catalog': {}
+        'list-protocol-catalog': {},
+        'list-loaded-protocols': {},
+        'list-appgroups': {
+            'search': 'str',
+            'limit': 32,
+            'page': 32
+        },
+        'add-appgroup': {
+            'name': 'str',
+            'applications': [],
+            'application_categories': [],
+            'protocols': [],
+            'protocol_categories': []
+        },
+        'edit-appgroup': {
+            'id': 'str',
+            'name': 'str',
+            'applications': [],
+            'application_categories': [],
+            'protocols': [],
+            'protocol_categories': []
+        },
+        'delete-appgroup': {
+            'id': 'str'
+        }
     }))
 elif cmd == 'call':
     action = sys.argv[2]
@@ -80,6 +101,14 @@ elif cmd == 'call':
                 print(json.dumps({'values': content}))
             except Exception:
                 print(json.dumps({}))
+        elif action == 'list-loaded-applications':
+            try:
+                applications = dpi.load_applications()
+            except Exception:
+                print(json.dumps(utils.generic_error('applications_not_available')))
+            else:
+                print(json.dumps({'values': [{'id': app_id, 'name': app_name}
+                                             for app_id, app_name in applications.items()]}))
         elif action == 'list-protocol-categories':
             try:
                 with open('/etc/netifyd/netify-protocol-categories.json', 'r') as f:
@@ -94,6 +123,14 @@ elif cmd == 'call':
                 print(json.dumps({'values': content}))
             except Exception:
                 print(json.dumps({}))
+        elif action == 'list-loaded-protocols':
+            try:
+                protocols = dpi.load_protocols()
+            except Exception:
+                print(json.dumps(utils.generic_error('protocols_not_available')))
+            else:
+                print(json.dumps({'values': [{'id': proto_id, 'name': proto_name}
+                                             for proto_id, proto_name in protocols.items()]}))
         elif action == 'list-applications':
             data = json.JSONDecoder().decode(sys.stdin.read())
             result = dpi.list_applications(data.get('search', None), data.get('limit', None), data.get('page', 1))
@@ -102,37 +139,55 @@ elif cmd == 'call':
             print(json.dumps({'values': dpi.list_rules(e_uci)}))
         elif action == 'add-rule':
             data = json.JSONDecoder().decode(sys.stdin.read())
-            dpi.add_rule(e_uci, data['enabled'], data['device'], 'block', data['applications'], data['protocols'])
-            print(json.dumps({'message': 'success'}))
-        elif action == 'delete-rule':
-            data = json.JSONDecoder().decode(sys.stdin.read())
-            dpi.delete_rule(e_uci, data['config-name'])
-            print(json.dumps({'message': 'success'}))
+            config_name = dpi.add_rule(e_uci, data['name'], data['enabled'], data['action'],
+                                       data.get('source', []), data.get('appgroups', []),
+                                       data.get('position', 'bottom'))
+            print(json.dumps({'id': config_name}))
         elif action == 'edit-rule':
             data = json.JSONDecoder().decode(sys.stdin.read())
-            dpi.edit_rule(e_uci, data['config-name'], data['enabled'], data['device'], 'block', data['applications'],
-                          data['protocols'])
-            print(json.dumps({'message': 'success'}))
-        elif action == 'add-exemption':
+            config_name = dpi.edit_rule(e_uci, data['id'], data['name'], data['enabled'], data['action'],
+                                        data.get('source', []), data.get('appgroups', []))
+            print(json.dumps({'id': config_name}))
+        elif action == 'delete-rule':
             data = json.JSONDecoder().decode(sys.stdin.read())
-            dpi.add_exemption(e_uci, data['criteria'], data['description'], data['enabled'])
+            dpi.delete_rule(e_uci, data['id'])
             print(json.dumps({'message': 'success'}))
-        elif action == 'delete-exemption':
+        elif action == 'rename-rule':
             data = json.JSONDecoder().decode(sys.stdin.read())
-            dpi.delete_exemption(e_uci, data['config-name'])
+            dpi.rename_rule(e_uci, data['id'], data['name'])
             print(json.dumps({'message': 'success'}))
-        elif action == 'edit-exemption':
+        elif action == 'enable-rule':
             data = json.JSONDecoder().decode(sys.stdin.read())
-            dpi.edit_exemption(e_uci, data['config-name'], data['criteria'], data['description'], data['enabled'])
+            dpi.enable_rule(e_uci, data['id'])
             print(json.dumps({'message': 'success'}))
-        elif action == 'list-exemptions':
-            print(json.dumps({'values': dpi.list_exemptions(e_uci)}))
-        elif action == 'list-devices':
-            print(json.dumps({'values': dpi.list_devices(e_uci)}))
-        elif action == 'list-popular':
+        elif action == 'disable-rule':
             data = json.JSONDecoder().decode(sys.stdin.read())
-            result = dpi.list_popular(e_uci, data.get('limit', None), data.get('page', 1))
+            dpi.disable_rule(e_uci, data['id'])
+            print(json.dumps({'message': 'success'}))
+        elif action == 'order-rules':
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            print(json.dumps({'values': dpi.order_rules(e_uci, data['order'])}))
+        elif action == 'list-appgroups':
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            result = dpi.list_appgroups(e_uci, data.get('search', None), data.get('limit', None),
+                                        data.get('page', 1))
             print(json.dumps({'values': result}))
+        elif action == 'add-appgroup':
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            config_name = dpi.add_appgroup(e_uci, data['name'], data.get('applications', []),
+                                           data.get('application_categories', []), data.get('protocols', []),
+                                           data.get('protocol_categories', []))
+            print(json.dumps({'id': config_name}))
+        elif action == 'edit-appgroup':
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            config_name = dpi.edit_appgroup(e_uci, data['id'], data['name'], data.get('applications', []),
+                                            data.get('application_categories', []), data.get('protocols', []),
+                                            data.get('protocol_categories', []))
+            print(json.dumps({'id': config_name}))
+        elif action == 'delete-appgroup':
+            data = json.JSONDecoder().decode(sys.stdin.read())
+            dpi.delete_appgroup(e_uci, data['id'])
+            print(json.dumps({'message': 'success'}))
     except KeyError as e:
         print(json.dumps(utils.validation_error(e.args[0], 'required')))
     except json.JSONDecodeError:
