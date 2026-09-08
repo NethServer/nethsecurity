@@ -44,8 +44,6 @@ if [ -z "$${IPKG_INSTROOT}" ]; then
   /etc/init.d/cron restart
   /usr/libexec/ns-plug/40_ns-plug_mwan_hooks
   /etc/init.d/ns-plug restart
-  /etc/init.d/ns-plug-alert-proxy enable
-  /etc/init.d/ns-plug-alert-proxy restart
   /etc/init.d/vmalert reload
   /usr/libexec/migrate-to-my
 fi
@@ -59,8 +57,6 @@ if [ -z "$${IPKG_INSTROOT}" ]; then
   crontab -l | grep -v "/usr/sbin/send-inventory" | sort | uniq | crontab -
   crontab -l | grep -v "/usr/sbin/send-heartbeat" | sort | uniq | crontab -
   sed -i '/\/usr\/libexec\/ns-plug\/mwan-hooks/d' /etc/mwan3.user
-  /etc/init.d/ns-plug-alert-proxy stop
-  /etc/init.d/ns-plug-alert-proxy disable
 fi
 exit 0
 endef
@@ -78,9 +74,7 @@ define Package/ns-plug/install
 	$(INSTALL_DIR) $(1)/usr/libexec/ns-plug
 	$(INSTALL_DIR) $(1)/usr/libexec/mwan-hooks
 	$(INSTALL_BIN) ./files/ns-plug.init $(1)/etc/init.d/ns-plug
-	$(INSTALL_BIN) ./files/ns-plug-alert-proxy.init $(1)/etc/init.d/ns-plug-alert-proxy
 	$(INSTALL_BIN) ./files/ns-plug $(1)/usr/sbin/ns-plug
-	$(INSTALL_BIN) ./files/ns-plug-alert-proxy $(1)/usr/sbin/ns-plug-alert-proxy
 	$(INSTALL_BIN) ./files/distfeed-setup $(1)/usr/sbin/distfeed-setup
 	$(INSTALL_BIN) ./files/apk-official $(1)/usr/sbin/apk-official
 	$(INSTALL_BIN) ./files/migrate-to-my $(1)/usr/sbin

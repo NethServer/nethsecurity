@@ -36,9 +36,6 @@ start_service() {
     procd_append_param command -remoteRead.url="$datasource_url"
     procd_append_param command -remoteWrite.url="$datasource_url"
 
-    # Always notify the local alert-proxy (handles unregistered machines gracefully)
-    procd_append_param command -notifier.url="http://127.0.0.1:9095"
-
     # Also forward alerts to my.nethesis.it for registered enterprise systems
     if [ -n "$notifier_url" ]; then
         # Avoid leaking secret inside command line

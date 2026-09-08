@@ -137,71 +137,15 @@ The engine processes an active incident through three phases:
 
 Because real-world server incidents do not align perfectly with the monitoring engine's internal execution clock, notifications feature a variable delay window of 5 to 10 minutes from the actual start of the incident.
 
-## Forwarding alerts to my.nethesis.it
-
-[my](https://github.com/NethServer/my/) uses Grafana Mimir as a multi-tenant
-alertmanager for cloud-side alert processing. Enterprise systems forward their
-alerts to it automatically, mirroring `send-heartbeat` / `send-inventory`:
-vmalert POSTs alerts to the credential-translation proxy at
-`https://my.nethesis.it/proxy/alerts` using the ns-plug credentials
-(`system_id` / `secret`), which the proxy maps to the new my credentials before
-forwarding them to the Mimir alertmanager. No manual configuration is needed —
-it is enabled whenever `ns-plug.config.type` is `enterprise` and the system is
-registered (`system_id` / `secret` set). vmalert always also notifies the local
-ns-plug-alert-proxy (`http://127.0.0.1:9095`), which handles the legacy path and
-unregistered machines.
-
-By default, ns-plug-alert proxy logs only when an alert can't be forwarded to legacy my.nethesis.it.
-To increase verbosity and debug all communications with the portal,
-set `ns-plug.config.alert_proxy_loglevel` to `info` or `debug` and restart ns-plug-alert-proxy:
-```bash
-uci set ns-plug.config.alert_proxy_loglevel='debug'
-uci commit ns-plug
-/etc/init.d/ns-plug-alert-proxy restart
-```
-
-> Migration note: the my switch-off release will repoint this from
-> `/proxy/alerts` to the native collect endpoint
-> (`/collect/api/services/mimir/alertmanager`) with rotated credentials.
-
 ## Alert notifications
 
 System alerts are handled by vmalert (Victoria Metrics alert evaluation engine) which evaluates
 alert rules against metrics collected by telegraf.
 
-When a rule transitions from `Pending` to `Firing`, vmalert sends an Alertmanager notification to the following endponts:
-- ns-plug-alert-proxy, listening on port 9095, which forwards only some alerts to the legacy monitoring portal
-- https://my.nethesis.it/proxy/alerts, wich forwards all alerts to the new Mimir alertmanager
+When a rule transitions from `Pending` to `Firing`, vmalert sends to remote Mimir instance if active subscription is present.
 
 vmalert sends a notification for firing alerts every `interval`, set to 5 minutes for most alerts, until the alert resolves.
 When the alert resolves, vmalert sends 4 notifications at 5-minute intervals to ensure the resolution is received by the alertmanager (or the proxy) even if the first notification is lost.
-
-**Migration note**
-
-When legacy my.nethesis.it will be replaced with the new one:
-- remove ns-plug-alert-proxy from the system (caveat: also my.nethserver.com will not receive alerts anymore)
-- change vmalert configuration to send alerts directly to the new Mimir alertmanager endpoint: replace `/proxy/alerts`
-  with the native collect endpoint `/collect/api/services/mimir/alertmanager` with rotated credentials.
-
-### ns-plug-alert-proxy
-
-The proxy forwards only the following legacy alerts:
-| Alert | Condition | Legacy alert_id |
-|---|---|---|
-| `WanDown` | WAN interface offline for 2m | `wan:<interface>:down` |
-| `DiskSpaceCritical` | Disk usage > 90% for 2m | `df:root:percent_bytes:free` or `df:boot:percent_bytes:free` |
-| `StorageStatus` | Storage status is error | `storage:status` |
-| `HaPrimaryFailed` | Backup node became master | `ha:primary:failed` |
-| `HaSyncFailed` | HA sync failure detected on the primary node | `ha:sync:failed` |
-
-All other alert are silently dropped by the proxy.
-If the machine does not have a subscription, all alerts are silently dropped.
-
-The proxy starts automatically at boot regardless of registration state.
-By default, firing/resolved state is determined from the Alertmanager-standard `endsAt` field:
-if `endsAt` is in the future (or zero/missing) a **FAILURE** is sent; if `endsAt` is in
-the past an **OK** is sent. HA recovery/failover event alerts override this default mapping so
-they can keep the legacy `ha:primary:failed` semantics.
 
 ## Alert history
 

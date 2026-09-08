@@ -22,6 +22,7 @@
 import json
 import subprocess
 import sys
+
 MONITORED_SERVICES = {
     "conntrackd",
     "cron",
@@ -38,7 +39,6 @@ MONITORED_SERVICES = {
     "ns-flashstart",
     "ns-flows",
     "ns-plug",
-    "ns-plug-alert-proxy",
     "ns-stats",
     "ns-ui",
     "odhcpd",
@@ -55,6 +55,7 @@ MONITORED_SERVICES = {
 }
 
 # Excluded service: adblock
+
 
 def get_service_list():
     result = subprocess.run(
