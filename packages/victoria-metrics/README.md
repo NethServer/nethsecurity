@@ -46,6 +46,21 @@ config victoriametrics 'main'
 - `storage_path`: Where to store metrics data (default: `/var/lib/victoriametrics`, auto-detects `/mnt/data/victoriametrics` if available)
 - `retention_period`: How long to keep metrics (`1d`, `7d`, `30d`, `1y`, etc.) (default: `7d`, auto-detects `1y` if not set)
 
+### Advanced: Extra vmalert Flags
+
+`/etc/config/vmalert`'s `main` section accepts an `additional_parameters` list: extra `vmalert`
+CLI flags, one per entry, appended after every other flag on the command line.
+
+For example, to point vmalert at an external Alertmanager notifier:
+
+```bash
+uci add_list vmalert.main.additional_parameters='-notifier.url=<example_url>'
+uci commit vmalert
+reload_config
+```
+
+See the [vmalert documentation](https://docs.victoriametrics.com/vmalert/) for the full flag list.
+
 ### Accessing the Web UI
 
 By default the server is accessible only on localhost for security.
