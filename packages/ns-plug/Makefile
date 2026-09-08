@@ -47,6 +47,7 @@ if [ -z "$${IPKG_INSTROOT}" ]; then
   /etc/init.d/ns-plug-alert-proxy enable
   /etc/init.d/ns-plug-alert-proxy restart
   /etc/init.d/vmalert reload
+  /usr/libexec/migrate-to-my
 fi
 exit 0
 endef
