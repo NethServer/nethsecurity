@@ -78,7 +78,9 @@ define Package/ns-dpi/install
 	$(INSTALL_BIN) ./files/dpi-license-update.py $(1)/usr/sbin/dpi-license-update
 	$(INSTALL_BIN) ./files/dpi-data-update.py $(1)/usr/sbin/dpi-data-update
 	$(INSTALL_BIN) ./files/dpi-update.py $(1)/usr/sbin/dpi-update
+	$(INSTALL_BIN) ./files/dpi-migrate.py $(1)/usr/sbin/dpi-migrate
 	$(INSTALL_CONF) ./files/20_dpi $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/21_dpi_migrate $(1)/etc/uci-defaults/21_dpi_migrate
 	$(INSTALL_BIN) ./files/99-dpi-license-update-cron.uci-defaults $(1)/etc/uci-defaults/99-dpi-license-update-cron
 	$(INSTALL_BIN) ./files/99-dpi-data-update-cron.uci-defaults $(1)/etc/uci-defaults/99-dpi-data-update-cron
 	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/register
