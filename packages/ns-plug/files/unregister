@@ -31,12 +31,10 @@ fi
 
 # Reset ns-plug configuration
 uci set ns-plug.config.type=""
-uci set ns-plug.config.alerts_url=""
-uci set ns-plug.config.api_url=""
-uci set ns-plug.config.inventory_url=""
 uci set ns-plug.config.system_id=""
 uci set ns-plug.config.secret=""
 uci set ns-plug.config.repository_url="https://updates.nethsecurity.nethserver.org/$(cat /etc/repo-channel)"
+uci set ns-plug.config.notifier_url=""
 uci -q delete ns-plug.config.collect_url
 uci -q delete ns-plug.config.migrated
 uci -q delete ns-plug.config.legacy_system_id
