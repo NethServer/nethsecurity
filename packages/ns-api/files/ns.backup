@@ -226,10 +226,6 @@ elif cmd == 'call':
             data = json.load(sys.stdin)
             subprocess.run(['/usr/sbin/remote-backup', 'delete', data['id']],
                            check=True, capture_output=True, text=True)
-            # FIXME: check api
-            # The remote side returns a structured JSON response; the UI
-            # only needs a success flag, matching the pattern of the
-            # other registered-* handlers (backup, restore).
             print(json.dumps({'message': 'success'}))
         except subprocess.CalledProcessError as error:
             print(json.dumps(utils.generic_error('remote backup delete failed')))
