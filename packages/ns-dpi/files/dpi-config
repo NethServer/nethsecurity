@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 #
-# Copyright (C) 2025 Nethesis S.r.l.
+# Copyright (C) 2026 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
@@ -9,7 +9,8 @@ from euci import EUci
 import json
 import subprocess
 import os
-from nethsec import utils, objects
+import syslog
+from nethsec import utils, objects, dpi
 
 def get_interface_ips(interface):
     ret = list()
@@ -50,6 +51,13 @@ config = {
             "path": "/var/run/netifyd/",
             "prefix": "dpi-actions",
         },
+        "allow": {
+            "target_type": "ctlabel",
+            "target_enabled": True,
+            "labels": [
+                "netify-allowed"
+            ]
+        },
         "analyzed": {
             "target_type": "ctlabel",
             "target_enabled": True,
@@ -58,7 +66,18 @@ config = {
             ]
         }
     },
-    "actions": {},
+    # analyzed comes first and lets the evaluation continue, so the label is never lost to a rule
+    # that halts on match
+    "actions": {
+        "analyzed": {
+            "enabled": True,
+            "priority": 0,
+            "halt_on_match": False,
+            "criteria": 'detection_guessed || detection_complete;',
+            "targets": ["analyzed"],
+            "exemptions": []
+        }
+    },
     "exemptions": []
 }
 
@@ -86,76 +105,85 @@ for ex_name in exemptions:
 
 rcount = 0
 valid_actions = ['block', 'bulk', 'best_effort', 'video', 'voice']
+legacy_fields = ('device', 'application', 'protocol', 'category')
 for section in u.get_all('dpi'):
     if u.get('dpi', section) != 'rule':
         continue
     rule = u.get_all('dpi', section)
-    if rule['action'] not in valid_actions or not rule['enabled']:
+    if not rule.get('enabled'):
         continue
 
-    device = rule.get('device', '*')
+    # a rule from the schema used before application groups existed carries at least one of these
+    # fields; their presence is a permanent marker, unrelated to whether the migration has since given
+    # the section a priority
+    is_legacy = any(field in rule for field in legacy_fields)
 
-    if 'criteria' in rule:
-        # criteria has precedence over sources, protocol, category and application
-        criteria = rule['criteria'].replace('"',"'")
-    else:
-        # generate criteria from source, protocol, category and application
-        sources = []
-        for source in rule.get('source', []):
-            if objects.is_object_id(source):
-                for ip in objects.get_object_ips(u, source):
-                    sources.append(f'local_ip == {ip}')
-            else: # custom local IPs
-                sources.append(f'local_ip == {source}')
+    if not is_legacy and 'criteria' not in rule:
+        # current schema: application groups, optionally narrowed to a source, or a rule migrated from
+        # a global exemption (source only, no group — dpi.migrate_schema)
+        if rule.get('action') not in dpi.DPI_RULE_ACTIONS:
+            syslog.syslog(syslog.LOG_WARNING, f"dpi-config: skipping {section}, unknown action {rule.get('action')}")
+            continue
+        criteria = dpi.build_rule_criteria(u, rule, require_appgroup=False)
+        if not criteria:
+            # never emit an empty criteria: it is a parse error, and a parse error kills the agent
+            syslog.syslog(syslog.LOG_WARNING, f"dpi-config: skipping {section}, it matches nothing")
+            continue
+        try:
+            priority = int(rule.get('priority', 1))
+        except ValueError:
+            syslog.syslog(syslog.LOG_WARNING, f"dpi-config: skipping {section}, invalid priority")
+            continue
+        config["actions"][section] = {
+            "enabled": rule['enabled'] == '1',
+            "priority": priority,
+            "halt_on_match": True,
+            "criteria": criteria,
+            "targets": [rule['action']],
+            "exemptions": []
+        }
+        continue
 
-        applications = []
-        for app in rule.get('application', []):
-            applications.append(f"app == '{app}'")
-        for proto in rule.get('protocol', []):
-            applications.append(f"proto == '{proto.lower()}'")
-        for cat in rule.get('category', []):
-            applications.append(f"category == '{cat.lower()}'")
+    if not is_legacy:
+        # raw criteria: hand-written, or a rule migrated from the old schema with its behaviour frozen
+        # verbatim (dpi.migrate_schema) — halts on match and keeps its own priority, same as any other
+        # rule of the current schema
+        if rule.get('action') not in dpi.DPI_RULE_ACTIONS:
+            syslog.syslog(syslog.LOG_WARNING, f"dpi-config: skipping {section}, unknown action {rule.get('action')}")
+            continue
+        try:
+            priority = int(rule.get('priority', 1))
+        except ValueError:
+            syslog.syslog(syslog.LOG_WARNING, f"dpi-config: skipping {section}, invalid priority")
+            continue
+        config["actions"][section] = {
+            "enabled": rule['enabled'] == '1',
+            "priority": priority,
+            "halt_on_match": True,
+            "criteria": dpi.freeze_legacy_criteria(u, rule),
+            "targets": [rule['action']],
+            "exemptions": []
+        }
+        continue
 
-        sources_s = ' or '.join(sources)
-        applications_s = ' or '.join(applications)
-        criteria = f'(iface_nfq_src == \'{device}\' or iface_nfq_dst == \'{device}\') && '
-        if len(sources) < 1:
-            criteria += f'({applications_s}) ;'
-        elif len(applications) < 1:
-            criteria += f'({sources_s}) ;'
-        else:
-            criteria += f'({sources_s}) && ({applications_s}) ;'
-
-    vlan_id = None
-    base_if = None
-    for item in utils.get_all_by_type(u, 'network', 'device').values():
-        if item.get('vid', None) is not None and item.get('name', '') == device:
-            vlan_id = item.get('vid', None)
-            base_if = item.get('ifname', None)
-            break
-
-    if vlan_id is not None and base_if is not None:
-        criteria = f'vlan_id == {vlan_id} && {criteria}'
-        device = base_if
+    # legacy rule, still on the old schema: emitted as it was until the migration converts it
+    if rule.get('action') not in valid_actions:
+        continue
 
     targets = [rule['action']]
     if 'log' in rule and rule['log'] == '1':
         targets.append('log')
     config["actions"][f"rule{rcount}"] = {
         "enabled": rule['enabled'] == '1',
-        "criteria": criteria,
+        # legacy rules never halt, so they are evaluated after the ones of the current schema and
+        # their relative order does not matter
+        "priority": 1000 + rcount,
+        "halt_on_match": False,
+        "criteria": dpi.freeze_legacy_criteria(u, rule),
         "targets": targets,
         "exemptions": rule.get('exemption', [])
     }
     rcount = rcount + 1
-
-# add global analyzed for all flows that are not blocked
-config["actions"]["analyzed"] = {
-    "enabled": True,
-    "criteria": 'detection_guessed || detection_complete;',
-    "targets": ["analyzed"],
-    "exemptions": []
-}
 
 # if directories do not exist, create them
 if not os.path.exists(os.path.dirname(cfg_file)):
