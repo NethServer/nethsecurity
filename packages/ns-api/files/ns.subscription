@@ -11,6 +11,7 @@ import sys
 import json
 import subprocess
 from datetime import datetime
+from time import sleep
 from nethsec import utils
 from euci import EUci
 
@@ -106,7 +107,8 @@ if cmd == 'list':
         "unregister": {},
         "info": {},
         "inventory-status": {},
-        "send-inventory": {}
+        "send-inventory": {},
+        "migrate": {},
     }))
 elif cmd == 'call':
     action = sys.argv[2]
@@ -121,5 +123,11 @@ elif cmd == 'call':
         ret = inventory_status()
     elif action == "send-inventory":
         ret = send_inventory()
+    elif action == "migrate":
+        try:
+            subprocess.run(["/usr/libexec/migrate-to-my"], check=True, capture_output=True)
+            ret = {}
+        except subprocess.CalledProcessError:
+            ret = utils.generic_error("failed to migrate")
 
     print(json.dumps(ret))
