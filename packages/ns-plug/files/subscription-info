@@ -24,7 +24,6 @@ type=$(uci -q get ns-plug.config.type)
 secret=$(uci -q get ns-plug.config.secret)
 
 if [ "$type" = "enterprise" ]; then
-    # TODO: Controllare risposta con la UI
     resp=$(/usr/bin/curl -f -s -m $timeout --retry-delay 1 --retry 2 -L \
         -H "Accept: application/json" \
         --user "$system_id:$secret" \
