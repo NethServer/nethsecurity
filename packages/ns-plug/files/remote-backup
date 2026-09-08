@@ -6,17 +6,7 @@
 #
 
 #
-# Manage configuration backups.
-#
-# Enterprise units (type=enterprise) talk to my collect after the
-# migrate-to-my credential rotation. Community units (type=community)
-# keep using the legacy backupd.nethesis.it endpoint with the same
-# URL layout they have always used — backupd still accepts both
-# tenants behind the $TYPE/api/v2/backup/ path.
-#
-# Pipefail so the curl exit status survives the jq stage in `list`;
-# without it a HTTP error on the server would be masked by a successful
-# jq parse and ns.backup would report success to the UI.
+# Manage remote backup
 #
 
 set -o pipefail
@@ -46,19 +36,11 @@ fi
 cmd=${1:-list}
 
 if [ "$TYPE" = "enterprise" ]; then
-    /usr/sbin/migrate-to-my
-
-    COLLECT_URL=$(uci -q get ns-plug.config.collect_url)
-    if [ -z "$COLLECT_URL" ]; then
-        exit_error "Collect URL not set. Pre-migration unit — retry later."
-    fi
-
-    BASE="$COLLECT_URL/backups"
-    # --fail-with-body: exit 22 on 4xx/5xx while still writing the body
-    # so the caller can inspect the error payload. --show-error keeps
-    # curl's own message (DNS, TLS, timeout) on stderr despite --silent.
+    BASE="$(uci -q get ns-plug.config.collect_url)/backups"
     curl_args="--silent --show-error --location-trusted --fail-with-body --user $SYSTEM_ID:$SYSTEM_SECRET"
 
+
+    # FIXME: check with upstream
     case "$cmd" in
         list)
             # my returns {code, message, data: {backups: [...]}} on
@@ -112,20 +94,27 @@ case "$cmd" in
         ;;
     download)
         file=$2
-        [ -z "$file" ] && exit_error "No file specified"
+        if [ -z "$file" ]; then
+           exit_error "No file specified"
+        fi
         output=${3-$file}
         curl $curl_args $base_url$file -J -o "$output"
         ;;
     upload)
         file=$2
-        [ -z "$file" ] && exit_error "No file specified"
+        if [ -z "$file" ]; then
+           exit_error "No file specified"
+       fi
         curl $curl_args $base_url --upload-file $file
         ;;
     delete)
         file=$2
-        [ -z "$file" ] && exit_error "No file specified"
+        if [ -z "$file" ]; then
+           exit_error "No file specified"
+       fi
         curl $curl_args -X DELETE $base_url$file
         ;;
+
     *)
         help
         ;;

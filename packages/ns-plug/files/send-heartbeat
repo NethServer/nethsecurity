@@ -5,16 +5,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-# Send the heartbeat.
-#
-# Enterprise units (type=enterprise) post to the my collect endpoint
-# with the rotated my credentials; migrate-to-my runs up front so a
-# unit upgraded from the legacy my.nethesis.it path transparently
-# flips over on the first successful rotation.
-#
-# Community units (type=community) are left on the legacy
-# my.nethserver.com heartbeat path — that infrastructure has no
-# counterpart on the new my and is out of scope for this migration.
+# Send the heartbeat
 
 SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
 SYSTEM_SECRET=$(uci -q get ns-plug.config.secret)
@@ -27,21 +18,9 @@ fi
 
 case "$TYPE" in
     enterprise)
-        /usr/sbin/migrate-to-my
-
-        COLLECT_URL=$(uci -q get ns-plug.config.collect_url)
-        if [ -z "$COLLECT_URL" ]; then
-            # Pre-migration — retry on next tick.
-            exit 0
-        fi
-
-        # cron discards job output: surface failures (DNS, TLS,
-        # timeouts, HTTP errors) in syslog via logger.
-        err=$(/usr/bin/curl -m 30 --retry 3 -L -sSf -X POST \
+        /usr/bin/curl -m 30 --retry 3 -L -sSf -X POST \
             --user "$SYSTEM_ID:$SYSTEM_SECRET" \
-            -o /dev/null -w 'HTTP %{http_code}' \
-            "$COLLECT_URL/heartbeat" 2>&1) || \
-            logger -t send-heartbeat "heartbeat send failed: $err"
+            "$(uci -q get ns-plug.config.collect_url)/heartbeat" >/dev/null
         ;;
     community)
         URL=$(uci -q get ns-plug.config.alerts_url)"heartbeats/store"

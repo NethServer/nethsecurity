@@ -24,11 +24,7 @@ def register(args):
     if enterprise.returncode == 0:
         return {"result": "success"}
 
-    # Exit code 2: the system is already registered on my and its key cannot be
-    # reused (one-shot registration). Report it as a validation error on the
-    # secret (expected outcome of user input, no global error toast) instead of
-    # falling back to community, so the UI can guide the user to create a new
-    # system.
+    # Exit code 2: the system is already registered on my.
     if enterprise.returncode == 2:
         return utils.validation_error("secret", "system_already_registered")
 
@@ -72,6 +68,7 @@ def info():
     # the organization explicitly (subscription-info threads organization.name)
     # and default the plan label to "Nethesis Enterprise". Community units keep
     # the real plan name untouched.
+    # FIXME: check with upstream
     if type == "enterprise":
         ret["organization"] = data.get("organization", "")
         # The system name given on my at creation time (threaded by
