@@ -6,16 +6,8 @@
 #
 
 #
-# Retrieve subscription information.
-#
-# Enterprise units query the my collect /info endpoint with their
-# native credentials and synthesise a payload shaped like the legacy
-# my-old /api/systems/info response the UI expects. The subscription
-# plan / expiration fields are left empty — the new my data model
-# no longer tracks them at the system level; the ns.subscription
-# info handler falls back to "-" / 0 / "active" in those cases.
-#
-# Community units keep hitting my.nethserver.com as before.
+# Retrieve subscription information
+# The script takes an optional timeout parameter
 #
 
 timeout=${1:-20}
@@ -23,6 +15,7 @@ timeout=${1:-20}
 system_id=$(uci -q get ns-plug.config.system_id)
 
 if [ -z "$system_id" ]; then
+    # no subscription
     echo '{"uuid": ""}'
     exit 0
 fi
@@ -31,22 +24,11 @@ type=$(uci -q get ns-plug.config.type)
 secret=$(uci -q get ns-plug.config.secret)
 
 if [ "$type" = "enterprise" ]; then
-    /usr/sbin/migrate-to-my
-
-    collect_url=$(uci -q get ns-plug.config.collect_url)
-    if [ -z "$collect_url" ]; then
-        # Pre-migration unit — nothing to report yet; caller falls
-        # back to a default payload built from ns-plug.config.
-        exit 1
-    fi
-
-    # /info returns {code, message, data: {system_id, registered,
-    # registered_at, suspended, organization: {name, ...}, ...}}.
-    # Translate to the legacy shape the UI/info handler parses.
+    # TODO: Controllare risposta con la UI
     resp=$(/usr/bin/curl -f -s -m $timeout --retry-delay 1 --retry 2 -L \
         -H "Accept: application/json" \
         --user "$system_id:$secret" \
-        "$collect_url/info") || exit $?
+        "$(uci -q get ns-plug.config.collect_url)/info") || exit $?
 
     jq -c '
         .data as $s |

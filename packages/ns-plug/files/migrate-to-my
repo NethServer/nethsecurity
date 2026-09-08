@@ -42,8 +42,7 @@
 [ "$(uci -q get ns-plug.config.migrated)" = "1" ] && exit 0
 
 # Community units stay on the legacy my.nethserver.com infrastructure.
-TYPE=$(uci -q get ns-plug.config.type)
-if [ "$TYPE" != "enterprise" ]; then
+if [ "$(uci -q get ns-plug.config.type)" != "enterprise" ]; then
     exit 0
 fi
 
@@ -70,11 +69,6 @@ if [ -z "$new_key" ] || [ -z "$new_secret" ]; then
     exit 0
 fi
 
-# Timestamp the rotation so phonehome can publish the event and my
-# can plot the fleet migration curve / decide when the translation
-# proxy can be decommissioned.
-migrated_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-
 # Rotate atomically; legacy pair preserved for audit / rollback.
 uci -q batch <<EOI
 set ns-plug.config.legacy_system_id=$SYSTEM_ID
@@ -83,7 +77,6 @@ set ns-plug.config.system_id=$new_key
 set ns-plug.config.secret=$new_secret
 set ns-plug.config.collect_url=https://my-proxy-prod.onrender.com/collect/api/systems
 set ns-plug.config.migrated=1
-set ns-plug.config.migrated_at=$migrated_at
 commit ns-plug
 EOI
 

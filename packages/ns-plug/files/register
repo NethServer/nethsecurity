@@ -31,12 +31,7 @@ if [ -z "$secret" ]; then
     exit_error "Invalid secret"
 fi
 
-# Resolve the system identity from the pasted secret.
-#
-# Enterprise uses the my collect registration API directly — the
-# unit lands on the new my with its native credentials and never
-# needs the /proxy/credentials rotation helper. Community keeps
-# using my.nethserver.com as before.
+# Setup URLs
 case "$type" in
     community)
         url="https://my.nethserver.com/api/"
@@ -55,11 +50,7 @@ case "$type" in
         http_code=$(echo "$register_resp" | sed -n '$p')
         register_resp=$(echo "$register_resp" | sed '$d')
 
-        # A system key is one-shot: once a system is registered on my it
-        # cannot be re-registered, because the key is never freed (licensing
-        # safeguard). The backend answers 409 in that case; surface it with a
-        # dedicated exit code (2) so ns.subscription can show a specific message
-        # instead of the generic "invalid secret / server not found".
+        # A system key is one-shot.
         if [ "$http_code" = "409" ]; then
             >&2 echo "[ERROR] system already registered on my"
             exit 2
@@ -89,9 +80,6 @@ case "$type" in
         uci set ns-plug.config.type="enterprise"
         uci set ns-plug.config.api_url="$url"
         uci set ns-plug.config.collect_url="https://my-proxy-prod.onrender.com/collect/api/systems"
-        # Native my register: no legacy credentials to rotate, so
-        # mark the unit as already migrated. migrate-to-my will be a
-        # no-op on every subsequent run.
         uci set ns-plug.config.migrated="1"
         ;;
 esac
@@ -101,12 +89,9 @@ uci set ns-plug.config.secret="$secret"
 uci set ns-plug.config.repository_url="https://$system_id:$secret@distfeed.nethesis.it/repository/$type/nethsecurity"
 uci commit ns-plug
 reload_config
-# Send the heartbeat first: it is near-instant and flips the system to
-# "active" on my right away; the (slower) inventory follows. Registration
-# success is still reported on the heartbeat result, as before.
 send-heartbeat
-exit_code=$?
 send-inventory
+exit_code=$?
 
 # Execute register hooks
 for script in $(find /usr/share/ns-plug/hooks/register -maxdepth 1 -executable -type f,l | sort); do
