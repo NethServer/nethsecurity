@@ -80,6 +80,30 @@ hosts=$(echo '{"service": "hosts"}' | /usr/bin/api-cli ns.dashboard counter --da
 echo "Known hosts: $hosts"
 ```
 
+## Metrics and alerts proxies
+
+The API server exposes reverse proxies to the local VictoriaMetrics and vmalert APIs, for use by
+the authenticated UI. Routes live inside the JWT-protected group: authenticated, rate-limited,
+with `Authorization`/`Cookie` headers stripped before forwarding to the backend. Registered
+routes accept any HTTP method; unregistered paths return 404. If the backend is unreachable or
+slow to respond, the proxy returns `502`.
+
+| Route | Backend |
+|---|---|
+| `/api/metrics/query` | VictoriaMetrics `/api/v1/query` |
+| `/api/metrics/query_range` | VictoriaMetrics `/api/v1/query_range` |
+| `/api/alerts/alerts` | vmalert `/api/v1/alerts` |
+
+Backend addresses are configured via `VICTORIA_METRICS_URL`/`VMALERT_URL` environment variables
+in `ns-api-server.initd`, read from the `victoria-metrics.main.http_listen_addr`/
+`vmalert.main.http_listen_addr` UCI options (default `http://127.0.0.1:8428`/
+`http://127.0.0.1:8082`). The service restarts on `victoria-metrics`/`vmalert` config changes.
+
+Example:
+```
+curl -s -H 'Authorization: Bearer <jwt_token>' -k 'https://localhost/api/metrics/query?query=up'
+```
+
 ## Conventions
 
 APIs are invoked using the [api-server](../packages/ns-api-server).
