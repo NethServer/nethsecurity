@@ -39,16 +39,9 @@ if [ "$TYPE" = "enterprise" ]; then
     BASE="$(uci -q get ns-plug.config.collect_url)/backups"
     curl_args="--silent --show-error --location-trusted --fail-with-body --user $SYSTEM_ID:$SYSTEM_SECRET"
 
-
-    # FIXME: check with upstream
     case "$cmd" in
         list)
-            # my returns {code, message, data: {backups: [...]}} on
-            # success. Unwrap `data` so ns.backup can pass it through as
-            # {values: <output>} without double-nesting. Fall back to an
-            # empty list on failure.
-            response=$(curl $curl_args "$BASE")
-            echo "$response" | jq 'if .data and (.data.backups // empty) then .data else {backups: []} end'
+            curl $curl_args "$BASE"
             ;;
         download)
             file=$2
