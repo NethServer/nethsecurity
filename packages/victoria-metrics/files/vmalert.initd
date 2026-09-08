@@ -47,6 +47,8 @@ start_service() {
         procd_append_param command -notifier.url="$notifier_url"
         procd_append_param command -notifier.basicAuth.username="$system_id"
         procd_append_param command -notifier.basicAuth.passwordFile="$pass_file"
+    else
+        procd_append_param command -notifier.blackhole
     fi
     
     procd_set_param stdout 1

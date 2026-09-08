@@ -80,6 +80,7 @@ case "$type" in
         uci set ns-plug.config.type="enterprise"
         uci set ns-plug.config.api_url="$url"
         uci set ns-plug.config.collect_url="https://my-proxy-prod.onrender.com/collect/api/systems"
+        uci set ns-plug.config.notifier_url=https://my-proxy-prod.onrender.com/collect/api/services/mimir/alertmanager
         uci set ns-plug.config.migrated="1"
         ;;
 esac
