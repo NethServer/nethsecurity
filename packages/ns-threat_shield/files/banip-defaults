@@ -1,10 +1,9 @@
-[ "$(uci -q get banip.global.ban_logforwardwan)" != "" ] && exit 0
+[ "$(uci -q get banip.global.ban_loginbound)" != "" ] && exit 0
 
 uci -q batch << EOI
-set banip.global.ban_logforwardwan="1"
-set banip.global.ban_logforwardlan="1"
+set banip.global.ban_loginbound="1"
+set banip.global.ban_logoutbound="1"
 set banip.global.ban_logprerouting="0"
-set banip.global.ban_loginput="0"
 
 set banip.global.ban_loglimit="100"
 set banip.global.ban_logcount="3"

@@ -33,7 +33,7 @@ define Package/ns-api-server
 	CATEGORY:=NethSecurity
 	TITLE:=NethSecurity REST API server
 	URL:=https://github.com/NethServer/nethsecurity-api
-	DEPENDS:=$(GO_ARCH_DEPENDS)
+	DEPENDS:=$(GO_ARCH_DEPENDS) +victoria-metrics
 endef
  
 define Package/ns-api-server/description

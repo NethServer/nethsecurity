@@ -47,8 +47,10 @@ GO_PKG_TAGS:= \
 	inputs.sensors \
 	inputs.system \
 	inputs.wireguard \
+	inputs.tail \
 	outputs.influxdb \
 	outputs.prometheus_client \
+	parsers.grok \
 	parsers.json_v2
 
 include $(INCLUDE_DIR)/package.mk
@@ -89,6 +91,7 @@ define Package/telegraf/install
 	$(INSTALL_DATA) ./files/telegraf.conf.d/services.conf $(1)/etc/telegraf.conf.d/services.conf
 	$(INSTALL_DATA) ./files/telegraf.conf.d/mwan.conf $(1)/etc/telegraf.conf.d/mwan.conf
 	$(INSTALL_DATA) ./files/telegraf.conf.d/ha.conf $(1)/etc/telegraf.conf.d/ha.conf
+	$(INSTALL_DATA) ./files/telegraf.conf.d/banip.conf $(1)/etc/telegraf.conf.d/banip.conf
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/uci-defaults/99-telegraf-migrate-netdata $(1)/etc/uci-defaults/99-telegraf-migrate-netdata
 	$(INSTALL_DIR) $(1)/usr/sbin

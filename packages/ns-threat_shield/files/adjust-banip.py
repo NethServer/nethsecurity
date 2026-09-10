@@ -16,7 +16,7 @@ if 'banip' in changes or 'network' in changes:
 
     # if ban_country property was modified, remove stale backup files to prevent old country selections from being restored
     if 'banip' in changes and any('ban_country' in op for op in changes['banip']):
-        for backup_file in ['/tmp/banIP-backup/banIP.countryv4.gz', '/tmp/banIP-backup/banIP.countryv6.gz']:
+        for backup_file in ['/tmp/banIP-backup/banIP.country.v4.gz', '/tmp/banIP-backup/banIP.country.v6.gz']:
             try:
                 os.remove(backup_file)
             except FileNotFoundError:

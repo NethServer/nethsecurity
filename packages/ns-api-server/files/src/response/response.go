@@ -85,3 +85,9 @@ type StatusServiceUnavailable struct {
 	Message string      `json:"message" example:"Service unavailable" structs:"message"`
 	Data    interface{} `json:"data" structs:"data"`
 }
+
+type StatusBadGateway struct {
+	Code    int         `json:"code" example:"502" structs:"code"`
+	Message string      `json:"message" example:"Bad gateway" structs:"message"`
+	Data    interface{} `json:"data" structs:"data"`
+}
