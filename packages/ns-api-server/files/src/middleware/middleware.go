@@ -30,12 +30,57 @@ import (
 )
 
 type login struct {
-	Username string `form:"username" json:"username" binding:"required"`
-	Password string `form:"password" json:"password" binding:"required"`
+	Username   string `form:"username" json:"username" binding:"required"`
+	Password   string `form:"password" json:"password" binding:"required"`
+	OnBehalfOf string `form:"on_behalf_of" json:"on_behalf_of"`
 }
 
 var jwtMiddleware *jwt.GinJWTMiddleware
 var identityKey = "id"
+
+const onBehalfOfKey = "on_behalf_of"
+const onBehalfOfMaxLen = 64
+
+// package variable so tests can stub the uci read
+var getControllerUsername = methods.GetControllerUsername
+
+// checkOnBehalfOf return the user accessing the machine from the controller
+// only in case it's the controller username to pass this info
+func checkOnBehalfOf(onBehalfOf string, username string) string {
+	onBehalfOf = strings.TrimSpace(onBehalfOf)
+	if onBehalfOf == "" || len(onBehalfOf) > onBehalfOfMaxLen {
+		return ""
+	}
+
+	// control characters would let a crafted name forge extra log lines
+	if strings.ContainsFunc(onBehalfOf, func(r rune) bool { return r < 0x20 || r == 0x7f }) {
+		return ""
+	}
+
+	if onBehalfOf == username {
+		return ""
+	}
+
+	controller := getControllerUsername()
+	if controller == "" || controller != username {
+		return ""
+	}
+
+	return onBehalfOf
+}
+
+// logSuffixOnBehalfOf logs which controller user is accessing the machine
+func logSuffixOnBehalfOf(onBehalfOf string) string {
+	if onBehalfOf == "" {
+		return ""
+	}
+	return " on behalf of " + utils.SanitizeForLog(onBehalfOf)
+}
+
+func claimsSuffixOnBehalfOf(claims jwt.MapClaims) string {
+	onBehalfOf, _ := claims[onBehalfOfKey].(string)
+	return logSuffixOnBehalfOf(onBehalfOf)
+}
 
 func InstanceJWT() *jwt.GinJWTMiddleware {
 	if jwtMiddleware == nil {
@@ -74,12 +119,15 @@ func InitJWT() *jwt.GinJWTMiddleware {
 				return nil, jwt.ErrFailedAuthentication
 			}
 
+			onBehalfOf := checkOnBehalfOf(loginVals.OnBehalfOf, username)
+
 			// login ok action
-			logs.Logs.Println("[INFO][AUTH] authentication success for user " + utils.SanitizeForLog(username) + " from " + c.ClientIP())
+			logs.Logs.Println("[INFO][AUTH] authentication success for user " + utils.SanitizeForLog(username) + logSuffixOnBehalfOf(onBehalfOf) + " from " + c.ClientIP())
 
 			// return user auth model
 			return &models.UserAuthorizations{
-				Username: username,
+				Username:   username,
+				OnBehalfOf: onBehalfOf,
 			}, nil
 
 		},
@@ -89,22 +137,24 @@ func InitJWT() *jwt.GinJWTMiddleware {
 				// check if user require 2fa
 				status, _ := methods.GetUserStatus(user.Username)
 
-				if user.SudoRequested {
-					// create claims map
-					return jwt.MapClaims{
-						identityKey: user.Username,
-						"role":      "",
-						"actions":   []string{},
-						"2fa":       status == "1",
-						"sudo":      time.Now().Unix(),
-					}
-				}
-				return jwt.MapClaims{
+				// create claims map
+				claims := jwt.MapClaims{
 					identityKey: user.Username,
 					"role":      "",
 					"actions":   []string{},
 					"2fa":       status == "1",
 				}
+
+				if user.SudoRequested {
+					claims["sudo"] = time.Now().Unix()
+				}
+
+				// only when set, so tokens of regular logins are unchanged
+				if user.OnBehalfOf != "" {
+					claims[onBehalfOfKey] = user.OnBehalfOf
+				}
+
+				return claims
 			}
 
 			// return claims map
@@ -114,11 +164,14 @@ func InitJWT() *jwt.GinJWTMiddleware {
 			// handle identity and extract claims
 			claims := jwt.ExtractClaims(c)
 
+			onBehalfOf, _ := claims[onBehalfOfKey].(string)
+
 			// create user object
 			user := &models.UserAuthorizations{
-				Username: claims[identityKey].(string),
-				Role:     "admin",
-				Actions:  nil,
+				Username:   claims[identityKey].(string),
+				Role:       "admin",
+				Actions:    nil,
+				OnBehalfOf: onBehalfOf,
 			}
 
 			// return user
@@ -136,7 +189,7 @@ func InitJWT() *jwt.GinJWTMiddleware {
 			// check if token exists
 			if !methods.CheckTokenValidation(claims["id"].(string), token.Raw) {
 				// write logs
-				logs.Logs.Println("[INFO][AUTH] authorization failed for user " + utils.SanitizeForLog(claims["id"].(string)) + ". " + reqMethod + " " + reqURI)
+				logs.Logs.Println("[INFO][AUTH] authorization failed for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims) + ". " + reqMethod + " " + reqURI)
 
 				// not authorized
 				return false
@@ -176,7 +229,7 @@ func InitJWT() *jwt.GinJWTMiddleware {
 				reqBody = jsonB
 			}
 
-			logs.Logs.Println("[INFO][AUTH] authorization success for user " + utils.SanitizeForLog(claims["id"].(string)) + ". " + reqMethod + " " + reqURI + " " + utils.SanitizeForLog(reqBody))
+			logs.Logs.Println("[INFO][AUTH] authorization success for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims) + ". " + reqMethod + " " + reqURI + " " + utils.SanitizeForLog(reqBody))
 
 			// authorized
 			return true
@@ -192,7 +245,7 @@ func InitJWT() *jwt.GinJWTMiddleware {
 			}
 
 			// write logs
-			logs.Logs.Println("[INFO][AUTH] login response success for user " + utils.SanitizeForLog(claims["id"].(string)))
+			logs.Logs.Println("[INFO][AUTH] login response success for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims))
 
 			// return 200 OK
 			c.JSON(200, gin.H{"code": 200, "expire": t, "token": token})
@@ -206,7 +259,7 @@ func InitJWT() *jwt.GinJWTMiddleware {
 			methods.SetTokenValidation(claims["id"].(string), token)
 
 			// write logs
-			logs.Logs.Println("[INFO][AUTH] refresh response success for user " + utils.SanitizeForLog(claims["id"].(string)))
+			logs.Logs.Println("[INFO][AUTH] refresh response success for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims))
 
 			// return 200 OK
 			c.JSON(200, gin.H{"code": 200, "expire": t, "token": token})
@@ -220,7 +273,7 @@ func InitJWT() *jwt.GinJWTMiddleware {
 			methods.DelTokenValidation(claims["id"].(string), tokenObj.Raw)
 
 			// write logs
-			logs.Logs.Println("[INFO][AUTH] logout response success for user " + utils.SanitizeForLog(claims["id"].(string)))
+			logs.Logs.Println("[INFO][AUTH] logout response success for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims))
 
 			// reutrn 200 OK
 			c.JSON(200, gin.H{"code": 200})
