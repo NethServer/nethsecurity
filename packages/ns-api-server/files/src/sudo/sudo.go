@@ -37,6 +37,7 @@ func EnableSudo(c *gin.Context) {
 	claims := jwt.ExtractClaims(c)
 	// Get username and 2FA status from claims
 	username := claims["id"].(string)
+	onBehalfOf, _ := claims["on_behalf_of"].(string)
 
 	// Check if password sent is valid
 	var jsonRequest struct {
@@ -73,6 +74,7 @@ func EnableSudo(c *gin.Context) {
 	token, _, err := middleware.InstanceJWT().TokenGenerator(&models.UserAuthorizations{
 		Username:      username,
 		SudoRequested: true,
+		OnBehalfOf:    onBehalfOf,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, structs.Map(response.StatusInternalServerError{
