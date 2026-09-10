@@ -41,6 +41,7 @@ ban_mailprofile="ban_notify"
 ban_mailnotification="0"
 ban_remotelog="0"
 ban_remotetoken=""
+ban_blockhook=""
 ban_nftloglevel="warn"
 ban_nftpriority="-100"
 ban_nftpolicy="memory"
@@ -2695,7 +2696,7 @@ f_monitor() {
 			case "${log_type}" in
 			tail)
 				"${ban_logreadcmd}" -qf "${ban_logreadfile}" 2>/dev/null |
-					"${ban_grepcmd}" -e "${ban_logterm}" 2>/dev/null
+					"${ban_grepcmd}" --line-buffered -e "${ban_logterm}" 2>/dev/null
 				;;
 			logread)
 				"${ban_logreadcmd}" -fe "${ban_logterm}" 2>/dev/null
@@ -2835,6 +2836,12 @@ f_monitor() {
 					fi
 					block_cache="${block_cache} ${ip} "
 					f_log "info" "add IP '${ip}' (cnt: ${ban_logcount}, expiry: ${ban_nftexpiry:-"0"}) to blocklist${proto} Set"
+
+					# optional external hook, called once for every newly blocked IP
+					#
+					if [ -n "${ban_blockhook}" ] && [ -x "${ban_blockhook}" ]; then
+						"${ban_blockhook}" "${ip}" "${proto#.}" "${ban_logcount}" "${ban_nftexpiry:-0s}" >/dev/null 2>&1
+					fi
 				else
 					f_log "info" "failed to add IP '${ip}' to blocklist${proto} Set with rc '${?}'"
 					continue

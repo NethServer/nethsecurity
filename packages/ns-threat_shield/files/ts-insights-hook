@@ -1,0 +1,26 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+#
+# banip ban_blockhook script: spool a threat event for nethesis-insights.
+#
+# Called by the banip log service for every newly blocked IP, arguments:
+#   $1 IP address, $2 protocol family (v4|v6), $3 log count, $4 Set expiry
+#
+# It must stay fast and non-blocking: the only job here is to append one JSON
+# line to the spool file, /usr/sbin/ts-insights-report sends it later on.
+#
+
+SPOOL_DIR="/var/run/ns-insights"
+SPOOL="${SPOOL_DIR}/threat-events.jsonl"
+
+[ -n "$1" ] || exit 0
+
+[ -d "${SPOOL_DIR}" ] || mkdir -p "${SPOOL_DIR}"
+
+printf '{"value":"%s","scope":"Ip","type":"ban","scenario":"nethsecurity/banip-log","origin":"banip","duration":"%s","created_at":"%s"}\n' \
+	"$1" "${4:-0s}" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >>"${SPOOL}"
