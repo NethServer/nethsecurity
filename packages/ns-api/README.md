@@ -6061,14 +6061,20 @@ Response example:
       "type": "enterprise",
       "enabled": false,
       "confidence": 10,
-      "description": "Yoroi malware - Level 1"
+      "description": "Yoroi malware - Level 1",
+      "direction": "in",
+      "protocols": [],
+      "ports": []
     },
     {
-      "name": "yoroimallvl2",
-      "type": "enterprise",
-      "enabled": false,
-      "confidence": 8,
-      "description": "Yoroi malware - Level 2"
+      "name": "doh",
+      "type": "community",
+      "enabled": true,
+      "confidence": -1,
+      "description": "public DoH-Server",
+      "direction": "out",
+      "protocols": ["tcp", "udp"],
+      "ports": ["80", "443"]
     }
   ]
 }
@@ -6077,6 +6083,11 @@ Response example:
 Fields:
 - type can be `enterprise` or `community`
 - confidence can be `-1` if the value is not available
+- direction is the default blocking direction of the feed: `in` (inbound, WAN-input and WAN-forward),
+  `out` (outbound, LAN-forward) or `inout` (both)
+- protocols and ports hold the destination port limitation of the feed: protocols contains `tcp` and/or
+  `udp`, ports contains single ports or port ranges like `5060-5061`. Both lists are empty if the feed
+  is not limited to specific ports
 
 
 ### list-settings
