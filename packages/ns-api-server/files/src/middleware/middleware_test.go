@@ -64,7 +64,8 @@ func TestLoginLogInjection(t *testing.T) {
 			r := gin.New()
 			r.POST("/login", InstanceJWT().LoginHandler)
 
-			body, _ := json.Marshal(map[string]string{"username": username, "password": "y"})
+			// on_behalf_of is attacker controlled too on this path
+			body, _ := json.Marshal(map[string]string{"username": username, "password": "y", "on_behalf_of": "evil from " + victimIP})
 			req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
 			req.RemoteAddr = clientIP + ":1234"
