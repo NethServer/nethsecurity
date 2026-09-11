@@ -857,6 +857,18 @@ def info_uptime_seconds(uci: EUci):
     except:
         return 0
 
+def info_arp_macs(uci: EUci):
+    """Count the MAC addresses currently present in the ARP cache.
+
+    It gives a rough estimate of the number of devices seen on the local networks.
+    """
+    try:
+        with open('/proc/net/arp', 'r') as f:
+            # skip the header line
+            return max(len(f.read().splitlines()) - 1, 0)
+    except:
+        return 0
+
 def info_default_ipv4(uci: EUci):
     # first method: dig -4 TXT +short o-o.myaddr.l.google.com @ns1.google.com
     try:

@@ -1022,6 +1022,31 @@ def test_info_uptime_seconds():
 		result = inventory.info_uptime_seconds(u)
 		assert result == 0
 
+def test_info_arp_macs():
+	"""Test info_arp_macs counts the entries of /proc/net/arp"""
+	u = EUci()
+
+	# Test successful read: header line must not be counted
+	mock_arp = (
+		"IP address       HW type     Flags       HW address            Mask     Device\n"
+		"192.168.1.10     0x1         0x2         aa:bb:cc:dd:ee:01     *        br-lan\n"
+		"192.168.1.11     0x1         0x2         aa:bb:cc:dd:ee:02     *        br-lan\n"
+	)
+	with patch('builtins.open', mock_open(read_data=mock_arp)):
+		result = inventory.info_arp_macs(u)
+		assert result == 2
+
+	# Test empty cache: only the header is present
+	header_only = "IP address       HW type     Flags       HW address            Mask     Device\n"
+	with patch('builtins.open', mock_open(read_data=header_only)):
+		result = inventory.info_arp_macs(u)
+		assert result == 0
+
+	# Test exception handling (file not found)
+	with patch('builtins.open', side_effect=FileNotFoundError):
+		result = inventory.info_arp_macs(u)
+		assert result == 0
+
 def test_info_fqdn(tmp_path):
 	"""Test info_fqdn retrieves hostname from UCI"""
 	# Setup system config
