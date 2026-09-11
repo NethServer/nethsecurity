@@ -29,7 +29,8 @@ for func in dir(inventory):
 del features['network']['configuration']
 
 data = {
-    "arp_macs": _run('cat /proc/net/arp | grep -v IP | wc -l'),
+    # keep the value as a string, like the other numeric fields of this payload
+    "arp_macs": str(inventory.info_arp_macs(uci)),
     "dmi": { "product": { "name": product, "uuid": _run("cat /sys/class/dmi/id/product_uuid") }, "bios": { "version": _run("cat /sys/devices/virtual/dmi/id/bios_version"), "vendor": _run("cat /sys/devices/virtual/dmi/id/bios_vendor")}, "board": { "product": product, "manufacturer": _run("cat /sys/devices/virtual/dmi/id/sys_vendor") }},
     "virtual": inventory.is_virtual(),
     "kernel": _run('uname'),
