@@ -471,7 +471,8 @@ def list_blocklist(e_uci):
         enabled_feeds = []
     for f in feeds:
         # skip the 'country' feed as it's handled separately by geoblocking
-        if f == 'country':
+        # skip the 'asn' feed as it requires a list of ASNs (ban_asn) not manageable from the UI
+        if f in ('country', 'asn'):
             continue
         feed = feeds[f]
         enabled = f in enabled_feeds
