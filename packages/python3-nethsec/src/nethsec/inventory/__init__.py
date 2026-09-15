@@ -168,6 +168,36 @@ def get_product():
             product = ""
     return product
 
+def _read_dmi(field):
+    try:
+        with open(f'/sys/class/dmi/id/{field}', 'r') as f:
+            return f.read().strip()
+    except:
+        return ''
+
+def get_dmi():
+    """
+    Read the DMI/SMBIOS identification of the machine.
+
+    Returns:
+      a dict with the model name, manufacturer, hardware revision, hardware
+      uuid, board name and ``bios`` (version and vendor); every field is an
+      empty string when the corresponding DMI entry is not exposed by the
+      firmware
+    """
+    return {
+        "name": get_product(),
+        "manufacturer": _read_dmi('sys_vendor'),
+        # hardware revision of the appliance, not the NethSecurity version
+        "version": _read_dmi('product_version'),
+        "uuid": _read_dmi('product_uuid'),
+        "board": _read_dmi('board_name'),
+        "bios": {
+            "version": _read_dmi('bios_version'),
+            "vendor": _read_dmi('bios_vendor')
+        }
+    }
+
 def is_virtual():
     cpu_info = _run_json('lscpu -J')['lscpu']
     return _get_cpu_field("Hypervisor vendor", cpu_info) if _get_cpu_field("Hypervisor vendor", cpu_info) else 'physical'

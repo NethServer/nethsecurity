@@ -22,7 +22,10 @@ if not sid:
 
 cpu_info = inventory.get_cpu_info()
 pci = inventory.get_pci_info()
-product = inventory.get_product()
+dmi = inventory.get_dmi()
+# the hardware uuid identifies the machine: keep the payload anonymous
+if dmi["uuid"]:
+    dmi["uuid"] = inventory.anonymize(dmi["uuid"], u)
 version = inventory.get_version()
 mem_info = inventory.get_memory()
 mount_points = inventory.get_mount_points()
@@ -50,10 +53,7 @@ data = {
             "model":  cpu_info["model"],
             "architecture": cpu_info["architecture"]
         },
-        "product": {
-            "name": product,
-            "manufacturer": _run("cat /sys/devices/virtual/dmi/id/sys_vendor")
-        },
+        "product": dmi,
         "virtual": inventory.is_virtual(),
         "memory": {
             "swap": { "used_bytes": mem_info.get('SwapUsed', 0) * 1024, "available_bytes": mem_info.get('SwapFree', 0) * 1024 },

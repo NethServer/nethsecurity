@@ -21,7 +21,7 @@ define Package/ns-phonehome
 	CATEGORY:=NethSecurity
 	TITLE:=NethSecurity controller client
 	URL:=https://github.com/NethServer/nethsecurity-controller/
-	DEPENDS:=+lscpu +pciutils +python3-uuid
+	DEPENDS:=+lscpu +pciutils +python3-uuid +python3-nethsec
 	PKGARCH:=all
 endef
  

@@ -1416,3 +1416,72 @@ def test_fact_extra_packages_ignores_noise_lines(tmp_path):
 	with patch('nethsec.inventory.APK_WORLD', str(cur_file)), patch('nethsec.inventory.APK_WORLD_BASE', str(base_file)):
 		result = inventory.fact_extra_packages(u)
 		assert result == {'count': 0, 'packages': []}
+
+def test_read_dmi():
+	"""Test _read_dmi strips the sysfs value and tolerates missing fields"""
+	with patch('builtins.open', mock_open(read_data="Nethesis\n")):
+		assert inventory._read_dmi('sys_vendor') == 'Nethesis'
+
+	# firmware does not expose the field
+	with patch('builtins.open', side_effect=FileNotFoundError):
+		assert inventory._read_dmi('sys_vendor') == ''
+
+def test_get_dmi():
+	"""Test get_dmi reads the DMI identification of an appliance"""
+	dmi_fields = {
+		'sys_vendor': 'Nethesis',
+		'board_name': 'NethBox Z1+',
+		'product_version': '1.0',
+		'product_uuid': '03000200-0400-0500-0006-000700080009',
+		'bios_version': 'QHSW0201.V22',
+		'bios_vendor': 'American Megatrends Inc.'
+	}
+
+	with patch('nethsec.inventory.get_product', return_value='NethBox Z1+'), \
+			patch('nethsec.inventory._read_dmi', side_effect=lambda field: dmi_fields.get(field, '')):
+		result = inventory.get_dmi()
+
+	assert result == {
+		'name': 'NethBox Z1+',
+		'manufacturer': 'Nethesis',
+		'version': '1.0',
+		'uuid': '03000200-0400-0500-0006-000700080009',
+		'board': 'NethBox Z1+',
+		'bios': {
+			'version': 'QHSW0201.V22',
+			'vendor': 'American Megatrends Inc.'
+		}
+	}
+
+def test_get_dmi_without_board_name():
+	"""Test get_dmi leaves the board empty on machines without one, like QEMU guests"""
+	dmi_fields = {
+		'sys_vendor': 'QEMU',
+		'product_version': 'pc-q35-6.2',
+		'product_uuid': '3a278260-9b70-4dcc-836c-032e2d31ca57',
+		'bios_version': '1.17.0-10.fc44',
+		'bios_vendor': 'SeaBIOS'
+	}
+
+	with patch('nethsec.inventory.get_product', return_value='Standard PC (Q35 + ICH9, 2009)'), \
+			patch('nethsec.inventory._read_dmi', side_effect=lambda field: dmi_fields.get(field, '')):
+		result = inventory.get_dmi()
+
+	assert result['manufacturer'] == 'QEMU'
+	assert result['version'] == 'pc-q35-6.2'
+	assert result['board'] == ''
+
+def test_get_dmi_without_any_dmi_field():
+	"""Test get_dmi returns empty strings when no DMI entry is readable"""
+	with patch('nethsec.inventory.get_product', return_value=''), \
+			patch('nethsec.inventory._read_dmi', return_value=''):
+		result = inventory.get_dmi()
+
+	assert result == {
+		'name': '',
+		'manufacturer': '',
+		'version': '',
+		'uuid': '',
+		'board': '',
+		'bios': {'version': '', 'vendor': ''}
+	}
