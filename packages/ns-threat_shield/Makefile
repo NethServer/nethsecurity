@@ -7,7 +7,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-threat_shield
-PKG_VERSION:=1.0.2
+PKG_VERSION:=1.0.3_beta
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-threat_shield-$(PKG_VERSION)

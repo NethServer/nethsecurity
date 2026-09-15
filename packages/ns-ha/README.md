@@ -366,8 +366,7 @@ Keepalived Statistics:
 
 HA alerts are evaluated by **vmalert** from metrics exported by `/usr/libexec/telegraf-ha-alert`.
 The collector and HA alert rules are installed by the always-present `telegraf` and
-`victoria-metrics` packages. When alerts fire, `ns-plug-alert-proxy` forwards the legacy HA alert IDs
-to the monitoring portal if the machine has a valid registration.
+`victoria-metrics` packages.
 
 Available alerts are:
 

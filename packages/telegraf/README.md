@@ -65,7 +65,6 @@ ns-clm
 ns-flashstart
 ns-flows
 ns-plug
-ns-plug-alert-proxy
 ns-stats
 ns-ui
 odhcpd
