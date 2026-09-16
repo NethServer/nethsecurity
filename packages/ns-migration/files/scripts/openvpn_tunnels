@@ -49,11 +49,18 @@ def import_tunnel(u, tunnel, ttype):
     u.set("openvpn", iname, "openvpn")
     u.set("openvpn", iname, "ns_name", name[0:10])
     # Setup auth files
+    has_secret = False
     for option in ['dh', 'ca' , 'cert', 'key', 'secret']:
         if option in tunnel:
             value = tunnel.pop(option)
             save_cert(os.path.join(cert_dir, f'{option}.pem'), value)
             u.set("openvpn", iname, option, os.path.join(cert_dir, f'{option}.pem'))
+            if option == 'secret':
+                has_secret = True
+
+    if has_secret:
+        # OpenVPN >= 2.7 refuses static-key-only configs without this flag
+        u.set("openvpn", iname, "allow_deprecated_insecure_static_crypto", "1")
 
     # Convert remote to a list
     if tunnel.get('remote') and type(tunnel.get('remote')) != list:

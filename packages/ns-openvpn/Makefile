@@ -63,6 +63,7 @@ define Package/ns-openvpn/install
 	$(INSTALL_BIN) ./files/99_ns-openvpn $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/99_ns-openvpn-renew-crl $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/99_ns-openvpn-mtu-mssfix-defaults $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/99_ns-openvpn-allow-deprecated-static-crypto $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/openvpn-status $(1)/usr/bin
 	$(INSTALL_BIN) ./files/openvpn-kill $(1)/usr/bin
 endef
