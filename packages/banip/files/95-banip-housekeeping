@@ -38,5 +38,7 @@ custom_feed="/etc/banip/banip.custom.feeds"
 if grep -q '"rule_4"' "${custom_feed}"; then
 	mv -f "${custom_feed}" "${custom_feed}.backup.$(date "+%Y%m%d%H%M%S")"
 	: > "${custom_feed}"
+	# rebuild the Nethesis enterprise feeds before banip is started by postinst
+	/usr/sbin/ts-ip
 fi
 exit 0
