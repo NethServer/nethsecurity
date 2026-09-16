@@ -7,7 +7,7 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-openvpn
 PKG_VERSION:=1.2.4
-PKG_RELEASE:=2
+PKG_RELEASE:=3
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-openvpn-$(PKG_VERSION)
 

@@ -3,12 +3,10 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-# OpenVPN 2.7 turns static-key-only tunnels (--secret without --tls-client
-# or --tls-server) into a fatal usage error. Existing net-to-net tunnels in
-# P2P mode therefore refuse to start after the upgrade: re-enable them with
-# --allow-deprecated-insecure-static-crypto.
+# OpenVPN 2.7 rejects static-key-only tunnels without --allow-deprecated-insecure-static-crypto
 
 changed=0
+restart=0
 
 # only tunnels managed by NethSecurity
 instances=$(uci show openvpn 2>/dev/null | sed -n 's/^openvpn\.\(ns_[^.=]*\)=openvpn$/\1/p')
@@ -21,14 +19,24 @@ for name in $instances; do
     [ -z "$(uci -q get openvpn."${name}".secret)" ] && continue
 
     # do not touch an explicit user choice
-    [ -n "$(uci -q get openvpn."${name}".allow_deprecated_insecure_static_crypto)" ] && continue
+    if [ -z "$(uci -q get openvpn."${name}".allow_deprecated_insecure_static_crypto)" ]; then
+        uci set openvpn."${name}".allow_deprecated_insecure_static_crypto='1'
+        changed=1
+    fi
 
-    uci set openvpn."${name}".allow_deprecated_insecure_static_crypto='1'
-    changed=1
+    # a rendered config without the flag means openvpn started before it was set
+    if [ -f /var/etc/openvpn-"${name}".conf ] && \
+        ! grep -q '^allow-deprecated-insecure-static-crypto' /var/etc/openvpn-"${name}".conf; then
+        restart=1
+    fi
 done
 
 if [ "$changed" = "1" ]; then
     uci commit openvpn
+fi
+
+if [ "$restart" = "1" ]; then
+    /etc/init.d/openvpn restart
 fi
 
 exit 0
