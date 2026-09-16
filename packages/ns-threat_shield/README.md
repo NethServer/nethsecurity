@@ -21,6 +21,7 @@ The following categories require a valid entitlement:
 - `yoroisusplvl1` (was `yoroi_souspicious_level1` on NS7)
 - `yoroisusplvl2` (was `yoroi_souspicious_level2` on NS7)
 - `nethesislvl3` (was `nethesis_level3` on NS7)
+- `nethesisinsights` (attackers reported by the other Nethesis firewalls, see [Nethesis Insights](#nethesis-insights))
 
 After machine registration, above categories will be automatically added to existing banip categories (`/etc/banip/banip.custom.feeds`).
 
@@ -45,6 +46,42 @@ uci set banip.global.ban_enabled=1
 uci commit banip
 ts-ip
 /etc/init.d/banip restart
+```
+
+### Nethesis Insights
+
+If the machine is registered, `ts-ip` also joins the [Nethesis Insights](https://github.com/nethesis/nethesis-insights)
+threat shield: every IP blocked by the banip log service is reported to the Insights server, and the
+list aggregated from the reports of all registered firewalls is blocked locally.
+Both directions authenticate with the `system_id` and `secret` of the subscription: no additional
+configuration is required and nothing is sent from a machine which is not registered.
+
+Reporting side:
+
+- `ts-ip` sets `banip.global.ban_blockhook` to `/usr/libexec/ts-insights-hook`; banip calls it once
+  for every IP added to a blocklist Set by the log service
+- the hook only appends a JSON line to `/var/run/ns-insights/threat-events.jsonl`, so that a burst
+  of blocked IPs never slows down the banip log service
+- `/usr/sbin/ts-insights-report` is executed every 5 minutes by cron: it sends the spooled events to
+  `POST /v1/threat-events` in batches of at most 500, then writes the outcome to
+  `/var/run/ns-insights/last_push.json`
+- only globally routable addresses are reported: private, CGNAT, link-local, reserved and
+  documentation ranges are dropped locally, along with the events older than 2 hours
+- on a failed push the events are kept in the spool and sent again at the next run, duplicated
+  reports are discarded by the server
+
+Blocking side:
+
+- the `nethesisinsights` feed points to `GET /v1/blocklist`, it is added to `ban_feed` on
+  registration and it is reloaded with all the other feeds every 4 hours
+- an IP is published by the server only after it has been reported by several distinct firewalls,
+  and it expires when nobody reports it any more
+
+On unregistration the hook and the feed are both removed.
+
+Check the last report, example:
+```
+cat /var/run/ns-insights/last_push.json
 ```
 
 ## ts-dns
