@@ -330,7 +330,7 @@ def export_client(name):
         "Compression": u.get("openvpn", name, "compress", default=""),
         "RemotePort": u.get("openvpn", name, "lport", default=""),
         "RemoteHost": ",".join(u.get("openvpn", name, "ns_public_ip", list=True, dtype=str, default=[])),
-        "Digest": u.get("openvpn", name, "digest", default=""),
+        "Digest": u.get("openvpn", name, "auth", default=""),
         "Cipher": u.get("openvpn", name, "cipher", default=""),
         "Topology": u.get("openvpn", name, "topology", default=""),
         "Protocol": proto,
