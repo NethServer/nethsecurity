@@ -571,6 +571,11 @@ def get_tunnel_client(id):
     if tunnel.get('ifconfig'):
         tunnel['ifconfig_local'], tunnel['ifconfig_remote'] = tunnel.pop('ifconfig').split(" ")
 
+    if not tunnel.get('tun_mtu'):
+        tunnel['tun_mtu'] = '1500'
+    if not tunnel.get('mssfix'):
+        tunnel['mssfix'] = '1450'
+
     return tunnel
 
 def get_tunnel_server(id):
@@ -612,6 +617,11 @@ def get_tunnel_server(id):
 
     if tunnel.get('ifconfig'):
         tunnel['ifconfig_local'], tunnel['ifconfig_remote'] = tunnel.pop('ifconfig').split(" ")
+
+    if not tunnel.get('tun_mtu'):
+        tunnel['tun_mtu'] = '1500'
+    if not tunnel.get('mssfix'):
+        tunnel['mssfix'] = '1450'
 
     return tunnel
 

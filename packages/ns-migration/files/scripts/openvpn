@@ -94,6 +94,12 @@ for option in data['rw']['options']:
     nsmigration.vprint(f"Setting OpenVPN Road Warrior option {option}")
     u.set("openvpn", iname, option, data['rw']['options'][option])
 
+# NS7 does not export MTU and MSS settings: apply the same defaults used for new instances
+if not data['rw']['options'].get('tun_mtu'):
+    u.set("openvpn", iname, 'tun_mtu', '1500')
+if not data['rw']['options'].get('mssfix'):
+    u.set("openvpn", iname, 'mssfix', '1450')
+
 # Force device type and name and server pool
 if data['rw']['options'].get('dev', '').startswith("tun"):
     dev_type ='tun'
