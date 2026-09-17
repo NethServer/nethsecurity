@@ -69,6 +69,12 @@ def import_tunnel(u, tunnel, ttype):
     for option in tunnel:
         u.set("openvpn", iname, option, tunnel[option])
 
+    # NS7 does not export MTU and MSS settings: apply the same defaults used for new tunnels
+    if not tunnel.get('tun_mtu'):
+        u.set("openvpn", iname, 'tun_mtu', '1500')
+    if not tunnel.get('mssfix'):
+        u.set("openvpn", iname, 'mssfix', '1450')
+
     if ttype == 'server' and tunnel['topology'] != 'p2p':
         # Setup dynamic config for iroute:
         # OpenVPN on NethSec requires an iroute directive for the remote network

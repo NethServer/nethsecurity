@@ -424,6 +424,10 @@ def get_configuration(ovpninstance):
     # the UI assumes that if ns_description is not set, it's a new instance
     if not "ns_description" in ret:
         ret["ns_description"] = ""
+    if not ret.get("tun_mtu"):
+        ret["tun_mtu"] = "1500"
+    if not ret.get("mssfix"):
+        ret["mssfix"] = "1450"
 
     if ret.get('push'):
         local = []
