@@ -1,0 +1,42 @@
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# OpenVPN 2.7 rejects static-key-only tunnels without --allow-deprecated-insecure-static-crypto
+
+changed=0
+restart=0
+
+# only tunnels managed by NethSecurity
+instances=$(uci show openvpn 2>/dev/null | sed -n 's/^openvpn\.\(ns_[^.=]*\)=openvpn$/\1/p')
+
+for name in $instances; do
+    # skip instances using a custom config file: uci options are ignored there
+    [ -n "$(uci -q get openvpn."${name}".config)" ] && continue
+
+    # only static-key tunnels are affected
+    [ -z "$(uci -q get openvpn."${name}".secret)" ] && continue
+
+    # do not touch an explicit user choice
+    if [ -z "$(uci -q get openvpn."${name}".allow_deprecated_insecure_static_crypto)" ]; then
+        uci set openvpn."${name}".allow_deprecated_insecure_static_crypto='1'
+        changed=1
+    fi
+
+    # a rendered config without the flag means openvpn started before it was set
+    if [ -f /var/etc/openvpn-"${name}".conf ] && \
+        ! grep -q '^allow-deprecated-insecure-static-crypto' /var/etc/openvpn-"${name}".conf; then
+        restart=1
+    fi
+done
+
+if [ "$changed" = "1" ]; then
+    uci commit openvpn
+fi
+
+if [ "$restart" = "1" ]; then
+    /etc/init.d/openvpn restart
+fi
+
+exit 0

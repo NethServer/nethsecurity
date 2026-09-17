@@ -152,6 +152,8 @@ def import_client(tunnel):
         save_cert(psk, tunnel['Psk'])
         u.set("openvpn", iname, "ifconfig", f"{tunnel['LocalPeer']} {tunnel['RemotePeer']}")
         u.set("openvpn", iname, "secret", psk)
+        # OpenVPN >= 2.7 refuses static-key-only configs without this flag
+        u.set("openvpn", iname, "allow_deprecated_insecure_static_crypto", "1")
     else:
         cert = f"{cert_dir}cert.pem"
         save_cert(cert, tunnel['Crt'])
@@ -267,6 +269,8 @@ def setup_server(u, iname, tunnel):
         if tunnel.get('ifconfig_local', None) and  tunnel.get('ifconfig_remote', None):
             u.set('openvpn', iname, 'ifconfig', f"{tunnel.get('ifconfig_local')} {tunnel.get('ifconfig_remote')}")
         u.set("openvpn", iname, "secret", f"{cert_dir}client.psk")
+        # OpenVPN >= 2.7 refuses static-key-only configs without this flag
+        u.set("openvpn", iname, "allow_deprecated_insecure_static_crypto", "1")
 
         # disable default BF-CBC cipher not supported by OpenSSL
         if tunnel.get('cipher', None):
@@ -676,6 +680,8 @@ def setup_client(u, iname, args):
         with open(secret_f, 'w') as fp:
             fp.write(args.get('secret'))
         u.set('openvpn', iname, 'secret', secret_f)
+        # OpenVPN >= 2.7 refuses static-key-only configs without this flag
+        u.set('openvpn', iname, 'allow_deprecated_insecure_static_crypto', '1')
 
     if args.get('route', []):
         routes = []
