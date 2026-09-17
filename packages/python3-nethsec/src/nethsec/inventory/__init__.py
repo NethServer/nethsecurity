@@ -351,13 +351,18 @@ def fact_openvpn_tun(uci: EUci):
         vpn = uci.get_all("openvpn", section)
         if 'ns_auth_mode' in vpn or not section.startswith('ns_'):
             continue
-        if vpn.get("client", "0") == "1" or vpn.get("ns_client", "0") == "1":
+        is_client = vpn.get("client", "0") == "1" or vpn.get("ns_client", "0") == "1"
+        if is_client:
             ret["client"] += 1
         else:
             ret["server"] += 1
+        topology = vpn.get('topology', 'subnet')
+        if is_client and vpn.get('ifconfig', ''):
+            topology = 'p2p'
         instance = {
             'section': section,
-            'mode': vpn.get('dev_type')
+            'mode': vpn.get('dev_type'),
+            'topology': topology
         }
         ret['tunnels'].append(instance)
     return ret

@@ -846,7 +846,8 @@ def test_fact_openvpn_tun(tmp_path):
 		"tunnels": [
 			{
 				"section": "ns_openvpn1",
-				"mode": "tun"
+				"mode": "tun",
+				"topology": "subnet"
 			}
 		]
 	}
