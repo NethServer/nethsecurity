@@ -13,7 +13,6 @@ import os.path
 import subprocess
 import logging
 from os import environ
-import semver
 import json
 
 
