@@ -439,17 +439,29 @@ def __fetch_profiles() -> list:
     client = __get_client()
     username = e_uci.get('flashstart', 'global', 'username', default='')
     profiles = client.get(f'{FLASHSTART_API_ENDPOINT}/network/profiles/{username}')
-    profiles.raise_for_status()
     dhcp = []
-    for profile in profiles.json():
+    try:
+        profiles.raise_for_status()
+        for profile in profiles.json():
+            dhcp.append({
+                'id': nethsec.utils.get_id(hashlib.sha256(profile['name'].encode()).hexdigest()[:10]),
+                'name': profile['name'],
+                'catch-all': profile['is_catch-all'],
+                'dns_code': profile['dns_code'],
+                'servers': [
+                    profile['dns']['ipv4']['primary_dns'],
+                    profile['dns']['ipv4']['secondary_dns']
+                ]
+            })
+    except HTTPError:
         dhcp.append({
-            'id': nethsec.utils.get_id(hashlib.sha256(profile['name'].encode()).hexdigest()[:10]),
-            'name': profile['name'],
-            'catch-all': profile['is_catch-all'],
-            'dns_code': profile['dns_code'],
+            'id': nethsec.utils.get_id(hashlib.sha256('Fallback'.encode()).hexdigest()[:10]),
+            'name': 'Fallback',
+            'catch-all': True,
+            'dns_code': 1,
             'servers': [
-                profile['dns']['ipv4']['primary_dns'],
-                profile['dns']['ipv4']['secondary_dns']
+                '185.236.104.104',
+                '185.236.105.105'
             ]
         })
     return dhcp
