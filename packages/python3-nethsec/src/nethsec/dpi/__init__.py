@@ -21,22 +21,6 @@ from nethsec import objects, utils
 from nethsec.utils import ValidationError
 
 
-def __load_applications() -> dict[int, str]:
-    """
-    Reads the applications from the netify-apps.conf file.
-
-    Returns:
-        dict of applications, each dict contains the property "id" and "name"
-    """
-    applications = dict[int, str]()
-    with open('/etc/netifyd/netify-apps.conf', 'r') as file:
-        for line in file.readlines():
-            if line.startswith('app'):
-                line_split = line.strip().removesuffix('\n').removeprefix('app:').split(":")
-                applications[int(line_split[0])] = line_split[1]
-    return applications
-
-
 def load_applications() -> dict[int, str]:
     """
     Reads the applications loaded in memory by the engine, using the netifyd --dump-apps command.
@@ -63,39 +47,6 @@ def load_applications() -> dict[int, str]:
     return applications
 
 
-def __load_application_categories() -> dict[int, dict[str]]:
-    """
-    Reads the application categories from the netify-categories.json file.
-
-    Returns:
-        dict of application categories, each dict contains the property "id" and "name"
-    """
-    categories = dict[int, dict[str]]()
-    with open('/etc/netifyd/netify-categories.json', 'r') as file:
-        categories_file = json.load(file)
-
-        categories_names = dict[int, str]()
-        if 'application_tag_index' not in categories_file:
-            for category_name, applications in categories_file['application_index'].items():
-                for application in applications:
-                    categories[application] = {
-                        'name': category_name
-                    }
-        else:
-            categories_application_tag_index: dict[str, int] = categories_file['application_tag_index']
-            for category_name, category_id in categories_application_tag_index.items():
-                categories_names[category_id] = category_name
-
-            categories_application_index: list[int, list[int]] = categories_file['application_index']
-            for category_id, applications_id in categories_application_index:
-                for application_id in applications_id:
-                    categories[application_id] = {
-                        'name': categories_names[category_id]
-                    }
-
-    return categories
-
-
 def load_protocols() -> dict[int, str]:
     """
     Reads the protocols from the netifyd --dump-protos command.
@@ -113,120 +64,6 @@ def load_protocols() -> dict[int, str]:
         protocols[int(line_split[0].strip())] = line_split[1].strip()
 
     return protocols
-
-
-def __load_protocol_categories() -> dict[int, dict[str]]:
-    """
-    Reads the protocol categories from the netify-categories.json file.
-
-    Returns:
-        dict of protocol categories, each dict contains the property "id" and "name"
-    """
-    categories = dict[int, dict[str]]()
-    with open('/etc/netifyd/netify-categories.json', 'r') as file:
-        categories_file = json.load(file)
-
-        categories_names = dict[int, str]()
-
-        if 'protocol_tag_index' not in categories_file:
-            for category_name, protocols in categories_file['protocol_index'].items():
-                for protocol in protocols:
-                    categories[protocol] = {
-                        'name': category_name
-                    }
-        else:
-            categories_protocol_tag_index: dict[str, int] = categories_file['protocol_tag_index']
-            for category_name, category_id in categories_protocol_tag_index.items():
-                categories_names[category_id] = category_name
-
-            categories_protocol_index: list[int, list[int]] = categories_file['protocol_index']
-            for category_id, protocol_ids in categories_protocol_index:
-                for protocol_id in protocol_ids:
-                    categories[protocol_id] = {
-                        'name': categories_names[category_id]
-                    }
-
-    return categories
-
-
-def __load_blocklist() -> list[dict[str]]:
-    """
-    Format the applications and protocols into a list of dicts.
-
-    Returns:
-        list of dicts, each dict contains the property "id", "name", "type" and "category"
-    """
-    result = list[dict[str]]()
-    try:
-        applications = load_applications()
-    except Exception:
-        # the engine can't be queried, fall back to the signatures file
-        applications = __load_applications()
-    application_categories = __load_application_categories()
-
-    for application_id, application_name in applications.items():
-        result_application = {
-            'id': application_id,
-            'name': application_name,
-            'type': 'application'
-        }
-        if application_id in application_categories:
-            result_application['category'] = application_categories[application_id]
-        result.append(result_application)
-
-    protocols = load_protocols()
-    protocol_categories = __load_protocol_categories()
-
-    for protocol_id, protocol_name in protocols.items():
-        result_protocol = {
-            'id': protocol_id,
-            'name': protocol_name,
-            'type': 'protocol'
-        }
-        if protocol_id in protocol_categories:
-            result_protocol['category'] = protocol_categories[protocol_id]
-        result.append(result_protocol)
-
-    return result
-
-
-def list_applications(search: str = None, limit: int = None, page: int = 1) -> dict:
-    """
-    List applications available for filtering.
-
-    Args:
-      - search: search string
-      - limit: limit the number of results
-      - page: page number
-
-    Returns:
-        list of dicts, each dict contains the property "code" and "name"
-    """
-    result = __load_blocklist()
-
-    if search is not None:
-        # lower string so we can do a case-insensitive search
-        search = search.lower()
-        # I'm aware it's far from a readable code, but list comprehension is the fastest way to filter.
-        result = [item for item in result if
-                  item.get('name', '').lower().find(search) != -1 or
-                  item.get('category', {}).get('name', '').lower().find(search) != -1]
-
-    total = len(result)
-
-    if limit is not None:
-        result = result[limit * (page - 1):limit * page]
-        last_page = math.ceil(total / limit)
-    else:
-        last_page = 1
-
-    return {
-        'data': result,
-        'meta': {
-            'last_page': last_page,
-            'total': total,
-        }
-    }
 
 
 def __apply(e_uci: EUci):
