@@ -25,7 +25,7 @@ CATEGORIES_FILENAME = "netify-categories.json"
 def get_netifyd_version() -> str:
     try:
         result = subprocess.run(
-            ["apk", "query", "--format", "json", "--field", "version", "netifyd"], capture_output=True, text=True
+            ["apk", "query", "--format", "json", "--fields", "version", "netifyd"], capture_output=True, text=True
         )
         return json.loads(result.stdout.strip())[0]["version"].split("-")[0]
     except Exception as e:
