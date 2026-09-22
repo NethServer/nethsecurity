@@ -54,10 +54,13 @@ def list_interfaces():
             wans.append(iname)
     for i in interfaces:
         record = {"device": "", "start": "", "end": "", "active": False, "options": {}, "force": False }
-        # skip loopback, bond devices, wans, aliases, ipsec, tun, tap, wg
-        if re.match(r'^(loopback|tun|tap|ipsec|wg)', i) or i in wans or interfaces[i].get('device', '').startswith('@'):
-            continue
         device_name = interfaces[i].get('device', '')
+        # skip loopback, bond devices, wans, aliases, ipsec, tun, tap, wg
+        if (re.match(r'^(loopback|tun|tap|ipsec|wg)', i)
+                or re.match(r'^(tun|tap)', device_name)
+                or i in wans
+                or device_name.startswith('@')):
+            continue
         scan_enabled = is_scan_enabled(device_name, devices_info)
         ret.append({
             "interface": i,
