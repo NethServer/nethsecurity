@@ -12,8 +12,6 @@ PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/NethServer/nethsecurity-ui.git
-# PKG_VERSION is what the controller gates on (ns-api reports it as info.ui_version), but renovate
-# maintains it independently of this SHA. Once the UI release is tagged, use $(PKG_VERSION) here.
 PKG_SOURCE_VERSION:=c486c5a6dc882dc7c7d07a8d3cf0d286b897fe63
 PKG_SOURCE_SUBDIR:=nethsecurity-ui-$(PKG_SOURCE_VERSION)
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_SOURCE_SUBDIR)
