@@ -22,6 +22,7 @@ if cmd == 'list':
             'action': 'str',
             'source': [],
             'appgroups': [],
+            'match_all': False,
             'position': 'str'
         },
         'edit-rule': {
@@ -30,7 +31,8 @@ if cmd == 'list':
             'enabled': False,
             'action': 'str',
             'source': [],
-            'appgroups': []
+            'appgroups': [],
+            'match_all': False
         },
         'delete-rule': {
             'id': 'str'
@@ -116,12 +118,13 @@ elif cmd == 'call':
             data = json.JSONDecoder().decode(sys.stdin.read())
             config_name = dpi.add_rule(e_uci, data['name'], data['enabled'], data['action'],
                                        data.get('source', []), data.get('appgroups', []),
-                                       data.get('position', 'bottom'))
+                                       data.get('position', 'bottom'), data.get('match_all', False))
             print(json.dumps({'id': config_name}))
         elif action == 'edit-rule':
             data = json.JSONDecoder().decode(sys.stdin.read())
             config_name = dpi.edit_rule(e_uci, data['id'], data['name'], data['enabled'], data['action'],
-                                        data.get('source', []), data.get('appgroups', []))
+                                        data.get('source', []), data.get('appgroups', []),
+                                        data.get('match_all', False))
             print(json.dumps({'id': config_name}))
         elif action == 'delete-rule':
             data = json.JSONDecoder().decode(sys.stdin.read())
