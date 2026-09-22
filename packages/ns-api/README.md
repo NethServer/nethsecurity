@@ -3767,7 +3767,7 @@ api-cli ns.dpi list-rules
 The list is never paginated nor filtered: it is the whole set, which is also what `order-rules` needs.
 Rules hidden with `ns_visible '0'` are the only ones left out. `managed` tells whether the rule was
 created through the API: an unmanaged rule can be renamed, enabled, reordered and deleted, but not
-edited, and it carries the raw `criteria` it matches on.
+edited, and it carries the raw `criteria` it matches on. `match_all` tells whether the rule matches every flow instead of naming application groups.
 
 Example response:
 
@@ -3786,8 +3786,20 @@ Example response:
                "name": "Streaming services"
             }
          ],
+         "match_all": false,
          "managed": true,
          "index": 0
+      },
+      {
+         "id": "ns_9d40be71",
+         "name": "Allow everything",
+         "enabled": true,
+         "action": "allow",
+         "source": [],
+         "appgroups": [],
+         "match_all": true,
+         "managed": true,
+         "index": 1
       },
       {
          "id": "ns_f1c6e9e0",
@@ -3796,9 +3808,10 @@ Example response:
          "action": "block",
          "source": [],
          "appgroups": [],
+         "match_all": false,
          "managed": false,
          "criteria": "local_ip == 192.168.100.22 && app == 'netify.facebook';",
-         "index": 1
+         "index": 2
       }
    ]
 }
@@ -3815,6 +3828,7 @@ api-cli ns.dpi add-rule --data '{
   "action": "block",
   "source": ["192.168.1.0/24"],
   "appgroups": ["ns_1a2b3c4d5"],
+  "match_all": false,
   "position": "bottom"
 }'
 ```
@@ -3829,11 +3843,18 @@ Parameters:
   `["192.168.1.1", "192.168.1.0/24", "10.0.0.10-10.0.0.20"]`. An empty list matches every host. Ranges
   are expanded to CIDR blocks when the rule is generated
 - `appgroups`: config names of the application groups the rule matches, refer to `list-appgroups`. **At
-  least one is required**: a rule with a source and no group would be an IP-level rule, which the
-  firewall does better, and a rule with neither would match nothing
+  least one is required unless `match_all` is set**: a rule with a source and no group would be an
+  IP-level rule, which the firewall does better, and a rule with neither would match nothing
+- `match_all`: `true` makes the rule match every flow, whatever the application. `appgroups` must then
+  be empty, and passing both is refused with `appgroups_not_allowed_with_match_all`. Combined with a
+  `source`, it means every flow of those hosts. Defaults to `false`
 - `position`: `top` to evaluate the rule before every other one, `bottom` (the default) after them
 
 There is no device or interface parameter: per-interface rules are not reachable from the API.
+
+A `match_all` rule placed at the top of the list shadows every rule below it, because every rule halts
+on match. That is the point of an `allow` one — it is how a bypass is expressed — but a client offering
+it should make the consequence visible.
 
 Example response:
 
@@ -3855,7 +3876,8 @@ api-cli ns.dpi edit-rule --data '{
   "enabled": false,
   "action": "block",
   "source": [],
-  "appgroups": ["ns_1a2b3c4d5"]
+  "appgroups": ["ns_1a2b3c4d5"],
+  "match_all": false
 }'
 ```
 

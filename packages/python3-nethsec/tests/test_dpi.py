@@ -749,6 +749,7 @@ def test_list_rules(e_uci_rules):
             'action': 'block',
             'source': ['192.168.1.0/24'],
             'appgroups': [{'id': group, 'name': 'Group one'}],
+            'match_all': False,
             'managed': True,
             'index': 0
         }
@@ -805,32 +806,80 @@ def test_build_rule_criteria_without_source(e_uci_rules):
 
 
 def test_build_rule_criteria_of_a_rule_matching_nothing(e_uci_rules):
-    assert dpi.build_rule_criteria(e_uci_rules, {'source': ['192.168.1.1']}) == ''
+    assert dpi.build_rule_criteria(e_uci_rules, {}) == ''
 
 
-def test_build_rule_criteria_source_only_when_appgroup_not_required(e_uci_rules):
-    rule = {'source': ['192.168.1.1', '192.168.1.0/24']}
-    assert dpi.build_rule_criteria(e_uci_rules, rule, require_appgroup=False) == (
+def test_build_rule_criteria_of_a_match_all_rule(e_uci_rules):
+    # the wildcard stands alone and carries no terminator
+    assert dpi.build_rule_criteria(e_uci_rules, {'ns_match_all': '1'}) == '*'
+
+
+def test_build_rule_criteria_of_a_match_all_rule_narrowed_to_a_source(e_uci_rules):
+    # the wildcard cannot be ANDed with anything: a source expresses the same thing on its own
+    rule = {'ns_match_all': '1', 'source': ['192.168.1.1', '192.168.1.0/24']}
+    assert dpi.build_rule_criteria(e_uci_rules, rule) == (
         '(local_ip == 192.168.1.1 || local_ip == 192.168.1.0/24);'
     )
 
 
-def test_build_rule_criteria_still_empty_without_source_or_appgroup(e_uci_rules):
-    assert dpi.build_rule_criteria(e_uci_rules, {}, require_appgroup=False) == ''
+def test_build_rule_criteria_source_only_without_the_flag(e_uci_rules):
+    # a rule migrated before ns_match_all existed carries the same shape and must keep working
+    rule = {'source': ['192.168.1.1']}
+    assert dpi.build_rule_criteria(e_uci_rules, rule) == '(local_ip == 192.168.1.1);'
 
 
-def test_add_rule_without_appgroup_requires_the_flag(e_uci_rules):
+def test_add_rule_without_appgroup_requires_match_all(e_uci_rules):
     with pytest.raises(ValidationError) as err:
         dpi.add_rule(e_uci_rules, 'No group', True, 'allow', ['192.168.1.1'], [])
     assert err.value.args[1] == 'appgroups_required'
 
 
-def test_add_rule_source_only_via_migration_flag(e_uci_rules):
-    rule_id = dpi.add_rule(e_uci_rules, 'Migrated exception 1', True, 'allow', ['192.168.1.1'], [],
-                           require_appgroup=False)
+def test_add_match_all_rule(e_uci_rules):
+    rule_id = dpi.add_rule(e_uci_rules, 'Allow everything', True, 'allow', [], [], match_all=True)
     assert e_uci_rules.get('dpi', rule_id, 'ns_managed') == '1'
+    assert e_uci_rules.get('dpi', rule_id, 'ns_match_all') == '1'
+    assert e_uci_rules.get('dpi', rule_id, 'appgroup', default=None) is None
+    assert e_uci_rules.get('dpi', rule_id, 'source', default=None) is None
+    assert dpi.build_rule_criteria(e_uci_rules, e_uci_rules.get_all('dpi', rule_id)) == '*'
+
+
+def test_add_match_all_rule_narrowed_to_a_source(e_uci_rules):
+    rule_id = dpi.add_rule(e_uci_rules, 'Allow the office', True, 'allow', ['192.168.1.1'], [],
+                           match_all=True)
+    assert e_uci_rules.get('dpi', rule_id, 'ns_match_all') == '1'
     assert e_uci_rules.get('dpi', rule_id, 'source', list=True) == ('192.168.1.1',)
     assert e_uci_rules.get('dpi', rule_id, 'appgroup', default=None) is None
+
+
+def test_add_match_all_rule_refuses_an_appgroup(e_uci_rules):
+    group = group_of(e_uci_rules)
+    with pytest.raises(ValidationError) as err:
+        dpi.add_rule(e_uci_rules, 'Contradiction', True, 'allow', [], [group], match_all=True)
+    assert err.value.args[1] == 'appgroups_not_allowed_with_match_all'
+
+
+def test_list_rules_reports_match_all(e_uci_rules):
+    group = group_of(e_uci_rules)
+    dpi.add_rule(e_uci_rules, 'Allow everything', True, 'allow', [], [], match_all=True)
+    dpi.add_rule(e_uci_rules, 'Block streaming', True, 'block', [], [group])
+    assert [rule['match_all'] for rule in dpi.list_rules(e_uci_rules)] == [True, False]
+
+
+def test_edit_rule_turns_match_all_on(e_uci_rules):
+    group = group_of(e_uci_rules)
+    rule_id = dpi.add_rule(e_uci_rules, 'Block streaming', True, 'block', [], [group])
+    dpi.edit_rule(e_uci_rules, rule_id, 'Allow everything', True, 'allow', [], [], match_all=True)
+    assert e_uci_rules.get('dpi', rule_id, 'ns_match_all') == '1'
+    assert e_uci_rules.get('dpi', rule_id, 'appgroup', default=None) is None
+
+
+def test_edit_rule_turns_match_all_off(e_uci_rules):
+    group = group_of(e_uci_rules)
+    rule_id = dpi.add_rule(e_uci_rules, 'Allow everything', True, 'allow', [], [], match_all=True)
+    dpi.edit_rule(e_uci_rules, rule_id, 'Block streaming', True, 'block', [], [group])
+    # the flag is removed, not stored as '0'
+    assert e_uci_rules.get('dpi', rule_id, 'ns_match_all', default=None) is None
+    assert e_uci_rules.get('dpi', rule_id, 'appgroup', list=True) == (group,)
 
 
 # Migration from the schema used before application groups existed
@@ -974,6 +1023,7 @@ def test_migrate_schema_converts_address_exemption_to_managed_allow_rule(e_uci_l
     assert exception1['action'] == 'allow'
     assert exception1['source'] == ['192.168.122.47']
     assert exception1['appgroups'] == []
+    assert exception1['match_all'] is True
     assert exception1['enabled'] is True
 
 

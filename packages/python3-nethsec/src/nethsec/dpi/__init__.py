@@ -494,6 +494,8 @@ DPI_RULE_ACTIONS = ('block', 'allow')
 
 DPI_RULE_NAME_MAX_LENGTH = 64
 
+DPI_MATCH_ALL_CRITERIA = '*'
+
 DPI_RULE_POSITIONS = ('top', 'bottom')
 
 
@@ -559,14 +561,14 @@ def __validate_source(values: list[str]) -> list[str]:
     return sources
 
 
-def __validate_appgroups(e_uci: EUci, config_names: list[str], require_appgroup: bool = True) -> list[str]:
+def __validate_appgroups(e_uci: EUci, config_names: list[str], match_all: bool = False) -> list[str]:
     """
-    Validate the groups a rule matches. At least one is required by default: a rule with a source and
-    no group would be an IP-level rule, which the firewall does better, and a rule with neither would
-    expand to an empty criteria.
+    Validate the groups a rule matches. At least one is required: a rule with a source and no group
+    would be an IP-level rule, which the firewall does better, and a rule with neither would expand to
+    an empty criteria.
 
-    `require_appgroup=False` lifts that requirement for a rule migrated from a global exemption: it is
-    a source-only Allow rule by design, a shape the drawer cannot produce and never will.
+    `match_all` is the way out of that requirement, and the only one: a rule that matches every flow
+    names no group by definition, so naming one at the same time is a contradiction, not a narrowing.
     """
     appgroups = []
     for config_name in config_names or []:
@@ -574,7 +576,9 @@ def __validate_appgroups(e_uci: EUci, config_names: list[str], require_appgroup:
             raise ValidationError('appgroups', 'appgroup_does_not_exists', config_name)
         if config_name not in appgroups:
             appgroups.append(config_name)
-    if require_appgroup and not appgroups:
+    if match_all and appgroups:
+        raise ValidationError('appgroups', 'appgroups_not_allowed_with_match_all', appgroups)
+    if not match_all and not appgroups:
         raise ValidationError('appgroups', 'appgroups_required', appgroups)
     return appgroups
 
@@ -600,27 +604,23 @@ def expand_source(values: list[str]) -> list[str]:
     return expanded
 
 
-def build_rule_criteria(e_uci: EUci, rule: dict, require_appgroup: bool = True) -> str:
+def build_rule_criteria(e_uci: EUci, rule: dict) -> str:
     """
     Build the criteria of a managed rule: the source, when set, ANDed with the union of its groups.
 
     Args:
       - e_uci: euci instance
       - rule: the rule section, as returned by `uci.get_all`
-      - require_appgroup: when False, a rule with a source and no group emits a source-only criteria
-        instead of being treated as matching nothing. Used for a rule migrated from a global exemption,
-        the one shape of source-only Allow rule the drawer cannot produce and never will.
 
     Returns:
-        the semicolon-terminated expression, or an empty string when the rule matches nothing and must
-        not be emitted
+        the expression, or an empty string when the rule matches nothing and must not be emitted
     """
     match = expand_appgroups(e_uci, list(rule.get('appgroup', [])))
     sources = [f'local_ip == {source}' for source in expand_source(list(rule.get('source', [])))]
 
     if not match:
-        if require_appgroup or not sources:
-            return ''
+        if not sources:
+            return DPI_MATCH_ALL_CRITERIA if rule.get('ns_match_all', '0') == '1' else ''
         return f"({' || '.join(sources)});"
 
     if sources:
@@ -639,7 +639,8 @@ def list_rules(e_uci: EUci) -> list[dict]:
 
     Returns:
         list of dicts, each dict contains the property "id", "name", "enabled", "action", "source",
-        "appgroups", "managed" and "index", plus "criteria" for the rules the API did not create
+        "appgroups", "match_all", "managed" and "index", plus "criteria" for the rules the API did not
+        create
     """
     groups = {section: group.get('ns_name', '')
               for section, group in (utils.get_all_by_type(e_uci, 'dpi', 'appgroup') or {}).items()}
@@ -655,6 +656,7 @@ def list_rules(e_uci: EUci) -> list[dict]:
             'source': list(rule.get('source', [])),
             'appgroups': [{'id': group, 'name': groups.get(group, group)}
                           for group in rule.get('appgroup', [])],
+            'match_all': rule.get('ns_match_all', '0') == '1',
             # a rule the UI did not create can be renamed, toggled, reordered and deleted, but not edited
             'managed': rule.get('ns_managed', '0') == '1',
             'index': len(rules)
@@ -667,15 +669,19 @@ def list_rules(e_uci: EUci) -> list[dict]:
 
 
 def __save_rule_data(e_uci: EUci, config_name: str, name: str, enabled: bool, action: str,
-                     source: list[str], appgroups: list[str]):
+                     source: list[str], appgroups: list[str], match_all: bool = False):
     e_uci.set('dpi', config_name, 'ns_name', name)
     e_uci.set('dpi', config_name, 'ns_managed', '1')
     e_uci.set('dpi', config_name, 'enabled', enabled)
     e_uci.set('dpi', config_name, 'action', action)
+    if match_all:
+        e_uci.set('dpi', config_name, 'ns_match_all', '1')
+    else:
+        e_uci.delete('dpi', config_name, 'ns_match_all')
     if appgroups:
         e_uci.set('dpi', config_name, 'appgroup', appgroups)
     else:
-        # a rule migrated from a global exemption has no group: the option must go, not stay empty
+        # a match-all rule or a rule migrated from a global exemption has no group: the option must go, not stay empty
         e_uci.delete('dpi', config_name, 'appgroup')
     if source:
         e_uci.set('dpi', config_name, 'source', source)
@@ -685,7 +691,7 @@ def __save_rule_data(e_uci: EUci, config_name: str, name: str, enabled: bool, ac
 
 
 def add_rule(e_uci: EUci, name: str, enabled: bool, action: str, source: list[str],
-             appgroups: list[str], position: str = 'bottom', require_appgroup: bool = True) -> str:
+             appgroups: list[str], position: str = 'bottom', match_all: bool = False) -> str:
     """
     Store a new rule.
 
@@ -696,10 +702,10 @@ def add_rule(e_uci: EUci, name: str, enabled: bool, action: str, source: list[st
       - action: 'block' or 'allow'
       - source: list of addresses, networks or ranges, empty to match every host
       - appgroups: config names of the application groups the rule matches, at least one unless
-        `require_appgroup` is False
+        `match_all` is set
       - position: 'top' to evaluate the rule before every other one, 'bottom' after them
-      - require_appgroup: set to False only when migrating a global exemption into a source-only Allow
-        rule, a shape the drawer cannot produce and never will
+      - match_all: the rule matches every flow, narrowed to `source` when one is given. Mutually
+        exclusive with `appgroups`
 
     Returns:
         config name of the rule created
@@ -713,11 +719,11 @@ def add_rule(e_uci: EUci, name: str, enabled: bool, action: str, source: list[st
     if position not in DPI_RULE_POSITIONS:
         raise ValidationError('position', 'invalid_position', position)
     source = __validate_source(source)
-    appgroups = __validate_appgroups(e_uci, appgroups, require_appgroup)
+    appgroups = __validate_appgroups(e_uci, appgroups, match_all)
 
     config_name = utils.get_random_id()
     e_uci.set('dpi', config_name, 'rule')
-    __save_rule_data(e_uci, config_name, name, enabled, action, source, appgroups)
+    __save_rule_data(e_uci, config_name, name, enabled, action, source, appgroups, match_all)
 
     order = [section for section, _ in __sorted_rules(e_uci) if section != config_name]
     order.insert(0, config_name) if position == 'top' else order.append(config_name)
@@ -729,7 +735,7 @@ def add_rule(e_uci: EUci, name: str, enabled: bool, action: str, source: list[st
 
 
 def edit_rule(e_uci: EUci, config_name: str, name: str, enabled: bool, action: str, source: list[str],
-              appgroups: list[str]) -> str:
+              appgroups: list[str], match_all: bool = False) -> str:
     """
     Edit a rule. Only rules created through the API can be edited: a rule carrying a hand-written
     criteria has no source and no group to fill the form with, and rewriting it would change what it
@@ -742,7 +748,10 @@ def edit_rule(e_uci: EUci, config_name: str, name: str, enabled: bool, action: s
       - enabled: enable the rule
       - action: 'block' or 'allow'
       - source: list of addresses, networks or ranges, empty to match every host
-      - appgroups: config names of the application groups the rule matches, at least one
+      - appgroups: config names of the application groups the rule matches, at least one unless
+        `match_all` is set
+      - match_all: the rule matches every flow, narrowed to `source` when one is given. Mutually
+        exclusive with `appgroups`
 
     Returns:
         config name of the rule edited
@@ -759,9 +768,9 @@ def edit_rule(e_uci: EUci, config_name: str, name: str, enabled: bool, action: s
     if action not in DPI_RULE_ACTIONS:
         raise ValidationError('action', 'invalid_action', action)
     source = __validate_source(source)
-    appgroups = __validate_appgroups(e_uci, appgroups)
+    appgroups = __validate_appgroups(e_uci, appgroups, match_all)
 
-    __save_rule_data(e_uci, config_name, name, enabled, action, source, appgroups)
+    __save_rule_data(e_uci, config_name, name, enabled, action, source, appgroups, match_all)
     __toggle_engine(e_uci)
     e_uci.save('dpi')
     return config_name
@@ -984,9 +993,9 @@ def migrate_schema(e_uci: EUci) -> bool:
     action is a retired QoS value, carries a per-rule exemption (a field no recent API ever wrote), or
     ends up matching nothing is dropped instead, with a log line naming it.
 
-    Each global exemption becomes an Allow rule at the top of the list: a managed, source-only rule
-    (`require_appgroup=False`) when its criteria is a plain address, CIDR or firewall object; an
-    unmanaged one carrying the criteria verbatim otherwise. Disabled exemptions become disabled rules.
+    Each global exemption becomes an Allow rule at the top of the list: a managed match-all rule
+    narrowed to a source when its criteria is a plain address, CIDR or firewall object; an unmanaged
+    one carrying the criteria verbatim otherwise. Disabled exemptions become disabled rules.
     The `exemption` section type, `firewall_exemption` and `popular_filters` are then removed.
 
     Safe to call unconditionally on every boot: a box with nothing left in the old schema returns False
@@ -1019,7 +1028,7 @@ def migrate_schema(e_uci: EUci) -> bool:
 
         e_uci.delete('dpi', section)
         if source is not None:
-            rule_id = add_rule(e_uci, name, enabled, 'allow', source, [], require_appgroup=False)
+            rule_id = add_rule(e_uci, name, enabled, 'allow', source, [], match_all=True)
         else:
             rule_id = utils.get_random_id()
             e_uci.set('dpi', rule_id, 'rule')

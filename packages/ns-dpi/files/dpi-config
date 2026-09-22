@@ -119,12 +119,11 @@ for section in u.get_all('dpi'):
     is_legacy = any(field in rule for field in legacy_fields)
 
     if not is_legacy and 'criteria' not in rule:
-        # current schema: application groups, optionally narrowed to a source, or a rule migrated from
-        # a global exemption (source only, no group — dpi.migrate_schema)
+        # current schema: application groups, optionally narrowed to a source, or a match-all rule
         if rule.get('action') not in dpi.DPI_RULE_ACTIONS:
             syslog.syslog(syslog.LOG_WARNING, f"dpi-config: skipping {section}, unknown action {rule.get('action')}")
             continue
-        criteria = dpi.build_rule_criteria(u, rule, require_appgroup=False)
+        criteria = dpi.build_rule_criteria(u, rule)
         if not criteria:
             # never emit an empty criteria: it is a parse error, and a parse error kills the agent
             syslog.syslog(syslog.LOG_WARNING, f"dpi-config: skipping {section}, it matches nothing")
