@@ -18,9 +18,7 @@ LUCI_FILE=/etc/nginx/conf.d/luci.locations
 # https://github.com/NethServer/nethsecurity/issues/1834
 cat <<'EOF' > "$NSUI_API_LOCATIONS_FILE"
 # body size limits on unauthenticated routes to prevent memory exhaustion
-# X-Forwarded-For is appended, not overwritten: when a controller proxies this unit, $remote_addr
-# is the controller's VPN address, so overwriting would collapse every remote client into one
-# address and make rate limiting and audit logs useless.
+# appending X-Forwarded-For instead of deleting it so we're aware of what IP reached the unit
 location = /api/login {
 	client_max_body_size 32k;
 	proxy_set_header Host $host;
@@ -51,11 +49,7 @@ location /api/ {
 EOF
 
 # Shared static locations, included by both the default and extra ns-ui instances.
-#
-# Cache headers matter more than they look: index.html references content-hashed chunks, and
-# without them browsers apply heuristic freshness and can serve a stale index.html for days. After
-# a package upgrade the chunks it names are gone, try_files returns 404 and the UI is a white
-# screen until a hard reload.
+# This provides cache busting for both unit and controller.
 cat <<'EOF' > "$NSUI_STATIC_LOCATIONS_FILE"
 location / {
 	gzip on;
