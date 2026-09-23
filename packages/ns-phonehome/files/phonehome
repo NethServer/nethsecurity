@@ -56,8 +56,8 @@ data = {
         "product": dmi,
         "virtual": inventory.is_virtual(),
         "memory": {
-            "swap": { "used_bytes": mem_info.get('SwapUsed', 0) * 1024, "available_bytes": mem_info.get('SwapFree', 0) * 1024 },
-            "system": { "used_bytes": mem_info.get('MemUsed', 0) * 1024, "available_bytes": mem_info.get('MemAvailable', 0) * 1024 }
+            "swap": { "used_bytes": mem_info.get('SwapUsed', 0), "available_bytes": mem_info.get('SwapFree', 0) },
+            "system": { "used_bytes": mem_info.get('MemUsed', 0), "available_bytes": mem_info.get('MemAvailable', 0) }
         },
         "pci": list(pci.values()),
         "mountpoints": mount_points,
