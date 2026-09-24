@@ -3550,82 +3550,110 @@ Response example:
 
 Manage netifyd DPI engine.
 
-### list-loaded-applications
+### list-appgroup-catalog
 
-List the applications the netifyd engine has loaded in memory, as returned by `netifyd --dump-apps`:
-
-```bash
-api-cli ns.dpi list-loaded-applications
-```
-
-The engine loads only the applications available inside the installed signatures, so the response can be matched
-against `list-application-catalog` to find out which applications of the catalog are usable on the machine.
-
-Example response:
-```json
-{
-   "values": [
-      {
-         "id": 133,
-         "name": "netify.netflix"
-      },
-      {
-         "id": 10119,
-         "name": "netify.adobe"
-      },
-      {
-         "id": 10552,
-         "name": "netify.tesla"
-      }
-   ]
-}
-```
-
-If the engine can't be queried, the response is:
-```json
-{
-   "error": "applications_not_available"
-}
-```
-
-### list-loaded-protocols
-
-List the protocols the netifyd engine has loaded in memory, as returned by `netifyd --dump-protos`:
+List everything an application group can be built with: the catalogs crossed with what the netifyd
+engine has loaded, grouped by category, done once on the firewall directly.
 
 ```bash
-api-cli ns.dpi list-loaded-protocols
+api-cli ns.dpi list-appgroup-catalog
 ```
-
-Like `list-loaded-applications`, the response can be matched against `list-protocol-catalog` to find out which
-protocols of the catalog are usable on the machine. The engine can also report protocols that are not part of the
-catalog, like the `Unknown` pseudo-protocol with id `0`.
 
 Example response:
+
 ```json
 {
-   "values": [
-      {
-         "id": 116,
-         "name": "Warcraft3"
-      },
-      {
-         "id": 121,
-         "name": "Dropbox"
-      },
-      {
-         "id": 130,
-         "name": "HTTP/Connect"
-      }
-   ]
+   "values": {
+      "applications": [
+         {
+            "tag": "portal",
+            "label": "Portal",
+            "selectable": true,
+            "items": [
+               {
+                  "id": "netify.qq",
+                  "label": "Tencent QQ",
+                  "selectable": true,
+                  "logo": "https://static.netify.ai/logos/q/q//dd/icon.png?v=4"
+               },
+               {
+                  "id": "netify.premium-only",
+                  "label": "Premium Only",
+                  "selectable": false
+               }
+            ]
+         },
+         {
+            "tag": "",
+            "label": "",
+            "selectable": false,
+            "items": [
+               {
+                  "id": "netify.brand-new",
+                  "label": "netify.brand-new",
+                  "selectable": true
+               }
+            ]
+         }
+      ],
+      "protocols": [
+         {
+            "tag": "file-server",
+            "label": "File Server",
+            "selectable": true,
+            "items": [
+               {
+                  "id": "FTP",
+                  "label": "FTP Control",
+                  "selectable": true
+               }
+            ]
+         }
+      ]
+   }
 }
 ```
 
-If the engine can't be queried, the response is:
+**`selectable` on an item** means the engine has the signature loaded, so the item can be matched on
+this machine. Unregistering a subscription strips the premium signatures and drops the matchable set
+from ~2600 applications to ~200, while the catalog still lists them all: catalog presence is not
+matchability.
+
+**`id` is only submittable when `selectable` is `true`.** It carries the engine name whenever there is
+one, which is what `add-appgroup` stores and what a criteria matches on. For an item the engine has not
+loaded there is no engine name, so the catalog tag stands in — and the two differ, `ftp-control` in the
+catalog against `FTP` in the engine. Sending the id of a non-selectable item is refused with
+`invalid_application` or `invalid_protocol`.
+
+**`selectable` on a group** means the category itself can be a group member, passed as
+`application_categories` or `protocol_categories` to `add-appgroup`. Every real category can; the group
+with an empty `tag` is the bucket holding whatever the catalog does not categorise, it is not a category
+and no criteria can match on it, so it is never selectable as a whole. Its items are selectable
+individually like any other.
+
+**`label` is English**, the only language the catalog carries, and `logo` is absent when the catalog has
+no icon for the entry — always for protocols. A client showing translated category names should
+translate by `tag` and keep `label` as the fallback, then sort the groups again: they arrive sorted by
+their English label, with the uncategorised group last.
+
+What is left out, and why:
+
+- applications the catalog marks `active: false` and protocols it marks deprecated: they are gone from
+  the product
+- the `unknown` protocol: it is the engine's catch-all for what it could not classify
+- nothing else — what the engine loaded but the catalog does not list is kept, named after the engine
+  and left uncategorised, because it is matchable all the same
+
+Error response:
+
 ```json
-{
-   "error": "protocols_not_available"
-}
+{"error": "catalog_not_available"}
 ```
+
+Returned whenever any source is missing: the engine is not running, or a catalog has not been downloaded
+yet. The answer is all-or-nothing on purpose — a partial one would quietly offer a smaller product than
+the machine actually has. The catalogs are refreshed nightly by `dpi-data-update` into `/etc/netifyd`, so
+a machine that has never reached `distfeed.nethesis.it` has none.
 
 ### list-appgroups
 
@@ -3686,10 +3714,10 @@ api-cli ns.dpi add-appgroup --data '{
 
 - `name`: mandatory, up to 64 characters, unique among the groups regardless of case
 - the four member lists are all optional, but the group must hold at least one member overall
-- applications and protocols are named as the **DPI engine** reports them, i.e. the `name` field of
-  `list-loaded-applications` / `list-loaded-protocols`, **not** the `tag` of the catalogs. For
-  applications the two coincide (`netify.amazon`); for protocols they don't (`HTTP/Connect` in the
-  engine, `http-connect` in the catalog) and only the engine name can be matched
+- applications and protocols are named as the **DPI engine** reports them, which is the `id` of a
+  selectable item of `list-appgroup-catalog`, **not** the `tag` of the raw catalogs. For applications
+  the two coincide (`netify.amazon`); for protocols they don't (`HTTP/Connect` in the engine,
+  `http-connect` in the catalog) and only the engine name can be matched
 - categories are named by tag (`cybersecurity`, `games`), which is the same in the engine and in the
   catalogs. Application and protocol categories are distinct vocabularies
 

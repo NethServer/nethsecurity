@@ -520,6 +520,132 @@ def test_expand_appgroups_without_groups(e_uci_appgroups):
     assert dpi.expand_appgroups(e_uci_appgroups, []) == ''
 
 
+# appgroup catalog
+
+BUSINESS = {'id': 5, 'tag': 'business', 'label': 'Business'}
+PORTAL = {'id': 19, 'tag': 'portal', 'label': 'Portal'}
+FILE_SERVER = {'id': 4, 'tag': 'file-server', 'label': 'File Server'}
+
+application_catalog = [
+    {'id': 133, 'tag': 'netify.netflix', 'label': 'Netflix', 'category': PORTAL, 'active': True,
+     'icon': 'https://static.netify.ai/logos/n/netflix/icon.png'},
+    {'id': 10552, 'tag': 'netify.tesla', 'label': 'Tesla', 'category': BUSINESS},
+    # not loaded by the engine: listed, named after the catalog, not selectable
+    {'id': 90001, 'tag': 'netify.premium-only', 'label': 'Premium Only', 'category': BUSINESS},
+    # retired from the product
+    {'id': 90002, 'tag': 'netify.retired', 'label': 'Retired', 'category': BUSINESS, 'active': False},
+    # no category at all
+    {'id': 10119, 'tag': 'netify.linkedin', 'label': 'LinkedIn'}
+]
+
+protocol_catalog = [
+    {'id': 1, 'tag': 'ftp-control', 'label': 'FTP Control', 'category': FILE_SERVER, 'deprecated': ''},
+    {'id': 130, 'tag': 'http-connect', 'label': 'HTTP/Connect', 'category': FILE_SERVER},
+    {'id': 90003, 'tag': 'gone', 'label': 'Gone', 'category': FILE_SERVER, 'deprecated': '5.0'},
+    {'id': 90004, 'tag': 'unknown', 'label': 'Unknown', 'category': FILE_SERVER}
+]
+
+
+@pytest.fixture
+def mock_catalogs(mocker):
+    """Both catalogs are on disk and the engine has loaded part of them."""
+    mocker.patch('nethsec.dpi.load_applications', return_value={
+        133: 'netify.netflix', 10552: 'netify.tesla', 10119: 'netify.linkedin',
+        # loaded but absent from the catalog
+        99999: 'netify.brand-new'
+    })
+    mocker.patch('nethsec.dpi.load_protocols', return_value={
+        1: 'FTP', 130: 'HTTP/Connect', 99998: 'Unknown'
+    })
+    mocker.patch('nethsec.dpi.__load_catalog', side_effect=lambda filename: (
+        application_catalog if 'application' in filename else protocol_catalog
+    ))
+
+
+def group_by_tag(groups, tag):
+    return next(group for group in groups if group['tag'] == tag)
+
+
+def test_list_appgroup_catalog_groups_by_category(mock_catalogs):
+    catalog = dpi.list_appgroup_catalog()
+    assert [group['tag'] for group in catalog['applications']] == ['business', 'portal', '']
+    assert group_by_tag(catalog['applications'], 'portal')['label'] == 'Portal'
+
+
+def test_list_appgroup_catalog_marks_every_real_category_selectable(mock_catalogs):
+    catalog = dpi.list_appgroup_catalog()
+    assert group_by_tag(catalog['applications'], 'business')['selectable'] is True
+    # the uncategorised bucket is not a category: no criteria can match on it
+    assert group_by_tag(catalog['applications'], '')['selectable'] is False
+
+
+def test_list_appgroup_catalog_item_of_a_loaded_application(mock_catalogs):
+    items = group_by_tag(dpi.list_appgroup_catalog()['applications'], 'portal')['items']
+    assert items == [{'id': 'netify.netflix', 'label': 'Netflix', 'selectable': True,
+                      'logo': 'https://static.netify.ai/logos/n/netflix/icon.png'}]
+
+
+def test_list_appgroup_catalog_item_the_engine_did_not_load(mock_catalogs):
+    items = group_by_tag(dpi.list_appgroup_catalog()['applications'], 'business')['items']
+    premium = next(item for item in items if item['label'] == 'Premium Only')
+    # no engine name to store, so the catalog tag stands in and the item cannot be picked
+    assert premium == {'id': 'netify.premium-only', 'label': 'Premium Only', 'selectable': False}
+
+
+def test_list_appgroup_catalog_hides_an_inactive_application(mock_catalogs):
+    catalog = dpi.list_appgroup_catalog()
+    labels = [item['label'] for group in catalog['applications'] for item in group['items']]
+    assert 'Retired' not in labels
+
+
+def test_list_appgroup_catalog_hides_a_deprecated_protocol(mock_catalogs):
+    catalog = dpi.list_appgroup_catalog()
+    labels = [item['label'] for group in catalog['protocols'] for item in group['items']]
+    assert 'Gone' not in labels
+
+
+def test_list_appgroup_catalog_hides_the_unknown_protocol(mock_catalogs):
+    catalog = dpi.list_appgroup_catalog()
+    ids = [item['id'] for group in catalog['protocols'] for item in group['items']]
+    # dropped both from the catalog and from what the engine loaded
+    assert 'unknown' not in ids and 'Unknown' not in ids
+
+
+def test_list_appgroup_catalog_keeps_what_the_catalog_does_not_list(mock_catalogs):
+    items = group_by_tag(dpi.list_appgroup_catalog()['applications'], '')['items']
+    assert {'id': 'netify.brand-new', 'label': 'netify.brand-new', 'selectable': True} in items
+
+
+def test_list_appgroup_catalog_uses_the_engine_name_as_id(mock_catalogs):
+    # the catalog calls it 'ftp-control', the engine calls it 'FTP': a group stores the engine name
+    items = group_by_tag(dpi.list_appgroup_catalog()['protocols'], 'file-server')['items']
+    assert next(item for item in items if item['label'] == 'FTP Control')['id'] == 'FTP'
+
+
+def test_list_appgroup_catalog_omits_the_logo_when_there_is_none(mock_catalogs):
+    items = group_by_tag(dpi.list_appgroup_catalog()['applications'], 'business')['items']
+    assert 'logo' not in next(item for item in items if item['label'] == 'Tesla')
+
+
+def test_list_appgroup_catalog_sorts_items_by_label(mock_catalogs):
+    items = group_by_tag(dpi.list_appgroup_catalog()['applications'], 'business')['items']
+    assert [item['label'] for item in items] == ['Premium Only', 'Tesla']
+
+
+def test_list_appgroup_catalog_raises_when_the_engine_is_down(mocker):
+    mocker.patch('nethsec.dpi.load_applications', side_effect=Exception('netifyd is not running'))
+    with pytest.raises(Exception):
+        dpi.list_appgroup_catalog()
+
+
+def test_list_appgroup_catalog_raises_when_a_catalog_is_missing(mocker):
+    mocker.patch('nethsec.dpi.load_applications', return_value={})
+    mocker.patch('nethsec.dpi.load_protocols', return_value={})
+    mocker.patch('nethsec.dpi.__load_catalog', side_effect=FileNotFoundError)
+    with pytest.raises(FileNotFoundError):
+        dpi.list_appgroup_catalog()
+
+
 # rules
 
 @pytest.fixture

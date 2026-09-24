@@ -51,9 +51,8 @@ if cmd == 'list':
             'order': ['ns_1234', 'ns_5678']
         },
         'list-application-catalog': {},
-        'list-loaded-applications': {},
         'list-protocol-catalog': {},
-        'list-loaded-protocols': {},
+        'list-appgroup-catalog': {},
         'list-appgroups': {
             'search': 'str',
             'limit': 32,
@@ -89,14 +88,6 @@ elif cmd == 'call':
                 print(json.dumps({'values': content}))
             except Exception:
                 print(json.dumps({}))
-        elif action == 'list-loaded-applications':
-            try:
-                applications = dpi.load_applications()
-            except Exception:
-                print(json.dumps(utils.generic_error('applications_not_available')))
-            else:
-                print(json.dumps({'values': [{'id': app_id, 'name': app_name}
-                                             for app_id, app_name in applications.items()]}))
         elif action == 'list-protocol-catalog':
             try:
                 with open('/etc/netifyd/netify-protocol-catalog.json', 'r') as f:
@@ -104,14 +95,11 @@ elif cmd == 'call':
                 print(json.dumps({'values': content}))
             except Exception:
                 print(json.dumps({}))
-        elif action == 'list-loaded-protocols':
+        elif action == 'list-appgroup-catalog':
             try:
-                protocols = dpi.load_protocols()
+                print(json.dumps({'values': dpi.list_appgroup_catalog()}))
             except Exception:
-                print(json.dumps(utils.generic_error('protocols_not_available')))
-            else:
-                print(json.dumps({'values': [{'id': proto_id, 'name': proto_name}
-                                             for proto_id, proto_name in protocols.items()]}))
+                print(json.dumps(utils.generic_error('catalog_not_available')))
         elif action == 'list-rules':
             print(json.dumps({'values': dpi.list_rules(e_uci)}))
         elif action == 'add-rule':
