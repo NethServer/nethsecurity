@@ -30,6 +30,21 @@ GET /api/metrics/query_range?query=<promql>&start=<ts>&end=<ts>&step=<dur>
 GET /api/alerts/alerts
 ```
 
+## Controller attribution
+
+Units managed by a controller are accessed with a single machine account, created by
+`ns-plug` as the `rpcd.controller` UCI section with a random username. Without further
+information, every action performed from the controller would be logged under that name.
+
+To report the real operator, `POST /login` accepts an optional `on_behalf_of` field:
+
+```json
+{ "username": "<controller machine account>", "password": "...", "on_behalf_of": "alice" }
+```
+
+The field is accepted only when the authenticating user is the account named by
+`uci get rpcd.controller.username`; for any other user it is silently ignored.
+
 ## Rate limiting
 
 The server applies a generous global per-client-IP rate limit as a coarse safety net across
