@@ -473,6 +473,38 @@ def u(tmp_path: pathlib.Path) -> EUci:
         fp.write(dpi_db)
     return EUci(confdir=tmp_path.as_posix())
 
+@pytest.fixture
+def u_saved(tmp_path: pathlib.Path) -> EUci:
+    # same fake dbs, but with a dedicated savedir so pending changes can be inspected
+    conf_dir = tmp_path.joinpath('conf')
+    conf_dir.mkdir()
+    save_dir = tmp_path.joinpath('save')
+    save_dir.mkdir()
+    with conf_dir.joinpath('firewall').open('w') as fp:
+        fp.write(firewall_db)
+        fp.write(zone_testing_db)
+    with conf_dir.joinpath('network').open('w') as fp:
+        fp.write(network_db)
+    with conf_dir.joinpath('templates').open('w') as fp:
+        fp.write(templates_db)
+    with conf_dir.joinpath('dhcp').open('w') as fp:
+        fp.write(dhcp_db)
+    with conf_dir.joinpath('netmap').open('w') as fp:
+        fp.write(netmap_db)
+    with conf_dir.joinpath('objects').open('w') as fp:
+        fp.write(objects_db)
+    with conf_dir.joinpath('users').open('w') as fp:
+        fp.write(user_db)
+    with conf_dir.joinpath('mwan3').open('w') as fp:
+        fp.write(mwan3_db)
+    with conf_dir.joinpath('dpi').open('w') as fp:
+        fp.write(dpi_db)
+    return EUci(confdir=conf_dir.as_posix(), savedir=save_dir.as_posix())
+
+def pending_changes(uci, config):
+    delta = pathlib.Path(uci.savedir()).joinpath(config)
+    return delta.read_text() if delta.exists() else ""
+
 def test_add_interface_to_zone(u):
     z1 = firewall.add_interface_to_zone(u, "interface1", "lan")
     assert z1 == 'lan1'
@@ -1187,6 +1219,36 @@ def test_update_firewall_rules_concurrency(u):
     firewall.delete_rule(u, rid)
     objects.delete_host_set(u, host1)
     objects.delete_host_set(u, host2)
+
+def test_update_firewall_rules_is_idempotent(u_saved):
+    host1 = objects.add_host_set(u_saved, "hi1", "ipv4", ["10.0.0.1", "10.0.0.2", "10.0.0.3"])
+    domain1 = objects.add_domain_set(u_saved, "di1", "ipv4", ["test1.com", "test2.com"])
+    hrid = firewall.add_rule(u_saved, "idemhost", "lan", [], "wan", [], [], [], "ACCEPT", "*",
+                             ns_src=f"objects/{host1}")
+    drid = firewall.add_rule(u_saved, "idemdomain", "lan", [], "wan", [], [], [], "ACCEPT", "*",
+                             ns_src=f"objects/{domain1}")
+    for config in ("firewall", "objects", "dhcp"):
+        u_saved.commit(config)
+
+    firewall.update_firewall_rules(u_saved)
+    u_saved.save("firewall")
+    changes = pending_changes(u_saved, "firewall")
+    assert f"firewall.{hrid}." not in changes
+    assert f"firewall.{drid}." not in changes
+
+def test_edit_rule_does_not_touch_other_object_rules(u_saved):
+    host1 = objects.add_host_set(u_saved, "he1", "ipv4", ["10.0.0.1", "10.0.0.2", "10.0.0.3"])
+    orid = firewall.add_rule(u_saved, "withobject", "lan", [], "wan", [], [], [], "ACCEPT", "*",
+                             ns_src=f"objects/{host1}")
+    prid = firewall.add_rule(u_saved, "plainrule", "lan", ["192.168.1.1"], "wan", [], [], [], "ACCEPT", "*")
+    for config in ("firewall", "objects"):
+        u_saved.commit(config)
+
+    firewall.edit_rule(u_saved, prid, "plainrenamed", "lan", ["192.168.1.1"], "wan", [], [], [], "ACCEPT", "*")
+    u_saved.save("firewall")
+    changes = pending_changes(u_saved, "firewall")
+    assert f"firewall.{prid}." in changes
+    assert f"firewall.{orid}." not in changes
 
 def test_list_object_suggestions(u):
     obj = objects.list_objects(u)
