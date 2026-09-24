@@ -201,6 +201,132 @@ def __appgroup_vocabulary(kind: str) -> set[str] | None:
     # an unknown value never matches, so a missing vocabulary is a reason to skip the check, not to refuse
     return vocabulary if vocabulary else None
 
+APPGROUP_CATALOG_FILES = {
+    'applications': 'netify-application-catalog.json',
+    'protocols': 'netify-protocol-catalog.json'
+}
+
+UNCATEGORIZED_TAG = ''
+
+def __load_catalog(filename: str) -> list[dict]:
+    """
+    Reads a downloaded catalog, one of the `/etc/netifyd/netify-*-catalog.json` files.
+
+    Args:
+      - filename: name of the catalog file inside the netifyd data directory
+
+    Returns:
+        list of catalog entries
+    """
+    with open(f'{NETIFYD_DATA_DIR}/{filename}', 'r') as file:
+        return json.load(file)
+
+
+def __catalog_entries(catalog: list[dict], loaded: dict[int, str], kind: str) -> list[dict]:
+    """
+    Cross one catalog with what the engine has loaded, into flat entries carrying their category.
+
+    Three rules the engine and the catalog do not state on their own:
+
+      - an application the catalog marks `active: false`, and a protocol it marks deprecated, are gone
+        from the product and must not be offered
+      - a protocol labelled "unknown" is the engine's catch-all for what it could not classify, not
+        something a group can be built on
+      - what the engine loaded but the catalog does not list is still matchable, so it is kept, named
+        after the engine and left uncategorised
+
+    The id is what a group stores, and it is the engine name whenever there is one: the catalog tag is
+    only a fallback for an entry that cannot be matched anyway, so it is never a value a client submits.
+    """
+    entries = []
+    for entry in catalog:
+        if kind == 'applications' and entry.get('active') is False:
+            continue
+        if kind == 'protocols' and entry.get('deprecated'):
+            continue
+        label = entry.get('label', '')
+        if kind == 'protocols' and label.lower() == 'unknown':
+            continue
+        engine_name = loaded.get(entry.get('id'))
+        category = entry.get('category') or {}
+        entries.append({
+            'id': engine_name or entry.get('tag', ''),
+            'label': label,
+            'selectable': engine_name is not None,
+            'logo': entry.get('icon'),
+            'category_tag': category.get('tag', UNCATEGORIZED_TAG),
+            'category_label': category.get('label', '')
+        })
+
+    known = {entry.get('id') for entry in catalog}
+    for entry_id, name in loaded.items():
+        if entry_id in known:
+            continue
+        if kind == 'protocols' and name.lower() == 'unknown':
+            continue
+        entries.append({
+            'id': name,
+            'label': name,
+            'selectable': True,
+            'logo': None,
+            'category_tag': UNCATEGORIZED_TAG,
+            'category_label': '',
+        })
+
+    return entries
+
+
+def __catalog_groups(entries: list[dict]) -> list[dict]:
+    """
+    Group flat catalog entries by category.
+
+    A group is selectable when the category itself can be a group member, which every real category can
+    be and the uncategorised bucket never can. Groups and items are sorted by label, with the
+    uncategorised bucket last; a client translating the category labels has to sort them again.
+    """
+    groups = dict[str, dict]()
+    for entry in entries:
+        tag = entry['category_tag']
+        group = groups.get(tag)
+        if group is None:
+            group = groups[tag] = {
+                'tag': tag,
+                'label': entry['category_label'],
+                'selectable': tag != UNCATEGORIZED_TAG,
+                'items': []
+            }
+        item = {'id': entry['id'], 'label': entry['label'], 'selectable': entry['selectable']}
+        if entry['logo']:
+            item['logo'] = entry['logo']
+        group['items'].append(item)
+
+    for group in groups.values():
+        group['items'].sort(key=lambda item: item['label'].lower())
+
+    return sorted(groups.values(), key=lambda group: (group['tag'] == UNCATEGORIZED_TAG,
+                                                      group['label'].lower()))
+
+
+def list_appgroup_catalog() -> dict[str, list[dict]]:
+    """
+    List every application and protocol a group can be built with, grouped by category.
+
+    Every source has to answer: the engine says what is matchable, the catalogs say how it reads, and a
+    partial answer would silently offer a smaller product than the machine has. So this raises instead
+    of returning what it managed to collect.
+
+    Returns:
+        dict with the keys "applications" and "protocols", each a list of category groups
+
+    Raises:
+      - Exception: if the engine cannot be queried or a catalog is missing
+    """
+    loaded = {'applications': load_applications(), 'protocols': load_protocols()}
+    return {
+        kind: __catalog_groups(__catalog_entries(__load_catalog(filename), loaded[kind], kind))
+        for kind, filename in APPGROUP_CATALOG_FILES.items()
+    }
+
 
 def __validate_appgroup_members(kind: str, values: list[str]) -> list[str]:
     """
