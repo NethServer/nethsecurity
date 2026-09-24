@@ -1,0 +1,184 @@
+#!/bin/bash
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-3.0-only
+#
+
+#
+# WebSocket-based remote support tunnel client.
+# Coexists with the OpenVPN-based "don" support system.
+#
+# Usage: support-tunnel {start|stop|status} [-j]
+#
+# Configuration is read from UCI:
+#   uci set support-tunnel.config.url='wss://support.nethesis.it/api/tunnel'
+#   uci set support-tunnel.config.system_key='NETH-...'
+#   uci set support-tunnel.config.system_secret='...'
+#   uci commit support-tunnel
+#
+
+base_dir=/var/run/support-tunnel
+pid_file="$base_dir/tunnel-client.pid"
+log_file=/var/log/support-tunnel.log
+json_output=0
+
+if [ "$2" = "-j" ]; then
+    json_output=1
+fi
+
+cleanup() {
+    if [ -f "$pid_file" ]; then
+        kill "$(cat $pid_file)" 2>/dev/null
+        # Wait for graceful shutdown (tunnel-client cleans up users on SIGTERM)
+        local i=0
+        while [ -f "$pid_file" ] && [ $i -lt 15 ]; do
+            sleep 1
+            i=$((i+1))
+        done
+        # Force kill if still running
+        [ -f "$pid_file" ] && kill -9 "$(cat $pid_file)" 2>/dev/null
+    fi
+    rm -rf "$base_dir"
+}
+
+start_tunnel() {
+    local url=$(uci -q get support-tunnel.config.url)
+    local system_key=$(uci -q get support-tunnel.config.system_key)
+    local system_secret=$(uci -q get support-tunnel.config.system_secret)
+    local exclude=$(uci -q get support-tunnel.config.exclude_patterns)
+    local tls_insecure=$(uci -q get support-tunnel.config.tls_insecure)
+
+    # Fallback: read key from ns-plug if not set
+    if [ -z "$system_key" ]; then
+        system_key=$(uci -q get ns-plug.config.system_id)
+    fi
+
+    if [ -z "$system_key" ] || [ -z "$system_secret" ]; then
+        if [ "$json_output" = 1 ]; then
+            echo '{"error": "missing credentials"}'
+        else
+            echo "ERROR: missing credentials"
+            echo "  uci set support-tunnel.config.system_key='NETH-...'"
+            echo "  uci set support-tunnel.config.system_secret='...'"
+            echo "  uci commit support-tunnel"
+        fi
+        exit 2
+    fi
+
+    [ -z "$url" ] && url="wss://support.nethesis.it/api/tunnel"
+
+    mkdir -p "$base_dir"
+
+    # Start tunnel-client in background
+    /usr/sbin/tunnel-client \
+        --url "$url" \
+        --key "$system_key" \
+        --secret "$system_secret" \
+        --exclude "${exclude}" \
+        --tls-insecure="${tls_insecure:-false}" \
+        --users-dir /usr/share/my/users.d \
+        --diagnostics-dir /usr/share/my/diagnostics.d \
+        --users-state-file "$base_dir/users-state.json" \
+        >> "$log_file" 2>&1 &
+
+    local tunnel_pid=$!
+    echo $tunnel_pid > "$pid_file"
+
+    # Wait for WebSocket connection (max 15 seconds)
+    local connected=false
+    local i=0
+    while [ $i -lt 15 ]; do
+        if ! kill -0 $tunnel_pid 2>/dev/null; then
+            if [ "$json_output" = 1 ]; then
+                echo '{"error": "tunnel-client exited unexpectedly"}'
+            else
+                echo "ERROR: tunnel-client exited unexpectedly"
+            fi
+            rm -f "$pid_file"
+            exit 4
+        fi
+        if grep -q "WebSocket connected" "$log_file" 2>/dev/null; then
+            connected=true
+            break
+        fi
+        sleep 1
+        i=$((i+1))
+    done
+
+    local services=$(grep -oP 'Manifest sent with \K[0-9]+' "$log_file" 2>/dev/null | tail -1)
+    services="${services:-0}"
+
+    if [ "$json_output" = 1 ]; then
+        jq -c -n \
+            --argjson active true \
+            --arg support_url "$url" \
+            --arg system_key "$system_key" \
+            --argjson connected "$connected" \
+            --argjson services "$services" \
+            --argjson pid "$tunnel_pid" \
+            '{active: $active, support_url: $support_url, system_key: $system_key, connected: $connected, services: $services, pid: $pid}'
+    else
+        echo "Tunnel started (PID: $tunnel_pid)"
+        echo "URL: $url"
+        echo "System key: $system_key"
+        echo "Connected: $connected"
+    fi
+}
+
+show_status() {
+    if [ -f "$pid_file" ] && kill -0 "$(cat $pid_file)" 2>/dev/null; then
+        local pid=$(cat $pid_file)
+        local url=$(uci -q get support-tunnel.config.url)
+        local system_key=$(uci -q get support-tunnel.config.system_key)
+        [ -z "$system_key" ] && system_key=$(uci -q get ns-plug.config.system_id)
+        [ -z "$url" ] && url="wss://support.nethesis.it/api/tunnel"
+
+        local services=$(grep -oP 'Manifest sent with \K[0-9]+' "$log_file" 2>/dev/null | tail -1)
+        services="${services:-0}"
+
+        if [ "$json_output" = 1 ]; then
+            jq -c -n \
+                --argjson active true \
+                --arg support_url "$url" \
+                --arg system_key "$system_key" \
+                --argjson connected true \
+                --argjson services "$services" \
+                --argjson pid "$pid" \
+                '{active: $active, support_url: $support_url, system_key: $system_key, connected: $connected, services: $services, pid: $pid}'
+        else
+            echo "Tunnel is running (PID: $pid)"
+            echo "URL: $url"
+            echo "System key: $system_key"
+        fi
+        exit 0
+    else
+        if [ "$json_output" = 1 ]; then
+            echo '{"active": false}'
+        else
+            echo "Tunnel is not running"
+        fi
+        exit 1
+    fi
+}
+
+case "$1" in
+start)
+    cleanup 2>/dev/null
+    > "$log_file"
+    start_tunnel
+    ;;
+stop)
+    cleanup
+    if [ "$json_output" = 1 ]; then
+        echo '{"result": "success"}'
+    fi
+    ;;
+status)
+    show_status
+    ;;
+*)
+    echo "Usage: $0 {start|stop|status} [-j]"
+    exit 1
+    ;;
+esac
