@@ -1,0 +1,146 @@
+#!/usr/bin/python3
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Send the IPs blocked by banip, spooled by ts-insights-hook, to Nethesis Insights.
+# Run by cron, does nothing if the unit is not registered.
+# Only the errors dropping events are logged, unless banip.global.ban_debug is set.
+
+import base64
+import http.client
+import ipaddress
+import json
+import os
+import syslog
+import urllib.request
+
+from euci import EUci
+
+SPOOL_DIR = "/var/run/ns-insights"
+SPOOL = os.path.join(SPOOL_DIR, "threat-events.jsonl")
+SENDING = SPOOL + ".sending"
+
+DEFAULT_URL = "https://insights.nethesis.it"
+MAX_DECISIONS_PER_REQUEST = 500
+MAX_SPOOLED_EVENTS = 5000
+TIMEOUT = 20
+
+
+def read_config(uci):
+    """Return (base_url, system_id, secret), or None if the unit is not registered."""
+    system_id = uci.get("ns-plug", "config", "system_id", default="")
+    secret = uci.get("ns-plug", "config", "secret", default="")
+    if not system_id or not secret:
+        return None
+
+    base_url = uci.get("ns-plug", "config", "insights_url", default=DEFAULT_URL).rstrip(
+        "/"
+    )
+
+    return base_url, system_id, secret
+
+
+def read_spool():
+    """Take the spooled lines and remove the spool file."""
+    if not os.path.exists(SPOOL):
+        return []
+
+    # move the file first, so the hook can keep writing a new one
+    os.rename(SPOOL, SENDING)
+    with open(SENDING) as spool:
+        lines = spool.readlines()
+    os.unlink(SENDING)
+
+    return lines
+
+
+def is_reportable(value):
+    """Only public addresses are sent."""
+    try:
+        return ipaddress.ip_address(value).is_global
+    except ValueError:
+        return False
+
+
+def parse_events(lines):
+    """Return the valid and reportable decisions, the most recent ones if over the cap."""
+    decisions = []
+
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            decision = json.loads(line)
+            value = decision["value"]
+        except (ValueError, KeyError, TypeError):
+            continue
+
+        if is_reportable(value):
+            decisions.append(decision)
+
+    if len(decisions) > MAX_SPOOLED_EVENTS:
+        syslog.syslog(
+            syslog.LOG_DEBUG,
+            f"too many events, dropped the {len(decisions) - MAX_SPOOLED_EVENTS} oldest",
+        )
+        decisions = decisions[-MAX_SPOOLED_EVENTS:]
+
+    return decisions
+
+
+def send_batch(config, decisions):
+    """Post a batch of decisions, any 2xx response means they are queued."""
+    base_url, system_id, secret = config
+    payload = json.dumps(
+        {"schema_version": 1, "system_id": system_id, "decisions": decisions}
+    ).encode()
+    credentials = base64.b64encode(f"{system_id}:{secret}".encode()).decode()
+    request = urllib.request.Request(
+        f"{base_url}/blocklist/v1/events",
+        data=payload,
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Basic {credentials}",
+        },
+    )
+
+    with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
+        response.read()
+
+
+def main():
+    syslog.openlog("send-insights-blocklist")
+
+    uci = EUci()
+    debug = uci.get("banip", "global", "ban_debug", default="0") == "1"
+    syslog.setlogmask(syslog.LOG_UPTO(syslog.LOG_DEBUG if debug else syslog.LOG_ERR))
+
+    config = read_config(uci)
+    if config is None:
+        return
+
+    decisions = parse_events(read_spool())
+    sent = 0
+    for index in range(0, len(decisions), MAX_DECISIONS_PER_REQUEST):
+        batch = decisions[index : index + MAX_DECISIONS_PER_REQUEST]
+        try:
+            send_batch(config, batch)
+        except (http.client.HTTPException, OSError) as error:
+            syslog.syslog(
+                syslog.LOG_ERR,
+                f"push failed, dropped {len(decisions) - index} events: {error}",
+            )
+            break
+
+        sent += len(batch)
+
+    if sent:
+        syslog.syslog(syslog.LOG_DEBUG, f"pushed {sent} events")
+
+
+if __name__ == "__main__":
+    main()

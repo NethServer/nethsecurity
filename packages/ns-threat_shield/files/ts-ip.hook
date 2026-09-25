@@ -1,0 +1,13 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# ns-plug register/unregister hook: ts-ip does not reload banip, since it also runs during upgrades
+
+/usr/sbin/ts-ip
+# the banip log service reads the hook, the feeds and the allowlist only on start
+/etc/init.d/banip running >/dev/null 2>&1 && exec /etc/init.d/banip reload
+exit 0
