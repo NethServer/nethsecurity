@@ -1,0 +1,19 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# banip ban_blockhook: append a blocked IP to the spool, send-insights-blocklist sends it.
+# Args: $1 IP, $2 family (v4|v6), $3 log count, $4 Set expiry
+
+SPOOL_DIR="/var/run/ns-insights"
+SPOOL="${SPOOL_DIR}/threat-events.jsonl"
+
+[ -n "$1" ] || exit 0
+
+[ -d "${SPOOL_DIR}" ] || mkdir -p "${SPOOL_DIR}"
+
+printf '{"value":"%s","scope":"Ip","type":"ban","scenario":"nethsecurity/banip-log","origin":"banip","duration":"%s","created_at":"%s"}\n' \
+	"$1" "${4:-0s}" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >>"${SPOOL}"

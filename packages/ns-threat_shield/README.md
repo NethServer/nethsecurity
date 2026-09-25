@@ -21,6 +21,7 @@ The following categories require a valid entitlement:
 - `yoroisusplvl1` (was `yoroi_souspicious_level1` on NS7)
 - `yoroisusplvl2` (was `yoroi_souspicious_level2` on NS7)
 - `nethesislvl3` (was `nethesis_level3` on NS7)
+- `nethesisinsightslvl2` (attackers reported by the other Nethesis firewalls, see [Nethesis Insights](#nethesis-insights))
 
 After machine registration, above categories will be automatically added to existing banip categories (`/etc/banip/banip.custom.feeds`).
 
@@ -46,6 +47,28 @@ uci commit banip
 ts-ip
 /etc/init.d/banip restart
 ```
+
+### Nethesis Insights
+
+On registered machines `ts-ip` joins the [Nethesis Insights](https://github.com/nethesis/nethesis-insights)
+threat shield: IPs blocked by the banip log service are reported to the Insights server, and IPs reported by
+several firewalls can be blocked locally with the `nethesisinsightslvl2` feed.
+Authentication uses the subscription `system_id` and `secret`.
+
+| machine | allowlist | reports blocked IPs | `nethesisinsightslvl2` feed |
+|---|---|---|---|
+| no subscription | no | no | not available |
+| subscription | yes | yes | not listed |
+| subscription with the Threat Shield entitlement | yes | yes | selectable, disabled by default |
+
+Reporting:
+
+- `ts-ip` sets `banip.global.ban_blockhook` to `/usr/libexec/ts-insights-hook`, which appends every blocked IP
+  to `/var/run/ns-insights/threat-events.jsonl`
+- `/usr/sbin/send-insights-blocklist` sends the public IPs to `POST /blocklist/v1/events`, in batches of 500;
+  `ts-ip` adds its 5-minute cron job on registration and removes it, along with the spool, on unregistration
+- fire and forget: events that fail to send are dropped
+- only failed pushes are logged to `/var/log/messages`; set `banip.global.ban_debug` to `1` to log every push
 
 ## ts-dns
 
