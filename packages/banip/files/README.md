@@ -255,6 +255,7 @@ The `report` sub-command accepts an output mode: `text` (default, human-readable
 | ban_resolver            | option | -                             | external resolver used for DNS lookups, by default the local resolver/forwarder will be used                      |
 | ban_remotelog           | option | 0                             | enable the cgi interface to receive remote logging events                                                         |
 | ban_remotetoken         | option | -                             | unique token to communicate with the cgi interface                                                                |
+| ban_blockhook           | option | -                             | full path of an external script, called once for every IP newly blocked by the log service                        |
 
 <a id="examples"></a>
 ## Examples
@@ -544,6 +545,18 @@ Examples to transfer remote logging events from an internal server to banIP via 
 * GET request: `wget --no-check-certificate https://192.168.1.1/cgi-bin/banip?<ban_remotetoken>=<suspicious IP>`
 
 Please note: for security reasons use this cgi interface only internally and only encrypted via https transfer protocol.
+
+**External hook for newly blocked IPs**  
+banIP can notify an external program whenever the log service adds a new IP to a blocklist Set (disabled by default). Set `ban_blockhook` to the full path of an executable script, e.g. `/usr/libexec/my-block-hook`. The hook is called once per newly blocked IP, right after the nftables element has been added, with four positional arguments:
+
+```
+    $1: the blocked IP address, e.g. '198.51.100.44'
+    $2: the protocol family, either 'v4' or 'v6'
+    $3: the log count that triggered the block (ban_logcount)
+    $4: the Set expiry time (ban_nftexpiry), '0s' if the block is permanent
+```
+
+Please note: the hook runs synchronously inside the single-threaded log service, so it has to be fast and non-blocking - queue the event and process it elsewhere, never do network I/O in the hook itself. Its exit code and output are ignored.
 
 **Download options**  
 By default banIP uses the following pre-configured download options:
