@@ -14,6 +14,7 @@ type UserAuthorizations struct {
 	Role          string   `json:"role" structs:"role"`
 	Actions       []string `json:"actions" structs:"actions"`
 	SudoRequested bool     `json:"sudo_requested" structs:"sudo_requested"`
+	OnBehalfOf    string   `json:"on_behalf_of" structs:"on_behalf_of"`
 }
 
 type OTPJson struct {

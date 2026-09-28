@@ -10,6 +10,7 @@ package utils
 import (
 	"strings"
 	"testing"
+	"unicode"
 )
 
 func TestSanitizeForLog(t *testing.T) {
@@ -27,6 +28,12 @@ func TestSanitizeForLog(t *testing.T) {
 		{"tab removed", "a\tb", "ab"},
 		{"nul removed", "a\x00b", "ab"},
 		{"del removed", "a\x7fb", "ab"},
+		{"nel removed", "a\u0085b", "ab"},
+		{"line separator removed", "a b", "ab"},
+		{"paragraph separator removed", "a b", "ab"},
+		{"bidi override removed", "a‮b", "ab"},
+		{"zero width removed", "a​b", "ab"},
+		{"space kept", "a b", "a b"},
 		{"bare ipv4 masked", "8.8.8.8", "<ip>"},
 		{"ipv4 in text masked", "evil from 8.8.8.8", "evil from <ip>"},
 		{"two ipv4 masked", "1.2.3.4 5.6.7.8", "<ip> <ip>"},
@@ -50,7 +57,7 @@ func TestSanitizeForLog(t *testing.T) {
 				t.Fatalf("SanitizeForLog(%q) = %q still contains control chars", tt.in, got)
 			}
 			for _, r := range got {
-				if r < 0x20 || r == 0x7f {
+				if !unicode.IsPrint(r) {
 					t.Fatalf("SanitizeForLog(%q) = %q contains control rune %U", tt.in, got, r)
 				}
 			}

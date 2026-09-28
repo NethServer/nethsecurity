@@ -36,6 +36,17 @@ import (
 	"github.com/NethServer/nethsecurity-api/utils"
 )
 
+// GetControllerUsername returns the rpcd account used by the controller.
+func GetControllerUsername() string {
+	out, err := exec.Command("/sbin/uci", "-q", "get", "rpcd.controller.username").Output()
+
+	if err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(string(out))
+}
+
 func CheckAuthentication(username string, password string) error {
 	// define login object
 	login := models.UserLogin{
