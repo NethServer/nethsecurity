@@ -127,6 +127,33 @@ def get_all_by_type(uci, config, utype):
     except:
         return None
 
+
+def set_if_changed(uci, config: str, section: str, option: str, value: str | list[str] | tuple[str, ...]) -> None:
+    '''
+    Drop-in replacement for uci.set that skips the write when the stored value already matches,
+    so UCI records no change
+
+    Arguments:
+      - uci -- EUci pointer
+      - config -- Configuration database name
+      - section -- Section name
+      - option -- Option name
+      - value -- Value to set, either a scalar or a list
+
+    Returns:
+      - Whatever uci.set returns
+    '''
+    if isinstance(value, (list, tuple)):
+        current = uci.get(config, section, option, list=True, default=None)
+        if current is not None and tuple(current) == tuple(value):
+            return None
+    else:
+        current = uci.get(config, section, option, default=None)
+        if current is not None and current == value:
+            return None
+    return uci.set(config, section, option, value)
+
+
 def get_device_name(hwaddr):
     '''
     Retrieve the physical device name given the MAC address

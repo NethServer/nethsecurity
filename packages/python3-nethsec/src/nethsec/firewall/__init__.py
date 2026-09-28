@@ -2047,13 +2047,12 @@ def update_firewall_rules(uci):
         keep_ipset = False
         ns_src = uci.get('firewall', section, 'ns_src', default=None)
         ns_dst = uci.get('firewall', section, 'ns_dst', default=None)
-        name = uci.get('firewall', section, 'name', default=None)
         if ns_src:
             if objects.is_domain_set(uci, ns_src):
                 keep_ipset = True
                 id = ns_src.split('/')[1]
                 ipsets = objects.get_domain_set_ipsets(uci, id)
-                uci.set('firewall', section, 'ipset', f"{ipsets['firewall']} src")
+                utils.set_if_changed(uci, 'firewall', section, 'ipset', f"{ipsets['firewall']} src")
                 try:
                     uci.delete('firewall', section, 'src_ip')
                 except:
@@ -2061,14 +2060,14 @@ def update_firewall_rules(uci):
             else:
                 ipaddr = objects.get_object_ips(uci, ns_src)
                 if ipaddr:
-                    uci.set('firewall', section, 'src_ip', ipaddr)
+                    utils.set_if_changed(uci, 'firewall', section, 'src_ip', ipaddr)
 
         if ns_dst:
             if objects.is_domain_set(uci, ns_dst):
                 keep_ipset = True
                 id = ns_dst.split('/')[1]
                 ipsets = objects.get_domain_set_ipsets(uci, id)
-                uci.set('firewall', section, 'ipset', f"{ipsets['firewall']} dst")
+                utils.set_if_changed(uci, 'firewall', section, 'ipset', f"{ipsets['firewall']} dst")
                 try:
                     uci.delete('firewall', section, 'dest_ip')
                 except:
@@ -2076,7 +2075,7 @@ def update_firewall_rules(uci):
             else:
                 ipaddr = objects.get_object_ips(uci, ns_dst)
                 if ipaddr:
-                    uci.set('firewall', section, 'dest_ip', ipaddr)
+                    utils.set_if_changed(uci, 'firewall', section, 'dest_ip', ipaddr)
 
         # delete ipset field if no domains are set
         if not keep_ipset:

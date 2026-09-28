@@ -141,7 +141,8 @@ def get_object_ips(uci, database_id):
                 else:
                     ips.append(ip)
     
-    return list(set(ips))  # Convert the list to a set to remove duplicates, then convert it back to a list
+    # dict conversion into list, done so that this is sorted now
+    return list(dict.fromkeys(ips))
 
 def get_object_ip(uci, database_id):
     """
