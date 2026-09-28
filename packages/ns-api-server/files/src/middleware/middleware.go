@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/fatih/structs"
 	"github.com/gin-gonic/gin"
@@ -40,23 +41,16 @@ var identityKey = "id"
 
 const onBehalfOfKey = "on_behalf_of"
 const onBehalfOfMaxLen = 64
+const onBehalfOfTruncationMarker = "…"
 
 // package variable so tests can stub the uci read
 var getControllerUsername = methods.GetControllerUsername
 
-// checkOnBehalfOf returns onBehalfOf when username is the controller machine account and the value is valid, or "" otherwise.
+// checkOnBehalfOf returns the sanitized onBehalfOf when username is the controller machine account, or "" otherwise.
 func checkOnBehalfOf(onBehalfOf string, username string) string {
-	onBehalfOf = strings.TrimSpace(onBehalfOf)
-	if onBehalfOf == "" || len(onBehalfOf) > onBehalfOfMaxLen {
-		return ""
-	}
-
-	// control characters would let a crafted name forge extra log lines
-	if strings.ContainsFunc(onBehalfOf, func(r rune) bool { return r < 0x20 || r == 0x7f }) {
-		return ""
-	}
-
-	if onBehalfOf == username {
+	// non-printable runes would let a crafted name forge extra log lines
+	onBehalfOf = strings.TrimSpace(utils.StripNonPrintable(onBehalfOf))
+	if onBehalfOf == "" || onBehalfOf == username {
 		return ""
 	}
 
@@ -65,7 +59,19 @@ func checkOnBehalfOf(onBehalfOf string, username string) string {
 		return ""
 	}
 
-	return onBehalfOf
+	return truncateOnBehalfOf(onBehalfOf)
+}
+
+// truncateOnBehalfOf cuts s to onBehalfOfMaxLen bytes on a rune boundary, marking the cut.
+func truncateOnBehalfOf(s string) string {
+	if len(s) <= onBehalfOfMaxLen {
+		return s
+	}
+	n := onBehalfOfMaxLen - len(onBehalfOfTruncationMarker)
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
+	}
+	return s[:n] + onBehalfOfTruncationMarker
 }
 
 // logSuffixOnBehalfOf returns the " on behalf of <user>" log suffix, or "" when there's no delegation.

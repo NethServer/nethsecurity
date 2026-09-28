@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 // The patterns are deliberately a superset of banIP's own detection regexes that can be found here:
@@ -23,13 +24,18 @@ var (
 	logIPv6Regex = regexp.MustCompile(`(?:[A-Fa-f0-9]{1,4}:{1,2}){3,7}[A-Fa-f0-9]{1,4}`)
 )
 
-func SanitizeForLog(s string) string {
-	s = strings.Map(func(r rune) rune {
-		if r < 0x20 || r == 0x7f {
+// StripNonPrintable drops control, format and separator runes other than the ASCII space.
+func StripNonPrintable(s string) string {
+	return strings.Map(func(r rune) rune {
+		if !unicode.IsPrint(r) {
 			return -1
 		}
 		return r
 	}, s)
+}
+
+func SanitizeForLog(s string) string {
+	s = StripNonPrintable(s)
 	s = logIPv6Regex.ReplaceAllString(s, "<ip>")
 	s = logIPv4Regex.ReplaceAllString(s, "<ip>")
 	return s

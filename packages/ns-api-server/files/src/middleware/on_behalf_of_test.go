@@ -32,7 +32,7 @@ func stubControllerUsername(t *testing.T, username string) {
 	t.Cleanup(func() { getControllerUsername = original })
 }
 
-// TestCheckOnBehalfOf: only the controller machine account can delegate, and only with a sane value.
+// TestCheckOnBehalfOf: only the controller machine account can delegate, and the value is sanitized rather than dropped.
 func TestCheckOnBehalfOf(t *testing.T) {
 	cases := []struct {
 		name       string
@@ -47,8 +47,18 @@ func TestCheckOnBehalfOf(t *testing.T) {
 		{"unregistered unit", "", "root", "alice", ""},
 		{"no delegation requested", controllerUser, controllerUser, "", ""},
 		{"delegation to itself", controllerUser, controllerUser, controllerUser, ""},
-		{"value too long", controllerUser, controllerUser, strings.Repeat("a", onBehalfOfMaxLen+1), ""},
-		{"forged log line", controllerUser, controllerUser, "alice\nauthentication failed for user evil from 8.8.8.8", ""},
+		{"special characters kept", controllerUser, controllerUser, "o'brien+ops/josé", "o'brien+ops/josé"},
+		{"max length kept", controllerUser, controllerUser, strings.Repeat("a", onBehalfOfMaxLen), strings.Repeat("a", onBehalfOfMaxLen)},
+		{"value too long", controllerUser, controllerUser, strings.Repeat("a", onBehalfOfMaxLen+1), strings.Repeat("a", onBehalfOfMaxLen-len(onBehalfOfTruncationMarker)) + onBehalfOfTruncationMarker},
+		{"truncated on rune boundary", controllerUser, controllerUser, strings.Repeat("é", onBehalfOfMaxLen), strings.Repeat("é", 30) + onBehalfOfTruncationMarker},
+		{"forged log line", controllerUser, controllerUser, "alice\nauthentication failed for user evil from 8.8.8.8", "aliceauthentication failed for user evil from 8.8.8.8"},
+		{"tab stripped", controllerUser, controllerUser, "ali\tce", "alice"},
+		{"nel stripped", controllerUser, controllerUser, "ali\u0085ce", "alice"},
+		{"line separator stripped", controllerUser, controllerUser, "ali ce", "alice"},
+		{"bidi override stripped", controllerUser, controllerUser, "ali‮ce", "alice"},
+		{"zero width stripped", controllerUser, controllerUser, "ali​ce", "alice"},
+		{"only control characters", controllerUser, controllerUser, "\n\t ", ""},
+		{"control characters around delegation to itself", controllerUser, controllerUser, "\n" + controllerUser + "‮", ""},
 	}
 
 	for _, tc := range cases {

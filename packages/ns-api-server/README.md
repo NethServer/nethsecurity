@@ -44,6 +44,8 @@ To report the real operator, `POST /login` accepts an optional `on_behalf_of` fi
 
 The field is accepted only when the authenticating user is the account named by
 `uci get rpcd.controller.username`; for any other user it is silently ignored.
+Non-printable characters are stripped and values longer than 64 bytes are truncated with a
+trailing `…`, so the operator is always logged.
 
 ## Rate limiting
 
