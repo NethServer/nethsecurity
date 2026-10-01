@@ -21,7 +21,12 @@ Global options:
 - `enabled`: can be `0` or `1`, if set to `1` enable the service
 - `log_blocked`: can be `0` or `1`, if set to `1` blocked connections will be logged inside `/var/log/messages`
 - `firewall_exemption`: can be `0` or `1`, if set to `1` all firewall IP addresses will be
-  added to global exemption list and will not match DPI rules
+  added to global exemption list and will not match DPI rules; default is `1`, so DPI rules can not block
+  access to the firewall itself (traffic forwarded between hosts is still filtered).
+  The option is forced to `1` on every image upgrade, so a `0` set by hand does not survive an upgrade.
+  Addresses changing at runtime (DHCP, PPPoE) are tracked by `/etc/hotplug.d/iface/90-dpi-exemption`: on
+  `ifup` or an address `ifupdate` it regenerates the flow actions config and, only if it changed and netifyd
+  is running, reloads netifyd
 - `popular_filters`: list of filters that will be returned to from `api-cli ns.dpi list-popular` call.
 - `ns_exclude`: list of network interface exclusions in Netifyd that will be returned by `uci show netifyd.@netifyd[0].ns_exclude`
 

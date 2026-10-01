@@ -66,6 +66,7 @@ define Package/ns-dpi/install
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/unregister
 	$(INSTALL_DIR) $(1)/etc/xtables
+	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
 	$(INSTALL_CONF) ./files/connlabel.conf $(1)/etc/connlabel.conf
 	$(LN) /etc/connlabel.conf $(1)/etc/xtables/connlabel.conf
 	$(INSTALL_BIN) ./files/dpi.init $(1)/etc/init.d/dpi
@@ -81,10 +82,12 @@ define Package/ns-dpi/install
 	$(INSTALL_BIN) ./files/dpi-migrate.py $(1)/usr/sbin/dpi-migrate
 	$(INSTALL_CONF) ./files/20_dpi $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/21_dpi_migrate $(1)/etc/uci-defaults/21_dpi_migrate
+	$(INSTALL_BIN) ./files/22_dpi_firewall_exemption $(1)/etc/uci-defaults/22_dpi_firewall_exemption
 	$(INSTALL_BIN) ./files/99-dpi-license-update-cron.uci-defaults $(1)/etc/uci-defaults/99-dpi-license-update-cron
 	$(INSTALL_BIN) ./files/99-dpi-data-update-cron.uci-defaults $(1)/etc/uci-defaults/99-dpi-data-update-cron
 	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/register
 	$(INSTALL_BIN) ./files/70dpi $(1)/usr/share/ns-plug/hooks/unregister/
+	$(INSTALL_BIN) ./files/dpi-exemption.hotplug $(1)/etc/hotplug.d/iface/90-dpi-exemption
 endef
 
 $(eval $(call BuildPackage,ns-dpi))

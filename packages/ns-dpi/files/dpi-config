@@ -15,7 +15,7 @@ from nethsec import utils, objects, dpi
 def get_interface_ips(interface):
     ret = list()
     try:
-        proc = subprocess.run(['/sbin/ifstatus', section], check=True, capture_output=True)
+        proc = subprocess.run(['/sbin/ifstatus', interface], check=True, capture_output=True)
         info = json.loads(proc.stdout)
     except:
         return ret
