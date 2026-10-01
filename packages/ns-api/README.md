@@ -4759,6 +4759,31 @@ Response example:
 }
 ```
 
+### list-installed-packages
+
+List installed packages, sorted by name:
+```
+api-cli ns.update list-installed-packages
+```
+
+Response example:
+```json
+{
+  "packages": [
+    {
+      "name": "ns-api",
+      "version": "3.4.0-r1"
+    },
+    {
+      "name": "ns-ui",
+      "version": "2.1.0-r1"
+    }
+  ]
+}
+```
+
+It may raise `apk_query_failed` if the `apk query` command fails.
+
 ### get-package-updates-last-check
 
 Get the timestamp of the last check of package updates:
@@ -7296,7 +7321,10 @@ Response example:
   "subscription_type": "enterprise",
   "system_id": "xxxxxxxxxxxxxxx",
   "ssh_port": 22,
-  "fqdn": "fw.local"
+  "fqdn": "fw.local",
+  "description": "",
+  "api_version": "3.4.0-r1",
+  "ui_version": "2.1.0-r1"
 }
 ```
 
