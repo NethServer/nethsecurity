@@ -1,4 +1,5 @@
 import pathlib
+import subprocess
 
 import pytest
 from euci import EUci
@@ -55,14 +56,12 @@ dpi_minimal_db = """
 config main 'config'
     option log_blocked '0'
     option firewall_exemption '0'
-    option enabled '0'
 """
 
 dpi_db = """
 config main 'config'
     option log_blocked '0'
     option firewall_exemption '0'
-    option enabled '0'
     list popular_filters 'netify.netflix'
     list popular_filters 'netify.hulu'
     list popular_filters 'netify.whatsapp'
@@ -188,13 +187,31 @@ config zone 'ns_empty'
 """
 
 
+DPI_RELOAD = ["/etc/init.d/dpi", "reload"]
+
+
 @pytest.fixture(autouse=True)
-def mock_apply(mocker: MockFixture):
+def mock_reload(mocker: MockFixture):
     """
-    add/delete of rules and appgroups commit the dpi config and reload the dpi service right away;
-    tests only care about the resulting uci state, not about actually reloading a system service.
+    The schema migration reloads the dpi service right away; tests only care about the resulting uci
+    state, not about actually reloading a system service. Every other command runs as usual.
     """
-    return mocker.patch('nethsec.dpi.__apply')
+    run = subprocess.run
+    return mocker.patch('nethsec.dpi.subprocess.run',
+                        side_effect=lambda args, *a, **kw: None if args == DPI_RELOAD else run(args, *a, **kw))
+
+
+def reloaded(mock_reload) -> bool:
+    return any(call.args and call.args[0] == DPI_RELOAD for call in mock_reload.call_args_list)
+
+
+def has_pending_changes(e_uci: EUci) -> bool:
+    delta = pathlib.Path(e_uci.savedir()).joinpath('dpi')
+    return delta.exists() and delta.stat().st_size > 0
+
+
+def dpi_config_file(e_uci: EUci) -> str:
+    return pathlib.Path(e_uci.confdir()).joinpath('dpi').read_text()
 
 
 @pytest.fixture
@@ -360,7 +377,7 @@ def test_add_appgroup_matches_members_case_insensitively(e_uci_appgroups):
 
 def test_add_appgroup_skips_validation_without_a_vocabulary(e_uci_with_data, mocker):
     mocker.patch('nethsec.dpi.load_applications', side_effect=FileNotFoundError)
-    mocker.patch('nethsec.dpi.__load_catalog_tags', side_effect=FileNotFoundError)
+    mocker.patch('nethsec.dpi.__load_catalog', side_effect=FileNotFoundError)
     group_id = dpi.add_appgroup(e_uci_with_data, 'Group one', ['netify.unknown-to-everything'])
     assert e_uci_with_data.get('dpi', group_id, 'app', list=True) == ('netify.unknown-to-everything',)
 
@@ -398,16 +415,17 @@ def test_delete_appgroup(e_uci_appgroups):
     assert e_uci_appgroups.get('dpi', group_id, default=None) is None
 
 
-def test_add_appgroup_leaves_the_change_pending(e_uci_appgroups, mock_apply):
+def test_add_appgroup_leaves_the_change_pending(e_uci_appgroups, mock_reload):
     dpi.add_appgroup(e_uci_appgroups, 'Group one', ['netify.netflix'])
-    mock_apply.assert_not_called()
+    assert has_pending_changes(e_uci_appgroups)
+    assert not reloaded(mock_reload)
 
 
-def test_delete_appgroup_leaves_the_change_pending(e_uci_appgroups, mock_apply):
+def test_delete_appgroup_leaves_the_change_pending(e_uci_appgroups, mock_reload):
     group_id = dpi.add_appgroup(e_uci_appgroups, 'Group one', ['netify.netflix'])
-    mock_apply.reset_mock()
     dpi.delete_appgroup(e_uci_appgroups, group_id)
-    mock_apply.assert_not_called()
+    assert has_pending_changes(e_uci_appgroups)
+    assert not reloaded(mock_reload)
 
 
 def test_delete_appgroup_of_unknown_id(e_uci_appgroups):
@@ -683,12 +701,6 @@ def test_add_rule_without_source(e_uci_rules):
     assert e_uci_rules.get('dpi', rule_id, 'source', default=None) is None
 
 
-def test_add_rule_enables_the_engine(e_uci_rules):
-    group = group_of(e_uci_rules)
-    dpi.add_rule(e_uci_rules, 'Block streaming', True, 'block', [], [group])
-    assert e_uci_rules.get('dpi', 'config', 'enabled') == '1'
-
-
 def test_add_rule_at_the_top(e_uci_rules):
     group = group_of(e_uci_rules)
     first = dpi.add_rule(e_uci_rules, 'First', True, 'block', [], [group])
@@ -789,32 +801,25 @@ def test_delete_rule_closes_the_gap(e_uci_rules):
     assert e_uci_rules.get('dpi', third, 'priority') == '2'
 
 
-def test_add_rule_leaves_the_change_pending(e_uci_rules, mock_apply):
+def test_add_rule_leaves_the_change_pending(e_uci_rules, mock_reload):
     group = group_of(e_uci_rules)
-    mock_apply.reset_mock()
     dpi.add_rule(e_uci_rules, 'Block streaming', True, 'block', [], [group])
-    mock_apply.assert_not_called()
+    assert has_pending_changes(e_uci_rules)
+    assert not reloaded(mock_reload)
 
 
-def test_delete_rule_leaves_the_change_pending(e_uci_rules, mock_apply):
+def test_delete_rule_leaves_the_change_pending(e_uci_rules, mock_reload):
     group = group_of(e_uci_rules)
     rule_id = dpi.add_rule(e_uci_rules, 'Block streaming', True, 'block', [], [group])
-    mock_apply.reset_mock()
     dpi.delete_rule(e_uci_rules, rule_id)
-    mock_apply.assert_not_called()
+    assert has_pending_changes(e_uci_rules)
+    assert not reloaded(mock_reload)
 
 
 def test_delete_rule_of_unknown_id(e_uci_rules):
     with pytest.raises(ValidationError) as err:
         dpi.delete_rule(e_uci_rules, 'ns_nonexistent')
     assert err.value.args[1] == 'rule_not_found'
-
-
-def test_delete_last_enabled_rule_disables_the_engine(e_uci_rules):
-    group = group_of(e_uci_rules)
-    rule_id = dpi.add_rule(e_uci_rules, 'Only one', True, 'block', [], [group])
-    dpi.delete_rule(e_uci_rules, rule_id)
-    assert e_uci_rules.get('dpi', 'config', 'enabled') == '0'
 
 
 def test_rename_and_toggle_rule(e_uci_rules):
@@ -824,10 +829,8 @@ def test_rename_and_toggle_rule(e_uci_rules):
     assert e_uci_rules.get('dpi', rule_id, 'ns_name') == 'Renamed'
     dpi.disable_rule(e_uci_rules, rule_id)
     assert e_uci_rules.get('dpi', rule_id, 'enabled') == '0'
-    assert e_uci_rules.get('dpi', 'config', 'enabled') == '0'
     dpi.enable_rule(e_uci_rules, rule_id)
     assert e_uci_rules.get('dpi', rule_id, 'enabled') == '1'
-    assert e_uci_rules.get('dpi', 'config', 'enabled') == '1'
 
 
 def test_rename_and_toggle_work_on_unmanaged_rules(e_uci_with_data):
@@ -1043,7 +1046,6 @@ legacy_dpi_db = """
 config main 'config'
     option log_blocked '0'
     option firewall_exemption '1'
-    option enabled '0'
     list popular_filters 'netify.facebook'
 
 config rule 'ns_b01a0e73'
@@ -1095,13 +1097,16 @@ def e_uci_legacy(e_uci: EUci):
     return e_uci
 
 
-def test_migrate_schema_noop_when_nothing_to_migrate(e_uci, mock_apply):
-    assert dpi.migrate_schema(e_uci) is False
-    mock_apply.assert_not_called()
+def test_migrate_schema_noop_when_nothing_to_migrate(e_uci, mock_reload):
+    config_before = dpi_config_file(e_uci)
+    dpi.migrate_schema(e_uci)
+    assert dpi_config_file(e_uci) == config_before
+    assert not has_pending_changes(e_uci)
+    assert not reloaded(mock_reload)
 
 
 def test_migrate_schema_freezes_legacy_rule(e_uci_legacy):
-    assert dpi.migrate_schema(e_uci_legacy) is True
+    dpi.migrate_schema(e_uci_legacy)
     rule = e_uci_legacy.get_all('dpi', 'ns_b01a0e73')
     assert rule['criteria'] == (
         "(iface_nfq_src == 'eth0' or iface_nfq_dst == 'eth0') && "
@@ -1173,7 +1178,6 @@ def test_migrate_schema_converts_object_exemption_via_expanded_addresses(e_uci, 
     with pathlib.Path(e_uci.confdir()).joinpath('dpi').open('w') as fp:
         fp.write("""
 config main 'config'
-    option enabled '0'
 
 config exemption 'ns_objex'
     option enabled '1'
@@ -1182,7 +1186,7 @@ config exemption 'ns_objex'
 """)
     mocker.patch('nethsec.dpi.objects.is_object_id', return_value=True)
     mocker.patch('nethsec.dpi.objects.get_object_ips', return_value=['192.168.50.0/24'])
-    assert dpi.migrate_schema(e_uci) is True
+    dpi.migrate_schema(e_uci)
     rules = dpi.list_rules(e_uci)
     assert len(rules) == 1
     assert rules[0]['managed'] is True
@@ -1192,7 +1196,8 @@ config exemption 'ns_objex'
 def test_migrate_schema_removes_exemption_sections_and_legacy_globals(e_uci_legacy):
     dpi.migrate_schema(e_uci_legacy)
     assert utils.get_all_by_type(e_uci_legacy, 'dpi', 'exemption') == {}
-    assert e_uci_legacy.get('dpi', 'config', 'firewall_exemption', default=None) is None
+    # still read by dpi-config and the hotplug script, so the migration must leave it alone
+    assert e_uci_legacy.get('dpi', 'config', 'firewall_exemption') == '1'
     assert e_uci_legacy.get('dpi', 'config', 'popular_filters', list=True, default=None) is None
 
 
@@ -1203,13 +1208,17 @@ def test_migrate_schema_puts_exemptions_before_migrated_rules(e_uci_legacy):
     assert names_in_order.index('Migrated exception 1') < names_in_order.index('Migrated rule 1')
 
 
-def test_migrate_schema_applies_immediately(e_uci_legacy, mock_apply):
-    assert dpi.migrate_schema(e_uci_legacy) is True
-    mock_apply.assert_called_with(e_uci_legacy)
-
-
-def test_migrate_schema_is_idempotent(e_uci_legacy):
+def test_migrate_schema_applies_immediately(e_uci_legacy, mock_reload):
     dpi.migrate_schema(e_uci_legacy)
-    rules_after_first_run = dpi.list_rules(e_uci_legacy)
-    assert dpi.migrate_schema(e_uci_legacy) is False
-    assert dpi.list_rules(e_uci_legacy) == rules_after_first_run
+    assert not has_pending_changes(e_uci_legacy)
+    assert reloaded(mock_reload)
+
+
+def test_migrate_schema_is_idempotent(e_uci_legacy, mock_reload):
+    dpi.migrate_schema(e_uci_legacy)
+    config_after_first_run = dpi_config_file(e_uci_legacy)
+    mock_reload.reset_mock()
+    dpi.migrate_schema(e_uci_legacy)
+    assert dpi_config_file(e_uci_legacy) == config_after_first_run
+    assert not has_pending_changes(e_uci_legacy)
+    assert not reloaded(mock_reload)

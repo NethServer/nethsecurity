@@ -103,55 +103,55 @@ elif cmd == 'call':
         elif action == 'list-rules':
             print(json.dumps({'values': dpi.list_rules(e_uci)}))
         elif action == 'add-rule':
-            data = json.JSONDecoder().decode(sys.stdin.read())
+            data = json.load(sys.stdin)
             config_name = dpi.add_rule(e_uci, data['name'], data['enabled'], data['action'],
                                        data.get('source', []), data.get('appgroups', []),
                                        data.get('position', 'bottom'), data.get('match_all', False))
             print(json.dumps({'id': config_name}))
         elif action == 'edit-rule':
-            data = json.JSONDecoder().decode(sys.stdin.read())
+            data = json.load(sys.stdin)
             config_name = dpi.edit_rule(e_uci, data['id'], data['name'], data['enabled'], data['action'],
                                         data.get('source', []), data.get('appgroups', []),
                                         data.get('match_all', False))
             print(json.dumps({'id': config_name}))
         elif action == 'delete-rule':
-            data = json.JSONDecoder().decode(sys.stdin.read())
+            data = json.load(sys.stdin)
             dpi.delete_rule(e_uci, data['id'])
             print(json.dumps({'message': 'success'}))
         elif action == 'rename-rule':
-            data = json.JSONDecoder().decode(sys.stdin.read())
+            data = json.load(sys.stdin)
             dpi.rename_rule(e_uci, data['id'], data['name'])
             print(json.dumps({'message': 'success'}))
         elif action == 'enable-rule':
-            data = json.JSONDecoder().decode(sys.stdin.read())
+            data = json.load(sys.stdin)
             dpi.enable_rule(e_uci, data['id'])
             print(json.dumps({'message': 'success'}))
         elif action == 'disable-rule':
-            data = json.JSONDecoder().decode(sys.stdin.read())
+            data = json.load(sys.stdin)
             dpi.disable_rule(e_uci, data['id'])
             print(json.dumps({'message': 'success'}))
         elif action == 'order-rules':
-            data = json.JSONDecoder().decode(sys.stdin.read())
+            data = json.load(sys.stdin)
             print(json.dumps({'values': dpi.order_rules(e_uci, data['order'])}))
         elif action == 'list-appgroups':
-            data = json.JSONDecoder().decode(sys.stdin.read())
+            data = json.load(sys.stdin)
             result = dpi.list_appgroups(e_uci, data.get('search', None), data.get('limit', None),
                                         data.get('page', 1))
             print(json.dumps({'values': result}))
         elif action == 'add-appgroup':
-            data = json.JSONDecoder().decode(sys.stdin.read())
+            data = json.load(sys.stdin)
             config_name = dpi.add_appgroup(e_uci, data['name'], data.get('applications', []),
                                            data.get('application_categories', []), data.get('protocols', []),
                                            data.get('protocol_categories', []))
             print(json.dumps({'id': config_name}))
         elif action == 'edit-appgroup':
-            data = json.JSONDecoder().decode(sys.stdin.read())
+            data = json.load(sys.stdin)
             config_name = dpi.edit_appgroup(e_uci, data['id'], data['name'], data.get('applications', []),
                                             data.get('application_categories', []), data.get('protocols', []),
                                             data.get('protocol_categories', []))
             print(json.dumps({'id': config_name}))
         elif action == 'delete-appgroup':
-            data = json.JSONDecoder().decode(sys.stdin.read())
+            data = json.load(sys.stdin)
             dpi.delete_appgroup(e_uci, data['id'])
             print(json.dumps({'message': 'success'}))
     except KeyError as e:
