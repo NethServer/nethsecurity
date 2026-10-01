@@ -64,7 +64,7 @@ location /assets/ {
 	gzip_types text/css application/javascript image/svg+xml;
 	root /www-ns;
 	try_files $uri =404;
-	expires 1y;
+	expires 7d;
 	add_header Cache-Control "public, immutable";
 }
 
