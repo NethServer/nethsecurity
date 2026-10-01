@@ -99,7 +99,10 @@ Current generator behaviour worth knowing before touching it:
   so a rule carrying both its own `criteria` and a `device` gets the term whether or not it already has one.
 - A hidden `analyzed` action (`detection_guessed || detection_complete;`) is appended last, labelling every
   analysed flow.
-- `dpi.config.firewall_exemption` optionally pre-fills `exemptions` with every firewall interface IP;
+- `dpi.config.firewall_exemption` (default `1`, forced to `1` on every upgrade by `22_dpi_firewall_exemption`)
+  pre-fills `exemptions` with every firewall interface IP; `/etc/hotplug.d/iface/90-dpi-exemption` re-runs
+  `dpi-config` on `ifup` / address `ifupdate` and does `netifyd reload` only if the JSON changed and the
+  agent is running (so HA backup nodes are left alone);
   `exemption` sections add more, and an exemption whose criteria is an object ID is expanded to its IPs.
 - `dpi.config.log_blocked` drives the nft log rule in `dpi-nft`, not any netify logging target.
 

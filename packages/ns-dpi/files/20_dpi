@@ -5,7 +5,7 @@ if ! uci -q get dpi.config > /dev/null; then
 config main 'config'
   option log_blocked '0'
   option enabled '0'
-  option firewall_exemption '0'
+  option firewall_exemption '1'
 EOI
 fi
 
