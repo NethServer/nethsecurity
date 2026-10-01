@@ -1,0 +1,14 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Registered units: run ts-ip after an update to add the Insights hook and feed definition.
+# ts-ip preserves a custom block hook, so it runs unless the Insights hook is already set.
+
+[ -n "$(uci -q get ns-plug.config.secret)" ] || exit 0
+[ "$(uci -q get banip.global.ban_blockhook)" = "/usr/libexec/ts-insights-hook" ] && exit 0
+
+/usr/sbin/ts-ip
