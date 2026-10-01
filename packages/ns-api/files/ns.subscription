@@ -11,6 +11,7 @@ import sys
 import json
 import subprocess
 from datetime import datetime
+from time import sleep
 from nethsec import utils
 from euci import EUci
 
@@ -20,17 +21,19 @@ def register(args):
 
     secret = args["secret"]
 
-    try:
-        subprocess.run(["/usr/sbin/register", "enterprise", secret, '5'], check=True, capture_output=True)
+    enterprise = subprocess.run(["/usr/sbin/register", "enterprise", secret, '5'], capture_output=True)
+    if enterprise.returncode == 0:
         return {"result": "success"}
-    except:
-        pass
 
-    try:
-        subprocess.run(["/usr/sbin/register", "community", secret, '5'], check=True, capture_output=True)
+    # Exit code 2: the system is already registered on my.
+    if enterprise.returncode == 2:
+        return utils.validation_error("secret", "system_already_registered")
+
+    community = subprocess.run(["/usr/sbin/register", "community", secret, '5'], capture_output=True)
+    if community.returncode == 0:
         return {"result": "success"}
-    except:
-        return utils.generic_error("invalid_secret_or_server_not_found")
+
+    return utils.generic_error("invalid_secret_or_server_not_found")
 
 def unregister():
     try:
@@ -61,6 +64,22 @@ def info():
     type = u.get('ns-plug', 'config', 'type', default='')
 
     ret = {"server_id": data["id"], "systemd_id": data["uuid"], "plan": data["subscription"]["subscription_plan"]["name"], "expiration": expiration, "active": active, "type": type}
+
+    if type == "enterprise":
+        ret["organization"] = data.get("organization", "")
+        # The system name given on my at creation time (threaded by
+        # subscription-info from the collect /info payload).
+        ret["system_name"] = data.get("system_name", "")
+        ret["plan"] = "Nethesis Enterprise"
+        ret["system_url"] = f"https://my-proxy-prod.onrender.com/systems/{data['uuid']}"
+    else:
+        # Community: link the system to its my.nethserver.com page, matching ns8.
+        sub_id = (data.get("subscription") or {}).get("id")
+        if sub_id:
+            ret["system_url"] = f"https://my.nethserver.com/servers/{sub_id}"
+
+    ret["migrated"] = u.get('ns-plug', 'config', 'migrated', dtype=bool, default=False)
+
     return ret
 
 
@@ -90,7 +109,8 @@ if cmd == 'list':
         "unregister": {},
         "info": {},
         "inventory-status": {},
-        "send-inventory": {}
+        "send-inventory": {},
+        "migrate": {},
     }))
 elif cmd == 'call':
     action = sys.argv[2]
@@ -105,5 +125,11 @@ elif cmd == 'call':
         ret = inventory_status()
     elif action == "send-inventory":
         ret = send_inventory()
+    elif action == "migrate":
+        try:
+            subprocess.run(["/usr/libexec/migrate-to-my"], check=True, capture_output=True)
+            ret = {}
+        except subprocess.CalledProcessError:
+            ret = utils.generic_error("failed to migrate")
 
     print(json.dumps(ret))
