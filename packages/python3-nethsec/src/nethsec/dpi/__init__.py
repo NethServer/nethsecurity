@@ -66,30 +66,6 @@ def load_protocols() -> dict[int, str]:
     return protocols
 
 
-def __apply(e_uci: EUci):
-    """
-    Commit the dpi config and reload the dpi service.
-
-    Used by the schema migration only: it runs at boot with nobody around to confirm the pending uci
-    changes, so it must take effect on its own. Rule and appgroup CRUD go through the normal pending
-    uci changes instead, applied later by ns.commit like every other section.
-    """
-    e_uci.commit('dpi')
-    subprocess.run(["/etc/init.d/dpi", "reload"], check=True)
-
-
-def __toggle_engine(e_uci: EUci):
-    count_enabled = 0
-    for section in e_uci.get_all('dpi'):
-        if e_uci.get('dpi', section, default="") == "rule" and e_uci.get('dpi', section, 'enabled', default="0") == "1":
-            count_enabled = count_enabled + 1
-
-    if count_enabled > 0:
-        e_uci.set('dpi', 'config', 'enabled', '1')
-    else:
-        e_uci.set('dpi', 'config', 'enabled', '0')
-
-
 # Application groups: a NethSecurity abstraction, the netifyd plugin has no group primitive.
 # A group is a named set of match members, expanded into an inline expression at generation time.
 
@@ -145,18 +121,18 @@ def load_categories() -> dict[str, dict[int, str]]:
     return categories
 
 
-def __load_catalog_tags(filename: str) -> set[str]:
+def __load_catalog(filename: str) -> list[dict]:
     """
-    Reads the tags of a downloaded catalog, one of the `/etc/netifyd/netify-*.json` files.
+    Reads a downloaded catalog, one of the `/etc/netifyd/netify-*.json` files.
 
     Args:
       - filename: name of the catalog file inside the netifyd data directory
 
     Returns:
-        set of the tags the catalog lists
+        list of catalog entries
     """
     with open(f'{NETIFYD_DATA_DIR}/{filename}', 'r') as file:
-        return {entry['tag'] for entry in json.load(file) if entry.get('tag')}
+        return json.load(file)
 
 
 def __appgroup_vocabulary(kind: str) -> set[str] | None:
@@ -175,12 +151,12 @@ def __appgroup_vocabulary(kind: str) -> set[str] | None:
     vocabulary = set[str]()
     try:
         if kind == 'app':
-            vocabulary |= {value.lower() for value in load_applications().values()}
+            vocabulary.update({value.lower() for value in load_applications().values()})
         elif kind == 'proto':
-            vocabulary |= {value.lower() for value in load_protocols().values()}
+            vocabulary.update({value.lower() for value in load_protocols().values()})
         else:
             category_type = 'application' if kind == 'app_category' else 'protocol'
-            vocabulary |= {value.lower() for value in load_categories().get(category_type, {}).values()}
+            vocabulary.update({value.lower() for value in load_categories().get(category_type, {}).values()})
     except Exception:
         # the engine can't be queried, fall back to the downloaded catalogs below
         pass
@@ -194,7 +170,7 @@ def __appgroup_vocabulary(kind: str) -> set[str] | None:
             'proto_category': 'netify-protocol-categories.json'
         }
         try:
-            vocabulary |= {value.lower() for value in __load_catalog_tags(catalogs[kind])}
+            vocabulary.update({entry['tag'].lower() for entry in __load_catalog(catalogs[kind]) if entry.get('tag')})
         except Exception:
             pass
 
@@ -208,104 +184,6 @@ APPGROUP_CATALOG_FILES = {
 
 UNCATEGORIZED_TAG = ''
 
-def __load_catalog(filename: str) -> list[dict]:
-    """
-    Reads a downloaded catalog, one of the `/etc/netifyd/netify-*-catalog.json` files.
-
-    Args:
-      - filename: name of the catalog file inside the netifyd data directory
-
-    Returns:
-        list of catalog entries
-    """
-    with open(f'{NETIFYD_DATA_DIR}/{filename}', 'r') as file:
-        return json.load(file)
-
-
-def __catalog_entries(catalog: list[dict], loaded: dict[int, str], kind: str) -> list[dict]:
-    """
-    Cross one catalog with what the engine has loaded, into flat entries carrying their category.
-
-    Three rules the engine and the catalog do not state on their own:
-
-      - an application the catalog marks `active: false`, and a protocol it marks deprecated, are gone
-        from the product and must not be offered
-      - a protocol labelled "unknown" is the engine's catch-all for what it could not classify, not
-        something a group can be built on
-      - what the engine loaded but the catalog does not list is still matchable, so it is kept, named
-        after the engine and left uncategorised
-
-    The id is what a group stores, and it is the engine name whenever there is one: the catalog tag is
-    only a fallback for an entry that cannot be matched anyway, so it is never a value a client submits.
-    """
-    entries = []
-    for entry in catalog:
-        if kind == 'applications' and entry.get('active') is False:
-            continue
-        if kind == 'protocols' and entry.get('deprecated'):
-            continue
-        label = entry.get('label', '')
-        if kind == 'protocols' and label.lower() == 'unknown':
-            continue
-        engine_name = loaded.get(entry.get('id'))
-        category = entry.get('category') or {}
-        entries.append({
-            'id': engine_name or entry.get('tag', ''),
-            'label': label,
-            'selectable': engine_name is not None,
-            'logo': entry.get('icon'),
-            'category_tag': category.get('tag', UNCATEGORIZED_TAG),
-            'category_label': category.get('label', '')
-        })
-
-    known = {entry.get('id') for entry in catalog}
-    for entry_id, name in loaded.items():
-        if entry_id in known:
-            continue
-        if kind == 'protocols' and name.lower() == 'unknown':
-            continue
-        entries.append({
-            'id': name,
-            'label': name,
-            'selectable': True,
-            'logo': None,
-            'category_tag': UNCATEGORIZED_TAG,
-            'category_label': '',
-        })
-
-    return entries
-
-
-def __catalog_groups(entries: list[dict]) -> list[dict]:
-    """
-    Group flat catalog entries by category.
-
-    A group is selectable when the category itself can be a group member, which every real category can
-    be and the uncategorised bucket never can. Groups and items are sorted by label, with the
-    uncategorised bucket last; a client translating the category labels has to sort them again.
-    """
-    groups = dict[str, dict]()
-    for entry in entries:
-        tag = entry['category_tag']
-        group = groups.get(tag)
-        if group is None:
-            group = groups[tag] = {
-                'tag': tag,
-                'label': entry['category_label'],
-                'selectable': tag != UNCATEGORIZED_TAG,
-                'items': []
-            }
-        item = {'id': entry['id'], 'label': entry['label'], 'selectable': entry['selectable']}
-        if entry['logo']:
-            item['logo'] = entry['logo']
-        group['items'].append(item)
-
-    for group in groups.values():
-        group['items'].sort(key=lambda item: item['label'].lower())
-
-    return sorted(groups.values(), key=lambda group: (group['tag'] == UNCATEGORIZED_TAG,
-                                                      group['label'].lower()))
-
 
 def list_appgroup_catalog() -> dict[str, list[dict]]:
     """
@@ -315,6 +193,12 @@ def list_appgroup_catalog() -> dict[str, list[dict]]:
     partial answer would silently offer a smaller product than the machine has. So this raises instead
     of returning what it managed to collect.
 
+    The id of an item is what a group stores, and it is the engine name whenever there is one: the
+    catalog tag is only a fallback for an entry that cannot be matched anyway, so it is never a value a
+    client submits. A group is selectable when the category itself can be a group member, which every
+    real category can be and the uncategorised bucket never can. Groups and items are sorted by label,
+    with the uncategorised bucket last; a client translating the category labels has to sort them again.
+
     Returns:
         dict with the keys "applications" and "protocols", each a list of category groups
 
@@ -322,10 +206,52 @@ def list_appgroup_catalog() -> dict[str, list[dict]]:
       - Exception: if the engine cannot be queried or a catalog is missing
     """
     loaded = {'applications': load_applications(), 'protocols': load_protocols()}
-    return {
-        kind: __catalog_groups(__catalog_entries(__load_catalog(filename), loaded[kind], kind))
-        for kind, filename in APPGROUP_CATALOG_FILES.items()
-    }
+    result = {}
+    for kind, filename in APPGROUP_CATALOG_FILES.items():
+        catalog = __load_catalog(filename)
+        # (category tag, category label, item), in catalog order
+        items = []
+        for entry in catalog:
+            # an application marked inactive, or a protocol marked deprecated, is gone from the product
+            if kind == 'applications' and entry.get('active') is False:
+                continue
+            if kind == 'protocols' and entry.get('deprecated'):
+                continue
+            label = entry.get('label', '')
+            # "unknown" is the engine's catch-all for what it could not classify, not a group member
+            if kind == 'protocols' and label.lower() == 'unknown':
+                continue
+            engine_name = loaded[kind].get(entry.get('id'))
+            category = entry.get('category') or {}
+            item = {'id': engine_name or entry.get('tag', ''), 'label': label, 'selectable': engine_name is not None}
+            if entry.get('icon'):
+                item['logo'] = entry.get('icon')
+            items.append((category.get('tag', UNCATEGORIZED_TAG), category.get('label', ''), item))
+
+        # what the engine loaded but the catalog does not list is still matchable: kept, named after the
+        # engine and left uncategorised
+        known = {entry.get('id') for entry in catalog}
+        for entry_id, name in loaded[kind].items():
+            if entry_id in known:
+                continue
+            if kind == 'protocols' and name.lower() == 'unknown':
+                continue
+            items.append((UNCATEGORIZED_TAG, '', {'id': name, 'label': name, 'selectable': True}))
+
+        groups = dict[str, dict]()
+        for tag, label, item in items:
+            group = groups.get(tag)
+            if group is None:
+                group = groups[tag] = {'tag': tag, 'label': label, 'selectable': tag != UNCATEGORIZED_TAG, 'items': []}
+            group['items'].append(item)
+
+        for group in groups.values():
+            group['items'].sort(key=lambda item: item['label'].lower())
+
+        result[kind] = sorted(groups.values(), key=lambda group: (group['tag'] == UNCATEGORIZED_TAG,
+                                                                  group['label'].lower()))
+
+    return result
 
 
 def __validate_appgroup_members(kind: str, values: list[str]) -> list[str]:
@@ -855,7 +781,6 @@ def add_rule(e_uci: EUci, name: str, enabled: bool, action: str, source: list[st
     order.insert(0, config_name) if position == 'top' else order.append(config_name)
     __renumber_rules(e_uci, order)
 
-    __toggle_engine(e_uci)
     e_uci.save('dpi')
     return config_name
 
@@ -897,7 +822,6 @@ def edit_rule(e_uci: EUci, config_name: str, name: str, enabled: bool, action: s
     appgroups = __validate_appgroups(e_uci, appgroups, match_all)
 
     __save_rule_data(e_uci, config_name, name, enabled, action, source, appgroups, match_all)
-    __toggle_engine(e_uci)
     e_uci.save('dpi')
     return config_name
 
@@ -921,7 +845,6 @@ def delete_rule(e_uci: EUci, config_name: str) -> str:
 
     e_uci.delete('dpi', config_name)
     __renumber_rules(e_uci)
-    __toggle_engine(e_uci)
     e_uci.save('dpi')
     return config_name
 
@@ -967,7 +890,6 @@ def enable_rule(e_uci: EUci, config_name: str) -> str:
         raise ValidationError('id', 'rule_not_found', config_name)
 
     e_uci.set('dpi', config_name, 'enabled', '1')
-    __toggle_engine(e_uci)
     e_uci.save('dpi')
     return config_name
 
@@ -990,7 +912,6 @@ def disable_rule(e_uci: EUci, config_name: str) -> str:
         raise ValidationError('id', 'rule_not_found', config_name)
 
     e_uci.set('dpi', config_name, 'enabled', '0')
-    __toggle_engine(e_uci)
     e_uci.save('dpi')
     return config_name
 
@@ -1110,7 +1031,7 @@ def __exemption_source(e_uci: EUci, criteria: str) -> list[str] | None:
         return None
 
 
-def migrate_schema(e_uci: EUci) -> bool:
+def migrate_schema(e_uci: EUci):
     """
     Migrate every rule and exemption from the schema used before application groups existed.
 
@@ -1122,16 +1043,15 @@ def migrate_schema(e_uci: EUci) -> bool:
     Each global exemption becomes an Allow rule at the top of the list: a managed match-all rule
     narrowed to a source when its criteria is a plain address, CIDR or firewall object; an unmanaged
     one carrying the criteria verbatim otherwise. Disabled exemptions become disabled rules.
-    The `exemption` section type, `firewall_exemption` and `popular_filters` are then removed.
+    The `exemption` section type and `popular_filters` are then removed.
 
-    Safe to call unconditionally on every boot: a box with nothing left in the old schema returns False
+    The changes are committed and the dpi service reloaded right away.
+
+    Safe to call unconditionally on every boot: a box with nothing left in the old schema returns
     without touching UCI.
 
     Args:
       - e_uci: euci instance
-
-    Returns:
-        True if the config was changed (and therefore committed and reloaded), False otherwise
     """
     exemptions = utils.get_all_by_type(e_uci, 'dpi', 'exemption') or {}
     rules = utils.get_all_by_type(e_uci, 'dpi', 'rule') or {}
@@ -1140,7 +1060,7 @@ def migrate_schema(e_uci: EUci) -> bool:
                     if any(field in rule for field in legacy_fields)}
 
     if not exemptions and not legacy_rules:
-        return False
+        return
 
     order = []
 
@@ -1192,9 +1112,7 @@ def migrate_schema(e_uci: EUci) -> bool:
         order.append(section)
 
     __renumber_rules(e_uci, order)
-    e_uci.delete('dpi', 'config', 'firewall_exemption')
     e_uci.delete('dpi', 'config', 'popular_filters')
-    __toggle_engine(e_uci)
     e_uci.save('dpi')
-    __apply(e_uci)
-    return True
+    e_uci.commit('dpi')
+    subprocess.run(["/etc/init.d/dpi", "reload"], check=True)

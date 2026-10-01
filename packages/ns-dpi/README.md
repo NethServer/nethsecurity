@@ -6,19 +6,15 @@ How it works:
 - Netify flow actions plugin adds a label to matching connections
 - nft rules can block or change priority (`dscp`) to connections with labels
 
-To enable traffic processing:
-- configure `dpi` UCI database (see below for an example)
-- enable DPI service:
-  ```
-  uci set dpi.config.enabled=1
-  uci commit dpi
-  /etc/init.d/dpi restart
-  service netifyd reload
-  ```
+netifyd runs all the time: traffic is filtered as soon as at least one rule is enabled.
+To apply a change made by hand to the `dpi` UCI database (see below for an example):
+```
+uci commit dpi
+/etc/init.d/dpi reload
+```
 
 Global options:
 
-- `enabled`: can be `0` or `1`, if set to `1` enable the service
 - `log_blocked`: can be `0` or `1`, if set to `1` blocked connections will be logged inside `/var/log/messages`
 - `firewall_exemption`: can be `0` or `1`, if set to `1` all firewall IP addresses will be
   added to global exemption list and will not match DPI rules; default is `1`, so DPI rules can not block
@@ -61,7 +57,6 @@ Example of `/etc/config/dpi`:
 ```
 config main 'config'
 	option log_blocked '1'
-	option enabled '1'
 	option firewall_exemption '1'
 	list popular_filters 'netify.netflix'
 	list popular_filters 'netify.telegram'

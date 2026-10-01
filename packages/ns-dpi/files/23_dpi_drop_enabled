@@ -1,0 +1,14 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Remove the global enabled flag from systems installed before netifyd ran all the time: it no longer
+# switches anything, DPI filters traffic as soon as one rule is enabled.
+
+if uci -q get dpi.config.enabled > /dev/null; then
+  uci -q delete dpi.config.enabled
+  uci commit dpi
+fi
