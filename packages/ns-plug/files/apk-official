@@ -9,9 +9,31 @@
 # (docs/design/distfeed.md "Upstream OpenWrt repositories") temporarily
 # excluded, so automatic update paths never install a package that bypassed
 # the NethSecurity distfeed/QA channel.
+#
+# With --community as first argument, the enterprise endpoint
+# (01-enterprise.list) is ignored too, so apk always uses the community
+# repository, even on machines with a subscription. This is done through a
+# temporary --repositories-file, without touching /etc/apk.
 
 CUSTOMFEEDS=/etc/apk/repositories.d/customfeeds.list
 DISABLED="${CUSTOMFEEDS}.disabled"
+
+if [ "$1" = "--community" ]; then
+    shift
+    repofile=$(mktemp)
+    trap 'rm -f "$repofile"' EXIT
+    # keep the same order apk uses: repositories file first, then repositories.d
+    for f in /etc/apk/repositories $(LC_ALL=C ls /etc/apk/repositories.d/*.list 2>/dev/null); do
+        [ -f "$f" ] || continue
+        case "$(basename "$f")" in
+            01-enterprise.list|customfeeds.list) continue ;;
+        esac
+        cat "$f" >> "$repofile"
+        echo >> "$repofile"
+    done
+    apk --repositories-file "$repofile" "$@"
+    exit $?
+fi
 
 [ -f "$CUSTOMFEEDS" ] && mv "$CUSTOMFEEDS" "$DISABLED"
 apk "$@"

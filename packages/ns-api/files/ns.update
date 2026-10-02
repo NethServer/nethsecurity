@@ -48,16 +48,19 @@ def get_update_schedule():
 
 # APIs
 
+# Package check and install from the UI always use the community repository,
+# even on machines with a subscription; the nightly cron job uses the enterprise one.
+
 def check_package_updates():
     ret = []
     try:
         # download metadata only if they are older than 5 minutes
         if (time.time() - last_package_check()) > 300:
-            subprocess.run(["/usr/sbin/apk-official", "update"], check=True, capture_output=True)
+            subprocess.run(["/usr/sbin/apk-official", "--community", "update"], check=True, capture_output=True)
     except Exception as e:
         print(e, file=sys.stderr)
         return utils.generic_error("apk_update_failed")
-    p = subprocess.run(["/usr/sbin/apk-official", "list", "--upgradable"], check=True, capture_output=True, text=True)
+    p = subprocess.run(["/usr/sbin/apk-official", "--community", "list", "--upgradable"], check=True, capture_output=True, text=True)
     for line in p.stdout.split("\n"):
         if not line:
             continue
@@ -95,7 +98,7 @@ def get_package_updates_lat_check():
 
 def install_package_updates():
     try:
-        out = subprocess.check_output("/usr/sbin/screen -dmS install_package_updates /usr/sbin/update-packages", shell=True)
+        out = subprocess.check_output("/usr/sbin/screen -dmS install_package_updates /usr/sbin/update-packages --community", shell=True)
     except Exception as e:
         print(e, file=sys.stderr)
         return utils.generic_error("apk_upgrade_failed")

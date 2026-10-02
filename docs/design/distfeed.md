@@ -79,6 +79,19 @@ distfeed-setup
 ```
 You can now refresh the update page, and the new repository channel will be used.
 
+### Package updates from the UI
+
+The package check and install actions in the UI (`ns.update check-package-updates` and
+`ns.update install-package-updates`) always use the community repository, even on machines with
+a valid subscription. They run `apk` through `/usr/sbin/apk-official --community`, which builds a
+temporary repositories file from `/etc/apk/repositories.d/*.list` without `01-enterprise.list`
+(and without `customfeeds.list`), and passes it to `apk` with `--repositories-file`.
+Files in `/etc/apk` are not changed, and overrides in `98-overrides.list` still apply.
+
+The nightly automatic update cron job (`/usr/sbin/update-packages` without arguments) keeps using
+the subscription channel. Once a newer package is installed from the community repository, the
+cron job does not downgrade it.
+
 ### Force updates on a subscription machine
 
 A machine with a valid subscription receives updates from the subscription channel.
@@ -122,5 +135,6 @@ EOF
 Packages from `customfeeds.list` are not rebuilt or QA'd by NethSecurity, so the nightly
 package-update cron and the UI's package update check/install flow never consider them: both
 run `apk` through `/usr/sbin/apk-official`, which temporarily moves `customfeeds.list` aside for
-the duration of a single `apk` call and restores it afterwards. Direct/manual `apk` invocations
+the duration of a single `apk` call and restores it afterwards (in `--community` mode it is simply
+left out of the temporary repositories file). Direct/manual `apk` invocations
 are unaffected and still see `customfeeds.list` normally.

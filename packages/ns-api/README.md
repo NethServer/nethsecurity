@@ -4741,6 +4741,8 @@ Check if there are any package updates:
 api-cli ns.update check-package-updates
 ```
 
+Updates are always checked against the community repository, even on machines with a subscription.
+
 Response example:
 ```json
 {
@@ -4804,6 +4806,9 @@ Install all available package updates:
 ```
 api-cli ns.update install-package-updates
 ```
+
+Packages are always installed from the community repository, even on machines with a subscription.
+The nightly automatic updates still use the subscription repository.
 
 Response example:
 ```json
