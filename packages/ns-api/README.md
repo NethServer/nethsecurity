@@ -3548,12 +3548,31 @@ Response example:
 
 ## ns.dpi
 
-Manage netifyd DPI engine.
+Manage DPI rules and application groups. Rules are evaluated in priority order and the first rule
+matching a flow wins.
+
+### list-application-catalog
+
+Return the raw application catalog, `/etc/netifyd/netify-application-catalog.json`:
+
+```bash
+api-cli ns.dpi list-application-catalog
+```
+
+The response is `{"values": [...]}`, with the catalog entries as downloaded; `{}` if the catalog is
+missing.
+
+### list-protocol-catalog
+
+Same as `list-application-catalog`, for `/etc/netifyd/netify-protocol-catalog.json`:
+
+```bash
+api-cli ns.dpi list-protocol-catalog
+```
 
 ### list-appgroup-catalog
 
-List everything an application group can be built with: the catalogs crossed with what the netifyd
-engine has loaded, grouped by category, done once on the firewall directly.
+List the applications and protocols an application group can be built with, grouped by category:
 
 ```bash
 api-cli ns.dpi list-appgroup-catalog
@@ -3614,46 +3633,18 @@ Example response:
 }
 ```
 
-**`selectable` on an item** means the engine has the signature loaded, so the item can be matched on
-this machine. Unregistering a subscription strips the premium signatures and drops the matchable set
-from ~2600 applications to ~200, while the catalog still lists them all: catalog presence is not
-matchability.
+- item `selectable`: the engine has the signature loaded, so the item can be used in a group. Without a
+  subscription most applications are not selectable
+- item `id`: the value to pass to `add-appgroup`; only valid when `selectable` is `true`
+- group `selectable`: the category can be used as a group member (`application_categories` or
+  `protocol_categories`). The group with an empty `tag` collects uncategorised items and is never
+  selectable as a whole
+- `logo` is omitted when the catalog has no icon
+- groups and items are sorted by label, the uncategorised group last
 
-**`id` is only submittable when `selectable` is `true`.** It carries the engine name whenever there is
-one, which is what `add-appgroup` stores and what a criteria matches on. For an item the engine has not
-loaded there is no engine name, so the catalog tag stands in — and the two differ, `ftp-control` in the
-catalog against `FTP` in the engine. Sending the id of a non-selectable item is refused with
-`invalid_application` or `invalid_protocol`.
+Inactive applications, deprecated protocols and the `unknown` protocol are left out.
 
-**`selectable` on a group** means the category itself can be a group member, passed as
-`application_categories` or `protocol_categories` to `add-appgroup`. Every real category can; the group
-with an empty `tag` is the bucket holding whatever the catalog does not categorise, it is not a category
-and no criteria can match on it, so it is never selectable as a whole. Its items are selectable
-individually like any other.
-
-**`label` is English**, the only language the catalog carries, and `logo` is absent when the catalog has
-no icon for the entry — always for protocols. A client showing translated category names should
-translate by `tag` and keep `label` as the fallback, then sort the groups again: they arrive sorted by
-their English label, with the uncategorised group last.
-
-What is left out, and why:
-
-- applications the catalog marks `active: false` and protocols it marks deprecated: they are gone from
-  the product
-- the `unknown` protocol: it is the engine's catch-all for what it could not classify
-- nothing else — what the engine loaded but the catalog does not list is kept, named after the engine
-  and left uncategorised, because it is matchable all the same
-
-Error response:
-
-```json
-{"error": "catalog_not_available"}
-```
-
-Returned whenever any source is missing: the engine is not running, or a catalog has not been downloaded
-yet. The answer is all-or-nothing on purpose — a partial one would quietly offer a smaller product than
-the machine actually has. The catalogs are refreshed nightly by `dpi-data-update` into `/etc/netifyd`, so
-a machine that has never reached `distfeed.nethesis.it` has none.
+The call fails when the engine is not running or a catalog has not been downloaded yet.
 
 ### list-appgroups
 
@@ -3663,16 +3654,15 @@ List the application groups, ordered by name:
 api-cli ns.dpi list-appgroups
 ```
 
-Data can be limited and paginated with the `limit` and `page` parameters, and filtered by name with
-`search`:
+Optional parameters: `search` (matched against the name), `limit` and `page`. Without `limit` every group
+is returned:
 
 ```bash
 api-cli ns.dpi list-appgroups --data '{"search": "business", "limit": 10, "page": 2}'
 ```
 
-Without `limit` every group is returned, which is what the rule drawer needs to fill its group selector.
-
 Example response:
+
 ```json
 {
    "values": {
@@ -3696,7 +3686,7 @@ Example response:
 }
 ```
 
-`used` and `matches` report the rules referencing the group: a group in use can't be deleted.
+`used` and `matches` list the rules referencing the group.
 
 ### add-appgroup
 
@@ -3713,21 +3703,16 @@ api-cli ns.dpi add-appgroup --data '{
 ```
 
 - `name`: mandatory, up to 64 characters, unique among the groups regardless of case
-- the four member lists are all optional, but the group must hold at least one member overall
-- applications and protocols are named as the **DPI engine** reports them, which is the `id` of a
-  selectable item of `list-appgroup-catalog`, **not** the `tag` of the raw catalogs. For applications
-  the two coincide (`netify.amazon`); for protocols they don't (`HTTP/Connect` in the engine,
-  `http-connect` in the catalog) and only the engine name can be matched
-- categories are named by tag (`cybersecurity`, `games`), which is the same in the engine and in the
-  catalogs. Application and protocol categories are distinct vocabularies
+- `applications`, `protocols`: names as reported by the engine, i.e. the `id` of a selectable item of
+  `list-appgroup-catalog` (`HTTP/Connect`, not the catalog tag `http-connect`)
+- `application_categories`, `protocol_categories`: category tags
+- the four lists are optional, but the group must have at least one member
 
-Members are validated against what the engine has loaded, with the catalog accepted as well for
-applications, so that a group stays editable on a machine whose premium signatures were removed. When
-neither source can be read the values are stored unchecked: an unknown value never matches, so refusing
-the write would be worse than accepting it. Values are always rejected when empty or when they hold a
-character that could break the generated expression.
+Members are checked against the engine and the downloaded catalogs; the check is skipped when neither is
+available.
 
 Example response:
+
 ```json
 {
    "id": "ns_1a2b3c4d5"
@@ -3747,6 +3732,7 @@ api-cli ns.dpi edit-appgroup --data '{
 ```
 
 Example response:
+
 ```json
 {
    "id": "ns_1a2b3c4d5"
@@ -3761,41 +3747,31 @@ Delete an application group:
 api-cli ns.dpi delete-appgroup --data '{"id": "ns_1a2b3c4d5"}'
 ```
 
-Deleting a group referenced by a rule is refused with the list of the referencing rules:
-```json
-{
-   "validation": {
-      "errors": [
-         {
-            "parameter": "id",
-            "message": "appgroup_is_used",
-            "value": ["dpi/ns_9f8e7d6c5"]
-         }
-      ]
-   }
-}
-```
-
 Example response:
+
 ```json
 {
    "message": "success"
 }
 ```
 
+A group referenced by a rule can't be deleted.
+
 ### list-rules
 
-List every rule in priority order, which is the order they are evaluated in: the first rule matching a
-flow wins and stops the evaluation.
+List the rules in priority order:
 
 ```bash
 api-cli ns.dpi list-rules
 ```
 
-The list is never paginated nor filtered: it is the whole set, which is also what `order-rules` needs.
-Rules hidden with `ns_visible '0'` are the only ones left out. `managed` tells whether the rule was
-created through the API: an unmanaged rule can be renamed, enabled, reordered and deleted, but not
-edited, and it carries the raw `criteria` it matches on. `match_all` tells whether the rule matches every flow instead of naming application groups.
+Rules with `ns_visible '0'` are left out.
+
+- `managed`: the rule was created through the API. Unmanaged rules, e.g. the ones migrated from the
+  previous schema, carry their raw `criteria` and can be renamed, enabled, disabled, reordered and
+  deleted, but not edited
+- `match_all`: the rule matches every flow instead of naming application groups
+- `index`: position of the rule in the list
 
 Example response:
 
@@ -3831,7 +3807,7 @@ Example response:
       },
       {
          "id": "ns_f1c6e9e0",
-         "name": "Legacy rule",
+         "name": "Migrated rule 1",
          "enabled": true,
          "action": "block",
          "source": [],
@@ -3847,7 +3823,7 @@ Example response:
 
 ### add-rule
 
-Add a DPI rule:
+Add a rule:
 
 ```bash
 api-cli ns.dpi add-rule --data '{
@@ -3861,28 +3837,17 @@ api-cli ns.dpi add-rule --data '{
 }'
 ```
 
-Parameters:
-
 - `name`: mandatory, up to 64 characters
-- `enabled`: `true` or `false`
-- `action`: `block` or `allow`. `allow` blocks nothing: it labels the flow and, since every rule halts
-  on match, stops the evaluation before any block rule below it can fire
-- `source`: list of addresses, networks or ranges, IPv4 and IPv6 alike, e.g.
-  `["192.168.1.1", "192.168.1.0/24", "10.0.0.10-10.0.0.20"]`. An empty list matches every host. Ranges
-  are expanded to CIDR blocks when the rule is generated
-- `appgroups`: config names of the application groups the rule matches, refer to `list-appgroups`. **At
-  least one is required unless `match_all` is set**: a rule with a source and no group would be an
-  IP-level rule, which the firewall does better, and a rule with neither would match nothing
-- `match_all`: `true` makes the rule match every flow, whatever the application. `appgroups` must then
-  be empty, and passing both is refused with `appgroups_not_allowed_with_match_all`. Combined with a
-  `source`, it means every flow of those hosts. Defaults to `false`
-- `position`: `top` to evaluate the rule before every other one, `bottom` (the default) after them
-
-There is no device or interface parameter: per-interface rules are not reachable from the API.
-
-A `match_all` rule placed at the top of the list shadows every rule below it, because every rule halts
-on match. That is the point of an `allow` one — it is how a bypass is expressed — but a client offering
-it should make the consequence visible.
+- `enabled`: mandatory, `true` or `false`
+- `action`: mandatory, `block` or `allow`. `allow` stops the evaluation, so the rules below it don't apply
+  to the matching flows
+- `source`: addresses, networks or ranges, IPv4 or IPv6, e.g.
+  `["192.168.1.1", "192.168.1.0/24", "10.0.0.10-10.0.0.20"]`. Empty or omitted matches every host
+- `appgroups`: ids of the application groups to match, see `list-appgroups`. Mandatory unless
+  `match_all` is `true`
+- `match_all`: match every flow, optionally narrowed by `source`. `appgroups` must be empty. Defaults to
+  `false`
+- `position`: `top` or `bottom` of the list. Defaults to `bottom`
 
 Example response:
 
@@ -3894,8 +3859,8 @@ Example response:
 
 ### edit-rule
 
-Same payload as `add-rule` minus `position`, plus the `id` of the rule. The priority is left untouched,
-use `order-rules` to move the rule.
+Same payload as `add-rule` without `position`, plus the `id` of the rule. The priority is not changed,
+use `order-rules` to move the rule. Only managed rules can be edited:
 
 ```bash
 api-cli ns.dpi edit-rule --data '{
@@ -3909,9 +3874,6 @@ api-cli ns.dpi edit-rule --data '{
 }'
 ```
 
-Only managed rules can be edited: editing a rule carrying a hand-written criteria is refused with
-`rule_not_managed`, because it has no source and no group to rebuild it from.
-
 Example response:
 
 ```json
@@ -3922,7 +3884,7 @@ Example response:
 
 ### delete-rule
 
-Delete a DPI rule. The priorities of the remaining rules are renumbered, so no gap is left behind:
+Delete a rule. The remaining rules are renumbered:
 
 ```bash
 api-cli ns.dpi delete-rule --data '{"id": "ns_f1c6e9e0"}'
@@ -3986,15 +3948,13 @@ Example response:
 
 ### order-rules
 
-Reorder the rules, renumbering their priorities from the given order:
+Set the priority of the rules from the given order:
 
 ```bash
 api-cli ns.dpi order-rules --data '{"order": ["ns_f1c6e9e0", "ns_3869dc35"]}'
 ```
 
-The order must name **every** rule exactly once, hidden ones included, as `list-rules` returns them. A
-partial order is refused with `invalid_order`: silently moving the rules left out is never what the
-caller meant.
+`order` must list every rule exactly once, including the ones with `ns_visible '0'`.
 
 Example response:
 

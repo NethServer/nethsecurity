@@ -55,13 +55,11 @@ protocol_output = """
 dpi_minimal_db = """
 config main 'config'
     option log_blocked '0'
-    option firewall_exemption '0'
 """
 
 dpi_db = """
 config main 'config'
     option log_blocked '0'
-    option firewall_exemption '0'
     list popular_filters 'netify.netflix'
     list popular_filters 'netify.hulu'
     list popular_filters 'netify.whatsapp'
@@ -1045,7 +1043,6 @@ config device
 legacy_dpi_db = """
 config main 'config'
     option log_blocked '0'
-    option firewall_exemption '1'
     list popular_filters 'netify.facebook'
 
 config rule 'ns_b01a0e73'
@@ -1146,10 +1143,31 @@ def test_migrate_schema_drops_per_rule_exemption_but_keeps_the_rule(e_uci_legacy
     assert 'criteria' in rule
 
 
+def test_migrate_schema_drops_per_rule_log_but_keeps_the_rule(e_uci, mocker):
+    syslog = mocker.patch('nethsec.dpi.syslog.syslog')
+    with pathlib.Path(e_uci.confdir()).joinpath('dpi').open('w') as fp:
+        fp.write("""
+config main 'config'
+
+config rule 'ns_logged'
+    option enabled '1'
+    option device 'eth0'
+    option action 'block'
+    option log '1'
+    list application 'netify.instagram'
+""")
+    dpi.migrate_schema(e_uci)
+    rule = e_uci.get_all('dpi', 'ns_logged')
+    assert 'log' not in rule
+    assert rule['action'] == 'block'
+    assert 'criteria' in rule
+    assert any('per-rule log on ns_logged' in call.args[1] for call in syslog.call_args_list)
+
+
 def test_migrate_schema_converts_address_exemption_to_managed_allow_rule(e_uci_legacy):
     dpi.migrate_schema(e_uci_legacy)
     rules = dpi.list_rules(e_uci_legacy)
-    exception1 = next(r for r in rules if r['name'] == 'Migrated exception 1')
+    exception1 = next(r for r in rules if r['name'] == 'my exception')
     assert exception1['managed'] is True
     assert exception1['action'] == 'allow'
     assert exception1['source'] == ['192.168.122.47']
@@ -1161,13 +1179,14 @@ def test_migrate_schema_converts_address_exemption_to_managed_allow_rule(e_uci_l
 def test_migrate_schema_keeps_a_disabled_exemption_disabled(e_uci_legacy):
     dpi.migrate_schema(e_uci_legacy)
     rules = dpi.list_rules(e_uci_legacy)
-    exception2 = next(r for r in rules if r['name'] == 'Migrated exception 2')
+    exception2 = next(r for r in rules if r['name'] == 'disabled one')
     assert exception2['enabled'] is False
 
 
 def test_migrate_schema_converts_non_address_exemption_to_unmanaged_allow_rule(e_uci_legacy):
     dpi.migrate_schema(e_uci_legacy)
     rules = dpi.list_rules(e_uci_legacy)
+    # no description: the name falls back to its position
     exception3 = next(r for r in rules if r['name'] == 'Migrated exception 3')
     assert exception3['managed'] is False
     assert exception3['action'] == 'allow'
@@ -1193,11 +1212,26 @@ config exemption 'ns_objex'
     assert rules[0]['source'] == ['192.168.50.0/24']
 
 
+def test_migrate_schema_cuts_a_long_exemption_description_to_the_rule_name_limit(e_uci):
+    description = 'x' * (dpi.DPI_RULE_NAME_MAX_LENGTH + 10)
+    with pathlib.Path(e_uci.confdir()).joinpath('dpi').open('w') as fp:
+        fp.write(f"""
+config main 'config'
+
+config exemption 'ns_long'
+    option enabled '1'
+    option criteria '192.168.1.1'
+    option description '{description}'
+""")
+    dpi.migrate_schema(e_uci)
+    rules = dpi.list_rules(e_uci)
+    assert rules[0]['name'] == description[:dpi.DPI_RULE_NAME_MAX_LENGTH]
+    assert rules[0]['managed'] is True
+
+
 def test_migrate_schema_removes_exemption_sections_and_legacy_globals(e_uci_legacy):
     dpi.migrate_schema(e_uci_legacy)
     assert utils.get_all_by_type(e_uci_legacy, 'dpi', 'exemption') == {}
-    # still read by dpi-config and the hotplug script, so the migration must leave it alone
-    assert e_uci_legacy.get('dpi', 'config', 'firewall_exemption') == '1'
     assert e_uci_legacy.get('dpi', 'config', 'popular_filters', list=True, default=None) is None
 
 
@@ -1205,7 +1239,7 @@ def test_migrate_schema_puts_exemptions_before_migrated_rules(e_uci_legacy):
     dpi.migrate_schema(e_uci_legacy)
     rules = dpi.list_rules(e_uci_legacy)
     names_in_order = [r['name'] for r in rules]
-    assert names_in_order.index('Migrated exception 1') < names_in_order.index('Migrated rule 1')
+    assert names_in_order.index('my exception') < names_in_order.index('Migrated rule 1')
 
 
 def test_migrate_schema_applies_immediately(e_uci_legacy, mock_reload):
