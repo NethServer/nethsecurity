@@ -956,8 +956,7 @@ def freeze_legacy_criteria(e_uci: EUci, rule: dict) -> str:
     Build the criteria of a rule written before application groups existed, the way `dpi-config` has
     always generated it: source, application, protocol and category turned into an expression narrowed
     to the rule's device, with the VLAN rewrite applied when the device names a VLAN. Used by the
-    generator for a legacy rule the migration has not converted yet, and by the migration itself to
-    freeze a rule's behaviour verbatim before clearing those fields.
+    migration to freeze a rule's behaviour verbatim before clearing those fields.
 
     Args:
       - e_uci: euci instance
@@ -1037,12 +1036,15 @@ def migrate_schema(e_uci: EUci):
 
     Each legacy rule (`device`, `application`, `protocol` or `category` set) is turned into an unmanaged
     rule with its behaviour frozen verbatim into `criteria` — see `freeze_legacy_criteria`. A rule whose
-    action is a retired QoS value, carries a per-rule exemption (a field no recent API ever wrote), or
-    ends up matching nothing is dropped instead, with a log line naming it.
+    action is a retired QoS value, or that ends up matching nothing, is dropped instead, with a log line
+    naming it. A per-rule exemption or `log` (fields no recent API ever wrote) is removed from the rule,
+    with a log line as well.
 
     Each global exemption becomes an Allow rule at the top of the list: a managed match-all rule
     narrowed to a source when its criteria is a plain address, CIDR or firewall object; an unmanaged
-    one carrying the criteria verbatim otherwise. Disabled exemptions become disabled rules.
+    one carrying the criteria verbatim otherwise. Disabled exemptions become disabled rules. The rule
+    is named after the exemption description, cut to the rule name limit, or `Migrated exception N`
+    when it has none.
     The `exemption` section type and `popular_filters` are then removed.
 
     The changes are committed and the dpi service reloaded right away.
@@ -1067,9 +1069,12 @@ def migrate_schema(e_uci: EUci):
     exemption_count = 0
     for section, exemption in exemptions.items():
         exemption_count += 1
-        name = f'Migrated exception {exemption_count}'
+        # keep the name the user gave the exemption, cut to what a rule name allows
+        name = exemption.get('description', '').strip()[:DPI_RULE_NAME_MAX_LENGTH].strip()
+        if not name:
+            name = f'Migrated exception {exemption_count}'
         enabled = exemption.get('enabled', '1') == '1'
-        criteria = (exemption.get('criteria') or '').strip()
+        criteria = exemption.get('criteria', '').strip()
         source = __exemption_source(e_uci, criteria)
 
         e_uci.delete('dpi', section)
@@ -1098,6 +1103,9 @@ def migrate_schema(e_uci: EUci):
         if rule.get('exemption'):
             syslog.syslog(syslog.LOG_WARNING,
                           f"dpi migration: dropping the per-rule exemption on {section}, no longer supported")
+        if rule.get('log') == '1':
+            syslog.syslog(syslog.LOG_WARNING,
+                          f"dpi migration: dropping the per-rule log on {section}, no longer supported")
         if not any(rule.get(field) for field in ('criteria', 'source', 'application', 'protocol', 'category')):
             syslog.syslog(syslog.LOG_WARNING, f"dpi migration: dropping {section}, it matches nothing")
             e_uci.delete('dpi', section)
@@ -1105,7 +1113,7 @@ def migrate_schema(e_uci: EUci):
 
         rule_count += 1
         criteria = freeze_legacy_criteria(e_uci, rule)
-        for field in (*legacy_fields, 'source', 'exemption'):
+        for field in (*legacy_fields, 'source', 'exemption', 'log'):
             e_uci.delete('dpi', section, field)
         e_uci.set('dpi', section, 'criteria', criteria)
         e_uci.set('dpi', section, 'ns_name', f'Migrated rule {rule_count}')

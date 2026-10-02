@@ -1,10 +1,14 @@
 #!/bin/sh
 
+# TODO: ship /etc/config/dpi as a conffile instead of creating it here. Before doing so:
+# - 19-ns-api.wizard detects a fresh install by the absence of /etc/config/dpi, it needs another marker
+# - the dpi-update cron entry below must move to its own uci-default
+# - fix the conffiles define in the Makefile, it is declared for ns-plug instead of ns-dpi
+
 if ! uci -q get dpi.config > /dev/null; then
   uci -q import dpi << EOI
 config main 'config'
   option log_blocked '0'
-  option firewall_exemption '1'
 EOI
 fi
 

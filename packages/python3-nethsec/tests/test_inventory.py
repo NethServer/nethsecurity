@@ -561,7 +561,6 @@ config remote 'ns_6fd94f07'
 dpi_db = """
 config main 'config'
 	option log_blocked '0'
-	option firewall_exemption '0'
 
 config rule 'ns_2b170d05'
 	option enabled '1'
