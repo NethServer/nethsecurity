@@ -561,8 +561,6 @@ config remote 'ns_6fd94f07'
 dpi_db = """
 config main 'config'
 	option log_blocked '0'
-	option enabled '1'
-	option firewall_exemption '0'
 
 config rule 'ns_2b170d05'
 	option enabled '1'
@@ -928,6 +926,11 @@ def test_fact_ipsec(tmp_path):
 def test_fact_dpi(tmp_path):
 	u = _setup_db(tmp_path)
 	assert inventory.fact_dpi(u) == {"enabled": True, "rules": 1}
+
+def test_fact_dpi_without_enabled_rules(tmp_path):
+	u = _setup_db(tmp_path)
+	u.set('dpi', 'ns_2b170d05', 'enabled', '0')
+	assert inventory.fact_dpi(u) == {"enabled": False, "rules": 0}
       
 def test_fact_dhcp_server(tmp_path):
 	u = _setup_db(tmp_path)

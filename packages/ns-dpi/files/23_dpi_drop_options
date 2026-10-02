@@ -1,0 +1,21 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Remove the global options that no longer switch anything:
+# - enabled: netifyd runs all the time, DPI filters traffic as soon as one rule is enabled
+# - firewall_exemption: the firewall IP addresses are always excluded from the DPI rules
+
+changed=0
+for option in enabled firewall_exemption; do
+  if uci -q get dpi.config.$option > /dev/null; then
+    uci -q delete dpi.config.$option
+    changed=1
+  fi
+done
+
+[ "$changed" = "1" ] && uci commit dpi
+exit 0

@@ -642,10 +642,10 @@ def fact_proxy_pass(uci: EUci):
 
 def fact_dpi(uci: EUci):
     ret = {"enabled": False, "rules": 0}
-    ret["enabled"] = uci.get('dpi', 'config', 'enabled', default='0') == '1'
     for rule in utils.get_all_by_type(uci, 'dpi', 'rule'):
         if uci.get('dpi', rule, 'enabled', default='0') == '1':
             ret["rules"] += 1
+    ret["enabled"] = ret["rules"] > 0
     return ret
 
 def fact_extra_packages(uci: EUci):

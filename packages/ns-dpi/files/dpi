@@ -5,8 +5,14 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
+# Shared with the iface hotplug, so the migration and the config generation never run twice at once
+lock /var/lock/dpi.lock
+# Convert a configuration still on the previous schema, e.g. restored from an old backup or synced
+# by an HA peer: a no-op when there is nothing to migrate
+/usr/libexec/ns-dpi/dpi-migrate
 # Generate netify flow actions config file
 /usr/sbin/dpi-config
+lock -u /var/lock/dpi.lock
 # Apply nftables rules
 /usr/sbin/dpi-nft
 # reload netifyd daemon

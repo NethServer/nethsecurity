@@ -3548,242 +3548,347 @@ Response example:
 
 ## ns.dpi
 
-Manage netifyd DPI engine.
+Manage DPI rules and application groups. Rules are evaluated in priority order and the first rule
+matching a flow wins.
 
-### list-applications
+### list-application-catalog
 
-List application and protocols:
-
-```bash
-api-cli ns.dpi list-applications
-```
-
-Filtering is provided out of the box, searching in both name and category:
+Return the raw application catalog, `/etc/netifyd/netify-application-catalog.json`:
 
 ```bash
-api-cli ns.dpi list-applications --data '{"search": "apple"}'
+api-cli ns.dpi list-application-catalog
 ```
 
-Data can be limited and paginated by using the `limit` and `page` parameters:
+The response is `{"values": [...]}`, with the catalog entries as downloaded; `{}` if the catalog is
+missing.
+
+### list-protocol-catalog
+
+Same as `list-application-catalog`, for `/etc/netifyd/netify-protocol-catalog.json`:
 
 ```bash
-api-cli ns.dpi list-applications --data '{"limit": 10, "page": 3}'
+api-cli ns.dpi list-protocol-catalog
 ```
 
-**PLEASE NOTE**: `category` field can be missing in some applications/protocols.
+### list-appgroup-catalog
 
-Example response:
-```json
-{
-   "values": {
-      "data": [
-         {
-            "id": 10392,
-            "name": "netify.apple-siri",
-            "type": "application",
-            "category": {
-               "name": "business"
-            }
-         },
-         {
-            "id": 10706,
-            "name": "netify.apple-id",
-            "type": "application"
-         },
-         {
-            "id": 10152,
-            "name": "netify.appnexus",
-            "type": "application",
-            "category": {
-               "name": "advertiser"
-            }
-         },
-         {
-            "id": 142,
-            "name": "WhatsApp",
-            "type": "protocol",
-            "category": {
-               "name": "messaging"
-            }
-         },
-         {
-            "id": 238,
-            "name": "Apple/Push",
-            "type": "protocol"
-         },
-         {
-            "id": 246,
-            "name": "WhatsApp/Call",
-            "type": "protocol",
-            "category": {
-               "name": "voip"
-            }
-         }
-      ],
-      "meta": {
-         "last_page": 2,
-         "total": 12
-      }
-   }
-}
-```
-
-### list-popular
-
-List popular applications and protocols:
+List the applications and protocols an application group can be built with, grouped by category:
 
 ```bash
-api-cli ns.dpi list-popular
+api-cli ns.dpi list-appgroup-catalog
 ```
-
-Data can be limited and paginated by using the `limit` and `page` parameters:
-
-```bash
-api-cli ns.dpi list-popular --data '{"limit": 3, "page": 2}'
-```
-
-**PLEASE NOTE**:
-
-- `category` field can be missing in some applications/protocols.
-- `missing` field is true when the application/protocol is not available in the current netifyd database.
 
 Example response:
 
 ```json
 {
    "values": {
+      "applications": [
+         {
+            "tag": "portal",
+            "label": "Portal",
+            "selectable": true,
+            "items": [
+               {
+                  "id": "netify.qq",
+                  "label": "Tencent QQ",
+                  "selectable": true,
+                  "logo": "https://static.netify.ai/logos/q/q//dd/icon.png?v=4"
+               },
+               {
+                  "id": "netify.premium-only",
+                  "label": "Premium Only",
+                  "selectable": false
+               }
+            ]
+         },
+         {
+            "tag": "",
+            "label": "",
+            "selectable": false,
+            "items": [
+               {
+                  "id": "netify.brand-new",
+                  "label": "netify.brand-new",
+                  "selectable": true
+               }
+            ]
+         }
+      ],
+      "protocols": [
+         {
+            "tag": "file-server",
+            "label": "File Server",
+            "selectable": true,
+            "items": [
+               {
+                  "id": "FTP",
+                  "label": "FTP Control",
+                  "selectable": true
+               }
+            ]
+         }
+      ]
+   }
+}
+```
+
+- item `selectable`: the engine has the signature loaded, so the item can be used in a group. Without a
+  subscription most applications are not selectable
+- item `id`: the value to pass to `add-appgroup`; only valid when `selectable` is `true`
+- group `selectable`: the category can be used as a group member (`application_categories` or
+  `protocol_categories`). The group with an empty `tag` collects uncategorised items and is never
+  selectable as a whole
+- `logo` is omitted when the catalog has no icon
+- groups and items are sorted by label, the uncategorised group last
+
+Inactive applications, deprecated protocols and the `unknown` protocol are left out.
+
+The call fails when the engine is not running or a catalog has not been downloaded yet.
+
+### list-appgroups
+
+List the application groups, ordered by name:
+
+```bash
+api-cli ns.dpi list-appgroups
+```
+
+Optional parameters: `search` (matched against the name), `limit` and `page`. Without `limit` every group
+is returned:
+
+```bash
+api-cli ns.dpi list-appgroups --data '{"search": "business", "limit": 10, "page": 2}'
+```
+
+Example response:
+
+```json
+{
+   "values": {
       "data": [
          {
-            "id": 10392,
-            "name": "netify.apple-siri",
-            "type": "application",
-            "category": {
-               "name": "business"
-            },
-            "missing": false
-         },
-         {
-            "id": 142,
-            "name": "WhatsApp",
-            "type": "protocol",
-            "category": {
-               "name": "messaging"
-            },
-            "missing": false
-         },
-         {
-            "name": "whatsapp",
-            "missing": true
-         },
-         {
-            "id": 238,
-            "name": "Apple/Push",
-            "type": "protocol",
-            "missing": false
+            "id": "ns_1a2b3c4d5",
+            "name": "Business and technology services",
+            "applications": ["netify.amazon", "netify.apple"],
+            "application_categories": ["cybersecurity"],
+            "protocols": ["HTTP/Connect"],
+            "protocol_categories": ["games"],
+            "used": true,
+            "matches": ["dpi/ns_9f8e7d6c5"]
          }
       ],
       "meta": {
-         "last_page": 3,
-         "total": 8
+         "last_page": 1,
+         "total": 1
       }
    }
 }
 ```
 
+`used` and `matches` list the rules referencing the group.
+
+### add-appgroup
+
+Create an application group:
+
+```bash
+api-cli ns.dpi add-appgroup --data '{
+  "name": "Business and technology services",
+  "applications": ["netify.amazon"],
+  "application_categories": ["cybersecurity"],
+  "protocols": ["HTTP/Connect"],
+  "protocol_categories": ["games"]
+}'
+```
+
+- `name`: mandatory, up to 64 characters, unique among the groups regardless of case
+- `applications`, `protocols`: names as reported by the engine, i.e. the `id` of a selectable item of
+  `list-appgroup-catalog` (`HTTP/Connect`, not the catalog tag `http-connect`)
+- `application_categories`, `protocol_categories`: category tags
+- the four lists are optional, but the group must have at least one member
+
+Members are checked against the engine and the downloaded catalogs; the check is skipped when neither is
+available.
+
+Example response:
+
+```json
+{
+   "id": "ns_1a2b3c4d5"
+}
+```
+
+### edit-appgroup
+
+Same payload as `add-appgroup`, plus the `id` of the group. Lists left out are emptied:
+
+```bash
+api-cli ns.dpi edit-appgroup --data '{
+  "id": "ns_1a2b3c4d5",
+  "name": "Business",
+  "applications": ["netify.amazon", "netify.apple"]
+}'
+```
+
+Example response:
+
+```json
+{
+   "id": "ns_1a2b3c4d5"
+}
+```
+
+### delete-appgroup
+
+Delete an application group:
+
+```bash
+api-cli ns.dpi delete-appgroup --data '{"id": "ns_1a2b3c4d5"}'
+```
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+A group referenced by a rule can't be deleted.
 
 ### list-rules
 
-List created rules:
+List the rules in priority order:
 
 ```bash
 api-cli ns.dpi list-rules
 ```
 
+Rules with `ns_visible '0'` are left out.
+
+- `managed`: the rule was created through the API. Unmanaged rules, e.g. the ones migrated from the
+  previous schema, carry their raw `criteria` and can be renamed, enabled, disabled, reordered and
+  deleted, but not edited
+- `match_all`: the rule matches every flow instead of naming application groups
+- `index`: position of the rule in the list
+
 Example response:
 
 ```json
 {
-  "values": [
-    {
-      "config-name": "ns_3869dc35",
-      "enabled": true,
-      "device": "eth4",
-      "interface": "GREEN_1",
-      "action": "block",
-      "criteria": [
-        {
-          "id": 156,
-          "name": "netify.spotify",
-          "type": "application",
-          "category": {
-            "name": "streaming-media"
-          }
-        },
-        {
-          "id": 10119,
-          "name": "netify.adobe",
-          "type": "application",
-          "category": {
-            "name": "business"
-          }
-        }
-      ]
-    },
-    {
-      "config-name": "ns_f1c6e9e0",
-      "enabled": false,
-      "interface": "eth4",
-      "action": "block",
-      "criteria": [
-        {
-          "id": 196,
-          "name": "HTTP/S",
-          "type": "protocol",
-          "category": {
-            "name": "web"
-          }
-        }
-      ]
-    }
-  ]
+   "values": [
+      {
+         "id": "ns_3869dc35",
+         "name": "Block streaming",
+         "enabled": true,
+         "action": "block",
+         "source": ["192.168.1.0/24"],
+         "appgroups": [
+            {
+               "id": "ns_1a2b3c4d5",
+               "name": "Streaming services"
+            }
+         ],
+         "match_all": false,
+         "managed": true,
+         "index": 0
+      },
+      {
+         "id": "ns_9d40be71",
+         "name": "Allow everything",
+         "enabled": true,
+         "action": "allow",
+         "source": [],
+         "appgroups": [],
+         "match_all": true,
+         "managed": true,
+         "index": 1
+      },
+      {
+         "id": "ns_f1c6e9e0",
+         "name": "Migrated rule 1",
+         "enabled": true,
+         "action": "block",
+         "source": [],
+         "appgroups": [],
+         "match_all": false,
+         "managed": false,
+         "criteria": "local_ip == 192.168.100.22 && app == 'netify.facebook';",
+         "index": 2
+      }
+   ]
 }
 ```
 
 ### add-rule
 
-Add DPI rule:
+Add a rule:
 
 ```bash
-api-cli ns.dpi add-rule --data '{"enabled": false, "device": "eth4", "applications": [], "protocols": ["HTTP/S"]}'
+api-cli ns.dpi add-rule --data '{
+  "name": "Block streaming",
+  "enabled": true,
+  "action": "block",
+  "source": ["192.168.1.0/24"],
+  "appgroups": ["ns_1a2b3c4d5"],
+  "match_all": false,
+  "position": "bottom"
+}'
 ```
 
-Rundown of required parameters:
-
-- `enabled`: `true` or `false`
-- `device`: device name, e.g. `eth4`
-- `applications`: list of application names, e.g. `["netify.spotify", "netify.adobe"]`, refer to `list-applications`
-  api.
-- `protocols`: list of protocol names, e.g. `["HTTP/S"]`, refer to `list-applications` api.
+- `name`: mandatory, up to 64 characters
+- `enabled`: mandatory, `true` or `false`
+- `action`: mandatory, `block` or `allow`. `allow` stops the evaluation, so the rules below it don't apply
+  to the matching flows
+- `source`: addresses, networks or ranges, IPv4 or IPv6, e.g.
+  `["192.168.1.1", "192.168.1.0/24", "10.0.0.10-10.0.0.20"]`. Empty or omitted matches every host
+- `appgroups`: ids of the application groups to match, see `list-appgroups`. Mandatory unless
+  `match_all` is `true`
+- `match_all`: match every flow, optionally narrowed by `source`. `appgroups` must be empty. Defaults to
+  `false`
+- `position`: `top` or `bottom` of the list. Defaults to `bottom`
 
 Example response:
 
 ```json
 {
-   "message": "success"
+   "id": "ns_3869dc35"
+}
+```
+
+### edit-rule
+
+Same payload as `add-rule` without `position`, plus the `id` of the rule. The priority is not changed,
+use `order-rules` to move the rule. Only managed rules can be edited:
+
+```bash
+api-cli ns.dpi edit-rule --data '{
+  "id": "ns_3869dc35",
+  "name": "Block streaming",
+  "enabled": false,
+  "action": "block",
+  "source": [],
+  "appgroups": ["ns_1a2b3c4d5"],
+  "match_all": false
+}'
+```
+
+Example response:
+
+```json
+{
+   "id": "ns_3869dc35"
 }
 ```
 
 ### delete-rule
 
-Delete DPI rule:
+Delete a rule. The remaining rules are renumbered:
 
 ```bash
-api-cli nd.dpi delete-rule --data '{"config-name": "ns_f1c6e9e0"}'
+api-cli ns.dpi delete-rule --data '{"id": "ns_f1c6e9e0"}'
 ```
-
-Required parameters:
-
-- `config-name`: rule name, refer to `list-rules` api.
 
 Example response:
 
@@ -3793,21 +3898,13 @@ Example response:
 }
 ```
 
-### edit-rule
+### rename-rule
 
-Edit DPI rule:
+Rename a rule, managed or not:
 
 ```bash
-api-cli ns.dpi edit-rule --data '{"config-name": "ns_f1c6e9e0", "enabled": true, "device": "eth4", "applications": ["netify.spotify", "netify.adobe"], "protocols": []}'
+api-cli ns.dpi rename-rule --data '{"id": "ns_f1c6e9e0", "name": "Legacy rule"}'
 ```
-
-Rundown of required parameters:
-- `config-name`: rule name, refer to `list-rules` api.
-- `enabled`: `true` or `false`
-- `device`: device name, e.g. `eth4`
-- `applications`: list of application names, e.g. `["netify.spotify", "netify.adobe"]`, refer to `list-applications`
-  api.
-- `protocols`: list of protocol names, e.g. `["HTTP/S"]`, refer to `list-applications` api.
 
 Example response:
 
@@ -3817,65 +3914,13 @@ Example response:
 }
 ```
 
-### list-devices
+### enable-rule
 
-List available devices to be added to DPI rules:
-
-```bash
-api-cli ns.dpi list-devices
-```
-
-Example response:
-
-```json
-{
-  "values": [
-    {
-      "interface": "GREEN_1",
-      "device": "eth0"
-    },
-    {
-      "interface": "GREEN_2",
-      "device": "eth4"
-    }
-  ]
-}
-```
-
-### list-exemptions
-
-List configured global exemptions:
+Enable a rule, managed or not:
 
 ```bash
-api-cli ns.dpi list-exemptions
+api-cli ns.dpi enable-rule --data '{"id": "ns_f1c6e9e0"}'
 ```
-
-Example response:
-```json
-{
-  "values": [
-    {
-      "config-name": "cfg024ffe",
-      "enabled": true,
-      "criteria": "192.168.1.1",
-      "description": "my ex"
-    }
-  ]
-}
-```
-### add-exemption
-
-Add global exemption:
-
-```bash
-api-cli ns.dpi add-rule --data '{"criteria": "192.168.1.1", "description": "my host", "enabled": true}'
-```
-
-Rundown of required parameters:
-
-- `enabled`: `true` or `false`
-- `critera`: an IP address like `192.168.1.1`
-- `description`: an optional description
 
 Example response:
 
@@ -3885,33 +3930,13 @@ Example response:
 }
 ```
 
-It can raise a validation error if the criteria is duplicated. Example:
+### disable-rule
 
-```json
-{
-  "validation": {
-    "errors": [
-      {
-        "parameter": "criteria",
-        "message": "criteria_already_exists",
-        "value": "192.168.1.3"
-      }
-    ]
-  }
-}
-```
-
-### delete-exemption
-
-Delete global exemption rule:
+Disable a rule, managed or not:
 
 ```bash
-api-cli nd.dpi delete-exemption --data '{"config-name": "ns_f1c6e9e0"}'
+api-cli ns.dpi disable-rule --data '{"id": "ns_f1c6e9e0"}'
 ```
-
-Required parameters:
-
-- `config-name`: exemption name, refer to `list-exemptions` api.
 
 Example response:
 
@@ -3921,25 +3946,21 @@ Example response:
 }
 ```
 
-### edit-rule
+### order-rules
 
-Edit global exemption:
+Set the priority of the rules from the given order:
 
 ```bash
-api-cli ns.dpi edit-rule --data '{"config-name": "ns_f1c6e9e0", "criteria": "192.168.1.1", "description": "my host", "enabled": true}'
+api-cli ns.dpi order-rules --data '{"order": ["ns_f1c6e9e0", "ns_3869dc35"]}'
 ```
 
-Rundown of required parameters:
-- `config-name`: rule name, refer to `list-rules` api.
-- `enabled`: `true` or `false`
-- `critera`: an IP address like `192.168.1.1`
-- `description`: an optional description
+`order` must list every rule exactly once, including the ones with `ns_visible '0'`.
 
 Example response:
 
 ```json
 {
-   "message": "success"
+   "values": ["ns_f1c6e9e0", "ns_3869dc35"]
 }
 ```
 
