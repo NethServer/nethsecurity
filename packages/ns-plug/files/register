@@ -42,7 +42,7 @@ case "$type" in
         "${url}machine/info" | jq -r ".uuid" 2>/dev/null)
         ;;
     enterprise)
-        url="https://my-proxy-prod.onrender.com/backend/api/"
+        url="https://proxy.my.nethesis.it/backend/api/"
 
         register_resp=$(curl -s -m $timeout --retry 3 -L -w '\n%{http_code}' \
         -H "Content-Type: application/json" -H "Accept: application/json" \
@@ -79,8 +79,8 @@ case "$type" in
     enterprise)
         uci set ns-plug.config.type="enterprise"
         uci set ns-plug.config.api_url="$url"
-        uci set ns-plug.config.collect_url="https://my-proxy-prod.onrender.com/collect/api/systems"
-        uci set ns-plug.config.notifier_url=https://my-proxy-prod.onrender.com/collect/api/services/mimir/alertmanager
+        uci set ns-plug.config.collect_url="https://proxy.my.nethesis.it/collect/api/systems"
+        uci set ns-plug.config.notifier_url=https://proxy.my.nethesis.it/collect/api/services/mimir/alertmanager
         uci set ns-plug.config.migrated="1"
         ;;
 esac
