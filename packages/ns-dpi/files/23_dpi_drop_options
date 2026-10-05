@@ -7,7 +7,7 @@
 
 # Remove the global options that no longer switch anything:
 # - enabled: netifyd runs all the time, DPI filters traffic as soon as one rule is enabled
-# - firewall_exemption: the firewall IP addresses are always excluded from the DPI rules
+# - firewall_exemption: the flows seen on the WAN interfaces are always excluded from the DPI rules
 
 changed=0
 for option in enabled firewall_exemption; do

@@ -10,9 +10,8 @@ How it works:
   flows labelled `netify-blocked`
 
 netifyd runs all the time: traffic is filtered as soon as one rule is enabled.
-The firewall IP addresses are always excluded from the DPI rules, so a rule can not block access to the
-firewall itself; addresses changing at runtime (DHCP, PPPoE) are tracked by
-`/etc/hotplug.d/iface/90-dpi-exemption`.
+Flows seen on the WAN interfaces are excluded from the DPI rules (global `iface == 'wan'` exemption, as
+in the netifyd `10-nfqueue.conf`).
 Rules and application groups are managed by the `ns.dpi` API, see `packages/ns-api/README.md`.
 After editing `/etc/config/dpi` by hand, apply the changes with:
 ```

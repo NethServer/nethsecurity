@@ -7,26 +7,9 @@
 
 from euci import EUci
 import json
-import subprocess
 import os
 import syslog
 from nethsec import dpi
-
-def get_interface_ips(interface):
-    ret = list()
-    try:
-        proc = subprocess.run(['/sbin/ifstatus', interface], check=True, capture_output=True)
-        info = json.loads(proc.stdout)
-    except:
-        return ret
-
-    for ip_type in ('ipv4-address', 'ipv6-address'):
-        if ip_type in info:
-            for addr in info[ip_type]:
-                if 'address' in addr:
-                    ret.append(addr['address'])
-
-    return ret
 
 cfg_file = "/etc/netifyd/netify-proc-flow-actions.json"
 config = {
@@ -71,16 +54,13 @@ config = {
             "exemptions": []
         }
     },
-    "exemptions": []
+    # based on 10-nfqueue.conf in netifyd
+    "exemptions": [
+        "iface == 'wan';"
+    ]
 }
 
-# Add firewall IP address as global exemptions, so DPI rules can not lock the administrator out of the unit
 u = EUci()
-for section in u.get_all('network'):
-    if u.get('network', section) == 'interface':
-        ip_addrs = get_interface_ips(section)
-        if ip_addrs:
-            config["exemptions"] = config["exemptions"] + ip_addrs
 
 # a rule from the schema used before application groups existed carries at least one of these fields;
 # dpi.migrate_schema converts it, so one still here was not migrated yet
