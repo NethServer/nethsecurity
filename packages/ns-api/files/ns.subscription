@@ -71,7 +71,7 @@ def info():
         # subscription-info from the collect /info payload).
         ret["system_name"] = data.get("system_name", "")
         ret["plan"] = "Nethesis Enterprise"
-        ret["system_url"] = f"https://my-proxy-prod.onrender.com/systems/{data['uuid']}"
+        ret["system_url"] = f"https://proxy.my.nethesis.it/systems/{data['uuid']}"
     else:
         # Community: link the system to its my.nethserver.com page, matching ns8.
         sub_id = (data.get("subscription") or {}).get("id")
