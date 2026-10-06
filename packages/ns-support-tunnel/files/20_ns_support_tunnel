@@ -1,0 +1,10 @@
+[ "$(uci -q get support-tunnel.config.url)" = "" ] || exit 0
+
+uci -q import support-tunnel << EOI
+config main 'config'
+	option url 'wss://support.nethesis.it/api/tunnel'
+	option system_key ''
+	option system_secret ''
+	option exclude_patterns ''
+	option tls_insecure '0'
+EOI
