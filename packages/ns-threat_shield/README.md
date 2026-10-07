@@ -25,6 +25,10 @@ The following categories require a valid entitlement:
 
 After machine registration, above categories will be automatically added to existing banip categories (`/etc/banip/banip.custom.feeds`).
 
+On upgrade from banIP 1.0, apk can install banip before ns-threat_shield: the banip housekeeping then rebuilds
+`banip.custom.feeds` from the old `banip.nethesis.feeds`, and banIP skips the enterprise feeds as incomplete.
+The `97-nethsec-banip-feeds` uci-default rebuilds the file with `ts-ip` and reloads banIP when it is still in the old format (`rule_4`).
+
 A special global allowlist will also be added to banip (`ban_allowurl` option).
 
 ### Examples
