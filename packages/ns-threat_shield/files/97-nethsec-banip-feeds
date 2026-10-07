@@ -10,12 +10,11 @@
 # with the old banip.nethesis.feeds, and banIP skips the enterprise feeds as incomplete.
 # If banip.feeds is still in the old format banip is not updated yet, and its own
 # housekeeping rebuilds the file later.
-# This runs before 98-nethsec-banip-insights, which can run ts-ip too but does not reload banIP.
+# The postinst reloads banIP after all the uci-defaults.
 
 grep -q '"rule_4"' /etc/banip/banip.custom.feeds 2>/dev/null || exit 0
 grep -q '"rule_4"' /etc/banip/banip.feeds && exit 0
 
 /usr/sbin/ts-ip
-/etc/init.d/banip enabled && /etc/init.d/banip reload
 
 exit 0
