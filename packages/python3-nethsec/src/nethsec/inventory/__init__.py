@@ -641,11 +641,43 @@ def fact_proxy_pass(uci: EUci):
     return ret
 
 def fact_dpi(uci: EUci):
-    ret = {"enabled": False, "rules": 0}
-    ret["enabled"] = uci.get('dpi', 'config', 'enabled', default='0') == '1'
-    for rule in utils.get_all_by_type(uci, 'dpi', 'rule'):
-        if uci.get('dpi', rule, 'enabled', default='0') == '1':
-            ret["rules"] += 1
+    ret = {
+        "total": 0,
+        "enabled": 0,
+        "action": {"block": 0, "allow": 0},
+        "source": {"all": 0, "ip": 0},
+        "match": {"all": 0, "appgroup": 0},
+        "kind": {"managed": 0, "unmanaged": 0},
+        "appgroups": {"total": 0, "used": 0, "app": 0, "app_category": 0, "proto": 0, "proto_category": 0},
+    }
+    used_appgroups = set()
+    for rule in (utils.get_all_by_type(uci, 'dpi', 'rule') or {}).values():
+        ret["total"] += 1
+        if rule.get('enabled', '0') == '1':
+            ret["enabled"] += 1
+        if rule.get('action') in ret["action"]:
+            ret["action"][rule.get('action')] += 1
+        # raw criteria is emitted as is, source and appgroup don't apply
+        if not rule.get('criteria'):
+            if rule.get('source'):
+                ret["source"]["ip"] += 1
+            else:
+                ret["source"]["all"] += 1
+            if rule.get('ns_match_all', '0') == '1':
+                ret["match"]["all"] += 1
+            elif rule.get('appgroup'):
+                ret["match"]["appgroup"] += 1
+        if rule.get('ns_managed', '0') == '1':
+            ret["kind"]["managed"] += 1
+        else:
+            ret["kind"]["unmanaged"] += 1
+        used_appgroups.update(rule.get('appgroup', []))
+    for name, appgroup in (utils.get_all_by_type(uci, 'dpi', 'appgroup') or {}).items():
+        ret["appgroups"]["total"] += 1
+        if name in used_appgroups:
+            ret["appgroups"]["used"] += 1
+        for member in ('app', 'app_category', 'proto', 'proto_category'):
+            ret["appgroups"][member] += len(appgroup.get(member, []))
     return ret
 
 def fact_extra_packages(uci: EUci):

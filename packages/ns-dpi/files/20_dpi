@@ -1,29 +1,14 @@
 #!/bin/sh
 
+# TODO: ship /etc/config/dpi as a conffile instead of creating it here. Before doing so:
+# - 19-ns-api.wizard detects a fresh install by the absence of /etc/config/dpi, it needs another marker
+# - the dpi-update cron entry below must move to its own uci-default
+# - fix the conffiles define in the Makefile, it is declared for ns-plug instead of ns-dpi
+
 if ! uci -q get dpi.config > /dev/null; then
   uci -q import dpi << EOI
 config main 'config'
   option log_blocked '0'
-  option enabled '0'
-  option firewall_exemption '0'
-  list popular_filters 'netify.facebook'
-  list popular_filters 'netify.amazon-prime'
-  list popular_filters 'netify.whatsapp'
-  list popular_filters 'netify.instagram'
-  list popular_filters 'netify.netflix'
-  list popular_filters 'netify.telegram'
-  list popular_filters 'netify.tiktok'
-  list popular_filters 'netify.youtube'
-  list popular_filters 'netify.facebook-messenger'
-  list popular_filters 'netify.twitter'
-  list popular_filters 'netify.vimeo'
-  list popular_filters 'netify.snapchat'
-  list popular_filters 'netify.pinterest'
-  list popular_filters 'netify.nordvpn'
-  list popular_filters 'DoT'
-  list popular_filters 'netify.twitch'
-  list popular_filters 'netify.teamviewer'
-  list popular_filters 'DoH'
 EOI
 fi
 

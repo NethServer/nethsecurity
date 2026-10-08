@@ -1,183 +1,112 @@
 # ns-dpi
 
-Manage network traffic using DPI on network flows.
+Block traffic by application and protocol using the netifyd DPI engine.
 
 How it works:
-- Netify flow actions plugin adds a label to matching connections
-- nft rules can block or change priority (`dscp`) to connections with labels
+- `dpi-config` turns `/etc/config/dpi` into the netifyd flow actions config,
+  `/etc/netifyd/netify-proc-flow-actions.json`
+- netifyd sets a conntrack label on the flows matching a rule
+- the `dpi_actions` nft chain, written by `dpi-nft` in `/usr/share/nftables.d/table-pre/`, rejects the
+  flows labelled `netify-blocked`
 
-To enable traffic processing:
-- configure `dpi` UCI database (see below for an example)
-- enable DPI service:
-  ```
-  uci set dpi.config.enabled=1
-  uci commit dpi
-  /etc/init.d/dpi restart
-  service netifyd reload
-  ```
-
-Global options:
-
-- `enabled`: can be `0` or `1`, if set to `1` enable the service
-- `log_blocked`: can be `0` or `1`, if set to `1` blocked connections will be logged inside `/var/log/messages`
-- `firewall_exemption`: can be `0` or `1`, if set to `1` all firewall IP addresses will be
-  added to global exemption list and will not match DPI rules
-- `popular_filters`: list of filters that will be returned to from `api-cli ns.dpi list-popular` call.
-- `ns_exclude`: list of network interface exclusions in Netifyd that will be returned by `uci show netifyd.@netifyd[0].ns_exclude`
-
-Rule options:
-
-- `criteria`: DPI expression to match the traffic
-  - the criteria must terminate with `;` when using complex expressions
-  - use the `"` symbol to enclose strings, double-qoutes will be then translated to `'` inside the plugin configuration file (`/etc/netifyd/netify-flow-actions.json`)
-- `source`: match all traffic from the given address, it accepts also an object like `<database>/<id>`;  when using an object make sure to not use complex criteria
-- `action`: valid actions are:
-  - `block`: matching traffic will be blocked
-  - `bulk`: matching traffic will be moved to low priority QoS class named `Bulk`
-  - `best_effort`: matching traffic will be moved to average priority QoS class named `Best Effort`
-  - `video`: matching traffic will be moved to high priority QoS class named `Video`
-  - `voice`: matching traffic will be moved to very high priority QoS class named `Voice`
-- `description`: an optional rule description
-- `device`: optional device name, if set the rule will be applied only to the given device, example `br-lan`
-- `application`: list of applications to match, the list can contain application names like `netify.amazon-prime`
-- `enabled`: can be `0` or `1`, if set to `1` the rule will be enabled
-- `log`: can be set to `1` to log matching connections, gives an improved visibility on matched connections; 
-  logs are stored in `/var/run/netifyd/dpi-actions-*.json`
-
-Global exemptions options:
-
-- `criteria`: global exemption criteria, usually it's an IP address; it can also be an object like `<database>/<id>`
-- `enabled`: can be `0` or `1`, if set to `1` enable the exemption
-- `description`: an optional exemption description
-
-All enabled rules are always evaluated by netifyd, the rule order doesn't matter.
-
-Example of `/etc/config/dpi`:
+netifyd runs all the time: traffic is filtered as soon as one rule is enabled.
+Flows seen on the WAN interfaces are excluded from the DPI rules (global `iface == 'wan'` exemption, as
+in the netifyd `10-nfqueue.conf`).
+Rules and application groups are managed by the `ns.dpi` API, see `packages/ns-api/README.md`.
+After editing `/etc/config/dpi` by hand, apply the changes with:
 ```
-config main 'config'
-	option log_blocked '1'
-	option enabled '1'
-	option firewall_exemption '1'
-	list popular_filters 'netify.netflix'
-	list popular_filters 'netify.telegram'
-	list popular_filters 'DoT'
-	list popular_filters 'netify.twitch'
-	list popular_filters 'netify.teamviewer'
-	list popular_filters 'DoH'
-
-config rule
-	option action 'bulk'
-	option criteria 'local_ip == 192.168.100.22 && application == "netify.facebook";'
-	option description 'Low priority for 192.168.100.22 when accessing Facebook'
-	option enabled 1
-
-config rule 'ns_e775b8a7'
-	option enabled '1'
-	option device 'br-lan'
-	option action 'block'
-	list application 'netify.amazon-prime'
-	option description 'Block Amazon Prime for everyone'
-
-config rule
-	option action 'block'
-	list application 'netify.twitter
-	list application 'netify.instagram'
-	list source 'objects/ns_hostset_1'
-	list source 'dhcp/ns_reservation_1'
-	option description 'Block Twitter and Instagrm for some hosts'
-	option enabled 1
-
-config exemption
-	option criteria '192.168.1.22'
-	option description 'Important host'
-	option enabled '1'
-
-config exemption
-	option criteria 'dhcp/ns_271ca281'
-	option description 'Important host with a reservation'
-	option enabled '1'
+uci commit dpi
+/etc/init.d/dpi reload
 ```
 
-QoS rules do not have any effect if qosify is not enabled.
-To enable qosify use:
-```
-uci set qosify.wan.disabled=0
-uci commit qosify
-/etc/init.d/qosify restart
-```
+## Configuration
 
-To inspect qosify status use:
-```
-qosify-status
-```
+Global options, in the `config` section:
 
-Check if traffic is matching:
-```
-nft list table inet dpi
-```
+- `log_blocked`: `1` logs the blocked connections in `/var/log/messages`, with the `DPI block: ` prefix
 
-List connections with `block` labels:
-```
-conntrack -L -o label -l block
-```
+Application group (`appgroup` section), a named set of members:
 
-If needed, start netifyd in debug mode:
-```
-netifyd -R -d -I br-lan -E eth1
-```
+- `ns_name`: name of the group
+- `app`: list of application names, as reported by the engine (e.g. `netify.netflix`)
+- `app_category`: list of application category tags (e.g. `games`)
+- `proto`: list of protocol names, as reported by the engine (e.g. `HTTP/Connect`)
+- `proto_category`: list of protocol category tags
 
-## Supplementary signatures
+Rule (`rule` section):
 
-By default, netifyd is equipped to detect around 430 protocols and applications. With the inclusion of
-supplementary signatures, netifyd can extend its recognition capabilities to encompass over 1600 protocols and applications.
-
-Extra signatures are accessible only from a machine with a valid subscription.
-A cron job will update DPI signatures during the night and upon machine registration.
-The download will be authenticated using a Nethesis proxy.
-
-To force the update execute:
-```
-dpi-update
-```
-
-You can use a different proxy by overriding the `HOST` env variable.
-If the proxy is authenticated, use the `__USER__` and `__PASSWORD__` placeholders.
-The placeholders will be replaced with systemd id and secret from `ns-plug`.
+- `ns_name`: name of the rule
+- `enabled`: `0` or `1`
+- `action`: `block` or `allow`
+- `priority`: evaluation order, starting at `1`; the first rule matching a flow wins
+- `appgroup`: list of application groups to match
+- `source`: list of addresses, networks or ranges to narrow the rule to; empty means every host
+- `ns_match_all`: `1` matches every flow instead of naming application groups
+- `ns_managed`: `1` for the rules created by the API
+- `criteria`: raw netifyd expression, used by the rules not created by the API; the API can't edit them
 
 Example:
 ```
-HOST=http://__USER__:__PASSWORD__@sp.gs.nethserver.net dpi-update
+config main 'config'
+	option log_blocked '1'
+
+config appgroup 'ns_1a2b3c4d'
+	option ns_name 'Streaming and games'
+	list app 'netify.netflix'
+	list app_category 'games'
+
+config rule 'ns_3869dc35'
+	option ns_name 'Allow the office'
+	option ns_managed '1'
+	option enabled '1'
+	option action 'allow'
+	option priority '1'
+	option ns_match_all '1'
+	list source '192.168.1.10'
+
+config rule 'ns_9d40be71'
+	option ns_name 'Block streaming and games'
+	option ns_managed '1'
+	option enabled '1'
+	option action 'block'
+	option priority '2'
+	list appgroup 'ns_1a2b3c4d'
+	list source '192.168.1.0/24'
 ```
 
-## Managing Interface Exclusions in Netifyd
+## Migration from the previous schema
 
-By default, Netifyd monitors all interfaces. To exclude specific interfaces, you can define an exclusion list. Below are commands to add, modify, or remove excluded interfaces.
+On upgrade, and every time the DPI service starts, `/usr/libexec/ns-dpi/dpi-migrate` converts the
+configuration written before application groups existed, e.g. after restoring an old backup:
 
-- Add interfaces to exclusion list
-```
-uci add_list netifyd.@netifyd[0].ns_exclude='eth1'
-uci add_list netifyd.@netifyd[0].ns_exclude='tun*'
-uci add_list netifyd.@netifyd[0].ns_exclude='wg*'
-uci commit netifyd
-echo '{"changes": {"network": {}}}' | /usr/libexec/rpcd/ns.commit call commit
-```
+- every rule with `device`, `application`, `protocol` or `category` becomes an unmanaged rule, with its
+  behaviour kept in `criteria`. Rules with an action other than `block`, such as the QoS ones (`bulk`,
+  `best_effort`, `video`, `voice`), and rules matching nothing are dropped. The per-rule `exemption` and
+  `log` options are removed
+- every `exemption` section becomes an `allow` rule at the top of the list, named after the exemption
+  description
+- `popular_filters` is removed
 
-- Modify exclusion list
-```
-uci delete netifyd.@netifyd[0].ns_exclude='eth1'
-uci add_list netifyd.@netifyd[0].ns_exclude='eth2'
-uci commit netifyd
-echo '{"changes": {"network": {}}}' | /usr/libexec/rpcd/ns.commit call commit
-```
+Dropped rules and removed options are logged in `/var/log/messages`. The `enabled` and `firewall_exemption`
+global options, which no longer switch anything, are removed on upgrade as well.
 
-- Clear exclusion list
+## Troubleshooting
+
+Check the generated rules:
 ```
-uci delete netifyd.@netifyd[0].ns_exclude
-uci commit netifyd
-echo '{"changes": {"network": {}}}' | /usr/libexec/rpcd/ns.commit call commit
+cat /etc/netifyd/netify-proc-flow-actions.json
+nft list chain inet fw4 dpi_actions
 ```
 
-- Return the exclusion list
+List the blocked connections:
 ```
-uci show netifyd.@netifyd[0].ns_exclude
+conntrack -L -o label -l netify-blocked
 ```
+
+## Signatures and catalogs
+
+- `dpi-update` downloads the extra signatures, available only with a valid subscription, every night;
+  run it by hand to force an update. On unregistration the extra signatures are removed and the ones
+  shipped with the image are restored
+- `dpi-data-update` downloads the application and protocol catalogs (labels, categories, icons) into
+  `/etc/netifyd`, every night

@@ -5,6 +5,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
+# Convert a configuration still on the previous schema, e.g. restored from an old backup or synced
+# by an HA peer: a no-op when there is nothing to migrate
+/usr/libexec/ns-dpi/dpi-migrate
 # Generate netify flow actions config file
 /usr/sbin/dpi-config
 # Apply nftables rules

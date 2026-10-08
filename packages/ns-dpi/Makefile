@@ -62,6 +62,7 @@ endef
 
 define Package/ns-dpi/install
 	$(INSTALL_DIR) $(1)/usr/sbin
+	$(INSTALL_DIR) $(1)/usr/libexec/ns-dpi
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/unregister
@@ -78,7 +79,10 @@ define Package/ns-dpi/install
 	$(INSTALL_BIN) ./files/dpi-license-update.py $(1)/usr/sbin/dpi-license-update
 	$(INSTALL_BIN) ./files/dpi-data-update.py $(1)/usr/sbin/dpi-data-update
 	$(INSTALL_BIN) ./files/dpi-update.py $(1)/usr/sbin/dpi-update
+	$(INSTALL_BIN) ./files/dpi-migrate.py $(1)/usr/libexec/ns-dpi/dpi-migrate
 	$(INSTALL_CONF) ./files/20_dpi $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/21_dpi_migrate $(1)/etc/uci-defaults/21_dpi_migrate
+	$(INSTALL_BIN) ./files/23_dpi_drop_options $(1)/etc/uci-defaults/23_dpi_drop_options
 	$(INSTALL_BIN) ./files/99-dpi-license-update-cron.uci-defaults $(1)/etc/uci-defaults/99-dpi-license-update-cron
 	$(INSTALL_BIN) ./files/99-dpi-data-update-cron.uci-defaults $(1)/etc/uci-defaults/99-dpi-data-update-cron
 	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/register

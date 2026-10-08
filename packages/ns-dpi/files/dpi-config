@@ -1,31 +1,15 @@
 #!/usr/bin/python3
 
 #
-# Copyright (C) 2025 Nethesis S.r.l.
+# Copyright (C) 2026 Nethesis S.r.l.
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
 from euci import EUci
 import json
-import subprocess
 import os
-from nethsec import utils, objects
-
-def get_interface_ips(interface):
-    ret = list()
-    try:
-        proc = subprocess.run(['/sbin/ifstatus', section], check=True, capture_output=True)
-        info = json.loads(proc.stdout)
-    except:
-        return ret
-
-    for ip_type in ('ipv4-address', 'ipv6-address'):
-        if ip_type in info:
-            for addr in info[ip_type]:
-                if 'address' in addr:
-                    ret.append(addr['address'])
-
-    return ret
+import syslog
+from nethsec import dpi
 
 cfg_file = "/etc/netifyd/netify-proc-flow-actions.json"
 config = {
@@ -43,12 +27,12 @@ config = {
                 "netify-blocked"
             ]
         },
-        "log": {
-            "target_type": "log",
+        "allow": {
+            "target_type": "ctlabel",
             "target_enabled": True,
-            "interval": 60,
-            "path": "/var/run/netifyd/",
-            "prefix": "dpi-actions",
+            "labels": [
+                "netify-allowed"
+            ]
         },
         "analyzed": {
             "target_type": "ctlabel",
@@ -58,104 +42,72 @@ config = {
             ]
         }
     },
-    "actions": {},
-    "exemptions": []
+    # analyzed comes first and lets the evaluation continue, so the label is never lost to a rule
+    # that halts on match
+    "actions": {
+        "analyzed": {
+            "enabled": True,
+            "priority": 0,
+            "halt_on_match": False,
+            "criteria": 'detection_guessed || detection_complete;',
+            "targets": ["analyzed"],
+            "exemptions": []
+        }
+    },
+    # based on 10-nfqueue.conf in netifyd
+    "exemptions": [
+        "iface == 'wan';"
+    ]
 }
 
-# Add firewall IP address as global exemptions
 u = EUci()
-if u.get('dpi', 'config', 'firewall_exemption', default=0) == '1':
-    for section in u.get_all('network'):
-        if u.get('network', section) == 'interface':
-            ip_addrs = get_interface_ips(section)
-            if ip_addrs:
-                config["exemptions"] = config["exemptions"] + ip_addrs
 
-# Add custom global exemptions
-exemptions = utils.get_all_by_type(u, 'dpi', 'exemption')
-for ex_name in exemptions:
-    exemption = exemptions[ex_name]
-    criteria = exemption.get('criteria', '')
-    enabled = exemption.get('enabled', '1')
-    if enabled == '1' and criteria:
-        if objects.is_object_id(criteria):
-            for ip in objects.get_object_ips(u, criteria):
-                config["exemptions"].append(ip)
-        else:
-            config["exemptions"].append(criteria)
-
-rcount = 0
-valid_actions = ['block', 'bulk', 'best_effort', 'video', 'voice']
+# a rule from the schema used before application groups existed carries at least one of these fields;
+# dpi.migrate_schema converts it, so one still here was not migrated yet
+legacy_fields = ('device', 'application', 'protocol', 'category')
 for section in u.get_all('dpi'):
     if u.get('dpi', section) != 'rule':
         continue
     rule = u.get_all('dpi', section)
-    if rule['action'] not in valid_actions or not rule['enabled']:
+    if not rule.get('enabled'):
         continue
 
-    device = rule.get('device', '*')
+    if any(field in rule for field in legacy_fields):
+        # never emit it as a current rule: its source alone would block every flow of those hosts
+        syslog.syslog(syslog.LOG_WARNING, f"dpi-config: skipping {section}, not migrated to the current schema")
+        continue
+    if rule.get('action') not in dpi.DPI_RULE_ACTIONS:
+        syslog.syslog(syslog.LOG_WARNING, f"dpi-config: skipping {section}, unknown action {rule.get('action')}")
+        continue
+    try:
+        priority = int(rule.get('priority', 1))
+    except ValueError:
+        syslog.syslog(syslog.LOG_WARNING, f"dpi-config: skipping {section}, invalid priority")
+        continue
 
     if 'criteria' in rule:
-        # criteria has precedence over sources, protocol, category and application
-        criteria = rule['criteria'].replace('"',"'")
+        # raw criteria: hand-written, or migrated from the old schema with its behaviour frozen
+        # (dpi.migrate_schema). Double quotes become single ones, and the terminator is added when
+        # missing: an unterminated expression is a syntax error
+        criteria = rule['criteria'].replace('"', "'").strip()
+        if criteria and not criteria.endswith(';'):
+            criteria = f'{criteria};'
     else:
-        # generate criteria from source, protocol, category and application
-        sources = []
-        for source in rule.get('source', []):
-            if objects.is_object_id(source):
-                for ip in objects.get_object_ips(u, source):
-                    sources.append(f'local_ip == {ip}')
-            else: # custom local IPs
-                sources.append(f'local_ip == {source}')
+        # application groups, optionally narrowed to a source, or a match-all rule
+        criteria = dpi.build_rule_criteria(u, rule)
+    if not criteria:
+        # never emit an empty criteria: it is a parse error, and a parse error kills the agent
+        syslog.syslog(syslog.LOG_WARNING, f"dpi-config: skipping {section}, it matches nothing")
+        continue
 
-        applications = []
-        for app in rule.get('application', []):
-            applications.append(f"app == '{app}'")
-        for proto in rule.get('protocol', []):
-            applications.append(f"proto == '{proto.lower()}'")
-        for cat in rule.get('category', []):
-            applications.append(f"category == '{cat.lower()}'")
-
-        sources_s = ' or '.join(sources)
-        applications_s = ' or '.join(applications)
-        criteria = f'(iface_nfq_src == \'{device}\' or iface_nfq_dst == \'{device}\') && '
-        if len(sources) < 1:
-            criteria += f'({applications_s}) ;'
-        elif len(applications) < 1:
-            criteria += f'({sources_s}) ;'
-        else:
-            criteria += f'({sources_s}) && ({applications_s}) ;'
-
-    vlan_id = None
-    base_if = None
-    for item in utils.get_all_by_type(u, 'network', 'device').values():
-        if item.get('vid', None) is not None and item.get('name', '') == device:
-            vlan_id = item.get('vid', None)
-            base_if = item.get('ifname', None)
-            break
-
-    if vlan_id is not None and base_if is not None:
-        criteria = f'vlan_id == {vlan_id} && {criteria}'
-        device = base_if
-
-    targets = [rule['action']]
-    if 'log' in rule and rule['log'] == '1':
-        targets.append('log')
-    config["actions"][f"rule{rcount}"] = {
+    config["actions"][section] = {
         "enabled": rule['enabled'] == '1',
+        "priority": priority,
+        "halt_on_match": True,
         "criteria": criteria,
-        "targets": targets,
-        "exemptions": rule.get('exemption', [])
+        "targets": [rule['action']],
+        "exemptions": []
     }
-    rcount = rcount + 1
-
-# add global analyzed for all flows that are not blocked
-config["actions"]["analyzed"] = {
-    "enabled": True,
-    "criteria": 'detection_guessed || detection_complete;',
-    "targets": ["analyzed"],
-    "exemptions": []
-}
 
 # if directories do not exist, create them
 if not os.path.exists(os.path.dirname(cfg_file)):
