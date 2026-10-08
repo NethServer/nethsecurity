@@ -562,11 +562,40 @@ dpi_db = """
 config main 'config'
 	option log_blocked '0'
 
+config appgroup 'ns_1a2b3c4d'
+	option ns_name 'Streaming and games'
+	list app 'netify.netflix'
+	list app 'netify.youtube'
+	list app_category 'games'
+
+config appgroup 'ns_5e6f7a8b'
+	option ns_name 'Unused'
+	list proto 'HTTP/Connect'
+	list proto_category 'vpn'
+
+config rule 'ns_3869dc35'
+	option ns_name 'Allow the office'
+	option ns_managed '1'
+	option enabled '0'
+	option action 'allow'
+	option priority '1'
+	option ns_match_all '1'
+	list source '192.168.1.10'
+
 config rule 'ns_2b170d05'
+	option ns_name 'Block streaming and games'
+	option ns_managed '1'
 	option enabled '1'
-	option device 'br-lan'
 	option action 'block'
-	list application 'netify.facebook'
+	option priority '2'
+	list appgroup 'ns_1a2b3c4d'
+
+config rule 'ns_9d40be71'
+	option ns_name 'Custom'
+	option enabled '1'
+	option action 'block'
+	option priority '3'
+	option criteria 'local_ip == 192.168.1.20;'
 """
 
 dhcp_db = """
@@ -925,12 +954,15 @@ def test_fact_ipsec(tmp_path):
       
 def test_fact_dpi(tmp_path):
 	u = _setup_db(tmp_path)
-	assert inventory.fact_dpi(u) == {"enabled": True, "rules": 1}
-
-def test_fact_dpi_without_enabled_rules(tmp_path):
-	u = _setup_db(tmp_path)
-	u.set('dpi', 'ns_2b170d05', 'enabled', '0')
-	assert inventory.fact_dpi(u) == {"enabled": False, "rules": 0}
+	assert inventory.fact_dpi(u) == {
+		"total": 3,
+		"enabled": 2,
+		"action": {"block": 2, "allow": 1},
+		"source": {"all": 1, "ip": 1},
+		"match": {"all": 1, "appgroup": 1},
+		"kind": {"managed": 2, "unmanaged": 1},
+		"appgroups": {"total": 2, "used": 1, "app": 2, "app_category": 1, "proto": 1, "proto_category": 1},
+	}
       
 def test_fact_dhcp_server(tmp_path):
 	u = _setup_db(tmp_path)
