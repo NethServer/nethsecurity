@@ -107,23 +107,21 @@ def list_tunnels():
 def get_instance_defaults():
     u = EUci()
     ret = {}
-    next_instance = 1
-    for entry in u.get('network'):
-        if u.get('network', entry, 'proto', default='') == 'wireguard':
-            next_instance += 1
-    if next_instance == 1:
-        listen_port = 51820
-    else:
-        listen_port = 51820 + next_instance - 1
-    ret["listen_port"] = listen_port
-    ret["instance"] = __next_instance()
-    # search for a free network
+    used_ports = []
     used_networks = []
     interfaces = utils.get_all_by_type(u, "network", "interface")
     for i in interfaces:
         interface = interfaces[i]
         if interface.get("proto") == "wireguard":
-            used_networks.append(u.get("network", i, "ns_network", default=""))
+            used_ports.append(interface.get("listen_port", ""))
+            used_networks.append(interface.get("ns_network", ""))
+    # search for the first free port
+    listen_port = 51820
+    while str(listen_port) in used_ports:
+        listen_port += 1
+    ret["listen_port"] = listen_port
+    ret["instance"] = __next_instance()
+    # search for a free network
     network = ovpn.random_network()
     while network in used_networks:
         network = ovpn.get_random_network()
