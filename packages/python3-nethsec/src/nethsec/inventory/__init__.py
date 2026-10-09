@@ -426,13 +426,14 @@ def fact_rpcd_users(uci: EUci):
     return { 'count': count }
 
 def fact_threat_shield(uci: EUci):
-    ret = { 'enabled': False, 'community': 0, 'enterprise': 0, 'geoblocking': 0 }
+    ret = { 'enabled': False, 'community': 0, 'enterprise': 0, 'enterprise_feeds': [], 'geoblocking': 0 }
     ret['enabled'] = uci.get('banip', 'global', 'ban_enabled', default='0') == '1'
     try:
         feeds = uci.get_all("banip", "global", "ban_feed")
         for feed in feeds:
             if feed.startswith("nethesis") or feed.startswith("yoroi"):
                 ret['enterprise'] += 1
+                ret['enterprise_feeds'].append(feed)
             else:
                 ret['community'] += 1
         if 'country' in feeds:
@@ -442,7 +443,7 @@ def fact_threat_shield(uci: EUci):
     return ret
 
 def fact_adblock(uci: EUci):
-    ret = { 'enabled': False, 'community': 0, 'enterprise': 0 }
+    ret = { 'enabled': False, 'community': 0, 'enterprise': 0, 'enterprise_feeds': [] }
     ret['enabled'] = uci.get('adblock', 'global', 'ts_enabled', default='0') == '1'
     try:
         enabled_feeds = list(uci.get_all('adblock', 'global', 'adb_sources'))
@@ -451,6 +452,7 @@ def fact_adblock(uci: EUci):
     for feed in enabled_feeds:
         if feed.startswith("nethesis") or feed.startswith("yoroi"):
             ret['enterprise'] += 1
+            ret['enterprise_feeds'].append(feed)
         else:
             ret['community'] += 1
     return ret
