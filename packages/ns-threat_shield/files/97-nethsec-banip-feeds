@@ -1,0 +1,20 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Rebuild the enterprise feeds left in the banIP 1.0 format (rule_4) by an upgrade.
+# apk can install banip before ns-threat_shield: 95-banip-housekeeping then runs ts-ip
+# with the old banip.nethesis.feeds, and banIP skips the enterprise feeds as incomplete.
+# If banip.feeds is still in the old format banip is not updated yet, and its own
+# housekeeping rebuilds the file later.
+# The postinst reloads banIP after all the uci-defaults.
+
+grep -q '"rule_4"' /etc/banip/banip.custom.feeds 2>/dev/null || exit 0
+grep -q '"rule_4"' /etc/banip/banip.feeds && exit 0
+
+/usr/sbin/ts-ip
+
+exit 0
