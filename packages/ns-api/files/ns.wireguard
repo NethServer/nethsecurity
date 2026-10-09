@@ -115,9 +115,8 @@ def get_instance_defaults():
         listen_port = 51820
     else:
         listen_port = 51820 + next_instance - 1
-    interface = f'wg{next_instance}'
     ret["listen_port"] = listen_port
-    ret["instance"] = interface
+    ret["instance"] = __next_instance()
     # search for a free network
     used_networks = []
     interfaces = utils.get_all_by_type(u, "network", "interface")
@@ -648,6 +647,8 @@ def import_configuration(args):
         config_parser.read_string(data)
 
         defaults = get_instance_defaults()
+        if defaults['instance'] is None:
+            return utils.generic_error("no_free_instance")
 
         e_uci = EUci()
         e_uci.set('network', defaults['instance'], 'interface')
@@ -745,6 +746,8 @@ def add_tunnel(args):
         return err
 
     defaults = get_instance_defaults()
+    if defaults['instance'] is None:
+        return utils.generic_error("no_free_instance")
     e_uci = EUci()
     e_uci.set('network', defaults['instance'], 'interface')
     e_uci.set('network', defaults['instance'], 'proto', 'wireguard')
