@@ -107,24 +107,21 @@ def list_tunnels():
 def get_instance_defaults():
     u = EUci()
     ret = {}
-    next_instance = 1
-    for entry in u.get('network'):
-        if u.get('network', entry, 'proto', default='') == 'wireguard':
-            next_instance += 1
-    if next_instance == 1:
-        listen_port = 51820
-    else:
-        listen_port = 51820 + next_instance - 1
-    interface = f'wg{next_instance}'
-    ret["listen_port"] = listen_port
-    ret["instance"] = interface
-    # search for a free network
+    used_ports = []
     used_networks = []
     interfaces = utils.get_all_by_type(u, "network", "interface")
     for i in interfaces:
         interface = interfaces[i]
         if interface.get("proto") == "wireguard":
-            used_networks.append(u.get("network", i, "ns_network", default=""))
+            used_ports.append(interface.get("listen_port", ""))
+            used_networks.append(interface.get("ns_network", ""))
+    # search for the first free port
+    listen_port = 51820
+    while str(listen_port) in used_ports:
+        listen_port += 1
+    ret["listen_port"] = listen_port
+    ret["instance"] = __next_instance()
+    # search for a free network
     network = ovpn.random_network()
     while network in used_networks:
         network = ovpn.get_random_network()
@@ -647,21 +644,23 @@ def import_configuration(args):
         config_parser = configparser.ConfigParser(allow_no_value=True)
         config_parser.read_string(data)
 
-        defaults = get_instance_defaults()
+        instance = __next_instance()
+        if instance is None:
+            return utils.generic_error("no_free_instance")
 
         e_uci = EUci()
-        e_uci.set('network', defaults['instance'], 'interface')
-        e_uci.set('network', defaults['instance'], 'proto', 'wireguard')
-        e_uci.set('network', defaults['instance'], 'private_key', config_parser["Interface"]["PrivateKey"])
-        e_uci.set('network', defaults['instance'], 'addresses', [config_parser["Interface"]["Address"]])
+        e_uci.set('network', instance, 'interface')
+        e_uci.set('network', instance, 'proto', 'wireguard')
+        e_uci.set('network', instance, 'private_key', config_parser["Interface"]["PrivateKey"])
+        e_uci.set('network', instance, 'addresses', [config_parser["Interface"]["Address"]])
         if 'DNS' in config_parser['Interface']:
-            e_uci.set('network', defaults['instance'], 'dns', [ip.strip() for ip in config_parser["Interface"]["DNS"].split(',')])
-        e_uci.set('network', defaults['instance'], 'ns_type', 'tunnel')
-        e_uci.set('network', defaults['instance'], 'ns_name', f"imported_{defaults['instance']}")
+            e_uci.set('network', instance, 'dns', [ip.strip() for ip in config_parser["Interface"]["DNS"].split(',')])
+        e_uci.set('network', instance, 'ns_type', 'tunnel')
+        e_uci.set('network', instance, 'ns_name', f"imported_{instance}")
 
         peer_id = utils.get_random_id()
-        peer_instance = f"{defaults['instance']}_{peer_id}_peer"
-        e_uci.set('network', peer_instance, f'wireguard_{defaults["instance"]}')
+        peer_instance = f"{instance}_{peer_id}_peer"
+        e_uci.set('network', peer_instance, f'wireguard_{instance}')
         e_uci.set('network', peer_instance, 'public_key', config_parser["Peer"]["PublicKey"])
         if 'PresharedKey' in config_parser['Peer']:
             e_uci.set('network', peer_instance, 'preshared_key', config_parser["Peer"]["PresharedKey"])
@@ -670,11 +669,11 @@ def import_configuration(args):
         e_uci.set('network', peer_instance, 'endpoint_port', config_parser["Peer"]["Endpoint"].split(':')[1])
         e_uci.set('network', peer_instance, 'route_allowed_ips', True)
         e_uci.set('network', peer_instance, 'persistent_keepalive', config_parser["Peer"].get("PersistentKeepalive", "25"))
-        e_uci.set('network', peer_instance, 'ns_link', f'network/{defaults["instance"]}')
+        e_uci.set('network', peer_instance, 'ns_link', f'network/{instance}')
         e_uci.save('network')
-        zone = f"{defaults['instance']}vpn"
-        firewall.add_trusted_zone(e_uci, zone, link=f"network/{defaults['instance']}")
-        firewall.add_interface_to_zone(e_uci, defaults['instance'], zone)
+        zone = f"{instance}vpn"
+        firewall.add_trusted_zone(e_uci, zone, link=f"network/{instance}")
+        firewall.add_interface_to_zone(e_uci, instance, zone)
     except Exception:
         return utils.validation_error("config", "invalid_file_format")
 
@@ -744,19 +743,21 @@ def add_tunnel(args):
     if err:
         return err
 
-    defaults = get_instance_defaults()
+    instance = __next_instance()
+    if instance is None:
+        return utils.generic_error("no_free_instance")
     e_uci = EUci()
-    e_uci.set('network', defaults['instance'], 'interface')
-    e_uci.set('network', defaults['instance'], 'proto', 'wireguard')
-    e_uci.set('network', defaults['instance'], 'private_key', args['peer_private_key'])
-    e_uci.set('network', defaults['instance'], 'addresses', [args['reserved_ip']])
-    e_uci.set('network', defaults['instance'], 'ns_type', 'tunnel')
-    e_uci.set('network', defaults['instance'], 'ns_name', args['name'])
-    e_uci.set('network', defaults['instance'], 'disabled', not args['enabled'])
+    e_uci.set('network', instance, 'interface')
+    e_uci.set('network', instance, 'proto', 'wireguard')
+    e_uci.set('network', instance, 'private_key', args['peer_private_key'])
+    e_uci.set('network', instance, 'addresses', [args['reserved_ip']])
+    e_uci.set('network', instance, 'ns_type', 'tunnel')
+    e_uci.set('network', instance, 'ns_name', args['name'])
+    e_uci.set('network', instance, 'disabled', not args['enabled'])
 
     peer_id = utils.get_random_id()
-    peer_instance = f"{defaults['instance']}_{peer_id}_peer"
-    e_uci.set('network', peer_instance, f'wireguard_{defaults["instance"]}')
+    peer_instance = f"{instance}_{peer_id}_peer"
+    e_uci.set('network', peer_instance, f'wireguard_{instance}')
     e_uci.set('network', peer_instance, 'public_key', args['server_public_key'])
     if 'pre_shared_key' in args and args['pre_shared_key'] != '':
         e_uci.set('network', peer_instance, 'preshared_key', args['pre_shared_key'])
@@ -773,13 +774,13 @@ def add_tunnel(args):
     e_uci.set('network', peer_instance, 'endpoint_port', args['udp_port'])
     e_uci.set("network", peer_instance, "route_allowed_ips", True)
     e_uci.set('network', peer_instance, 'persistent_keepalive', args.get('persistent_keepalive', '25'))
-    e_uci.set('network', peer_instance, 'ns_link', f'network/{defaults["instance"]}')
+    e_uci.set('network', peer_instance, 'ns_link', f'network/{instance}')
     if 'dns' in args:
-        e_uci.set('network', defaults['instance'], 'dns', args['dns'])
+        e_uci.set('network', instance, 'dns', args['dns'])
     e_uci.save('network')
-    zone = f"{defaults['instance']}vpn"
-    firewall.add_trusted_zone(e_uci, zone, link=f"network/{defaults['instance']}")
-    firewall.add_interface_to_zone(e_uci, defaults["instance"], zone)
+    zone = f"{instance}vpn"
+    firewall.add_trusted_zone(e_uci, zone, link=f"network/{instance}")
+    firewall.add_interface_to_zone(e_uci, instance, zone)
 
     return {"result": "success"}
 
