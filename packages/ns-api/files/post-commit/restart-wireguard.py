@@ -13,6 +13,6 @@ if 'network' in changes:
     interfaces_to_restart = []
     for entry in changes['network']:
         if entry[1].startswith('wg'):
-            interfaces_to_restart.append(entry[1][:3])
+            interfaces_to_restart.append(entry[1].split('_')[0])
     for item in set(interfaces_to_restart):
         subprocess.call(f'ifdown {item} ; ifup {item}', shell=True)
