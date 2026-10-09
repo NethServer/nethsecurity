@@ -893,7 +893,7 @@ def test_fact_rpcd_users(tmp_path):
      
 def test_fact_threat_shield(tmp_path):
 	u = _setup_db(tmp_path)
-	assert inventory.fact_threat_shield(u) == {"enabled": True, "community": 1, "enterprise": 1, "geoblocking": 0}
+	assert inventory.fact_threat_shield(u) == {"enabled": True, "community": 1, "enterprise": 1, "enterprise_feeds": ["nethesislvl3"], "geoblocking": 0}
      
 def test_fact_ui(tmp_path):
 	u = _setup_db(tmp_path)
@@ -1024,7 +1024,7 @@ def test_fact_firewall_stats(tmp_path):
 def test_fact_adblock(tmp_path):
 	u = _setup_db(tmp_path)
 	result = inventory.fact_adblock(u)
-	assert result == {"enabled": True, "community": 5, "enterprise": 2}
+	assert result == {"enabled": True, "community": 5, "enterprise": 2, "enterprise_feeds": ["yoroi_susp_level2", "yoroi_malware_level1"]}
 
 # Tests for info_* helper functions
 
