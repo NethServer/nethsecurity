@@ -1,5 +1,9 @@
 #!/bin/sh
 
+. /lib/functions/keepalived/hotplug.sh
+
+ns_ha_chain_is_stale && exit 0
+
 # Tear down all services when a node is in fault state or keepalived has been manually stopped
 if [ "$ACTION" == "NOTIFY_STOP" ] || [ "$ACTION" == "NOTIFY_FAULT" ]; then
     logger -t ns-ha "Node is in $ACTION state, stopping all services"

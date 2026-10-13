@@ -8,11 +8,15 @@
 # concurrent hotplug chains from racing when keepalived transitions happen in
 # quick succession.
 #
+# Each event also gets a sequence number before waiting for the lock: scripts
+# call ns_ha_chain_is_stale and skip their work once a newer event has started,
+# so only the most recent event is applied regardless of lock acquisition order.
+#
 # The lock is released by 999-unlock at the end of the hotplug chain.
 # Because hotplug-call sources each script in a subshell, a flag file is used
 # to communicate whether the lock was actually acquired to 999-unlock.
 #
-# On timeout (60 s) the event proceeds with a warning rather than being dropped,
+# On timeout the event proceeds with a warning rather than being dropped,
 # to avoid leaving the system in an inconsistent state.
 
 case "$ACTION" in
@@ -20,12 +24,21 @@ case "$ACTION" in
 	*) return 0 2>/dev/null || exit 0 ;;
 esac
 
+# $$ is the PID of hotplug-call, shared by every script of this chain
+mkdir -p /var/run/ns-ha
+lock /var/lock/ns-ha-seq
+seq=$(( $(cat /var/run/ns-ha/last_event 2>/dev/null || echo 0) + 1 ))
+echo "$seq" > /var/run/ns-ha/last_event
+lock -u /var/lock/ns-ha-seq
+echo "$seq" > "/var/run/ns-ha/chain.$$"
+
 LOCKFILE="/var/lock/keepalived-hotplug.lock"
 ACQUIRED_FLAG="/var/lock/keepalived-hotplug-acquired"
 TIMEOUT=$(uci -q get keepalived.globals.ns_lock_timeout)
+TIMEOUT=${TIMEOUT:-120}
 elapsed=0
 
-if [ -z "$TIMEOUT" ] || [ "$TIMEOUT" -le 0 ]; then
+if [ "$TIMEOUT" -le 0 ]; then
 	# Locking disabled by configuration
 	return 0 2>/dev/null || exit 0
 fi
