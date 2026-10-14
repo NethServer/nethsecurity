@@ -299,6 +299,7 @@ Response:
           "type": null
         }
       ],
+      "src_mac": [],
       "dest_ip": [
         {
           "value": "192.168.122.1",
@@ -327,6 +328,8 @@ Response:
   ]
 }
 ```
+
+`src_mac` is a plain list of source MAC addresses, empty if the rule does not match by MAC.
 
 ### list-output-rules
 
@@ -606,7 +609,7 @@ Response:
 
 Add a rule:
 ```
-api-cli ns.firewall add-rule --data '{"name": "r1", "src": "lan", "src_ip": [], "dest": "wan", "dest_ip": ["1.2.3.4"], "proto": [], "dest_port": ", "target": "ACCEPT", "ns_service": "ssh", "enabled": true, "log": false, "ns_tag": [], "add_to_top": false}'
+api-cli ns.firewall add-rule --data '{"name": "r1", "src": "lan", "src_ip": [], "dest": "wan", "dest_ip": ["1.2.3.4"], "proto": [], "dest_port": ", "target": "ACCEPT", "ns_service": "ssh", "enabled": true, "log": false, "ns_tag": [], "add_to_top": false, "src_mac": []}'
 ```
 
 Response example:
@@ -616,8 +619,15 @@ Response example:
 
 The `proto` and `dest_port` field will be validated and saved only if `ns_service` is set to `custom`.
 
+`src_mac` is an optional list of lowercase, colon-separated source MAC addresses (default `[]`).
+It is mutually exclusive with `src_ip` and `ns_src`, and it is not allowed on output rules (empty `src`).
+When empty, the `src_mac` option is removed from the rule.
+
 Possible validation errors:
 - `invalid_format` for `dest_ip` and `src_ip`
+- `error.invalid_mac_address` for `src_mac`, if an address does not match `^([0-9a-f]{2}:){5}[0-9a-f]{2}$`
+- `error.src_mac_conflict` for `src_mac`, if `src_ip` or `ns_src` is also set
+- `error.src_mac_not_allowed` for `src_mac`, if the rule is an output rule
 - `invalid_target` for `target`
 - if `ns_service` is `custom`: `invalid_proto` for `proto` and `invalid_port` for `dest_port`
 - if `ns_service` is not `cutom` or `*`: `invalid_service` for `ns_service
@@ -626,7 +636,7 @@ Possible validation errors:
 
 Edit an existing rule:
 ```
-api-cli ns.firewall edit-rule --data '{"id": "ns_206325d3", "name": "r1", "src": "lan", "src_ip": [], "dest": "wan", "dest_ip": ["1.2.3.4"], "proto": ["tcp"], "dest_port": "22", "target": "ACCEPT", "ns_service": "ssh", "enabled": true, "log": false, "ns_tag": []}'
+api-cli ns.firewall edit-rule --data '{"id": "ns_206325d3", "name": "r1", "src": "lan", "src_ip": [], "dest": "wan", "dest_ip": ["1.2.3.4"], "proto": ["tcp"], "dest_port": "22", "target": "ACCEPT", "ns_service": "ssh", "enabled": true, "log": false, "ns_tag": [], "src_mac": []}'
 ```
 
 Response example:

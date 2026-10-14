@@ -106,6 +106,22 @@ def validate_uci_name(name, parameter='name'):
     if not name or sanitize(name) != name:
         raise ValidationError(parameter, 'invalid_name', name)
 
+_VALID_MAC_ADDRESS = re.compile(r'([0-9a-f]{2}:){5}[0-9a-f]{2}')
+
+def validate_mac_address(mac, parameter='mac'):
+    '''
+    Ensure the given MAC address is lowercase and colon-separated (e.g. '00:1a:2b:3c:4d:5e').
+
+    Arguments:
+      - mac -- the MAC address to validate
+      - parameter -- the parameter name to report in the ValidationError (default: 'mac')
+
+    Raises:
+      - ValidationError if the MAC address is not valid
+    '''
+    if not mac or not _VALID_MAC_ADDRESS.fullmatch(mac):
+        raise ValidationError(parameter, 'error.invalid_mac_address', mac)
+
 def get_all_by_type(uci, config, utype):
     '''
     Return all sections of the given utype from the given config
