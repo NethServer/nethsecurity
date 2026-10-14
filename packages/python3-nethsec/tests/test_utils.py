@@ -254,3 +254,12 @@ def test_validate_uci_name_invalid():
         with pytest.raises(utils.ValidationError) as e:
             utils.validate_uci_name(name)
         assert e.value.message == 'invalid_name'
+
+def test_validate_mac_address_valid():
+    utils.validate_mac_address('00:1a:2b:3c:4d:5e')
+
+@pytest.mark.parametrize('mac', ['', 'zz:zz:zz:zz:zz:zz', '00:1A:2B:3C:4D:5E', '00-1a-2b-3c-4d-5e', '00:1a:2b:3c:4d', '00:1a:2b:3c:4d:5e\n'])
+def test_validate_mac_address_invalid(mac):
+    with pytest.raises(utils.ValidationError) as e:
+        utils.validate_mac_address(mac, 'src_mac')
+    assert (e.value.parameter, e.value.message) == ('src_mac', 'error.invalid_mac_address')
