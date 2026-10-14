@@ -76,6 +76,8 @@ config main 'config'
 
 Reading config from shell uses `/lib/functions.sh`: `config_load`, `config_get <var> <section> <option> [default]`, `config_get_bool`, `config_foreach`, `config_list_foreach`. Python uses `EUci` (see the `python-nethsecurity` skill).
 
+`references/uci.md` has the UCI file syntax, every `uci` CLI command, the full shell API (`config_*`, `uci_*`, state helpers) with its gotchas, and links to the sysupgrade/conffiles source. Read it before writing UCI-handling shell code instead of guessing a helper.
+
 ## Secrets
 
 Keep them as an option in the package's UCI config, like `ns-plug.config.secret`. That way they're in the backup, survive sysupgrade and reach the HA peer with no extra work. The backup archive is encrypted only when `/etc/backup.pass` is set, so treat it as potentially plaintext.
