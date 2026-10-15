@@ -363,12 +363,13 @@ f_dns() {
 		adb_dnsuser="dnsmasq"
 		adb_dnsdir="${adb_dnsdir:-""}"
 		if [ -z "${adb_dnsdir}" ]; then
-			dns_section="$("${adb_ubuscmd}" -S call uci get "{\"config\":\"dhcp\", \"section\":\"@dnsmasq[${adb_dnsinstance}]\", \"type\":\"dnsmasq\"}" 2>>"${adb_errorlog}")"
-			dns_info="$(printf '%s' "${dns_section}" | "${adb_jsoncmd}" -l1 -e '@.values["confdir"]')"
+			# read the dnsmasq config with the uci cli instead of ubus, the ubus 'uci' object
+			# is provided by rpcd, which might not answer yet at boot
+			dns_info="$(uci -q get "dhcp.@dnsmasq[${adb_dnsinstance}].confdir" 2>>"${adb_errorlog}")"
 			if [ -n "${dns_info}" ]; then
 				adb_dnsdir="${dns_info}"
 			else
-				dns_info="$(printf '%s' "${dns_section}" | "${adb_jsoncmd}" -l1 -e '@.values[".name"]')"
+				dns_info="$(uci -q show "dhcp.@dnsmasq[${adb_dnsinstance}]" 2>>"${adb_errorlog}" | "${adb_awkcmd}" -F '[.=]' 'NR==1{print $2}')"
 				[ -n "${dns_info}" ] && adb_dnsdir="/tmp/dnsmasq.${dns_info}.d"
 			fi
 		fi
@@ -503,6 +504,11 @@ f_dns() {
 		[ -L "${adb_dnsdir}/${adb_dnsfile}" ] && "${adb_rmcmd}" -f "${adb_dnsdir}/${adb_dnsfile}"
 	else
 		adb_finaldir="${adb_backupdir}"
+	fi
+
+	# never write the blocklist to the root filesystem if the dns directory is unknown
+	if [ "${adb_action}" != "stop" ] && [ -z "${adb_finaldir}" ]; then
+		f_log "err" "dns directory could not be determined, please set 'adb_dnsdir' manually"
 	fi
 
 	# create dns file with header if it doesn't exist or dns flushing is enabled, also create backup and final directories if they don't exist
