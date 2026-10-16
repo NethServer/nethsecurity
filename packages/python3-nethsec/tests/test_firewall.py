@@ -1013,6 +1013,48 @@ def test_edit_rule_to_notrack(u, mocker):
     firewall.edit_rule(u, rid, 'rule_to_change', 'lan', [], 'wan', [], [], '', 'NOTRACK', "*", True, False, [])
     assert u.get("firewall", rid, "target") == "NOTRACK"
 
+def test_add_rule_with_src_mac(u, mocker):
+    mocker.patch('builtins.open', mocker.mock_open(read_data=services_file))
+    mock_isfile = mocker.patch('os.path.isfile')
+    mock_isfile.return_value = True
+    macs = ['00:1a:2b:3c:4d:5e', 'aa:bb:cc:dd:ee:ff']
+    rid = firewall.add_rule(u, 'macrule', 'lan', [], 'wan', [], [], '', 'DROP', "*", True, False, [], False, src_mac=macs)
+    assert u.get_all("firewall", rid, "src_mac") == tuple(macs)
+    rule = next(r for r in firewall.list_forward_rules(u) if r['id'] == rid)
+    assert rule['src_mac'] == macs
+    assert rule['src_ip'] == []
+    firewall.delete_rule(u, rid)
+
+def test_edit_rule_src_mac_to_src_ip(u, mocker):
+    mocker.patch('builtins.open', mocker.mock_open(read_data=services_file))
+    mock_isfile = mocker.patch('os.path.isfile')
+    mock_isfile.return_value = True
+    rid = firewall.add_rule(u, 'macrule2', 'lan', [], 'wan', [], [], '', 'DROP', "*", True, False, [], False, src_mac=['00:1a:2b:3c:4d:5e'])
+    firewall.edit_rule(u, rid, 'macrule2', 'lan', ['192.168.1.22'], 'wan', [], [], '', 'DROP', "*", True, False, [], src_mac=[])
+    with pytest.raises(UciExceptionNotFound):
+        u.get_all("firewall", rid, "src_mac")
+    rule = next(r for r in firewall.list_forward_rules(u) if r['id'] == rid)
+    assert rule['src_mac'] == []
+    firewall.edit_rule(u, rid, 'macrule2', 'lan', [], 'wan', [], [], '', 'DROP', "*", True, False, [], src_mac=['aa:bb:cc:dd:ee:ff'])
+    assert u.get_all("firewall", rid, "src_mac") == ('aa:bb:cc:dd:ee:ff',)
+    with pytest.raises(UciExceptionNotFound):
+        u.get_all("firewall", rid, "src_ip")
+    firewall.delete_rule(u, rid)
+
+def test_add_rule_src_mac_validation(u, mocker):
+    mocker.patch('builtins.open', mocker.mock_open(read_data=services_file))
+    mock_isfile = mocker.patch('os.path.isfile')
+    mock_isfile.return_value = True
+    with pytest.raises(ValidationError) as e:
+        firewall.add_rule(u, 'badmac', 'lan', [], 'wan', [], [], '', 'DROP', "*", src_mac=['zz:zz:zz:zz:zz:zz'])
+    assert (e.value.parameter, e.value.message, e.value.value) == ('src_mac', 'error.invalid_mac_address', 'zz:zz:zz:zz:zz:zz')
+    with pytest.raises(ValidationError) as e:
+        firewall.add_rule(u, 'conflict', 'lan', ['192.168.1.22'], 'wan', [], [], '', 'DROP', "*", src_mac=['00:1a:2b:3c:4d:5e'])
+    assert e.value.message == 'error.src_mac_conflict'
+    with pytest.raises(ValidationError) as e:
+        firewall.add_rule(u, 'output', '', [], 'wan', [], [], '', 'DROP', "*", src_mac=['00:1a:2b:3c:4d:5e'])
+    assert e.value.message == 'error.src_mac_not_allowed'
+
 def test_delete_rule(u):
     ids =  firewall.list_rule_ids(u)
     id_to_delete = ids.pop()
