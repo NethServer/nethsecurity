@@ -1453,12 +1453,15 @@ Response example:
 {
   "instances": [
     "ns_roadwarrior1"
+  ],
+  "details": [
+    {"instance": "ns_roadwarrior1", "description": "Employees", "enabled": "1"}
   ]
 }
 ```
 ### add-instance
 
-Create a new instance:
+Create a new instance, it takes the lowest free number:
 ```
 api-cli ns.ovpnrw add-instance
 ```
@@ -1750,12 +1753,19 @@ Required fields for bridged mode:
 - `ns_brdige` field must contain a bridge obtained from `list-bridges` API
 - `server` should be empty
 
+Each instance must have its own `ns_description`, `ns_user_db`, `port` (for the same protocol) and `server` network,
+checked against the other Road Warrior instances and the OpenVPN tunnel servers.
+
 The API may raise the following validation errors:
 - bridge_not_found
 - start_not_in_network
 - end_not_in_network
 - ip_already_used
 - start_must_be_greater_then_end
+- description_already_used
+- user_db_already_used
+- port_already_used
+- network_already_used
 
 ### import-users
 
@@ -1947,12 +1957,14 @@ Output the users connection history in a json format:
 api-cli ns.ovpnrw connection-history --data '{"instance": "ns_roadwarrior1"}'
 ```
 
+Omit `instance` to get the history of all the instances.
+
 Response example:
 ```json
 {
   [
-    {"account": "foo", "bytesReceived": null, "bytesSent": null, "duration": null, "endTime": null, "remoteIpAddress": "12.34.56.78", "startTime": 1729592489, "virtualIpAddress": "10.9.9.41"}, 
-    {"account": "john", "bytesReceived": 9605402, "bytesSent": 33898343, "duration": 968, "endTime": 1729516942, "remoteIpAddress": "12.34.56.78", "startTime": 1729515974, "virtualIpAddress": "10.9.9.41"}
+    {"instance": "ns_roadwarrior1", "account": "foo", "bytesReceived": null, "bytesSent": null, "duration": null, "endTime": null, "remoteIpAddress": "12.34.56.78", "startTime": 1729592489, "virtualIpAddress": "10.9.9.41"}, 
+    {"instance": "ns_roadwarrior1", "account": "john", "bytesReceived": 9605402, "bytesSent": 33898343, "duration": 968, "endTime": 1729516942, "remoteIpAddress": "12.34.56.78", "startTime": 1729515974, "virtualIpAddress": "10.9.9.41"}
   ]
 }
 ```
@@ -1969,6 +1981,7 @@ api-cli ns.ovpnrw connection-history-csv --data '{"instance": "ns_roadwarrior1",
 ```
 
 - `timezone`: user timezone, e.g. "Europe/Rome"
+- `instance`: omit it to export all the instances, with an extra `Server` column holding the instance name
 
 Response example:
 ```json

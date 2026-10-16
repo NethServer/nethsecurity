@@ -137,8 +137,11 @@ def count_hosts():
             ret = ret + 1
     return ret
 
+def list_openvpn_rw(u):
+    return [s for s, v in utils.get_all_by_type(u, "openvpn", "openvpn").items() if "automated" in v.get("ns_tag", [])]
+
 def count_openvpn_rw():
-    return len(ovpn.list_connected_clients('ns_roadwarrior1').keys())
+    return sum(len(ovpn.list_connected_clients(i).keys()) for i in list_openvpn_rw(EUci()))
 
 def count_threat_shield_ip():
     ret = 0
@@ -204,13 +207,13 @@ def check_ts_ip():
 
 def check_openvpn_rw():
     u = EUci()
-    rw_enabled = u.get("openvpn", "ns_roadwarrior1", "enabled", default="0") == "1"
-    if not rw_enabled:
+    enabled = [i for i in list_openvpn_rw(u) if u.get("openvpn", i, "enabled", default="0") == "1"]
+    if not enabled:
         return "disabled"
     try:
         pa = subprocess.run(["service", "openvpn", "info"], check=True, capture_output=True)
         info = json.loads(pa.stdout)
-        if info["openvpn"]["instances"]["ns_roadwarrior1"]["running"]:
+        if all(info["openvpn"]["instances"][i]["running"] for i in enabled):
             return "ok"
     except:
         return "error"

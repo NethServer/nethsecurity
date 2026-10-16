@@ -251,6 +251,24 @@ def archive_connections_db(instance):
         except:
             pass
 
+def other_servers(u, ovpninstance):
+    # OpenVPN servers created by NethSecurity (road warrior and tunnels), except ovpninstance
+    for name, section in utils.get_all_by_type(u, "openvpn", "openvpn").items():
+        if name != ovpninstance and name.startswith("ns_") and section.get("client") != "1" and section.get("ns_client") != "1":
+            yield name, section
+
+def nulls_first(value):
+    # sort key matching SQLite, where NULL is lower than any value
+    return (value is not None, value)
+
+def open_history_dbs(ovpninstance):
+    # an empty instance selects the history of all the road warrior servers;
+    # read-only, so a missing database is not created empty
+    if ovpninstance:
+        return {ovpninstance: sqlite3.connect(f"file:{get_connections_db_path(ovpninstance)}?mode=ro", uri=True)}
+    paths = {i: get_connections_db_path(i) for i in list_instances()["instances"]}
+    return {i: sqlite3.connect(f"file:{path}?mode=ro", uri=True) for i, path in paths.items() if os.path.isfile(path)}
+
 def get_connections_db_path(ovpninstance):
     u = EUci()
     base_path = u.get('fstab', 'ns_data', 'target', default='')
@@ -274,23 +292,25 @@ def list_bridges():
 def list_instances():
     u = EUci()
     ret = []
+    details = []
     instances = utils.get_all_by_type(u, "openvpn", "openvpn")
     for i in instances:
         instance = instances[i]
         if instance.get("ns_tag") and "automated" in instance.get("ns_tag"):
             ret.append(i)
-    return {"instances": ret}
+            details.append({"instance": i, "description": instance.get("ns_description", ""), "enabled": instance.get("enabled", "0")})
+    return {"instances": ret, "details": details}
 
 def add_instance():
     u = EUci()
-    instances = list_instances()
-    next_instance = len(instances['instances']) + 1
+    # lowest free number, removed instances leave holes
+    next_instance = 1
+    while u.get("openvpn", utils.get_id(f"roadwarrior{next_instance}"), default=None) != None:
+        next_instance += 1
     instance = utils.get_id(f"roadwarrior{next_instance}")
-    if u.get("openvpn", instance, default=None) != None:
-        return utils.validation_error("instance", "instance_already_exists", instance)
 
     tun = f'tunrw{next_instance}'
-    if os.path.isdir(f'/etc/openvpn/{instance}') and instance not in instances:
+    if os.path.isdir(f'/etc/openvpn/{instance}'):
         # cleanup pki dir: the directory may contain rubbish on some corner cases
         shutil.rmtree(f"/etc/openvpn/{instance}", ignore_errors=True)
 
@@ -478,6 +498,19 @@ def set_configuration(args):
     push_options = []
     ovpninstance = args["instance"]
     instance_num = instance2number(ovpninstance)
+    # each server has its own name, users database, port and network
+    description = args.get("ns_description", "").strip().lower()
+    network = ipaddress.ip_network(args["server"], strict=False) if args["dev_type"] != "tap" else None
+    for other, section in other_servers(u, ovpninstance):
+        if description and section.get("ns_description", "").strip().lower() == description:
+            return utils.validation_error("ns_description", "description_already_used", args["ns_description"])
+        if section.get("ns_user_db") == args["ns_user_db"]:
+            return utils.validation_error("ns_user_db", "user_db_already_used", args["ns_user_db"])
+        if str(section.get("lport", section.get("port", ""))) == str(args.get("port")) and section.get("proto", "udp")[:3] == args.get("proto", "udp")[:3]:
+            return utils.validation_error("port", "port_already_used", args["port"])
+        other_network = ovpn.opt2cidr(section.get("server", ""))
+        if network and other_network and network.overlaps(ipaddress.ip_network(other_network, strict=False)):
+            return utils.validation_error("server", "network_already_used", args["server"])
     u.set("openvpn", ovpninstance, "enabled", args["enabled"])
     if args["ns_redirect_gateway"] == "1":
         push_options.append("redirect-gateway")
@@ -1015,12 +1048,11 @@ def download_user_2fa(ovpninstance, username):
         return utils.validation_error("username", "2fa_download_failed", username)
 
 def connection_history_csv(ovpninstance, timezone):
-    database_path = get_connections_db_path(ovpninstance)
-
     try:
-        conn = sqlite3.connect(database_path)
+        dbs = open_history_dbs(ovpninstance)
     except:
         return utils.generic_error("database_not_found")
+    u = EUci()
 
     try:
         # Attempt to create a ZoneInfo object
@@ -1029,8 +1061,6 @@ def connection_history_csv(ovpninstance, timezone):
         timezone = "UTC" # Default to UTC if the timezone is not found
 
     try:
-        c = conn.cursor()
-
         # Define the CSV file path
         csv_directory = '/var/run/ns-api-server/downloads'
         csv_file_path = os.path.join(csv_directory, 'connection_history.csv')
@@ -1041,12 +1071,16 @@ def connection_history_csv(ovpninstance, timezone):
         with open(csv_file_path, 'w', newline='') as csv_file:
             csv_writer = csv.writer(csv_file)
             # Write the CSV header
-            csv_writer.writerow(["Started ("+timezone+")", "Ended ("+timezone+")", "Duration (seconds)", "User", "Virtual IP", "Remote IP", "Received (bytes)", "Sent (bytes)"]) 
+            header = ["Started ("+timezone+")", "Ended ("+timezone+")", "Duration (seconds)", "User", "Virtual IP", "Remote IP", "Received (bytes)", "Sent (bytes)"]
+            if not ovpninstance:
+                header.insert(0, "Server")
+            csv_writer.writerow(header)
 
-
-            rows = c.execute('''SELECT virtual_ip_addr, remote_ip_addr, start_time, duration, bytes_received, bytes_sent, common_name
-                                FROM connections
-                                ORDER BY start_time DESC''')
+            rows = []
+            for instance, conn in dbs.items():
+                rows.extend(conn.execute('''SELECT virtual_ip_addr, remote_ip_addr, start_time, duration, bytes_received, bytes_sent, common_name, ?
+                                            FROM connections''', [instance]).fetchall())
+            rows.sort(key=lambda r: nulls_first(r[2]), reverse=True)
 
             for row in rows:
                 virtual_ip_addr = row[0]
@@ -1056,6 +1090,7 @@ def connection_history_csv(ovpninstance, timezone):
                 bytes_received = 0 if not row[4] else row[4]
                 bytes_sent = 0 if not row[5] else row[5]
                 username = row[6]
+                instance = row[7]
                 end_time = start_time + duration if duration else None
 
                 try:
@@ -1072,16 +1107,18 @@ def connection_history_csv(ovpninstance, timezone):
                     else:
                         end_time_local = ""
                 except:
-                    conn.close()
                     return utils.generic_error("date_conversion_error")
 
                 # Write the row to the CSV
-                csv_writer.writerow([start_time_local, end_time_local, duration, username, virtual_ip_addr, remote_ip_addr, bytes_received, bytes_sent])
+                data = [start_time_local, end_time_local, duration, username, virtual_ip_addr, remote_ip_addr, bytes_received, bytes_sent]
+                if not ovpninstance:
+                    data.insert(0, u.get("openvpn", instance, "ns_description", default=instance))
+                csv_writer.writerow(data)
     except:
-        conn.close()
         return utils.generic_error("database_error")
-
-    conn.close()
+    finally:
+        for conn in dbs.values():
+            conn.close()
 
     # Set the file permissions to 400 (read-only for the owner)
     os.chmod(csv_file_path, 0o0400)
@@ -1090,8 +1127,6 @@ def connection_history_csv(ovpninstance, timezone):
     return {"csv_path": csv_file_path}
 
 def connection_history(ovpninstance, q='', start_time=0, accounts=None, page=1, per_page=10, sort_by='startTime', desc=True):
-    database_path = get_connections_db_path(ovpninstance)
-    
     # map frontend field names to database column names
     sort_field_mapping = {
         'account': 'common_name',
@@ -1117,14 +1152,13 @@ def connection_history(ovpninstance, q='', start_time=0, accounts=None, page=1, 
         sort_order = None
 
     try:
-        conn = sqlite3.connect(database_path)
+        dbs = open_history_dbs(ovpninstance)
     except:
         return utils.generic_error("database_not_found")
 
     connections = []
 
     try:
-        c = conn.cursor()
         conditions = []
         params = []
 
@@ -1147,39 +1181,45 @@ def connection_history(ovpninstance, q='', start_time=0, accounts=None, page=1, 
 
         where = ('WHERE ' + ' AND '.join(conditions)) if conditions else ''
 
-        total = c.execute(f'SELECT COUNT(*) FROM connections {where}', params).fetchone()[0]
-        total_unfiltered = c.execute('SELECT COUNT(*) FROM connections').fetchone()[0]
+        total = 0
+        total_unfiltered = 0
+        all_rows = []
+        all_accounts = set()
+        offset = (page - 1) * per_page
+        for instance, c in dbs.items():
+            total += c.execute(f'SELECT COUNT(*) FROM connections {where}', params).fetchone()[0]
+            total_unfiltered += c.execute('SELECT COUNT(*) FROM connections').fetchone()[0]
+            all_accounts.update(r[0] for r in c.execute('SELECT DISTINCT common_name FROM connections'))
+            if sort_manually:
+                # fetch all matching records for manual sorting
+                all_rows += c.execute(
+                    f'''SELECT common_name, virtual_ip_addr, remote_ip_addr, start_time, duration, bytes_received, bytes_sent, ?
+                        FROM connections {where}''',
+                    [instance] + params
+                ).fetchall()
+            else:
+                # each database returns its first rows up to the requested page, they are merged below
+                all_rows += c.execute(
+                    f'''SELECT common_name, virtual_ip_addr, remote_ip_addr, start_time, duration, bytes_received, bytes_sent, ?, {sort_column}
+                        FROM connections {where}
+                        ORDER BY {sort_column} {sort_order}
+                        LIMIT ?''',
+                    [instance] + params + [offset + per_page]
+                ).fetchall()
 
-        if sort_manually:
-            # fetch all matching records for manual sorting
-            all_rows = c.execute(
-                f'''SELECT common_name, virtual_ip_addr, remote_ip_addr, start_time, duration, bytes_received, bytes_sent
-                    FROM connections {where}''',
-                params
-            ).fetchall()
-            if sort_by == 'virtualIpAddress':
-                all_rows = sorted(all_rows, key=lambda r: ipaddress.ip_address(r[1] or '0.0.0.0'), reverse=desc)
-            elif sort_by == 'remoteIpAddress':
-                all_rows = sorted(all_rows, key=lambda r: ipaddress.ip_address(r[2] or '0.0.0.0'), reverse=desc)
-            
-            # apply pagination
-            offset = (page - 1) * per_page
-            rows = all_rows[offset:offset + per_page]
+        if sort_by == 'virtualIpAddress':
+            all_rows.sort(key=lambda r: ipaddress.ip_address(r[1] or '0.0.0.0'), reverse=desc)
+        elif sort_by == 'remoteIpAddress':
+            all_rows.sort(key=lambda r: ipaddress.ip_address(r[2] or '0.0.0.0'), reverse=desc)
         else:
-            # use SQL ORDER BY for non-IP fields
-            offset = (page - 1) * per_page
-            rows = c.execute(
-                f'''SELECT common_name, virtual_ip_addr, remote_ip_addr, start_time, duration, bytes_received, bytes_sent
-                    FROM connections {where}
-                    ORDER BY {sort_column} {sort_order}
-                    LIMIT ? OFFSET ?''',
-                params + [per_page, offset]
-            )
+            all_rows.sort(key=lambda r: nulls_first(r[8]), reverse=desc)
+        rows = all_rows[offset:offset + per_page]
 
         for row in rows:
-            common_name, virtual_ip_addr, remote_ip_addr, start_time, duration, bytes_received, bytes_sent = row
+            common_name, virtual_ip_addr, remote_ip_addr, start_time, duration, bytes_received, bytes_sent, instance = row[:8]
             end_time = start_time + duration if duration else None
             connections.append({
+                'instance': instance,
                 'account': common_name,
                 'virtualIpAddress': virtual_ip_addr,
                 'remoteIpAddress': remote_ip_addr,
@@ -1190,14 +1230,14 @@ def connection_history(ovpninstance, q='', start_time=0, accounts=None, page=1, 
                 'bytesSent': bytes_sent
             })
 
-        # collect unique accounts from the full unfiltered result for the filters field
-        all_accounts = [r[0] for r in c.execute('SELECT DISTINCT common_name FROM connections ORDER BY common_name').fetchall()]
+        # unique accounts from the full unfiltered result for the filters field
+        all_accounts = sorted(all_accounts, key=nulls_first)
 
     except:
-        conn.close()
         return utils.generic_error("database_error")
-
-    conn.close()
+    finally:
+        for c in dbs.values():
+            c.close()
 
     last_page = max(1, (total + per_page - 1) // per_page)
 
@@ -1334,10 +1374,10 @@ else:
     elif action == "list-users":
         ret = list_users(args["instance"])
     elif action == "connection-history-csv":
-        ret = connection_history_csv(args['instance'], args['timezone'])
+        ret = connection_history_csv(args.get('instance', ''), args['timezone'])
     elif action == "connection-history":
         ret = connection_history(
-            args['instance'],
+            args.get('instance', ''),
             q=args.get('q', ''),
             start_time=args.get('start_time', 0),
             accounts=args.get('accounts', []),
