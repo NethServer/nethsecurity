@@ -363,14 +363,17 @@ f_dns() {
 		adb_dnsuser="dnsmasq"
 		adb_dnsdir="${adb_dnsdir:-""}"
 		if [ -z "${adb_dnsdir}" ]; then
-			dns_section="$("${adb_ubuscmd}" -S call uci get "{\"config\":\"dhcp\", \"section\":\"@dnsmasq[${adb_dnsinstance}]\", \"type\":\"dnsmasq\"}" 2>>"${adb_errorlog}")"
-			dns_info="$(printf '%s' "${dns_section}" | "${adb_jsoncmd}" -l1 -e '@.values["confdir"]')"
+			# Start NethSecurity patch
+			# read the dnsmasq config with the uci cli instead of ubus, the ubus 'uci' object
+			# is provided by rpcd, which might not answer yet at boot
+			dns_info="$(uci -q get "dhcp.@dnsmasq[${adb_dnsinstance}].confdir" 2>>"${adb_errorlog}")"
 			if [ -n "${dns_info}" ]; then
 				adb_dnsdir="${dns_info}"
 			else
-				dns_info="$(printf '%s' "${dns_section}" | "${adb_jsoncmd}" -l1 -e '@.values[".name"]')"
+				dns_info="$(uci -q show "dhcp.@dnsmasq[${adb_dnsinstance}]" 2>>"${adb_errorlog}" | "${adb_awkcmd}" -F '[.=]' 'NR==1{print $2}')"
 				[ -n "${dns_info}" ] && adb_dnsdir="/tmp/dnsmasq.${dns_info}.d"
 			fi
+			# End NethSecurity patch
 		fi
 		adb_dnsheader=""
 		adb_dnsdeny="1"
@@ -495,6 +498,14 @@ f_dns() {
 		adb_dnsstop=""
 		;;
 	esac
+
+	# Start NethSecurity patch
+	# never write the blocklist to the root filesystem, fall back to /tmp if the dns directory is unknown
+	if [ -z "${adb_dnsdir}" ]; then
+		adb_dnsdir="/tmp"
+		f_log "info" "dns directory could not be determined, fall back to '${adb_dnsdir}', please set 'adb_dnsdir' manually"
+	fi
+	# End NethSecurity patch
 
 	# determine final dns file directory based on dns shifting
 	#

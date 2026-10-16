@@ -60,6 +60,7 @@ define Package/adblock/install
 
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/95-adblock-housekeeping $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/98_adblock_remove_root_list.sh $(1)/etc/uci-defaults/98_adblock_remove_root_list
 	$(INSTALL_BIN) ./files/99_adblock_migrate_lists.sh $(1)/etc/uci-defaults/99_adblock_migrate_lists
 endef
 
