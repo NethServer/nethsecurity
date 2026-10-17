@@ -189,6 +189,15 @@ call_cb() {
 	fi
 }
 
+# True when a newer keepalived event started after this hotplug chain, see ns-ha 00-lock
+ns_ha_chain_is_stale() {
+	local mine latest
+
+	mine=$(cat "/var/run/ns-ha/chain.$$" 2>/dev/null) || return 1
+	latest=$(cat /var/run/ns-ha/last_event 2>/dev/null)
+	[ "$mine" != "$latest" ]
+}
+
 keepalived_hotplug() {
 	[ -z "$(get_master_cb)" ] && set_master_cb _notify_master
 	[ -z "$(get_backup_cb)" ] && set_backup_cb _notify_backup

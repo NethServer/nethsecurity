@@ -13,6 +13,14 @@ case "$ACTION" in
 	*) return 0 2>/dev/null || exit 0 ;;
 esac
 
+# shellcheck source=/dev/null
+. /lib/functions/keepalived/hotplug.sh
+
+if ns_ha_chain_is_stale; then
+	log_info "$ACTION superseded by a newer event, skipped remaining actions"
+fi
+rm -f "/var/run/ns-ha/chain.$$"
+
 LOCKFILE="/var/lock/keepalived-hotplug.lock"
 ACQUIRED_FLAG="/var/lock/keepalived-hotplug-acquired"
 
