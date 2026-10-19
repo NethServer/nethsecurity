@@ -1128,6 +1128,11 @@ def enrich_rule(uci, rule: dict) -> dict:
             rule['dest_ip'] = list(rule['dest_ip'])
         elif type(rule['dest_ip'] ) == str:
             rule['dest_ip'] = [rule['dest_ip']]
+    src_mac = rule.get('src_mac', [])
+    if type(src_mac) == str:
+        rule['src_mac'] = [src_mac]
+    else:
+        rule['src_mac'] = list(src_mac)
     # try to gather info on src_ip and dest_ip
     for key in ['src_ip', 'dest_ip']:
         tmp = []
@@ -1453,7 +1458,7 @@ def validate_port_format(port: str) -> bool:
         return False
     return True
 
-def validate_rule(uci, src: str, src_ip: list[str], dest: str, dest_ip: list[str], proto: list, dest_port: list[str], target: str, service: str, ns_src: str, ns_dst: str):
+def validate_rule(uci, src: str, src_ip: list[str], dest: str, dest_ip: list[str], proto: list, dest_port: list[str], target: str, service: str, ns_src: str, ns_dst: str, src_mac: list[str] = None):
     """
     Validate rule.
 
@@ -1468,10 +1473,19 @@ def validate_rule(uci, src: str, src_ip: list[str], dest: str, dest_ip: list[str
         service: service name
         ns_src: an object in the form `<database>/<id>`
         ns_dst: an object in the form `<database>/<id>`
+        src_mac: a list of source MAC addresses, lowercase and colon-separated
 
     Raises:
         ValidationError: if rule is invalid
     """
+    if src_mac:
+        if not src:
+            # output rules: the source is always the firewall itself
+            raise utils.ValidationError('src_mac', 'error.src_mac_not_allowed', ','.join(src_mac))
+        if src_ip or ns_src:
+            raise utils.ValidationError('src_mac', 'error.src_mac_conflict', ','.join(src_mac))
+        for mac in src_mac:
+            utils.validate_mac_address(mac, 'src_mac')
     if ns_src:
         if not objects.object_exists(uci, ns_src):
             raise utils.ValidationError('ns_src', 'object_not_found', ns_src)
@@ -1519,7 +1533,7 @@ def get_service_by_name(name: str) -> dict:
     return None
 
 def setup_rule(uci, id: str, name: str, src: str, src_ip: list[str], dest: str, dest_ip: list[str], proto: list, dest_port: list[str], target: str, service: str,
-                enabled: bool = True, log: bool = False, tag = [], ns_src: str = None, ns_dst: str = None, ns_link: str = None) -> None:
+                enabled: bool = True, log: bool = False, tag = [], ns_src: str = None, ns_dst: str = None, ns_link: str = None, src_mac: list[str] = None) -> None:
     """
     Set up a rule in the firewall config.
 
@@ -1541,10 +1555,18 @@ def setup_rule(uci, id: str, name: str, src: str, src_ip: list[str], dest: str, 
             ns_src: an object in the form `<database>/<id>`
             ns_dst: an object in the form `<database>/<id>`
             ns_link: a string in the form `<database>/<id>` that is used to link this rule to another entity
+            src_mac: a list of source MAC addresses
     """
     uci.set('firewall', id, 'name', name)
     uci.set('firewall', id, 'src', src)
     uci.set('firewall', id, 'src_ip', src_ip)
+    if src_mac:
+        uci.set('firewall', id, 'src_mac', src_mac)
+    else:
+        try:
+            uci.delete('firewall', id, 'src_mac')
+        except:
+            pass
     uci.set('firewall', id, 'dest', dest)
     uci.set('firewall', id, 'dest_ip', dest_ip)
     
@@ -1666,7 +1688,7 @@ def reorder_firewall_config(uci):
     uci.save('firewall')
 
 def add_rule(uci, name: str, src: str, src_ip: list[str], dest: str, dest_ip: list[str], proto: list, dest_port: list[str], target: str, service: str,
-            enabled: bool = True, log: bool = False, tag = [], add_to_top: bool = False, ns_src: str = None, ns_dst: str = None, ns_link: str = None) -> str:
+            enabled: bool = True, log: bool = False, tag = [], add_to_top: bool = False, ns_src: str = None, ns_dst: str = None, ns_link: str = None, src_mac: list[str] = None) -> str:
     """
     Add rule to firewall config.
 
@@ -1689,14 +1711,15 @@ def add_rule(uci, name: str, src: str, src_ip: list[str], dest: str, dest_ip: li
         ns_src: an object in the form `<database>/<id>`
         ns_dst: an object in the form `<database>/<id>`
         ns_link: a string in the form `<database>/<id>` that is used to link this rule to another entity
+        src_mac: a list of source MAC addresses, lowercase and colon-separated
 
     Returns:
         name of rule config that was added
     """
-    validate_rule(uci, src, src_ip, dest, dest_ip, proto, dest_port, target, service, ns_src, ns_dst)
+    validate_rule(uci, src, src_ip, dest, dest_ip, proto, dest_port, target, service, ns_src, ns_dst, src_mac)
     rule = utils.get_random_id()
     uci.set('firewall', rule, 'rule')
-    setup_rule(uci, rule, name, src, src_ip, dest, dest_ip, proto, dest_port, target, service, enabled, log, tag, ns_src, ns_dst, ns_link)
+    setup_rule(uci, rule, name, src, src_ip, dest, dest_ip, proto, dest_port, target, service, enabled, log, tag, ns_src, ns_dst, ns_link, src_mac)
     reorder_firewall_config(uci)
     update_firewall_rules(uci) # expand objects and save
 
@@ -1714,7 +1737,7 @@ def add_rule(uci, name: str, src: str, src_ip: list[str], dest: str, dest_ip: li
     return rule
 
 def edit_rule(uci, id: str, name: str, src: str, src_ip: list[str], dest: str, dest_ip: list[str], proto: list, dest_port: list[str], target: str, service: str, 
-            enabled: bool = True, log: bool = False, tag = [], ns_src: str = None, ns_dst: str = None, ns_link: str = None) -> str:
+            enabled: bool = True, log: bool = False, tag = [], ns_src: str = None, ns_dst: str = None, ns_link: str = None, src_mac: list[str] = None) -> str:
     """
     Edit rule in firewall config.
 
@@ -1736,14 +1759,15 @@ def edit_rule(uci, id: str, name: str, src: str, src_ip: list[str], dest: str, d
         ns_src: an object in the form `<database>/<id>`
         ns_dst: an object in the form `<database>/<id>`
         ns_link: a string in the form `<database>/<id>` that is used to link this rule to another entity
+        src_mac: a list of source MAC addresses, lowercase and colon-separated
 
     Returns:
         name of rule config that was edited
     """
     if not uci.get('firewall', id, default=None):
         raise utils.ValidationError("id", "rule_does_not_exists", id)  
-    validate_rule(uci, src, src_ip, dest, dest_ip, proto, dest_port, target, service, ns_src, ns_dst)
-    setup_rule(uci, id, name, src, src_ip, dest, dest_ip, proto, dest_port, target, service, enabled, log, tag, ns_src, ns_dst, ns_link)
+    validate_rule(uci, src, src_ip, dest, dest_ip, proto, dest_port, target, service, ns_src, ns_dst, src_mac)
+    setup_rule(uci, id, name, src, src_ip, dest, dest_ip, proto, dest_port, target, service, enabled, log, tag, ns_src, ns_dst, ns_link, src_mac)
     update_firewall_rules(uci) # expand objects and save
     return id
 
