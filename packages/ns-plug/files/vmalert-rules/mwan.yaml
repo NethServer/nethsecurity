@@ -16,7 +16,7 @@ groups:
         expr: 'mwan_interface_online == 0'
         for: "5m"
         labels:
-          severity: "critical"
+          severity: "warning"
           service: "network"
         annotations:
           summary_en: "WAN interface {{ $labels.interface }} is offline"
