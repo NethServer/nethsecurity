@@ -5729,6 +5729,10 @@ Response example:
 
 ## ns.users
 
+Admin accounts can be managed only by a superuser: `root`, the controller account and the support account.
+Other admins get `{"error": "forbidden"}` when calling `set-admin`, `remove-admin`, `edit-local-user` and `delete-local-user` on an admin,
+or `delete-local-database` on a database containing admins.
+
 ### list-users
 
 List configured users
@@ -5952,7 +5956,7 @@ May raise the following validation errors:
 
 ### delete-local-database
 
-Delete the local user database and all its users and groups:
+Delete the local user database and all its users and groups, admins lose their admin role:
 ```
 api-cli ns.users delete-local-database --data '{"name": "local2"}''
 ```
@@ -5983,6 +5987,7 @@ May raise the following validation errors:
 - user_already_exists
 - db_not_local
 - invalid_name if `name` contains characters other than letters, digits, dots, underscores, at signs and hyphens
+- reserved_name if `name` is reserved for a system account
 
 ### edit-local-user
 

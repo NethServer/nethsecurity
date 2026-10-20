@@ -317,6 +317,17 @@ def test_delete_local_database(tmp_path):
     with pytest.raises(UciExceptionNotFound) as e:
         u.get('users', 'g1')
 
+def test_delete_local_database_removes_admins(tmp_path):
+    _setup_db(tmp_path)
+    # own savedir, the default one is shared with the other tests
+    tmp_path.joinpath("save").mkdir()
+    u = EUci(confdir=tmp_path.as_posix(), savedir=tmp_path.joinpath("save").as_posix())
+    users.add_local_user(u, "admin9", password="nethesis", database="second")
+    users.set_admin(u, "admin9", "second")
+    users.delete_local_database(u, "second")
+    assert not users.is_admin(u, "admin9")
+
+
 def test_add_local_user(tmp_path):
     u = _setup_db(tmp_path)
     id = users.add_local_user(u, "t1", password="nethesis", description="mydesc", database="second", extra_fields={"openvpn_ipaddr": "1.2.3.4"})
@@ -605,9 +616,10 @@ def test_get_database(tmp_path):
         "starttls": "0"
     }
 
+
 def _setup_superusers_db(tmp_path):
     u = _setup_db(tmp_path)
-    with tmp_path.joinpath('rpcd').open('w') as fp:
+    with tmp_path.joinpath("rpcd").open("w") as fp:
         fp.write("""
 config login
 	option username 'root'
@@ -623,27 +635,30 @@ config login 'ns_1234'
 """)
     return u
 
+
 def test_is_superuser(tmp_path):
     u = _setup_superusers_db(tmp_path)
-    assert users.is_superuser(u, 'root')
-    assert users.is_superuser(u, '3fe5ac6d66e2b8952b194aa1')
-    assert users.is_superuser(u, 'nethsupport')
-    assert not users.is_superuser(u, 'admin3')
-    assert not users.is_superuser(u, '')
+    assert users.is_superuser(u, "root")
+    assert users.is_superuser(u, "3fe5ac6d66e2b8952b194aa1")
+    assert users.is_superuser(u, "nethsupport")
+    assert not users.is_superuser(u, "admin3")
+    assert not users.is_superuser(u, "")
+
 
 def test_caller_is_superuser(tmp_path, monkeypatch):
     u = _setup_superusers_db(tmp_path)
-    monkeypatch.delenv('NS_API_USER', raising=False)
+    monkeypatch.delenv("NS_API_USER", raising=False)
     assert users.caller_is_superuser(u)
-    monkeypatch.setenv('NS_API_USER', 'nethsupport')
+    monkeypatch.setenv("NS_API_USER", "nethsupport")
     assert users.caller_is_superuser(u)
-    monkeypatch.setenv('NS_API_USER', 'admin3')
+    monkeypatch.setenv("NS_API_USER", "admin3")
     assert not users.caller_is_superuser(u)
+
 
 def test_add_local_user_reserved_name(tmp_path):
     u = _setup_superusers_db(tmp_path)
-    for name in ['root', 'Root', '3fe5ac6d66e2b8952b194aa1', 'nethsupport']:
+    for name in ["root", "Root", "3fe5ac6d66e2b8952b194aa1", "nethsupport"]:
         with pytest.raises(utils.ValidationError) as e:
             users.add_local_user(u, name, password="nethesis", database="second")
-        assert e.value.parameter == 'name'
-        assert e.value.message == 'reserved_name'
+        assert e.value.parameter == "name"
+        assert e.value.message == "reserved_name"
