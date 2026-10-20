@@ -4219,6 +4219,26 @@ Parameter list:
 - `username`: target to change the password to, must be present inside `rpcd` configuration
 - `password`: password to set to the user
 
+Admins can change only their own password. Superusers (`root`, the controller account and the support account)
+can change any password. Otherwise the call returns `{"error": "forbidden"}`.
+
+### get-info
+
+Return info about the calling account and the admin accounts.
+
+```bash
+api-cli ns.account get-info
+```
+
+Response example:
+```json
+{"is_superuser": true, "default_password": false, "ordinary_admins": 2}
+```
+
+- `is_superuser`: the caller is `root`, the controller account or the support account
+- `default_password`: `root` still uses the default password
+- `ordinary_admins`: number of admins that aren't superusers
+
 ## ns.backup
 
 Allows the backup/restore of the system, some features are only available to subscribed users. Please refer
