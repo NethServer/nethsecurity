@@ -419,8 +419,8 @@ def fact_controller(uci: EUci):
 def fact_rpcd_users(uci: EUci):
     count = 0
     for section, options in (utils.get_all_by_type(uci, 'rpcd', 'login') or {}).items():
-        # skip root and the controller user (controller has a random username)
-        if options.get('username') == 'root' or section == 'controller':
+        # skip root, the controller user (controller has a random username) and the support user
+        if options.get('username') == 'root' or section in ('controller', 'ns_don'):
             continue
         count += 1
     return { 'count': count }
