@@ -86,11 +86,12 @@ func UBusCallAction(c *gin.Context) {
 			}
 		}
 		// FIXME: Replace the UI's generic uci get/set with ns.* methods and drop them from authorizedPaths.
-		// Until then rpcd and users are blocked here, they hold admin logins and password hashes that only ns.users may change.
+		// Until then rpcd and users are blocked here, they hold admin logins and password hashes that only ns.users may change,
+		// and dropbear can be changed only by superusers through ns.ssh.
 		if jsonUBusCall.Path == "uci" && (jsonUBusCall.Method == "get" || jsonUBusCall.Method == "set") {
 			payload, _ := jsonUBusCall.Payload.(map[string]interface{})
 			config, _ := payload["config"].(string)
-			if config == "rpcd" || config == "users" {
+			if config == "rpcd" || config == "users" || config == "dropbear" {
 				forbidden = true
 			}
 		}
