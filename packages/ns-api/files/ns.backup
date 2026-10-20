@@ -160,9 +160,11 @@ elif cmd == 'call':
             # list remote backups, the return is a string, so it gets decoded and encoded to generate a formatted json
             completed_process = subprocess.run(['/usr/sbin/remote-backup', 'list'], check=True, capture_output=True,
                                                text=True)
-            # remote server returns either a bare list or {"backups": [...]} depending on whether any backup exists
+            # legacy server returns a bare list or {"backups": [...]}, enterprise one {"data": {"backups": [...]}}
             parsed = json.loads(completed_process.stdout) if completed_process.stdout else []
-            backups = parsed.get('backups', []) if isinstance(parsed, dict) else parsed
+            if isinstance(parsed, dict):
+                parsed = parsed.get('data', parsed)
+            backups = (parsed.get('backups') or []) if isinstance(parsed, dict) else parsed
             print(json.dumps({'values': {'backups': backups}}))
         except subprocess.CalledProcessError as error:
             print(json.dumps(utils.generic_error(f'remote list failed')))
