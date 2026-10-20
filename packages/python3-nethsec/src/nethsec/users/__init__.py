@@ -485,6 +485,9 @@ def add_local_user(uci, name, password="", description="", database="main", extr
       - The user identifier
     '''
     utils.validate_username(name)
+    # nethsupport is reserved even while support access is off, its rpcd login exists only when on
+    if is_superuser(uci, name.lower()) or name.lower() == 'nethsupport':
+        raise utils.ValidationError('name', 'reserved_name', name)
     if get_user_by_name(uci, name, database):
         raise utils.ValidationError('name', 'user_already_exists', name)
     if get_database_type(uci, database) != "local":
@@ -907,6 +910,36 @@ def is_admin(uci, username):
         if logins[l].get("username") == username:
             return True
     return False
+
+def is_superuser(uci, username):
+    '''
+    Check if a user is root, the controller account or the support account
+
+    Arguments:
+      - uci -- EUci pointer
+      - username -- User name
+
+    Returns:
+      - True if user is a superuser, False otherwise
+    '''
+    if username == 'root':
+        return True
+    for section in ('controller', 'ns_don'):
+        if username and uci.get('rpcd', section, 'username', default='') == username:
+            return True
+    return False
+
+def caller_is_superuser(uci):
+    '''
+    Check if the user calling the API is a superuser, callers outside ns-api-server are trusted as root
+
+    Arguments:
+      - uci -- EUci pointer
+
+    Returns:
+      - True if the caller is a superuser, False otherwise
+    '''
+    return is_superuser(uci, os.environ.get('NS_API_USER', 'root'))
 
 
 def used_by(uci, database_name):

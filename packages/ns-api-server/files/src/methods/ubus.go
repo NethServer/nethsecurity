@@ -13,13 +13,16 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
 	"os/exec"
 	"fmt"
 
 	"github.com/NethServer/nethsecurity-api/models"
 	"github.com/NethServer/nethsecurity-api/response"
 	"github.com/NethServer/nethsecurity-api/logs"
+	"github.com/NethServer/nethsecurity-api/utils"
 	"github.com/Jeffail/gabs/v2"
+	jwt "github.com/appleboy/gin-jwt/v2"
 	"github.com/fatih/structs"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -41,11 +44,14 @@ func UBusCallAction(c *gin.Context) {
 	// convert payload to JSON
 	jsonPayload, _ := json.Marshal(jsonUBusCall.Payload)
 
+	username := jwt.ExtractClaims(c)["id"].(string)
+
 	// check if path starts with ns.
 	if jsonUBusCall.Path[:3] == "ns." {
 		// force base path to avoid calling other system binaries
 		jsonUBusCall.Path = "/usr/libexec/rpcd/" + jsonUBusCall.Path
 		cmd = exec.Command(jsonUBusCall.Path, "call", jsonUBusCall.Method)
+		cmd.Env = append(os.Environ(), "NS_API_USER="+username)
 
 		// execute direct script call
 		stdin, err := cmd.StdinPipe()
@@ -79,7 +85,17 @@ func UBusCallAction(c *gin.Context) {
 				}
 			}
 		}
+		// FIXME: Replace the UI's generic uci get/set with ns.* methods and drop them from authorizedPaths.
+		// Until then rpcd and users are blocked here, they hold admin logins and password hashes that only ns.users may change.
+		if jsonUBusCall.Path == "uci" && (jsonUBusCall.Method == "get" || jsonUBusCall.Method == "set") {
+			payload, _ := jsonUBusCall.Payload.(map[string]interface{})
+			config, _ := payload["config"].(string)
+			if config == "rpcd" || config == "users" {
+				forbidden = true
+			}
+		}
 		if forbidden {
+			logs.Logs.Println("[INFO][AUTH] ubus call forbidden for user " + utils.SanitizeForLog(username) + ". " + utils.SanitizeForLog(jsonUBusCall.Path) + " " + utils.SanitizeForLog(jsonUBusCall.Method))
 			c.AbortWithStatusJSON(http.StatusForbidden, structs.Map(response.StatusBadRequest{
 				Code:    403,
 				Message: "ubus call action forbidden",

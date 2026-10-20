@@ -604,3 +604,46 @@ def test_get_database(tmp_path):
         "user_display_attr": "cn",
         "starttls": "0"
     }
+
+def _setup_superusers_db(tmp_path):
+    u = _setup_db(tmp_path)
+    with tmp_path.joinpath('rpcd').open('w') as fp:
+        fp.write("""
+config login
+	option username 'root'
+
+config login 'controller'
+	option username '3fe5ac6d66e2b8952b194aa1'
+
+config login 'ns_don'
+	option username 'nethsupport'
+
+config login 'ns_1234'
+	option username 'admin3'
+""")
+    return u
+
+def test_is_superuser(tmp_path):
+    u = _setup_superusers_db(tmp_path)
+    assert users.is_superuser(u, 'root')
+    assert users.is_superuser(u, '3fe5ac6d66e2b8952b194aa1')
+    assert users.is_superuser(u, 'nethsupport')
+    assert not users.is_superuser(u, 'admin3')
+    assert not users.is_superuser(u, '')
+
+def test_caller_is_superuser(tmp_path, monkeypatch):
+    u = _setup_superusers_db(tmp_path)
+    monkeypatch.delenv('NS_API_USER', raising=False)
+    assert users.caller_is_superuser(u)
+    monkeypatch.setenv('NS_API_USER', 'nethsupport')
+    assert users.caller_is_superuser(u)
+    monkeypatch.setenv('NS_API_USER', 'admin3')
+    assert not users.caller_is_superuser(u)
+
+def test_add_local_user_reserved_name(tmp_path):
+    u = _setup_superusers_db(tmp_path)
+    for name in ['root', 'Root', '3fe5ac6d66e2b8952b194aa1', 'nethsupport']:
+        with pytest.raises(utils.ValidationError) as e:
+            users.add_local_user(u, name, password="nethesis", database="second")
+        assert e.value.parameter == 'name'
+        assert e.value.message == 'reserved_name'
