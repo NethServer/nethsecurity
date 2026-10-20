@@ -662,3 +662,13 @@ def test_add_local_user_reserved_name(tmp_path):
             users.add_local_user(u, name, password="nethesis", database="second")
         assert e.value.parameter == "name"
         assert e.value.message == "reserved_name"
+
+
+def test_delete_2fa(tmp_path):
+    tmp_path.joinpath("admin3").mkdir()
+    tmp_path.joinpath("admin3", "secret").write_text("x")
+    users.delete_2fa("", secrets_dir=tmp_path.as_posix())
+    assert tmp_path.exists()
+    users.delete_2fa("admin3", secrets_dir=tmp_path.as_posix())
+    assert not tmp_path.joinpath("admin3").exists()
+    users.delete_2fa("nobody", secrets_dir=tmp_path.as_posix())

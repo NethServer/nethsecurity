@@ -16,6 +16,7 @@ import json
 import os
 import subprocess
 import secrets
+import shutil
 
 from euci import EUci
 from uci import UciExceptionNotFound
@@ -943,7 +944,20 @@ def caller_is_superuser(uci):
     Returns:
       - True if the caller is a superuser, False otherwise
     """
-    return is_superuser(uci, os.environ.get('NS_API_USER', 'root'))
+    return is_superuser(uci, os.environ.get("NS_API_USER", "root"))
+
+
+def delete_2fa(username, secrets_dir="/etc/ns-api-server"):
+    """
+    Delete the ns-api-server 2FA secret of a user
+
+    Arguments:
+      - username -- User name
+      - secrets_dir -- ns-api-server secrets directory
+    """
+    # an empty name would remove the whole secrets directory
+    if username:
+        shutil.rmtree(os.path.join(secrets_dir, username), ignore_errors=True)
 
 
 def used_by(uci, database_name):

@@ -29,6 +29,7 @@ func TestUBusCallUciForbiddenConfigs(t *testing.T) {
 	}{
 		{`{"path":"uci","method":"get","payload":{"config":"rpcd"}}`, true},
 		{`{"path":"uci","method":"set","payload":{"config":"users","section":"x","values":{}}}`, true},
+		{`{"path":"uci","method":"set","payload":{"config":"dropbear","section":"main","values":{}}}`, true},
 		{`{"path":"uci","method":"get","payload":{"config":"network"}}`, false},
 		{`{"path":"uci","method":"revert","payload":{"config":"rpcd"}}`, false},
 	}

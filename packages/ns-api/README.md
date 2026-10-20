@@ -4965,20 +4965,29 @@ Response example:
 
 ## ns.ssh
 
-Read SSH keys
+Manage SSH access for `root`, the only account allowed to log in through SSH.
 
-### list-keys
+Every admin can read the configuration. Only `root` and the support account can change it,
+other admins and the controller account get `{"error": "forbidden"}`.
+`add-key` and `delete-key` also require sudo mode.
 
-Returns list of authorized keys:
+### get-configuration
+
+Returns the SSH configuration and the authorized keys:
 
 ```bash
-api-cli ns.ssh list-keys
+api-cli ns.ssh get-configuration
 ```
 
 Output example:
 
 ```json
 {
+  "configuration": {
+    "Port": "22",
+    "RootPasswordAuth": "off",
+    "GatewayPorts": "off"
+  },
   "keys": [
     {
       "type": "ssh-rsa",
@@ -4988,6 +4997,30 @@ Output example:
   ]
 }
 ```
+
+`RootPasswordAuth` is `on` only when both `PasswordAuth` and `RootPasswordAuth` are enabled in `dropbear.main`.
+
+### set-configuration
+
+Change the SSH configuration, changes must be committed with `ns.commit`:
+
+```bash
+api-cli ns.ssh set-configuration --data '{"Port": "22", "RootPasswordAuth": "on", "GatewayPorts": "off"}'
+```
+
+`RootPasswordAuth` is written to both `PasswordAuth` and `RootPasswordAuth`.
+
+Example response:
+
+```json
+{
+  "message": "success"
+}
+```
+
+May raise the following validation errors:
+- invalid_port if `Port` isn't between 1 and 65535
+- invalid_value if `RootPasswordAuth` or `GatewayPorts` aren't `on` or `off`
 
 ### add-key
 
