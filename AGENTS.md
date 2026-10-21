@@ -122,6 +122,11 @@ APIs are Python 3 scripts placed at `/usr/libexec/rpcd/ns.<name>` on the device.
 **ACL files:**
 - Paired with each handler: `ns.NAME.json` installed to `/usr/share/rpcd/acl.d/`.
 - Consistently leave `"write": {}` empty and declare ubus permissions under `"read": { "ubus": ... }`.
+- `ns-api-server` runs `ns.*` scripts directly, so rpcd ACLs don't restrict what a logged user can call.
+
+**Authorization:**
+- `ns-api-server` only authenticates, it passes the caller's username to `ns.*` scripts in `NS_API_USER`.
+- Restrict a method to superusers (`root`, the controller and remote support accounts) with `nethsec.users.caller_is_superuser()` and return `{"error": "forbidden"}` otherwise. See `docs/design/admin_users.md`.
 
 **UCI conventions:**
 - Zones: `ns_<zonename>` (e.g., `ns_lan`, `ns_guest`).

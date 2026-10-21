@@ -4244,6 +4244,9 @@ Response example:
 Allows the backup/restore of the system, some features are only available to subscribed users. Please refer
 to `ns.subscription` for more info.
 
+Only superusers can call `set-passphrase`, `backup`, `restore`, `registered-download-backup` and `registered-delete-backup`,
+other admins get `{"error": "forbidden"}`.
+
 ### set-passphrase
 
 Set encryption passphrase to be used to encrypt/decrypt backups.
@@ -4488,7 +4491,7 @@ Response example:
 
 ### migrate
 
-Execute the migration:
+Execute the migration, only superusers can call it:
 ```
 api-cli ns.migration migrate --data '{"mappings": [{"old": "52:54:00:75:1C:C1", "new": "53:54:44:75:1A:AA"}], "archive": "upload-1e20f4b3-e581-454c-9162-ca33885eb223"}'
 ```
@@ -4922,7 +4925,7 @@ Response example:
 
 ### install-uploaded-image
 
-Install a previously uploaded image inside `/var/run/ns-api-server/` and reboot the unit:
+Install a previously uploaded image inside `/var/run/ns-api-server/` and reboot the unit, only superusers can call it:
 ```
 api-cli ns.update install-uploaded-image --data '{"image": "upload-204be0f3-4bb2-4cb8-ba28-4ac8e41ac697"}'
 ```
