@@ -51,7 +51,7 @@ def get_public_addresses(u):
       - u -- EUci instance
 
     Returns:
-      - a list of public addresses
+      - a list of public addresses, or [""] if no public address can be retrieved
     """
     ret = {}
     for w in utils.get_all_wan_devices(u):
@@ -73,10 +73,13 @@ def get_public_addresses(u):
                             "@resolver1.opendns.com"
                         ],
                         capture_output=True, text=True, check=True)
-                        ret[res.stdout.strip()] = 1
+                        ip = res.stdout.strip()
+                        if ip:
+                            ret[ip] = 1
                     except:
                         pass
-    return list(ret.keys())
+    # always return at least one (empty) element
+    return list(ret.keys()) or [""]
 
 def to_cidr(netmask):
     """
