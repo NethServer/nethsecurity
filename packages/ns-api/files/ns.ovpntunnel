@@ -204,7 +204,17 @@ def import_client(tunnel):
 
     return {"id": iname}
 
+def validate_public_ip(args):
+    # at least one public IP is required, and no empty values are allowed
+    public_ips = args.get('ns_public_ip') or []
+    if not public_ips or any(not ip.strip() for ip in public_ips):
+        return utils.validation_error("ns_public_ip", "required")
+    return None
+
 def edit_server(args):
+    error = validate_public_ip(args)
+    if error:
+        return error
     u = EUci()
     try:
          tunnel = u.get_all("openvpn", args['id'])
@@ -216,6 +226,9 @@ def edit_server(args):
     return {"id": args['id']}
 
 def add_server(args):
+    error = validate_public_ip(args)
+    if error:
+        return error
     u = EUci()
     if u.get("network", args["ns_name"], default=None) is not None:
         return utils.validation_error("ns_name", "network_conflict")

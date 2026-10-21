@@ -474,6 +474,10 @@ def get_configuration(ovpninstance):
     return ret
 
 def set_configuration(args):
+    # at least one public IP is required, and no empty values are allowed
+    public_ips = args.get("ns_public_ip") or []
+    if not public_ips or any(not ip.strip() for ip in public_ips):
+        return utils.validation_error("ns_public_ip", "required")
     u = EUci()
     push_options = []
     ovpninstance = args["instance"]
