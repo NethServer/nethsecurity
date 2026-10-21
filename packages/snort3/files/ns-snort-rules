@@ -19,8 +19,9 @@ from euci import EUci
 
 # Use persistent storage when /mnt/data is available so rule archives survive reboots
 DATA_DIR = "/mnt/data/ns-snort" if os.path.isdir("/mnt/data") else "/var/ns-snort"
-RULES_DIR = os.path.join(DATA_DIR, "rules")
-BACKUP_DIR = os.path.join(DATA_DIR, "old.rules")
+# Generated rules must stay in snort config_dir, they're rebuilt from the archives on every start
+RULES_DIR = "/var/ns-snort/rules"
+BACKUP_DIR = "/var/ns-snort/old.rules"
 TESTING_RULES_FILE = os.path.join(RULES_DIR, "testing.rules")
 OFFICIAL_RULES_DIR = os.path.join(DATA_DIR, "snort-rules")
 COMMUNITY_RULES_URL = "https://www.snort.org/downloads/community/snort3-community-rules.tar.gz"
@@ -161,6 +162,12 @@ def main():
     parser.add_argument('--download', action='store_true', help="Download Snort rules.")
     parser.add_argument('--restart', action='store_true', help="Force Snort to restart after updating rules.")
     args = parser.parse_args()
+
+    # leftovers of generated rules previously saved in the storage
+    # https://github.com/NethServer/nethsecurity/issues/1950
+    if DATA_DIR != "/var/ns-snort":
+        shutil.rmtree(os.path.join(DATA_DIR, "rules"), ignore_errors=True)
+        shutil.rmtree(os.path.join(DATA_DIR, "old.rules"), ignore_errors=True)
 
     backup_rules()
 
