@@ -5,6 +5,7 @@
 groups:
   - name: "storage"
     interval: "5m"
+    eval_alignment: false
     rules:
       - alert: StorageStatus
         expr: 'storage_status_error == 1'

@@ -8,6 +8,7 @@
 groups:
   - name: "services"
     interval: "5m"
+    eval_alignment: false
     rules:
       - alert: ServiceDown
         expr: 'procd_service_running == 0 and procd_service_exit_code != 0'
