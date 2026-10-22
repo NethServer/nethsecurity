@@ -101,8 +101,7 @@ Example `custom.yaml`:
 ```yaml
 groups:
   - name: "my_alerts"
-    interval: "5m"
-    eval_alignment: false
+    interval: "1m"
     rules:
       - alert: MyAlert
         expr: 'metric_name > threshold'
@@ -136,7 +135,7 @@ Example:
 groups:
   - name: "host_and_hardware"
     interval: "5m"  # How often the engine checks the metrics
-    eval_alignment: false  # Query at "now - 30s", not rounded down to the interval
+    eval_alignment: false  # Needed for intervals above 4m30s, see below
     rules:
       - alert: CriticalCpuUsage
         expr: 'round(100 - avg by(host) (cpu_usage_idle), 0.1) > 85'
@@ -153,6 +152,17 @@ The engine processes an active incident through three phases:
    minutes have passed since it entered `Pending`. The alert transitions to `Firing` and routes to notifications.
 
 Because real-world server incidents do not align perfectly with the monitoring engine's internal execution clock, notifications feature a variable delay window of 5 to 10 minutes from the actual start of the incident.
+
+### Evaluation alignment
+
+vmalert runs each query at `now - 30s` (`-rule.evalDelay`), and by default (`eval_alignment: true`) rounds that time down to a multiple of the group `interval`.
+Alert state (`ALERTS`, `ALERTS_FOR_STATE`) is written back to Victoria Metrics with the same timestamp, so it can be up to `30s + interval` old.
+
+When a written sample is older than 5 minutes (`-search.cacheTimestampOffset`), Victoria Metrics clears its query cache and logs a
+`resetting rollup result cache` warning, every evaluation for as long as an alert is active.
+
+Set `eval_alignment: false` only on groups with an `interval` above 4m30s: queries then always run at `now - 30s`.
+Groups with a shorter interval stay under the limit and keep the default.
 
 ## Alert notifications
 

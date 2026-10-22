@@ -5,7 +5,6 @@
 groups:
   - name: "ha"
     interval: "60s"
-    eval_alignment: false
     rules:
       - alert: HaPrimaryFailed
         expr: 'ha_alert_primary_failed_event{role="backup"} == 1'
