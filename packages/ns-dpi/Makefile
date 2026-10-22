@@ -25,7 +25,8 @@ define Package/ns-dpi
 	DEPENDS:= \
 		+kmod-ipt-conntrack-label \
 		+netifyd \
-		+python3-jinja2
+		+python3-jinja2 \
+		+python3-nethsec
 	PKGARCH:=all
 endef
 
