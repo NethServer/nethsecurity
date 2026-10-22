@@ -11,6 +11,7 @@
 groups:
   - name: "mwan"
     interval: "5m"
+    eval_alignment: false
     rules:
       - alert: WanDown
         expr: 'mwan_interface_online == 0'

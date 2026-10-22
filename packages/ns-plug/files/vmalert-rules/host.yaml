@@ -6,6 +6,7 @@
 groups:
   - name: "host_and_hardware"
     interval: "5m"
+    eval_alignment: false
     rules:
       # CPU Monitoring
       - alert: HighCpuUsage

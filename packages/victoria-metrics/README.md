@@ -102,6 +102,7 @@ Example `custom.yaml`:
 groups:
   - name: "my_alerts"
     interval: "5m"
+    eval_alignment: false
     rules:
       - alert: MyAlert
         expr: 'metric_name > threshold'
@@ -135,6 +136,7 @@ Example:
 groups:
   - name: "host_and_hardware"
     interval: "5m"  # How often the engine checks the metrics
+    eval_alignment: false  # Query at "now - 30s", not rounded down to the interval
     rules:
       - alert: CriticalCpuUsage
         expr: 'round(100 - avg by(host) (cpu_usage_idle), 0.1) > 85'
