@@ -50,14 +50,6 @@ define Build/Compile
 	(cd $(PKG_BUILD_DIR) && npm ci && npm run build)
 endef
 
-define Package/ns-ui/postinst
-#!/bin/sh
-if [ -z "$${IPKG_INSTROOT}" ]; then
-  /etc/init.d/ns-ui restart
-fi
-exit 0
-endef
-
 define Package/ns-ui/install
 	$(INSTALL_DIR) $(1)/www-ns
 	$(INSTALL_DIR) $(1)/etc/config
