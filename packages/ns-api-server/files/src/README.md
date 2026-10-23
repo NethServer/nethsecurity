@@ -193,6 +193,9 @@ Where:
        "message": "[UBUS] call action success"
      }
     ```
+
+    `ns.*` paths run `/usr/libexec/rpcd/<path>` directly, with the username of the caller in the `NS_API_USER` environment variable.
+    Other paths are limited to a fixed list of `ubus` calls; `uci get` and `uci set` are refused on the `rpcd`, `users` and `dropbear` configurations.
   ### Files
 - `GET /api/files/<file_name>`
 

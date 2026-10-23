@@ -47,6 +47,8 @@ else:
         else:
             args = json.loads(sys.stdin.read())
 
+        caller_is_superuser = users.caller_is_superuser(u)
+
         if action == "list-users":
             ret = {"users": users.list_users(u, args['database'])}
         elif action == "add-local-database":
@@ -56,8 +58,14 @@ else:
             users.edit_local_database(u, args['name'], args['description'])
             ret = {"result": "success"}
         elif action == "delete-local-database":
-            users.delete_local_database(u, args['name'])
-            ret = {"result": "success"}
+            admins = []
+            if users.get_database_type(u, args["name"]) == "local":
+                admins = [user["name"] for user in users.list_users(u, args["name"]) if user["admin"]]
+            if admins and not caller_is_superuser:
+                ret = utils.generic_error("forbidden")
+            else:
+                users.delete_local_database(u, args["name"])
+                ret = {"result": "success"}
 
         elif action == "add-ldap-database":
             users.add_ldap_database(u, args['name'], args['uri'], args['schema'], args['base_dn'], args['user_dn'], args['user_attr'], args['user_display_attr'], args['start_tls'], args['tls_reqcert'], args['description'], args.get('bind_dn'), args.get('bind_password'), args.get("user_bind_dn"))
@@ -76,17 +84,23 @@ else:
         elif action == "add-local-user":
             ret = {"id": users.add_local_user(u, args['name'], args.get('password'), args.get('description',''), args['database'], args.get("extra"))}
         elif action == "edit-local-user":
-            extra = args.get("extra")
-            if not extra:
-                # preserve existing extra params, like OpenVPN config
-                info = users.get_user_by_name(u, args['name'])
-                for field in info:
-                    if field not in ('id', 'name', 'password', 'description', 'database', 'local', 'admin'):
-                        extra[field] = info[field]
-            ret = {"id": users.edit_local_user(u, args['name'], args.get('password'), args.get('description',''), args['database'], extra)}
+            if users.is_admin(u, args["name"]) and not caller_is_superuser:
+                ret = utils.generic_error("forbidden")
+            else:
+                extra = args.get("extra")
+                if not extra:
+                    # preserve existing extra params, like OpenVPN config
+                    info = users.get_user_by_name(u, args['name'])
+                    for field in info:
+                        if field not in ('id', 'name', 'password', 'description', 'database', 'local', 'admin'):
+                            extra[field] = info[field]
+                ret = {"id": users.edit_local_user(u, args['name'], args.get('password'), args.get('description',''), args['database'], extra)}
         elif action == "delete-local-user":
-            users.delete_local_user(u, args['name'], args['database'])
-            ret = {"result": "success"}
+            if users.is_admin(u, args["name"]) and not caller_is_superuser:
+                ret = utils.generic_error("forbidden")
+            else:
+                users.delete_local_user(u, args['name'], args['database'])
+                ret = {"result": "success"}
 
         elif action == "add-remote-user":
             ret = {"id": users.add_remote_user(u, args['name'], args['database'], args["extra"])}
@@ -97,11 +111,17 @@ else:
             ret = {"result": "success"}
 
         elif action == "set-admin":
-            id = users.set_admin(u, args['name'], args['database'])
-            ret = {"id": id}
+            if not caller_is_superuser:
+                ret = utils.generic_error("forbidden")
+            else:
+                id = users.set_admin(u, args['name'], args['database'])
+                ret = {"id": id}
         elif action == "remove-admin":
-            id = users.remove_admin(u, args['name'])
-            ret = {"result": "success"}
+            if not caller_is_superuser:
+                ret = utils.generic_error("forbidden")
+            else:
+                id = users.remove_admin(u, args['name'])
+                ret = {"result": "success"}
 
         print(json.dumps(ret))
 

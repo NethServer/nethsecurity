@@ -5,12 +5,14 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-# Read SSH authorized keys
+# Manage SSH configuration and authorized keys
 
 import os
 import sys
 import json
 
+from euci import EUci
+from nethsec import users
 from nethsec.utils import validation_error, ValidationError, generic_error
 
 
@@ -28,6 +30,43 @@ def __list_keys():
                     'comment': ' '.join(line_split[2:])
                 })
     return keys
+
+
+def __is_on(value):
+    return value in ("1", "on", "true", "yes", "enabled")
+
+
+def __get_configuration(uci):
+    # dropbear defaults both flags to on when unset
+    password_auth = __is_on(uci.get("dropbear", "main", "PasswordAuth", default="1"))
+    root_password_auth = __is_on(uci.get("dropbear", "main", "RootPasswordAuth", default="1"))
+    gateway_ports = __is_on(uci.get("dropbear", "main", "GatewayPorts", default="0"))
+    return {
+        "Port": uci.get("dropbear", "main", "Port", default="22"),
+        # PasswordAuth off disables password login for root too
+        "RootPasswordAuth": "on" if password_auth and root_password_auth else "off",
+        "GatewayPorts": "on" if gateway_ports else "off",
+    }
+
+
+def __set_configuration(uci):
+    data = json.load(sys.stdin)
+    for field in ("Port", "RootPasswordAuth", "GatewayPorts"):
+        if field not in data:
+            raise ValidationError(field, "required")
+    port = str(data["Port"])
+    port_is_valid = port.isdigit() and 1 <= int(port) <= 65535
+    if not port_is_valid:
+        raise ValidationError("Port", "invalid_port", data["Port"])
+    for field in ("RootPasswordAuth", "GatewayPorts"):
+        if data[field] not in ("on", "off"):
+            raise ValidationError(field, "invalid_value", data[field])
+    uci.set("dropbear", "main", "Port", str(data["Port"]))
+    # root is the only SSH account, PasswordAuth follows RootPasswordAuth
+    uci.set("dropbear", "main", "PasswordAuth", data["RootPasswordAuth"])
+    uci.set("dropbear", "main", "RootPasswordAuth", data["RootPasswordAuth"])
+    uci.set("dropbear", "main", "GatewayPorts", data["GatewayPorts"])
+    uci.save("dropbear")
 
 
 def __add_key():
@@ -66,23 +105,44 @@ KEYS_FILE = '/etc/dropbear/authorized_keys'
 
 cmd = sys.argv[1]
 
-if cmd == 'list':
-    print(json.dumps({
-        "list-keys": {},
-        "add-key": {"key": "string"},
-        "delete-key": {"key": "string"}
-    }))
+if cmd == "list":
+    print(
+        json.dumps(
+            {
+                "get-configuration": {},
+                "set-configuration": {"Port": "22", "RootPasswordAuth": "on", "GatewayPorts": "off"},
+                "add-key": {"key": "string"},
+                "delete-key": {"key": "string"},
+            }
+        )
+    )
 else:
     action = sys.argv[2]
+    uci = EUci()
+    # SSH is managed on the unit, the controller gets read-only access like ordinary admins
+    caller_is_controller = os.environ.get("NS_API_USER") == uci.get("rpcd", "controller", "username", default="")
+    can_write = users.caller_is_superuser(uci) and not caller_is_controller
     try:
-        if action == "list-keys":
-            print(json.dumps({"keys": __list_keys()}))
+        if action == "get-configuration":
+            print(json.dumps({"configuration": __get_configuration(uci), "keys": __list_keys()}))
+        elif action == "set-configuration":
+            if not can_write:
+                print(json.dumps(generic_error("forbidden")))
+            else:
+                __set_configuration(uci)
+                print(json.dumps({"message": "success"}))
         elif action == "add-key":
-            __add_key()
-            print(json.dumps({"message": "success"}))
+            if not can_write:
+                print(json.dumps(generic_error("forbidden")))
+            else:
+                __add_key()
+                print(json.dumps({"message": "success"}))
         elif action == "delete-key":
-            __delete_key()
-            print(json.dumps({"message": "success"}))
+            if not can_write:
+                print(json.dumps(generic_error("forbidden")))
+            else:
+                __delete_key()
+                print(json.dumps({"message": "success"}))
     except ValidationError as e:
         print(json.dumps(validation_error(e.parameter, e.message, e.value)))
     except Exception as e:

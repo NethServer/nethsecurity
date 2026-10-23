@@ -4219,10 +4219,33 @@ Parameter list:
 - `username`: target to change the password to, must be present inside `rpcd` configuration
 - `password`: password to set to the user
 
+Admins can change only their own password. Superusers (`root`, the controller account and the support account)
+can change any password. Otherwise the call returns `{"error": "forbidden"}`.
+
+### get-info
+
+Return info about the calling account and the admin accounts.
+
+```bash
+api-cli ns.account get-info
+```
+
+Response example:
+```json
+{"is_superuser": true, "default_password": false, "ordinary_admins": 2}
+```
+
+- `is_superuser`: the caller is `root`, the controller account or the support account
+- `default_password`: `root` still uses the default password
+- `ordinary_admins`: number of admins that aren't superusers
+
 ## ns.backup
 
 Allows the backup/restore of the system, some features are only available to subscribed users. Please refer
 to `ns.subscription` for more info.
+
+Only superusers can call `set-passphrase`, `backup`, `restore`, `registered-download-backup` and `registered-delete-backup`,
+other admins get `{"error": "forbidden"}`.
 
 ### set-passphrase
 
@@ -4468,7 +4491,7 @@ Response example:
 
 ### migrate
 
-Execute the migration:
+Execute the migration, only superusers can call it:
 ```
 api-cli ns.migration migrate --data '{"mappings": [{"old": "52:54:00:75:1C:C1", "new": "53:54:44:75:1A:AA"}], "archive": "upload-1e20f4b3-e581-454c-9162-ca33885eb223"}'
 ```
@@ -4902,7 +4925,7 @@ Response example:
 
 ### install-uploaded-image
 
-Install a previously uploaded image inside `/var/run/ns-api-server/` and reboot the unit:
+Install a previously uploaded image inside `/var/run/ns-api-server/` and reboot the unit, only superusers can call it:
 ```
 api-cli ns.update install-uploaded-image --data '{"image": "upload-204be0f3-4bb2-4cb8-ba28-4ac8e41ac697"}'
 ```
@@ -4945,20 +4968,29 @@ Response example:
 
 ## ns.ssh
 
-Read SSH keys
+Manage SSH access for `root`, the only account allowed to log in through SSH.
 
-### list-keys
+Every admin can read the configuration. Only `root` and the support account can change it,
+other admins and the controller account get `{"error": "forbidden"}`.
+`add-key` and `delete-key` also require sudo mode.
 
-Returns list of authorized keys:
+### get-configuration
+
+Returns the SSH configuration and the authorized keys:
 
 ```bash
-api-cli ns.ssh list-keys
+api-cli ns.ssh get-configuration
 ```
 
 Output example:
 
 ```json
 {
+  "configuration": {
+    "Port": "22",
+    "RootPasswordAuth": "off",
+    "GatewayPorts": "off"
+  },
   "keys": [
     {
       "type": "ssh-rsa",
@@ -4968,6 +5000,30 @@ Output example:
   ]
 }
 ```
+
+`RootPasswordAuth` is `on` only when both `PasswordAuth` and `RootPasswordAuth` are enabled in `dropbear.main`.
+
+### set-configuration
+
+Change the SSH configuration, changes must be committed with `ns.commit`:
+
+```bash
+api-cli ns.ssh set-configuration --data '{"Port": "22", "RootPasswordAuth": "on", "GatewayPorts": "off"}'
+```
+
+`RootPasswordAuth` is written to both `PasswordAuth` and `RootPasswordAuth`.
+
+Example response:
+
+```json
+{
+  "message": "success"
+}
+```
+
+May raise the following validation errors:
+- invalid_port if `Port` isn't between 1 and 65535
+- invalid_value if `RootPasswordAuth` or `GatewayPorts` aren't `on` or `off`
 
 ### add-key
 
@@ -5729,6 +5785,10 @@ Response example:
 
 ## ns.users
 
+Admin accounts can be managed only by a superuser: `root`, the controller account and the support account.
+Other admins get `{"error": "forbidden"}` when calling `set-admin`, `remove-admin`, `edit-local-user` and `delete-local-user` on an admin,
+or `delete-local-database` on a database containing admins.
+
 ### list-users
 
 List configured users
@@ -5952,7 +6012,7 @@ May raise the following validation errors:
 
 ### delete-local-database
 
-Delete the local user database and all its users and groups:
+Delete the local user database and all its users and groups, admins lose their admin role:
 ```
 api-cli ns.users delete-local-database --data '{"name": "local2"}''
 ```
@@ -5983,6 +6043,7 @@ May raise the following validation errors:
 - user_already_exists
 - db_not_local
 - invalid_name if `name` contains characters other than letters, digits, dots, underscores, at signs and hyphens
+- reserved_name if `name` is reserved for a system account
 
 ### edit-local-user
 
