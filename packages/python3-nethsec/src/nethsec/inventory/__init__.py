@@ -44,16 +44,11 @@ def _run_json(cmd):
     except:
         return {}
 
-def _get_role(uci: EUci, interface):
+def _get_zone(uci: EUci, interface):
     for zone in utils.get_all_by_type(uci, 'firewall', 'zone'):
         name = uci.get('firewall', zone, 'name')
         networks = uci.get('firewall', zone, 'network', list=True, default=[])
         if interface in networks:
-            if name == "lan":
-                return "green"
-            elif name == "wan":
-                return "red"
-            else:
                 return name
 
 def _get_ip(interface, uci: EUci):
@@ -132,7 +127,7 @@ def get_networks(uci: EUci):
         device = interface.get("device")
         if not device or device == "lo" or device.startswith("ipsec") or device.startswith("tun"):
             continue
-        network = {"type": "ethernet", "name": device, "props": { "role": _get_role(uci, section), "ipaddr": _get_ip(section, uci), "netmask": _get_mask(section), "gateway": _get_gateway(section, uci)}}
+        network = {"type": "ethernet", "name": device, "props": { "interface": section, "zone": _get_zone(uci, section), "ipaddr": _get_ip(section, uci), "netmask": _get_mask(section), "gateway": _get_gateway(section, uci)}}
         # get bridge ports, exclude vlans over bridges
         is_vlan = bool(re.search(r'\.\d+$', interface['device'])) # check if the device name ends with .<number>
         if interface['device'].startswith('br') and not is_vlan:
