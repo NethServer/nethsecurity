@@ -860,6 +860,8 @@ def delete_user(ovpninstance, username):
     if used:
         return utils.validation_error("username", "user_is_used", matches)
 
+    disconnect_user(ovpninstance, username)
+
     try:
         u.delete("users", user_id, "openvpn_enabled")
         u.delete("users", user_id, "openvpn_ipaddr")
@@ -868,12 +870,14 @@ def delete_user(ovpninstance, username):
     except:
         pass
     try:
-        env = os.environ.copy()
-        env["EASYRSA_BATCH"] = "1"
-        env["EASYRSA_PKI"] = f'/etc/openvpn/{ovpninstance}/pki'
-        env["EASYRSA_CRL_DAYS"] = "3650"
-        subprocess.run(["/usr/bin/easyrsa", "revoke", username], env=env, check=True, capture_output=True)
-        subprocess.run(["/usr/bin/easyrsa", "gen-crl"], env=env, check=True, capture_output=True)
+        # delete the current certificate, then revoke it with the old ones
+        for subdir, ext in [("reqs", "req"), ("private", "key"), ("issued", "crt")]:
+            path = user_pki_path(ovpninstance, subdir, f"{username}.{ext}")
+            if path and os.path.exists(path):
+                os.remove(path)
+        pki_dir = f'/etc/openvpn/{ovpninstance}/pki'
+        if ovpn.revoke_stale_certificates(pki_dir):
+            ovpn.generate_crl(pki_dir)
     except:
         return utils.validation_error("username", "user_delete_failed", username)
     return {"result": "success"}
@@ -886,9 +890,10 @@ def regenerate_user_certificate(ovpninstance, user, expiration):
     if not (req_f and key_f and crt_f):
         return utils.validation_error("username", "invalid_username", user)
 
-    for file_path in [req_f, key_f, crt_f]:
-        if os.path.exists(file_path):
-            os.remove(file_path)
+    # easyrsa refuses to overwrite the current files: back them up
+    files = [f for f in [req_f, key_f, crt_f] if os.path.exists(f)]
+    for f in files:
+        os.replace(f, f"{f}.bak")
 
     env = os.environ.copy()
     env["EASYRSA_PKI"] = pki_dir
@@ -899,7 +904,19 @@ def regenerate_user_certificate(ovpninstance, user, expiration):
         subprocess.run(["/usr/bin/easyrsa", "build-client-full", user, "nopass"], env=env, check=True, capture_output=True)
     except Exception as e:
         print(e, file=sys.stderr)
+        for f in files:
+            os.replace(f"{f}.bak", f)
         return utils.validation_error("username", "certificate_generation_failed", user)
+    for f in files:
+        os.remove(f"{f}.bak")
+
+    try:
+        if ovpn.revoke_stale_certificates(pki_dir):
+            ovpn.generate_crl(pki_dir)
+    except Exception as e:
+        print(e, file=sys.stderr)
+        return utils.validation_error("username", "certificate_generation_failed", user)
+    disconnect_user(ovpninstance, user)
     return {"result": "success"}
 
 def download_user_certificate(ovpninstance, username):
