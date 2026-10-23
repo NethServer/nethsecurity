@@ -9044,8 +9044,8 @@ Response example:
 }
 ```
 
-`lock_status` is `enabled` only when `keepalived.globals.ns_lock_timeout` is set; otherwise it is `disabled`.
-`lock_timeout` shows the configured timeout in seconds.
+`lock_status` is `disabled` only when `keepalived.globals.ns_lock_timeout` is set to `0`; otherwise it is `enabled`.
+`lock_timeout` shows the timeout in seconds, `120` when the option is unset.
 
 Error response example:
 ```json
