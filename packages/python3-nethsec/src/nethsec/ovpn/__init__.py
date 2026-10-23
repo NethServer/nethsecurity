@@ -11,10 +11,12 @@ Library for common VPN functions.
 
 import json
 import ipaddress
+import os
 import random
 import struct
 import socket
 import subprocess
+import time
 from nethsec import utils
 
 def get_local_networks(u):
@@ -286,3 +288,66 @@ def list_connected_clients(openvpninstance, type="subnet"):
     except:
         return {}
     return json.loads(p.stdout)
+
+def revoke_stale_certificates(pki_dir):
+    """
+    Revoke all valid certificates not saved inside the issued directory.
+
+    Call generate_crl() afterwards to update the CRL.
+
+    Arguments:
+        - pki_dir -- Easy-RSA PKI directory, like /etc/openvpn/ns_roadwarrior1/pki
+
+    Returns:
+        - the list of revoked serial numbers
+
+    Raises:
+        - RuntimeError if an issued certificate can't be read
+    """
+    issued_dir = os.path.join(pki_dir, "issued")
+    in_use = set()
+    for crt in os.listdir(issued_dir):
+        if crt.endswith(".crt"):
+            try:
+                p = subprocess.run(["openssl", "x509", "-noout", "-serial", "-in", os.path.join(issued_dir, crt)],
+                                   check=True, capture_output=True, text=True)
+                in_use.add(int(p.stdout.strip().split("=", 1)[1], 16))
+            except (subprocess.CalledProcessError, IndexError, ValueError) as e:
+                raise RuntimeError(f"can't read certificate {crt}") from e
+    if not in_use:
+        # no server certificate: broken PKI
+        return []
+
+    index = os.path.join(pki_dir, "index.txt")
+    with open(index) as fp:
+        lines = fp.readlines()
+    revocation = time.strftime("%y%m%d%H%M%SZ", time.gmtime())
+    revoked = []
+    for i, line in enumerate(lines):
+        # status, expiration, revocation date, serial, file name, subject
+        fields = line.split("\t")
+        if len(fields) == 6 and fields[0] == "V" and int(fields[3], 16) not in in_use:
+            fields[0] = "R"
+            fields[2] = revocation
+            lines[i] = "\t".join(fields)
+            revoked.append(fields[3])
+
+    if revoked:
+        # atomic write
+        with open(f"{index}.tmp", "w") as fp:
+            fp.writelines(lines)
+        os.replace(f"{index}.tmp", index)
+    return revoked
+
+def generate_crl(pki_dir):
+    """
+    Regenerate the CRL of an Easy-RSA PKI.
+
+    Arguments:
+        - pki_dir -- Easy-RSA PKI directory, like /etc/openvpn/ns_roadwarrior1/pki
+    """
+    env = os.environ.copy()
+    env["EASYRSA_BATCH"] = "1"
+    env["EASYRSA_PKI"] = pki_dir
+    env["EASYRSA_CRL_DAYS"] = "3650"
+    subprocess.run(["/usr/bin/easyrsa", "gen-crl"], env=env, check=True, capture_output=True)
