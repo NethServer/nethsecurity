@@ -77,6 +77,8 @@ Each user can have also the following options:
 
 See [ns-objects](../ns-objects/) for more info.
 
+When both certificate and credentials are required, the certificate CN must match the user name.
+
 #### Local users with certificate only
 
 A client can connect to the server if:
