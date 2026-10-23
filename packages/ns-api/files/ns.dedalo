@@ -18,7 +18,7 @@ from nethsec import utils, firewall
 from euci import EUci
 
 tmp_dir = "/var/run/"
-token_file = f"{tmp_dir}/dedalo_token"
+token_file = "/opt/icaro/dedalo/token"
 pairing_file = f"{tmp_dir}/dedalo_pairing.json"
 opts = ["network", "hotspot_id", "unit_name", "unit_description", "interface"]
 
@@ -75,8 +75,8 @@ def _connect_to_host(u, host, token, account_name="", account_user=""):
             except:
                 pass
     u.commit("dedalo")
-    os.makedirs(tmp_dir, exist_ok = True)
-    with open(token_file, "w") as fp:
+    fd = os.open(token_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, 'w') as fp:
         fp.write(token)
 
 def oidc_start(args):
