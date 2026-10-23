@@ -153,9 +153,23 @@ To disable a user, the `openvpn_enabled` fiels must be set to `0`.
 
 See the `enable-user` and `disable-user` APIs inside the [ns-api](../ns-api/#nsovpnrw) page.
 
+### Regenerate a user certificate
+
+Creates a new certificate, revokes the old ones and closes the user connection.
+
+See the `regenerate-user-certificate` API inside the [ns-api](../ns-api/#nsovpnrw) page.
+
 ### Remove a user
 
+Revokes all user certificates and closes the user connection.
+
 See the `delete-user` API inside the [ns-api](../ns-api/#nsovpnrw) page.
+
+### Certificate revocation
+
+Valid certificates not saved inside `pki/issued` are revoked and added to the CRL, which OpenVPN reads on each new connection.
+
+Certificates migrated from NethServer 7 are not inside `pki/index.txt` and can't be revoked: renew the CA to invalidate them (see [CA renewal](#ca-renewal)).
 
 ### Accounting
 

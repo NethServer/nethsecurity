@@ -1871,7 +1871,7 @@ Throws a validation error if the user is not found.
 
 ### delete-user
 
-Delete an existing user:
+Delete an existing user and revoke all its certificates:
 ```
 api-cli ns.ovpnrw delete-user --data '{"instance": "ns_roadwarrior1", "username": "myuser"}''
 ```
@@ -1891,7 +1891,7 @@ The API can raise the following validation errors:
 
 ### regenerate-user-certificate
 
-Delete current user certificate and create a new one:
+Create a new user certificate and revoke the old ones:
 ```
 api-cli ns.ovpnrw regenerate-user-certificate --data '{"instance": "ns_roadwarrior1", "username": "myuser", "expiration": "3650"}''
 ```
