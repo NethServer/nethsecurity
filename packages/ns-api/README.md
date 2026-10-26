@@ -1797,6 +1797,8 @@ Response example:
 {"result": "success"}
 ```
 
+If a certificate with the same name is left by a deleted user, it is revoked and a new one is generated.
+
 The APIs can raise the following validation errors:
 - user_add_failed
 - reserved_ip_must_be_in_server_network
@@ -1805,6 +1807,7 @@ The APIs can raise the following validation errors:
 - user_db_not_configured
 - db_not_found
 - user_not_in_db
+- user_certificate_already_exists
 
 ### edit-user
 

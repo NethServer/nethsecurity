@@ -181,6 +181,16 @@ def get_cert_expiration(instance, user):
     except Exception:
         return 0
 
+def revoke_user_certificate(instance, user):
+    # delete the current certificate, then revoke it with the old ones
+    for subdir, ext in [("reqs", "req"), ("private", "key"), ("issued", "crt")]:
+        path = user_pki_path(instance, subdir, f"{user}.{ext}")
+        if path and os.path.exists(path):
+            os.remove(path)
+    pki_dir = f'/etc/openvpn/{instance}/pki'
+    if ovpn.revoke_stale_certificates(pki_dir):
+        ovpn.generate_crl(pki_dir)
+
 def generate_2fa_secret():
     return pyotp.random_base32()
 
@@ -760,8 +770,13 @@ def add_user(args):
     crt_path = user_pki_path(ovpninstance, "issued", f"{args['username']}.crt")
     if not crt_path:
         return utils.validation_error("username", "invalid_username", args["username"])
+    orphan = False
     if os.path.exists(crt_path):
-        return utils.validation_error("username", "user_certificate_already_exists", args["username"])
+        user = next(du for du in db_users if du['name'] == args['username'])
+        if "openvpn_enabled" in user:
+            return utils.validation_error("username", "user_certificate_already_exists", args["username"])
+        # certificate left behind by a deleted user with the same name
+        orphan = True
     if "ipaddr" in args and args["ipaddr"]:
         valid, error = is_valid_ip(ovpninstance, args["ipaddr"])
         if not valid:
@@ -769,6 +784,8 @@ def add_user(args):
         if not is_free_ip(ovpninstance, args["ipaddr"]):
             return utils.validation_error("ipaddr", "reserved_ip_already_used", args["ipaddr"])
     try:
+        if orphan:
+            revoke_user_certificate(ovpninstance, args["username"])
         subprocess.run(["/usr/sbin/ns-openvpnrw-add", ovpninstance, args["username"], args["expiration"]], check=True, capture_output=True)
     except Exception as e:
         print(e, file=sys.stderr)
@@ -870,14 +887,7 @@ def delete_user(ovpninstance, username):
     except:
         pass
     try:
-        # delete the current certificate, then revoke it with the old ones
-        for subdir, ext in [("reqs", "req"), ("private", "key"), ("issued", "crt")]:
-            path = user_pki_path(ovpninstance, subdir, f"{username}.{ext}")
-            if path and os.path.exists(path):
-                os.remove(path)
-        pki_dir = f'/etc/openvpn/{ovpninstance}/pki'
-        if ovpn.revoke_stale_certificates(pki_dir):
-            ovpn.generate_crl(pki_dir)
+        revoke_user_certificate(ovpninstance, username)
     except:
         return utils.validation_error("username", "user_delete_failed", username)
     return {"result": "success"}
