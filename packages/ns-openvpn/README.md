@@ -167,6 +167,8 @@ Revokes all user certificates and closes the user connection.
 
 See the `delete-user` API inside the [ns-api](../ns-api/#nsovpnrw) page.
 
+A user with an OpenVPN account can't be deleted from the user database: remove the OpenVPN account first.
+
 ### Certificate revocation
 
 Valid certificates not saved inside `pki/issued` are revoked and added to the CRL, which OpenVPN reads on each new connection.
