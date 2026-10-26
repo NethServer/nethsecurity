@@ -6018,6 +6018,7 @@ Response example:
 May raise the following validation errors:
 - user_not_found
 - db_not_local
+- user_has_vpn_account if the user has an OpenVPN road warrior account: remove it first with `ns.ovpnrw delete-user`, to revoke the certificate
 
 ### add-remote-user
 
@@ -6072,6 +6073,7 @@ Response example:
 May raise the following validation errors:
 - user_not_found
 - db_not_remote
+- user_has_vpn_account if the user has an OpenVPN road warrior account: remove it first with `ns.ovpnrw delete-user`, to revoke the certificate
 
 ### set-admin
 

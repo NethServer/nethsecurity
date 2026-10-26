@@ -373,11 +373,21 @@ def test_edit_local_group(tmp_path):
 
 def test_delete_local_user(tmp_path):
     u = _setup_db(tmp_path)
+    # remove the OpenVPN account set by previous tests
+    users.edit_local_user(u, "t1", database="second", extra_fields={})
     assert users.delete_local_user(u, "t1", database="second")
     assert users.get_user_by_name(u, "t1", "second") == None
     assert users.delete_local_user(u, "goofy", database="second")
     group = users.get_group_by_name(u, "group3", "second")
     assert group.get('user',[]) == []
+
+def test_delete_local_user_with_vpn_account(tmp_path):
+    u = _setup_db(tmp_path)
+    users.add_local_user(u, "t2", password="nethesis", database="second", extra_fields={"openvpn_enabled": "0"})
+    with pytest.raises(utils.ValidationError) as e:
+        users.delete_local_user(u, "t2", database="second")
+    assert e.value.message == "user_has_vpn_account"
+    assert users.get_user_by_name(u, "t2", "second")
 
 def test_delete_local_group(tmp_path):
     u = _setup_db(tmp_path)
@@ -402,10 +412,20 @@ def test_edit_remote_user(tmp_path):
 
 def test_delete_remote_user(tmp_path):
     u = _setup_db(tmp_path)
+    # remove the OpenVPN account set by previous tests
+    users.edit_remote_user(u, "john", "ldap2", extra_fields={})
     user = users.get_user_by_name(u, "john", "ldap2")
     users.delete_remote_user(u, "john", database="ldap2")
     with pytest.raises(UciExceptionNotFound) as e:
         assert u.get('users', user['id'])
+
+def test_delete_remote_user_with_vpn_account(tmp_path):
+    u = _setup_db(tmp_path)
+    users.add_remote_user(u, "jane", "ldap2", extra_fields={"openvpn_enabled": "1"})
+    with pytest.raises(utils.ValidationError) as e:
+        users.delete_remote_user(u, "jane", database="ldap2")
+    assert e.value.message == "user_has_vpn_account"
+    assert users.get_user_by_name(u, "jane", "ldap2")
 
 def test_shadow_password():
     shadow = users.shadow_password("test")

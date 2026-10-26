@@ -557,6 +557,9 @@ def delete_local_user(uci, name, database="main"):
         raise utils.ValidationError('name', 'user_not_found', name)
     if get_database_type(uci, database) != "local":
         raise utils.ValidationError('database', 'db_not_local', database)
+    if "openvpn_enabled" in user:
+        # the OpenVPN account must be removed first, to revoke the certificate
+        raise utils.ValidationError('name', 'user_has_vpn_account', name)
     # remove user from all groups
     for g in uci.get_all('users'):
         if uci.get('users', g, 'database', default='') != database:
@@ -721,6 +724,9 @@ def delete_remote_user(uci, name, database):
         raise utils.ValidationError('name', 'user_not_found', name)
     if get_database_type(uci, database) != "ldap":
         raise utils.ValidationError('database', 'db_not_ldap', database)
+    if "openvpn_enabled" in user:
+        # the OpenVPN account must be removed first, to revoke the certificate
+        raise utils.ValidationError('name', 'user_has_vpn_account', name)
     uci.delete('users', user["id"])
     uci.save("users")
     return True
