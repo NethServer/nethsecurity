@@ -13,7 +13,7 @@
 username=$1
 password=${2:-""}
 
-token_file="/var/run/dedalo_token"
+token_file="/opt/icaro/dedalo/token"
 api_url=$(uci get dedalo.config.api_url)
 
 if [ -z "$username" ]; then
