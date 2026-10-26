@@ -10,7 +10,7 @@ import os
 import shutil
 import subprocess
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 from nethsec import utils
 
@@ -165,6 +165,10 @@ elif cmd == 'call':
             if isinstance(parsed, dict):
                 parsed = parsed.get('data', parsed)
             backups = (parsed.get('backups') or []) if isinstance(parsed, dict) else parsed
+            # legacy server sends epoch seconds in `created`, enterprise an RFC3339 `uploaded_at`
+            for backup in backups:
+                if 'uploaded_at' not in backup and 'created' in backup:
+                    backup['uploaded_at'] = datetime.fromtimestamp(backup['created'], timezone.utc).isoformat()
             print(json.dumps({'values': {'backups': backups}}))
         except subprocess.CalledProcessError as error:
             print(json.dumps(utils.generic_error(f'remote list failed')))
