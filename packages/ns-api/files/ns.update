@@ -15,7 +15,7 @@ import time
 import subprocess
 import semver
 import requests
-from nethsec import utils
+from nethsec import utils, users
 from urllib.parse import urlparse
 from euci import EUci
 
@@ -243,6 +243,9 @@ elif cmd == "call":
     elif action == "update-system":
         ret = update_system()
     elif action == "install-uploaded-image":
-        args = json.loads(sys.stdin.read())
-        ret = install_uploaded_image(args["image"])
+        if not users.caller_is_superuser(EUci()):
+            ret = utils.generic_error("forbidden")
+        else:
+            args = json.loads(sys.stdin.read())
+            ret = install_uploaded_image(args["image"])
     print(json.dumps(ret))

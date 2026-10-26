@@ -12,7 +12,8 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 
-from nethsec import utils
+from euci import EUci
+from nethsec import utils, users
 
 UPLOAD_PATH = '/var/run/ns-api-server/uploads/'
 DOWNLOAD_PATH = '/var/run/ns-api-server/downloads/'
@@ -118,42 +119,52 @@ if cmd == 'list':
     }))
 elif cmd == 'call':
     action = sys.argv[2]
+    caller_is_superuser = users.caller_is_superuser(EUci())
     if action == 'backup':
-        try:
-            data = json.load(sys.stdin)
-            encrypted = data.get('encrypted', True)
-            # generate backup
-            file_name = create_backup(encrypted)
-            print(json.dumps({'backup': file_name}))
-        except RuntimeError as error:
-            print(json.dumps(utils.generic_error(error.args[0])))
+        if not caller_is_superuser:
+            print(json.dumps(utils.generic_error('forbidden')))
+        else:
+            try:
+                data = json.load(sys.stdin)
+                encrypted = data.get('encrypted', True)
+                # generate backup
+                file_name = create_backup(encrypted)
+                print(json.dumps({'backup': file_name}))
+            except RuntimeError as error:
+                print(json.dumps(utils.generic_error(error.args[0])))
 
     elif action == 'restore':
-        try:
-            data = json.load(sys.stdin)
-            # restore backup
-            backup_path = f'{UPLOAD_PATH}{data.get("backup")}'
-            restore_backup(backup_path, data.get('passphrase', None))
-            # restore successful, restart the system
-            subprocess.run(['/sbin/reboot'], check=True, capture_output=True)
-            # reboot takes a few seconds to complete, enough to send the response
-            print(json.dumps({'message': 'success'}))
-        except RuntimeError as error:
-            print(json.dumps(utils.validation_error('passphrase',error.args[0])))
+        if not caller_is_superuser:
+            print(json.dumps(utils.generic_error('forbidden')))
+        else:
+            try:
+                data = json.load(sys.stdin)
+                # restore backup
+                backup_path = f'{UPLOAD_PATH}{data.get("backup")}'
+                restore_backup(backup_path, data.get('passphrase', None))
+                # restore successful, restart the system
+                subprocess.run(['/sbin/reboot'], check=True, capture_output=True)
+                # reboot takes a few seconds to complete, enough to send the response
+                print(json.dumps({'message': 'success'}))
+            except RuntimeError as error:
+                print(json.dumps(utils.validation_error('passphrase',error.args[0])))
 
     elif action == 'set-passphrase':
-        try:
-            # read passphrase, write into default file
-            data = json.load(sys.stdin)
-            if data['passphrase'] == '':
-                os.remove(PASSPHRASE_PATH)
-            else:
-                open(PASSPHRASE_PATH, 'w').write(data['passphrase'])
-            print(json.dumps({'message': 'success'}))
-        except IOError as error:
-            print(json.dumps(utils.generic_error(f'passphrase write failed')))
-        except KeyError as error:
-            print(json.dumps(utils.validation_error('passphrase', 'required')))
+        if not caller_is_superuser:
+            print(json.dumps(utils.generic_error('forbidden')))
+        else:
+            try:
+                # read passphrase, write into default file
+                data = json.load(sys.stdin)
+                if data['passphrase'] == '':
+                    os.remove(PASSPHRASE_PATH)
+                else:
+                    open(PASSPHRASE_PATH, 'w').write(data['passphrase'])
+                print(json.dumps({'message': 'success'}))
+            except IOError as error:
+                print(json.dumps(utils.generic_error(f'passphrase write failed')))
+            except KeyError as error:
+                print(json.dumps(utils.validation_error('passphrase', 'required')))
 
     elif action == 'registered-list-backups':
         try:
@@ -212,31 +223,37 @@ elif cmd == 'call':
             print(json.dumps(utils.validation_error('passphrase',error.args[0])))
 
     elif action == 'registered-download-backup':
-        os.makedirs(DOWNLOAD_PATH, exist_ok=True)
-        try:
-            # fetch file from remote server
-            data = json.load(sys.stdin)
-            file_name = generate_random_file_name()
-            backup_path = f'{DOWNLOAD_PATH}{file_name}'
-            subprocess.run(['/usr/sbin/remote-backup', 'download', data['file'], backup_path],
-                           check=True, capture_output=True)
-            # return content
-            print(json.dumps({'backup': file_name}))
-        except subprocess.CalledProcessError as error:
-            print(json.dumps(utils.generic_error('remote backup download failed')))
-        except KeyError as error:
-            print(json.dumps(utils.validation_error('file', 'required')))
+        if not caller_is_superuser:
+            print(json.dumps(utils.generic_error('forbidden')))
+        else:
+            os.makedirs(DOWNLOAD_PATH, exist_ok=True)
+            try:
+                # fetch file from remote server
+                data = json.load(sys.stdin)
+                file_name = generate_random_file_name()
+                backup_path = f'{DOWNLOAD_PATH}{file_name}'
+                subprocess.run(['/usr/sbin/remote-backup', 'download', data['file'], backup_path],
+                               check=True, capture_output=True)
+                # return content
+                print(json.dumps({'backup': file_name}))
+            except subprocess.CalledProcessError as error:
+                print(json.dumps(utils.generic_error('remote backup download failed')))
+            except KeyError as error:
+                print(json.dumps(utils.validation_error('file', 'required')))
 
     elif action == 'registered-delete-backup':
-        try:
-            data = json.load(sys.stdin)
-            subprocess.run(['/usr/sbin/remote-backup', 'delete', data['id']],
-                           check=True, capture_output=True, text=True)
-            print(json.dumps({'message': 'success'}))
-        except subprocess.CalledProcessError as error:
-            print(json.dumps(utils.generic_error('remote backup delete failed')))
-        except KeyError as error:
-            print(json.dumps(utils.validation_error('id', 'required')))
+        if not caller_is_superuser:
+            print(json.dumps(utils.generic_error('forbidden')))
+        else:
+            try:
+                data = json.load(sys.stdin)
+                subprocess.run(['/usr/sbin/remote-backup', 'delete', data['id']],
+                               check=True, capture_output=True, text=True)
+                print(json.dumps({'message': 'success'}))
+            except subprocess.CalledProcessError as error:
+                print(json.dumps(utils.generic_error('remote backup delete failed')))
+            except KeyError as error:
+                print(json.dumps(utils.validation_error('id', 'required')))
 
     elif action == 'is-passphrase-set':
         print(json.dumps({'values': {'set': os.path.exists(PASSPHRASE_PATH)}}))
