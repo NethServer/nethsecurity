@@ -69,7 +69,7 @@ If you need to override one of these values, create `/etc/apk/repositories.d/98-
 
 If you want to change the base URL, add the variable override you need in `98-overrides.list`, `apk` will then handle by itself the replacement.
 
-Image updates do not use apk. Their base URL is printed by `ns-repository-url`, which builds it on every call:
+Image updates do not use apk. Their base URL is printed by `/usr/libexec/ns-repository-url`, which builds it on every call:
 
 - registered units: `https://<system_id>:<secret>@distfeed.nethesis.it/repository/<type>/nethsecurity`, from the `ns-plug` subscription options
 - unregistered units: `https://updates.nethsecurity.nethserver.org/<channel>`, from `/etc/repo-channel` (default `stable`)

@@ -42,7 +42,7 @@ if [ "$force" -eq 1 ]; then
     rm -rf "$DL_DIR" &> /dev/null   
 fi
 
-base_url="$(/usr/sbin/ns-repository-url)"
+base_url="$(/usr/libexec/ns-repository-url)"
 
 # If subscription is active
 
