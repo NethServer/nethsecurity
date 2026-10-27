@@ -5,6 +5,9 @@
 #
 
 . /lib/functions.sh
+. /lib/functions/keepalived/hotplug.sh
+
+ns_ha_chain_is_stale && exit 0
 
 record_alert_event() {
 	local option="$1"

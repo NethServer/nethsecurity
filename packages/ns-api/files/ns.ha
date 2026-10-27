@@ -751,7 +751,7 @@ def init_remote(ssh_password, lan_interface):
 
 
 def get_lock_status(uci):
-    lock_timeout = uci.get('keepalived', 'globals', 'ns_lock_timeout', default='')
+    lock_timeout = uci.get('keepalived', 'globals', 'ns_lock_timeout', default='120')
 
     ret = {
         "lock_status": "disabled",
