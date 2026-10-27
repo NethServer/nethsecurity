@@ -4337,34 +4337,6 @@ Example response:
 }
 ```
 
-### registered-restore
-
-Restore a backup from the remote server.
-
-Required parameters:
-
-- `file`: contains the name of the backup to restore, can be retrieved from `registered-list-backups` API
-
-```bash
-api-cli ns.backup registered-restore --data '{"file": "882e399c4e6562da3cfa43e886d82454c1b6311392608100801ad0e19307e8b3.bin"}'
-```
-
-Optional parameters:
-
-- `passphrase`: passphrase to decrypt the backup if needed
-
-```bash
-api-cli ns.backup registered-restore --data '{"file": "882e399c4e6562da3cfa43e886d82454c1b6311392608100801ad0e19307e8b3.bin", "passphrase": "very-cool-passphrase"}'
-```
-
-Example response:
-
-```json
-{
-   "message": "success"
-}
-```
-
 ### registered-download-backup
 
 Download a backup from the remote server.

@@ -104,10 +104,6 @@ if cmd == 'list':
         },
         'registered-list-backups': {},
         'registered-backup': {},
-        'registered-restore': {
-            'file': 'str',
-            'passphrase': 'str'
-        },
         'registered-download-backup': {
             'file': 'str'
         },
@@ -190,26 +186,6 @@ elif cmd == 'call':
                 print(json.dumps(utils.generic_error(f'remote upload failed')))
             except RuntimeError as error:
                 print(json.dumps(utils.generic_error(error.args[0])))
-
-    elif action == 'registered-restore':
-        try:
-            # fetch file from remote server
-            data = json.load(sys.stdin)
-            backup_path = '/tmp/backup.tar.gz'
-            subprocess.run(['/usr/sbin/remote-backup', 'download', data['file'], backup_path],
-                           check=True, capture_output=True)
-            # fetch completed successfully, restore system
-            restore_backup(backup_path, data.get('passphrase', None))
-            # restore successful, restart the system
-            subprocess.run(['/sbin/reboot'], check=True, capture_output=True)
-            # reboot takes a few seconds to complete, enough to send the response
-            print(json.dumps({'message': 'success'}))
-        except subprocess.CalledProcessError as error:
-            print(json.dumps(utils.generic_error('remote backup download failed')))
-        except KeyError as error:
-            print(json.dumps(utils.validation_error('file', 'required')))
-        except RuntimeError as error:
-            print(json.dumps(utils.validation_error('passphrase',error.args[0])))
 
     elif action == 'registered-download-backup':
         os.makedirs(DOWNLOAD_PATH, exist_ok=True)
