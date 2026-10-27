@@ -89,6 +89,7 @@ define Package/ns-plug/install
 	$(INSTALL_BIN) ./files/update-packages $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/inventory $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-download $(1)/usr/bin
+	$(INSTALL_BIN) ./files/ns-repository-url $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-push-reports $(1)/usr/bin
 	$(INSTALL_BIN) ./files/ns-controller-push-info $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-controller-telegraf-down $(1)/usr/sbin

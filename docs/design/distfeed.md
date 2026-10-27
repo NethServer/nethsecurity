@@ -69,12 +69,16 @@ If you need to override one of these values, create `/etc/apk/repositories.d/98-
 
 If you want to change the base URL, add the variable override you need in `98-overrides.list`, `apk` will then handle by itself the replacement.
 
-Image updates work differently, they use the `ns-plug.config.repository_url` uci config with the `/etc/repo-channel`. To switch channels for images, do the following:
+Image updates do not use apk. Their base URL is printed by `ns-repository-url`, which builds it on every call:
+
+- registered units: `https://<system_id>:<secret>@distfeed.nethesis.it/repository/<type>/nethsecurity`, from the `ns-plug` subscription options
+- unregistered units: `https://updates.nethsecurity.nethserver.org/<channel>`, from `/etc/repo-channel` (default `stable`)
+
+Since nothing is stored, the URL always follows register, unregister and credential rotation (`migrate-to-my`).
+To switch channels for images, do the following:
 
 ```bash
 echo "<channel>" > /etc/repo-channel
-uci set ns-plug.config.repository_url="https://updates.nethsecurity.nethserver.org/$(cat /etc/repo-channel)"
-uci commit ns-plug
 distfeed-setup
 ```
 You can now refresh the update page, and the new repository channel will be used.

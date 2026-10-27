@@ -17,7 +17,6 @@ import semver
 import requests
 from nethsec import utils
 from urllib.parse import urlparse
-from euci import EUci
 
 # Utilities
 
@@ -102,11 +101,13 @@ def install_package_updates():
     return {"result": "success"}
 
 def check_system_update():
-    e_uci = EUci()
     current_version = get_system_version()
     data = {"currentVersion": f'NethSecurity {current_version}', "lastVersion": "", "scheduledAt": get_update_schedule()}
-    url = e_uci.get('ns-plug', 'config', 'repository_url', default=None)
-    if url is None:
+    try:
+        url = subprocess.run(["/usr/sbin/ns-repository-url"], check=True, capture_output=True, text=True).stdout.strip()
+    except Exception:
+        url = ""
+    if not url:
         return utils.generic_error("repository_url_not_set")
     try:
         response = requests.get(f"{url}/latest_release", headers={"Accept": "application/json"}, timeout=5)
