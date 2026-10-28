@@ -58,9 +58,9 @@ groups:
           description_en: "Memory usage is {{ $value }}%"
           description_it: "Utilizzo della memoria è {{ $value }}%"
 
-      # Disk Space Monitoring
+      # Disk Space Monitoring, only /mnt/data by percent and / by free MB, other mounts aren't managed by the system
       - alert: DiskSpaceWarning
-        expr: 'round((disk_used / disk_total) * 100, 0.1) > 80 unless round((disk_used / disk_total) * 100, 0.1) > 90'
+        expr: 'round((disk_used{path="/mnt/data"} / disk_total) * 100, 0.1) > 80 unless round((disk_used{path="/mnt/data"} / disk_total) * 100, 0.1) > 90'
         for: "10m"
         labels:
           severity: "warning"
@@ -72,7 +72,7 @@ groups:
           description_it: "Utilizzo del disco è {{ $value }}% su {{ $labels.path }}"
 
       - alert: DiskSpaceCritical
-        expr: 'round((disk_used / disk_total) * 100, 0.1) > 90'
+        expr: 'round((disk_used{path="/mnt/data"} / disk_total) * 100, 0.1) > 90'
         for: "5m"
         labels:
           severity: "critical"
@@ -82,6 +82,30 @@ groups:
           summary_it: "Spazio disco critico su {{ $labels.path }}"
           description_en: "Disk usage is {{ $value }}% on {{ $labels.path }}"
           description_it: "Utilizzo del disco è {{ $value }}% su {{ $labels.path }}"
+
+      - alert: RootSpaceWarning
+        expr: 'round(disk_free{path="/"} / 1048576, 0.1) < 20 unless round(disk_free{path="/"} / 1048576, 0.1) < 10'
+        for: "10m"
+        labels:
+          severity: "warning"
+          service: "storage"
+        annotations:
+          summary_en: "Root filesystem almost full"
+          summary_it: "Filesystem di root quasi pieno"
+          description_en: "Only {{ $value }} MB free on /"
+          description_it: "Solo {{ $value }} MB liberi su /"
+
+      - alert: RootSpaceCritical
+        expr: 'round(disk_free{path="/"} / 1048576, 0.1) < 10'
+        for: "5m"
+        labels:
+          severity: "critical"
+          service: "storage"
+        annotations:
+          summary_en: "Root filesystem full"
+          summary_it: "Filesystem di root pieno"
+          description_en: "Only {{ $value }} MB free on /"
+          description_it: "Solo {{ $value }} MB liberi su /"
 
       # System Load Monitoring
       - alert: HighSystemLoad
