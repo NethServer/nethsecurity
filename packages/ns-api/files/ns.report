@@ -145,8 +145,9 @@ def tsip_malware_report():
                 first_seen = datetime.strptime(f"{datetime.now().year} {line[:15]}", '%Y %b %d %H:%M:%S').timestamp()
 
             # Extract category and chain from the line
-            # description of match banIP/<chain>/drop/<category>
-            category_match = re.search(r'banIP/[a-zA-Z0-9_-]+/(drop|reject)/([a-zA-Z0-9_-]*):', line)
+            # description of match banIP/<chain>/drop/<category>[.v4|.v6]
+            # the IP family suffix is stripped to group IPv4 and IPv6 hits of the same feed
+            category_match = re.search(r'banIP/[a-zA-Z0-9_-]+/(drop|reject)/([a-zA-Z0-9_.-]+?)(?:\.v[46])?:', line)
             if category_match:
                 category = category_match.group(2)
                 category_count[category] += 1
