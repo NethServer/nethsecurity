@@ -8031,6 +8031,7 @@ Report the number of blocked IPs by Threat Shield IP using the blocklists.
 Data are searched from the last 24 hours, inside `/var/log/messages` and `/var/log/messages.1.gz` so data can be incomplete
 if the logs do not contain the full 24 hours.
 Result is cached for 15 minutes.
+`malware_by_category` groups the hits by feed name: IPv4 and IPv6 hits of the same feed (e.g. `blocklist.v4` and `blocklist.v6`) are counted together.
 Usage example:
 ```
 api-cli ns.report tsip-malware-report
@@ -8038,7 +8039,7 @@ api-cli ns.report tsip-malware-report
 
 Output example:
 ```json
-{"first_seen":1723154401,"malware_count":84816,"malware_by_hour":[[0,5695],[1,5351],[2,5470],[3,6187],[4,5892],[5,5268],[6,5168],[7,5457],[8,6447],[9,5573],[10,5479],[11,5112],[12,4969],[13,4917],[14,4879],[15,2952],[16,0],[17,0],[18,0],[19,0],[20,0],[21,0],[22,0],[23,0]],"malware_by_category":{"nethesislvl3v4":76899,"yoroimallvl2v4":6979,"yoroisusplvl2v4":122,"blocklistv4":335},"malware_by_chain":{"fwd-wan":32933,"inp-wan":51402}}
+{"first_seen":1723154401,"malware_count":84816,"malware_by_hour":[[0,5695],[1,5351],[2,5470],[3,6187],[4,5892],[5,5268],[6,5168],[7,5457],[8,6447],[9,5573],[10,5479],[11,5112],[12,4969],[13,4917],[14,4879],[15,2952],[16,0],[17,0],[18,0],[19,0],[20,0],[21,0],[22,0],[23,0]],"malware_by_category":{"nethesislvl3":77634,"yoroimallvl2":6979,"yoroisusplvl2":122,"blocklist":81},"malware_by_chain":{"inbound":84481,"outbound":335}}
 ```
 
 ### tsip-attack-report
