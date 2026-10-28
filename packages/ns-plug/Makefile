@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-plug
-PKG_VERSION:=1.4.2
+PKG_VERSION:=1.4.3
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-plug-$(PKG_VERSION)
@@ -89,6 +89,7 @@ define Package/ns-plug/install
 	$(INSTALL_BIN) ./files/update-packages $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/inventory $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-download $(1)/usr/bin
+	$(INSTALL_BIN) ./files/ns-repository-url $(1)/usr/libexec
 	$(INSTALL_BIN) ./files/ns-push-reports $(1)/usr/bin
 	$(INSTALL_BIN) ./files/ns-controller-push-info $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-controller-telegraf-down $(1)/usr/sbin

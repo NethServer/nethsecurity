@@ -1,0 +1,23 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+#
+# Print the base URL of the image repository.
+# The URL is built from the current subscription data on every call, so it
+# follows register, unregister and credential rotation (migrate-to-my)
+# without being stored anywhere.
+#
+
+system_id="$(uci -q get ns-plug.config.system_id)"
+if [ -n "$system_id" ]; then
+    type="$(uci -q get ns-plug.config.type)"
+    secret="$(uci -q get ns-plug.config.secret)"
+    echo "https://$system_id:$secret@distfeed.nethesis.it/repository/$type/nethsecurity"
+else
+    channel="$(cat /etc/repo-channel 2>/dev/null)"
+    echo "https://updates.nethsecurity.nethserver.org/${channel:-stable}"
+fi
