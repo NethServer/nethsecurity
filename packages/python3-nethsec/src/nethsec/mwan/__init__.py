@@ -243,12 +243,15 @@ def store_policy(e_uci: EUci, name: str, interfaces: list[dict]) -> list[str]:
         list of changed configuration
 
     Raises:
-        ValidationError: if name is not unique or length or get_id > 15
+        ValidationError: if name is not unique or length or get_id > 15, or if interfaces is empty
     """
     changed_config = []
     if len(name) > 12:
         # get_id add 3 more chars (ns_) to the name
         raise ValidationError('name', 'length_12_max', name)
+    # a policy without members is not valid
+    if len(interfaces) == 0:
+        raise ValidationError('interfaces', 'required')
     # generate policy name
     policy_config_name = utils.get_id(name.lower(), 15)
     #  test length of policy name
@@ -337,14 +340,14 @@ def index_policies(e_uci: EUci) -> list[dict]:
 
         # add members
         members = []
+        policy_data['members'] = {}
         if 'use_member' in policy:
-            policy_data['members'] = {}
             for member in policy['use_member']:
                 members.append(__parse_member(e_uci, member))
 
         # infer policy type by metrics
         metrics = [int(member['metric']) for member in members]
-        if len(metrics) == 1:
+        if len(metrics) <= 1:
             policy_data['type'] = 'custom'
         elif all(metric == metrics[0] for metric in metrics):
             policy_data['type'] = 'balance'
@@ -415,10 +418,13 @@ def edit_policy(e_uci: EUci, name: str, label: str, interfaces: list[dict]) -> l
         list of changed mwan3 entries
 
     Raises:
-        ValidationError: if name is not valid
+        ValidationError: if name is not valid or if interfaces is empty
     """
     if e_uci.get('mwan3', name, default=None) is None:
         raise ValidationError('name', 'invalid', name)
+    # a policy without members is not valid
+    if len(interfaces) == 0:
+        raise ValidationError('interfaces', 'required')
     changed_config = []
     if label != e_uci.get_all('mwan3', name)['label']:
         e_uci.set('mwan3', name, 'label', label)

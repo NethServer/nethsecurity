@@ -6849,7 +6849,7 @@ api-cli ns.mwan store_policy --data '{"name": "Default","interfaces": [{"name": 
 Parameters:
 
 - `name`: friendly name for the policy
-- `interfaces`: list of interfaces to be included in the policy, each interface must have the following fields:
+- `interfaces`: list of interfaces to be included in the policy, at least one is required (`required` validation error otherwise); each interface must have the following fields:
    - `name`: name of the interface
    - `metric`: metric to be used for the interface
    - `weight`: weight to be used for the interface
@@ -6874,7 +6874,7 @@ Parameters:
 
 - `name`: name of the policy to be edited
 - `label`: friendly name for the policy
-- `interfaces`: list of interfaces to be included in the policy, each interface must have the following fields:
+- `interfaces`: list of interfaces to be included in the policy, at least one is required (`required` validation error otherwise); each interface must have the following fields:
    - `name`: name of the interface
    - `metric`: metric to be used for the interface
    - `weight`: weight to be used for the interface
