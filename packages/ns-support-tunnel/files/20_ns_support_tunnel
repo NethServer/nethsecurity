@@ -1,7 +1,7 @@
 if [ -z "$(uci -q get support-tunnel.config.url)" ]; then
 	uci -q import support-tunnel << EOI
 config main 'config'
-	option url 'wss://support.nethesis.it/api/tunnel'
+	option url 'wss://support.my.nethesis.it/api/tunnel'
 	option system_key ''
 	option system_secret ''
 	option exclude_patterns ''

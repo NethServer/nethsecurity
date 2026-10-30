@@ -13,7 +13,7 @@
 #
 # Credentials default to the ns-plug subscription (system_id/secret).
 # Optional overrides in UCI (key and secret must be set together):
-#   uci set support-tunnel.config.url='wss://support.nethesis.it/api/tunnel'
+#   uci set support-tunnel.config.url='wss://support.my.nethesis.it/api/tunnel'
 #   uci set support-tunnel.config.system_key='NETH-...'
 #   uci set support-tunnel.config.system_secret='...'
 #   uci commit support-tunnel
@@ -27,7 +27,7 @@ state_dir=/etc/support-tunnel
 state_file="$state_dir/users-state.json"
 messages=/var/log/messages
 client=/usr/sbin/tunnel-client
-default_url="wss://support.nethesis.it/api/tunnel"
+default_url="wss://support.my.nethesis.it/api/tunnel"
 stop_timeout=60
 json_output=0
 
