@@ -1,0 +1,238 @@
+#!/bin/bash
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-3.0-only
+#
+
+#
+# WebSocket-based remote support tunnel client.
+# Coexists with the OpenVPN-based "don" support system.
+#
+# Usage: support-tunnel {start|stop|status|cleanup} [-j]
+#
+# Credentials default to the ns-plug subscription (system_id/secret).
+# Optional overrides in UCI (key and secret must be set together):
+#   uci set support-tunnel.config.url='wss://support.my.nethesis.it/api/tunnel'
+#   uci set support-tunnel.config.system_key='NETH-...'
+#   uci set support-tunnel.config.system_secret='...'
+#   uci commit support-tunnel
+#
+
+base_dir=/var/run/support-tunnel
+pid_file="$base_dir/tunnel-client.pid"
+log_offset_file="$base_dir/log_offset"
+# /var is a tmpfs: the state of provisioned accounts must survive a reboot
+state_dir=/etc/support-tunnel
+state_file="$state_dir/users-state.json"
+messages=/var/log/messages
+client=/usr/sbin/tunnel-client
+default_url="wss://support.my.nethesis.it/api/tunnel"
+stop_timeout=60
+json_output=0
+
+client_args=(
+    --users-dir /usr/share/my/users.d
+    --diagnostics-dir /usr/share/my/diagnostics.d
+    --users-state-file "$state_file"
+)
+
+if [ "$2" = "-j" ]; then
+    json_output=1
+fi
+
+log_message() {
+    logger -t support-tunnel -p daemon.info "$1"
+}
+
+fail() {
+    local code="$1" message="$2"
+    log_message "ERROR: $message"
+    if [ "$json_output" = 1 ]; then
+        jq -c -n --arg error "$message" '{error: $error}'
+    else
+        echo "ERROR: $message" >&2
+    fi
+    exit "$code"
+}
+
+# Succeeds only if $1 is a live tunnel-client process, so a recycled PID
+# is never signalled
+is_tunnel_pid() {
+    [ -n "$1" ] || return 1
+    case "$(readlink "/proc/$1/exe" 2>/dev/null)" in
+        "$client" | "$client (deleted)") return 0 ;;
+    esac
+    return 1
+}
+
+running_pid() {
+    local pid
+    [ -f "$pid_file" ] || return 1
+    pid=$(cat "$pid_file")
+    is_tunnel_pid "$pid" || return 1
+    echo "$pid"
+}
+
+session_log() {
+    local offset=0
+    [ -f "$log_offset_file" ] && offset=$(cat "$log_offset_file")
+    tail -n "+$((offset + 1))" "$messages" 2>/dev/null | grep 'support-tunnel'
+}
+
+services_count() {
+    local services
+    services=$(session_log | grep -o 'Manifest sent with [0-9]*' | tail -1 | grep -o '[0-9]*$')
+    echo "${services:-0}"
+}
+
+# Remove the accounts recorded in the state file (no network needed)
+cleanup_users() {
+    mkdir -p "$state_dir"
+    chmod 700 "$state_dir"
+    "$client" --cleanup-only "${client_args[@]}" 2>&1 | logger -t support-tunnel -p daemon.info
+    return "${PIPESTATUS[0]}"
+}
+
+# The client tears down its accounts on SIGTERM: give it time to finish
+stop_process() {
+    local pid i=0
+    if pid=$(running_pid); then
+        kill "$pid" 2>/dev/null
+        while kill -0 "$pid" 2>/dev/null && [ "$i" -lt "$stop_timeout" ]; do
+            sleep 1
+            i=$((i + 1))
+        done
+        if kill -0 "$pid" 2>/dev/null && is_tunnel_pid "$pid"; then
+            log_message "tunnel-client did not stop within ${stop_timeout}s, killing it"
+            kill -9 "$pid" 2>/dev/null
+        fi
+    fi
+    rm -f "$pid_file" "$log_offset_file"
+}
+
+start_tunnel() {
+    local url system_key system_secret exclude tunnel_pid connected=false i=0
+
+    url=$(uci -q get support-tunnel.config.url)
+    system_key=$(uci -q get support-tunnel.config.system_key)
+    system_secret=$(uci -q get support-tunnel.config.system_secret)
+    exclude=$(uci -q get support-tunnel.config.exclude_patterns)
+
+    if [ -z "$system_key" ] && [ -z "$system_secret" ]; then
+        system_key=$(uci -q get ns-plug.config.system_id)
+        system_secret=$(uci -q get ns-plug.config.secret)
+    fi
+
+    if [ -z "$system_key" ] || [ -z "$system_secret" ]; then
+        fail 2 "missing credentials: register the unit or set support-tunnel.config.system_key/system_secret"
+    fi
+
+    [ -z "$url" ] && url="$default_url"
+    case "$url" in
+        wss://*) ;;
+        *) fail 3 "invalid url: only wss:// is supported" ;;
+    esac
+
+    mkdir -p "$base_dir"
+    chmod 700 "$base_dir"
+    wc -l < "$messages" > "$log_offset_file" 2>/dev/null || echo 0 > "$log_offset_file"
+
+    # Secrets go through the environment, never on the command line.
+    # The wrapper writes its own PID, then exec()s the client keeping it.
+    SUPPORT_URL="$url" SYSTEM_KEY="$system_key" SYSTEM_SECRET="$system_secret" EXCLUDE_PATTERNS="$exclude" \
+        sh -c 'echo $$ > "$0"; exec "$@"' "$pid_file" "$client" "${client_args[@]}" < /dev/null 2>&1 \
+        | logger -t support-tunnel -p daemon.info > /dev/null 2>&1 &
+
+    while [ ! -s "$pid_file" ] && [ "$i" -lt 5 ]; do
+        sleep 1
+        i=$((i + 1))
+    done
+    tunnel_pid=$(cat "$pid_file" 2>/dev/null)
+
+    # Wait for WebSocket connection (max 15 seconds)
+    i=0
+    while [ "$i" -lt 15 ]; do
+        if ! is_tunnel_pid "$tunnel_pid"; then
+            rm -f "$pid_file"
+            fail 4 "tunnel-client exited unexpectedly"
+        fi
+        if session_log | grep -q "WebSocket connected"; then
+            connected=true
+            break
+        fi
+        sleep 1
+        i=$((i + 1))
+    done
+
+    if [ "$json_output" = 1 ]; then
+        jq -c -n \
+            --argjson active true \
+            --arg support_url "$url" \
+            --argjson connected "$connected" \
+            --argjson services "$(services_count)" \
+            --argjson pid "$tunnel_pid" \
+            '{active: $active, support_url: $support_url, connected: $connected, services: $services, pid: $pid}'
+    else
+        echo "Tunnel started (PID: $tunnel_pid)"
+        echo "URL: $url"
+        echo "Connected: $connected"
+    fi
+}
+
+show_status() {
+    local pid url
+    if pid=$(running_pid); then
+        url=$(uci -q get support-tunnel.config.url)
+        [ -z "$url" ] && url="$default_url"
+
+        if [ "$json_output" = 1 ]; then
+            jq -c -n \
+                --argjson active true \
+                --arg support_url "$url" \
+                --argjson connected true \
+                --argjson services "$(services_count)" \
+                --argjson pid "$pid" \
+                '{active: $active, support_url: $support_url, connected: $connected, services: $services, pid: $pid}'
+        else
+            echo "Tunnel is running (PID: $pid)"
+            echo "URL: $url"
+        fi
+        exit 0
+    else
+        if [ "$json_output" = 1 ]; then
+            echo '{"active": false}'
+        else
+            echo "Tunnel is not running"
+        fi
+        exit 1
+    fi
+}
+
+case "$1" in
+start)
+    stop_process
+    cleanup_users || fail 5 "cleanup of a previous session failed"
+    start_tunnel
+    ;;
+stop)
+    stop_process
+    rm -rf "$base_dir"
+    cleanup_users || fail 5 "cleanup of support accounts failed"
+    if [ "$json_output" = 1 ]; then
+        echo '{"result": "success"}'
+    fi
+    ;;
+cleanup)
+    # Boot time: remove accounts left by a session interrupted by a reboot
+    [ -f "$state_file" ] || exit 0
+    cleanup_users
+    ;;
+status)
+    show_status
+    ;;
+*)
+    echo "Usage: $0 {start|stop|status|cleanup} [-j]"
+    exit 1
+    ;;
+esac
