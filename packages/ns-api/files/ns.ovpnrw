@@ -682,7 +682,8 @@ def list_users(ovpninstance):
         user['valid'] = True
         ret.append(user)
     for configured_user in utils.get_all_by_option(u, 'users', 'database', db):
-        if u.get('users', configured_user, 'openvpn_enabled', default='0') != '1':
+        # include also disabled accounts, otherwise they can't be deleted from the UI
+        if u.get('users', configured_user, 'openvpn_enabled', default=None) is None:
             continue
         username = u.get('users', configured_user, 'name')
         # Search for the user inside the ret array
@@ -692,6 +693,8 @@ def list_users(ovpninstance):
             ret.append( {
                 "id": configured_user,
                 "name": username,
+                "openvpn_enabled": u.get('users', configured_user, 'openvpn_enabled'),
+                "openvpn_ipaddr": u.get('users', configured_user, 'openvpn_ipaddr', default=''),
                 "expiration": 0,
                 "expired": False,
                 "used": used,
