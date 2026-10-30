@@ -64,6 +64,7 @@ define Package/ns-threat_shield/install
 	$(INSTALL_BIN) ./files/adblock-devices-migrate.py $(1)/usr/libexec/ts-dns-migrate-devices
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/banip-defaults $(1)/etc/uci-defaults/99-nethsec-banip
+	$(INSTALL_BIN) ./files/99-nethsec-fail2ban $(1)/etc/uci-defaults/99-nethsec-fail2ban
 	$(INSTALL_BIN) ./files/banip-extra-defaults $(1)/etc/uci-defaults/96-nethsec-banip-extra
 	$(INSTALL_BIN) ./files/97-nethsec-banip-feeds $(1)/etc/uci-defaults/97-nethsec-banip-feeds
 	$(INSTALL_BIN) ./files/banip-insights-defaults $(1)/etc/uci-defaults/98-nethsec-banip-insights
