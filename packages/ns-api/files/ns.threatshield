@@ -904,7 +904,7 @@ def list_active_blocks():
         db = sqlite3.connect('file:/var/run/fail2ban/fail2ban.sqlite3?mode=ro', uri=True)
         try:
             rows = db.execute(
-                "SELECT ip, bantime, timeofban + bantime - ? FROM bips JOIN jails ON jails.name = bips.jail "
+                "SELECT ip, bantime, timeofban + bantime - ?, bips.jail FROM bips JOIN jails ON jails.name = bips.jail "
                 "WHERE jails.enabled = 1 AND (bantime < 0 OR timeofban + bantime > ?) "
                 "ORDER BY bantime < 0, timeofban + bantime", (now, now)).fetchall()
         finally:
@@ -912,7 +912,11 @@ def list_active_blocks():
     except sqlite3.Error:
         return []
     # rows are sorted by expiry: the last one per IP is the longest (-1 is permanent)
-    blocks = {ip: {"ip": ip, "timeout": bantime, "expires": -1 if bantime < 0 else left} for ip, bantime, left in rows}
+    jails = {}
+    for ip, _, _, jail in rows:
+        jails.setdefault(ip, set()).add(jail)
+    blocks = {ip: {"ip": ip, "timeout": bantime, "expires": -1 if bantime < 0 else left, "jails": sorted(jails[ip])}
+              for ip, bantime, left, _ in rows}
     return sorted(blocks.values(), key=lambda x: x["timeout"] - x["expires"])
 
 

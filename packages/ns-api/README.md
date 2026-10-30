@@ -6174,8 +6174,8 @@ Configure banip settings:
 - `ban_loginbound`: Log suspicious packets in inbound traffic (WAN-input chain) (true or false).
 - `ban_logoutbound`: Log suspicious packets in outbound traffic (LAN-forward chain) (true or false).
 - `ban_loglimit`: Enable or disable fail2ban brute-force detection (true or false).
-- `ban_logcount`: optional and ignored; each fail2ban jail has its own fixed threshold.
-- `jails`: List of fail2ban jails to enable, used if `ban_loglimit` is true; optional, `ns_jails` is left unchanged when omitted; valid names are `ns-ssh`, `ns-webui`, `ns-openvpn`, `ns-proxy-auth`, `ns-proxy-scan` (list of strings).
+- `ban_logcount`: ignored, each fail2ban jail has its own threshold (optional).
+- `jails`: fail2ban jails to enable when `ban_loglimit` is true: `ns-ssh`, `ns-webui`, `ns-openvpn`, `ns-proxy-auth`, `ns-proxy-scan` (list of strings, optional: unchanged when omitted).
 - `ban_icmplimit`: Enable or disable icmp DoS detection (true or false).
 - `ban_synlimit`: Enable or disable syn DoS detection (true or false).
 - `ban_udplimit`: Enable or disable udp DoS detection (true or false).
@@ -6223,8 +6223,7 @@ Response example:
 
 ### add-allowed
 
-Changes to the allow list (`add-allowed`, `edit-allowed`, `delete-allowed`) reload banIP and run `/usr/libexec/ts-fail2ban`,
-so fail2ban `ignoreip` follows the allow list and allowlisted IPs are unbanned.
+Allow list changes also apply to fail2ban: IP and CIDR entries are never banned, and banned ones are freed.
 
 Add an address which is always allowed:
 ```
@@ -6338,24 +6337,22 @@ It can raise the following validation errors:
 
 ### list-active-blocks
 
-List the IP addresses currently banned by fail2ban, read from the `bips` table of the fail2ban database `/var/run/fail2ban/fail2ban.sqlite3`
-(unexpired bans of running jails only):
+List the IP addresses currently banned by fail2ban:
 ```
 api-cli ns.threatshield list-active-blocks
 ```
 
 Response example:
 ```json
-[{"ip": "198.51.100.9", "timeout": 1800, "expires": 1741}]
+[{"ip": "198.51.100.9", "timeout": 1800, "expires": 1741, "jails": ["ns-ssh", "ns-webui"]}]
 ```
 
-`timeout` is the ban duration and `expires` the remaining time, both in seconds; both are `-1` for a permanent ban.
-An IP banned by more than one jail is listed once, with the longest expiry.
-The list is empty if fail2ban is not running or has never started.
+`timeout` is the ban duration and `expires` the remaining time, in seconds (`-1` for a permanent ban); `jails` lists the jails banning the IP.
+The list is empty if fail2ban is not running.
 
 ### remove-active-block
 
-Unban an IP address from all fail2ban jails (`fail2ban-client unban`):
+Unban an IP address from all fail2ban jails:
 ```
 api-cli ns.threatshield remove-active-block --data '{"ip": "198.51.100.9"}'
 ```
