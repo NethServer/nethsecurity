@@ -1,0 +1,15 @@
+#!/bin/sh
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+. /lib/functions/keepalived/hotplug.sh
+
+set_service_name fail2ban
+
+# start fail2ban on master only when ts-fail2ban enabled it
+/etc/init.d/fail2ban enabled && set_restart_if_master
+set_stop_if_backup
+
+keepalived_hotplug

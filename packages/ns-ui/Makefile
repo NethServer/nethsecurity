@@ -12,7 +12,7 @@ PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/NethServer/nethsecurity-ui.git
-PKG_SOURCE_VERSION:=$(PKG_VERSION)
+PKG_SOURCE_VERSION:=aecd86b0b26debf48168f037286d6c36473ff2ef
 PKG_SOURCE_SUBDIR:=nethsecurity-ui-$(PKG_SOURCE_VERSION)
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_SOURCE_SUBDIR)
 PKG_MIRROR_HASH:=skip
@@ -60,6 +60,8 @@ define Package/ns-ui/install
 	$(INSTALL_BIN) ./files/ns-ui.init $(1)/etc/init.d/ns-ui
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/ns-ui.uci-defaults $(1)/etc/uci-defaults
+	$(INSTALL_DIR) $(1)/etc/nginx/conf.d
+	$(INSTALL_DATA) ./files/ns-ui-log.conf $(1)/etc/nginx/conf.d
 	$(CP) $(PKG_BUILD_DIR)/dist/* $(1)/www-ns
 endef
  

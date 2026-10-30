@@ -7,7 +7,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-threat_shield
-PKG_VERSION:=1.1.2
+PKG_VERSION:=1.2.0
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-threat_shield-$(PKG_VERSION)
@@ -22,7 +22,7 @@ define Package/ns-threat_shield
 	CATEGORY:=NethSecurity
 	TITLE:=Threat shield block list
 	URL:=https://github.com/NethServer/nethsecurity/
-	DEPENDS:=+wget-ssl +adblock +jq +ns-api
+	DEPENDS:=+wget-ssl +adblock +jq +ns-api +fail2ban +curl
 	EXTRA_DEPENDS:=adblock (>=4.5.3), ns-api (>=3.6.2)
 	PKGARCH:=all
 endef
@@ -46,7 +46,7 @@ define Package/ns-threat_shield/install
 	$(INSTALL_DIR) $(1)/usr/libexec
 	$(INSTALL_BIN) ./files/ts-dns $(1)/usr/sbin/ts-dns
 	$(INSTALL_BIN) ./files/ts-ip $(1)/usr/sbin/ts-ip
-	$(INSTALL_BIN) ./files/send-insights-blocklist $(1)/usr/sbin/send-insights-blocklist
+	$(INSTALL_BIN) ./files/ts-fail2ban $(1)/usr/libexec/ts-fail2ban
 	$(INSTALL_BIN) ./files/ts-insights-hook $(1)/usr/libexec/ts-insights-hook
 	$(INSTALL_BIN) ./files/20_threat_shield $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/ts-dns.hook $(1)/usr/share/ns-plug/hooks/register/90ts-dns
@@ -58,16 +58,22 @@ define Package/ns-threat_shield/install
 	$(INSTALL_DATA) ./files/community-dns.sources $(1)/usr/share/threat_shield
 	$(INSTALL_DATA) ./files/banip.nethesis.feeds $(1)/etc/banip
 	$(INSTALL_BIN) ./files/adjust-banip.py $(1)/usr/libexec/ns-api/post-commit/
+	$(INSTALL_BIN) ./files/adjust-fail2ban.py $(1)/usr/libexec/ns-api/post-commit/
 	$(INSTALL_BIN) ./files/configure-banip-wans.py $(1)/usr/libexec/ns-api/pre-commit/
 	$(INSTALL_BIN) ./files/configure-adblock-devices.py $(1)/usr/libexec/ns-api/pre-commit/
 	$(INSTALL_BIN) ./files/adblock-devices-migrate.py $(1)/usr/libexec/ts-dns-migrate-devices
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/banip-defaults $(1)/etc/uci-defaults/99-nethsec-banip
+	$(INSTALL_BIN) ./files/99-nethsec-fail2ban $(1)/etc/uci-defaults/99-nethsec-fail2ban
 	$(INSTALL_BIN) ./files/banip-extra-defaults $(1)/etc/uci-defaults/96-nethsec-banip-extra
 	$(INSTALL_BIN) ./files/97-nethsec-banip-feeds $(1)/etc/uci-defaults/97-nethsec-banip-feeds
 	$(INSTALL_BIN) ./files/banip-insights-defaults $(1)/etc/uci-defaults/98-nethsec-banip-insights
 	$(INSTALL_BIN) ./files/35_ns-threat_shield $(1)/etc/uci-defaults/35_ns-threat_shield
 	$(INSTALL_BIN) ./files/96_ns-threat_shield $(1)/etc/uci-defaults/96_ns-threat_shield
+	$(INSTALL_DIR) $(1)/etc/fail2ban
+	$(CP) ./files/fail2ban/* $(1)/etc/fail2ban/
+	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
+	$(INSTALL_DATA) ./files/ts-fail2ban.hotplug $(1)/etc/hotplug.d/iface/90-ts-fail2ban
 	gzip -9n $(1)/usr/share/threat_shield/nethesis-dns.sources
 	gzip -9n $(1)/usr/share/threat_shield/community-dns.sources
 endef
@@ -87,7 +93,6 @@ define Package/ns-threat_shield/prerm
 if [ -z "$${IPKG_INSTROOT}" ]; then
 	crontab -l | grep -v "/etc/init.d/banip reload" | sort | uniq | crontab -
 	crontab -l | grep -v "/etc/init.d/adblock" | sort | uniq | crontab -
-	crontab -l | grep -v "/usr/sbin/send-insights-blocklist" | sort | uniq | crontab -
 fi
 exit 0
 endef

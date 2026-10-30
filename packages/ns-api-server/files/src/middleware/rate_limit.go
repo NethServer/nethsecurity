@@ -16,6 +16,7 @@ import (
 
 	"github.com/NethServer/nethsecurity-api/logs"
 	"github.com/NethServer/nethsecurity-api/response"
+	"github.com/NethServer/nethsecurity-api/utils"
 )
 
 // BodyLimit rejects requests whose body exceeds maxBytes before any downstream
@@ -72,7 +73,7 @@ func RateLimiter(rps rate.Limit, burst int) gin.HandlerFunc {
 		mu.Unlock()
 
 		if !limiter.Allow() {
-			logs.Logs.Println("[INFO][AUTH] rate limit exceeded for " + ip + " on " + c.Request.URL.Path)
+			logs.Logs.Println("[INFO][AUTH] rate limit exceeded for " + ip + " on " + utils.SanitizeForLog(c.Request.URL.Path))
 			c.JSON(http.StatusTooManyRequests, structs.Map(response.StatusTooManyRequests{
 				Code:    http.StatusTooManyRequests,
 				Message: "too many requests",

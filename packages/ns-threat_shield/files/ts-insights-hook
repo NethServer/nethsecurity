@@ -5,15 +5,30 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-# banip ban_blockhook: append a blocked IP to the spool, send-insights-blocklist sends it.
-# Args: $1 IP; the other banip args ($2 family, $3 log count, $4 Set expiry) are not used
+# fail2ban ns-insights action: report a banned IP to Nethesis Insights, fire and forget.
+# Args: $1 IP, $2 fail2ban scenario
+# Only failures are logged, unless banip.global.ban_debug is set.
 
-SPOOL_DIR="/var/run/ns-insights"
-SPOOL="${SPOOL_DIR}/threat-events.jsonl"
+# opt-out: uci set banip.global.ns_insights_report=0
+[ "$(uci -q get banip.global.ns_insights_report)" = "0" ] && exit 0
+system_id=$(uci -q get ns-plug.config.system_id)
+secret=$(uci -q get ns-plug.config.secret)
+[ -n "$system_id" ] && [ -n "$secret" ] || exit 0
+url=$(uci -q get ns-plug.config.insights_blocklist_url)
+url="${url:-https://insights.nethesis.it/blocklist/v1/events}"
 
-[ -n "$1" ] || exit 0
+ip="$1"
+scenario="$2"
+case "$scenario" in
+	"" | *[!A-Za-z0-9/._-]*) scenario="nethsecurity/fail2ban" ;;
+esac
 
-[ -d "${SPOOL_DIR}" ] || mkdir -p "${SPOOL_DIR}"
+payload=$(printf '{"schema_version":1,"system_id":"%s","decisions":[{"value":"%s","scope":"Ip","type":"ban","scenario":"%s","origin":"fail2ban","created_at":"%s"}]}' \
+	"$system_id" "$ip" "$scenario" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')")
 
-printf '{"value":"%s","scope":"Ip","type":"ban","scenario":"nethsecurity/banip-log","origin":"banip","created_at":"%s"}\n' \
-	"$1" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >>"${SPOOL}"
+if ! error=$(curl -sS --fail --max-time 5 -o /dev/null -u "$system_id:$secret" \
+	-H 'Content-Type: application/json' --data "$payload" "$url" 2>&1); then
+	logger -t threat_shield "Insights report of $ip failed, dropped: $error"
+elif [ "$(uci -q get banip.global.ban_debug)" = "1" ]; then
+	logger -t threat_shield "Insights report of $ip ($scenario) sent"
+fi

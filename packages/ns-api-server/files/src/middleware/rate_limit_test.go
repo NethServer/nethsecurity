@@ -6,7 +6,9 @@ SPDX-License-Identifier: GPL-2.0-only
 package middleware
 
 import (
+	"bytes"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -15,6 +17,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
+
+	"github.com/NethServer/nethsecurity-api/logs"
 )
 
 func TestBodyLimit(t *testing.T) {
@@ -95,5 +99,37 @@ func TestRateLimiter(t *testing.T) {
 	r.ServeHTTP(w, newReq("5.6.7.8:1111"))
 	if w.Code != http.StatusOK {
 		t.Fatalf("different IP: status = %d, want %d", w.Code, http.StatusOK)
+	}
+}
+
+// TestRateLimiterLogInjection checks that a crafted path (an unknown route is
+// enough) cannot forge an extra log line or put a victim IP on the logged line.
+func TestRateLimiterLogInjection(t *testing.T) {
+	var buf bytes.Buffer
+	logs.Logs = log.New(&buf, "", 0)
+
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(RateLimiter(rate.Every(time.Minute), 1))
+
+	target := "/api/x%0D%0Aauthentication%20failed%20for%20user%20x%20from%208.8.8.8:%20exit%20status%20250"
+	for i := 0; i < 2; i++ {
+		req := httptest.NewRequest(http.MethodGet, target, nil)
+		req.RemoteAddr = "1.2.3.4:1111"
+		r.ServeHTTP(httptest.NewRecorder(), req)
+	}
+
+	out := buf.String()
+	if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
+		t.Fatalf("expected exactly one log line, got %q", out)
+	}
+	if strings.ContainsAny(strings.TrimSuffix(out, "\n"), "\r\n") {
+		t.Fatalf("control chars in log line %q", out)
+	}
+	if strings.Contains(out, "8.8.8.8") {
+		t.Fatalf("victim IP leaked into log line %q", out)
+	}
+	if !strings.Contains(out, "rate limit exceeded for 1.2.3.4 ") {
+		t.Fatalf("client IP missing from log line %q", out)
 	}
 }

@@ -1,0 +1,29 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Move the banIP log monitor settings to the fail2ban jails on upgrade
+
+# fail2ban reports each ban directly: drop the Insights queue sender cron job
+crontab -l 2>/dev/null | grep -v /usr/sbin/send-insights-blocklist | crontab -
+
+[ -z "$(uci -q get banip.global.ns_jails)" ] || exit 0
+
+# banIP log patterns are not migrated: the fail2ban jails replace them
+uci -q delete banip.global.ban_logterm
+# the banIP block hook never fires without the log monitor, fail2ban reports to Insights
+if [ "$(uci -q get banip.global.ban_blockhook)" = "/usr/libexec/ts-insights-hook" ]; then
+	uci -q delete banip.global.ban_blockhook
+fi
+for jail in ns-ssh ns-webui ns-openvpn ns-proxy-auth ns-proxy-scan; do
+	uci add_list banip.global.ns_jails="$jail"
+done
+
+uci commit banip
+/usr/libexec/ts-fail2ban
+/etc/init.d/banip running && /etc/init.d/banip restart
+
+exit 0

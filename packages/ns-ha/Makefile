@@ -7,7 +7,7 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-ha
 PKG_VERSION:=0.0.8
-PKG_RELEASE:=1
+PKG_RELEASE:=3
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-ha-$(PKG_VERSION)
 
@@ -73,6 +73,7 @@ define Package/ns-ha/install
 	$(INSTALL_DATA) ./files/700-nginx $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/800-adblock $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/800-banip $(1)/etc/hotplug.d/keepalived
+	$(INSTALL_DATA) ./files/810-fail2ban $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/800-netifyd $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/800-flashstart $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/800-ui $(1)/etc/hotplug.d/keepalived

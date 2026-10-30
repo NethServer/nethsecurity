@@ -1,0 +1,12 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Regenerate the fail2ban jails when interface addresses change (also after uci-defaults at boot)
+
+[ "$ACTION" = ifup ] || [ -n "$IFUPDATE_ADDRESSES$IFUPDATE_PREFIXES" ] || exit 0
+
+/usr/libexec/ts-fail2ban

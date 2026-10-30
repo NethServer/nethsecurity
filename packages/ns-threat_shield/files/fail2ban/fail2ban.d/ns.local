@@ -1,0 +1,9 @@
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+[Definition]
+logtarget = SYSLOG
+# .local loads after upstream uci.conf, so this overrides the UCI dbfile
+dbfile = /var/run/fail2ban/fail2ban.sqlite3

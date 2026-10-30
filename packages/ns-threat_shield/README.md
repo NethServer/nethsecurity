@@ -51,7 +51,7 @@ ts-ip
 ### Nethesis Insights
 
 On registered machines `ts-ip` joins the [Nethesis Insights](https://github.com/nethesis/nethesis-insights)
-threat shield: IPs blocked by the banip log service are reported to the Insights server, and IPs reported by
+threat shield: IPs banned by [fail2ban](#fail2ban) are reported to the Insights server, and IPs reported by
 several firewalls can be blocked locally with the `nethesisinsightslvl2` feed.
 Authentication uses the subscription `system_id` and `secret`.
 
@@ -63,17 +63,76 @@ Authentication uses the subscription `system_id` and `secret`.
 
 Reporting:
 
-- `ts-ip` sets `banip.global.ban_blockhook` to `/usr/libexec/ts-insights-hook`, which appends every blocked IP
-  to `/var/run/ns-insights/threat-events.jsonl`
-- banip supports a single block hook: when `ban_blockhook` already points to a custom script, `ts-ip` leaves it
-  untouched, Insights reporting stays disabled and a `threat_shield` message is logged to `/var/log/messages`;
-  on unregistration `ts-ip` removes only its own hook
-- `/usr/sbin/send-insights-blocklist` sends the public IPs to `POST /blocklist/v1/events`, in batches of 500;
-  the full endpoint URL can be overridden with `ns-plug.config.insights_blocklist_url`
-  (default `https://insights.nethesis.it/blocklist/v1/events`);
-  `ts-ip` adds its 5-minute cron job on registration and removes it, along with the spool, on unregistration
-- fire and forget: events that fail to send are dropped
-- only failed pushes are logged to `/var/log/messages`; set `banip.global.ban_debug` to `1` to log every push
+- each new fail2ban ban is reported in background; a report that fails is dropped and logged to `/var/log/messages`
+  (tag `threat_shield`)
+- the endpoint URL can be overridden with `ns-plug.config.insights_blocklist_url`
+  (default `https://insights.nethesis.it/blocklist/v1/events`)
+- to stop reporting or to log every report see `ns_insights_report` and `ban_debug` in [fail2ban](#fail2ban)
+
+## fail2ban
+
+Brute force detection for `ts-ip` is done by the upstream
+[fail2ban](https://github.com/openwrt/packages/tree/openwrt-25.12/net/fail2ban) package: it reads `/var/log/messages`
+and bans offending IPs in the nftables table `inet f2b-table`.
+
+| jail | detects | bans after |
+|---|---|---|
+| `ns-ssh` | SSH login failures and disconnects before login | 5 in 10m |
+| `ns-webui` | web UI and API login failures | 8 in 1h |
+| `ns-openvpn` | road warrior authentication and TLS handshake failures | 6 in 10m |
+| `ns-proxy-auth` | reverse proxy 403 and Basic auth 401 responses | 6 in 10m |
+| `ns-proxy-scan` | reverse proxy and web UI 404 responses | 20 in 2m |
+
+Never banned: loopback, the networks of non-WAN interfaces, the IP and CIDR entries of the banIP allowlist
+and the firewall's own addresses.
+
+### UCI options
+
+Options of `banip.global`, applied on `ns.commit` (from the command line run `/usr/libexec/ts-fail2ban`):
+
+| option | effect |
+|---|---|
+| `ban_enabled` | `1`: run fail2ban if at least one jail is enabled |
+| `ban_loglimit` | `> 0`: enable the jails listed in `ns_jails` |
+| `ns_jails` | jails to enable, all five on a fresh install |
+| `ban_nftexpiry` | ban duration, e.g. `30m`, `1h`, `3d` (default `30m`) |
+| `ns_insights_report` | `0`: do not report bans to [Nethesis Insights](#nethesis-insights), bans still apply |
+| `ban_debug` | `1`: log every Insights report |
+
+### Bans
+
+Check status:
+```
+fail2ban-client status
+fail2ban-client status ns-webui
+nft list table inet f2b-table
+```
+
+Unban an IP:
+```
+fail2ban-client unban 203.0.113.7
+```
+
+- bans are lost on reboot
+- a ban drops all traffic from the IP, also replies to connections opened by the firewall or LAN hosts
+- allowlisting a banned IP frees it, but the ban can come back if the IP leaves the allowlist before the ban expires
+- `ns-proxy-auth` does not cover the web UI and the path rules on the `_lan` server: their access log has only 404 responses
+- `ns-proxy-auth` counts 401 responses only for Basic auth
+
+### Custom jails
+
+Add the jail in `/etc/fail2ban/jail.d/` and its filter in `/etc/fail2ban/filter.d/`; do not edit
+`90-ns-threat_shield.local`, it is generated. Custom jails default to `maxretry = 3` and `findtime = 10m`,
+and run only while at least one NethSecurity jail is enabled.
+Example `/etc/fail2ban/jail.d/50-custom.local`:
+```
+[custom-app]
+enabled = true
+filter = custom-app
+action = %(ns_banaction)s
+         ns-insights[scenario=custom/app-bruteforce]
+```
+Without `action` the jail bans the same way but does not report to Insights. Apply with `fail2ban-client reload`.
 
 ## ts-dns
 
