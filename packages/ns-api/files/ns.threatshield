@@ -12,14 +12,16 @@ import json
 import urllib
 import urllib.request
 import urllib.error
-import logging
 import ipaddress
 from euci import EUci
 from nethsec.utils import ValidationError, validation_error, generic_error
 from nethsec import utils, firewall
 import base64
 import time
+import sqlite3
 import subprocess
+
+JAILS = ['ns-ssh', 'ns-webui', 'ns-openvpn', 'ns-proxy-auth', 'ns-proxy-scan']
 
 ## continent codes map
 
@@ -343,6 +345,9 @@ def write_allow_list(allow_list, file='/etc/banip/banip.allowlist'):
                 f.write(' #' + x['description'])
             f.write('\n')
     subprocess.run(["/etc/init.d/banip", "reload"], capture_output=True)
+    if file == '/etc/banip/banip.allowlist':
+        # sync fail2ban ignoreip with the allowlist and unban allowlisted IPs
+        subprocess.run(["/usr/libexec/ts-fail2ban"], capture_output=True)
 
 def dns_get_local_list(e_uci, list_type):
     values = e_uci.get('adblock', 'ns_lists', list_type, list=True, default=[])
@@ -487,6 +492,7 @@ def list_settings(e_uci):
     ban_icmplimit_default = 25
     ban_synlimit_default = 10
     ban_udplimit_default = 100
+    ns_jails = e_uci.get('banip', 'global', 'ns_jails', list=True, default=[])
     return {
         'data': {
             'enabled': e_uci.get('banip', 'global', 'ban_enabled') == '1',
@@ -494,8 +500,7 @@ def list_settings(e_uci):
             'ban_loginbound': e_uci.get('banip', 'global', 'ban_loginbound', default=False) == '1',
             'ban_logoutbound': e_uci.get('banip', 'global', 'ban_logoutbound', default=False) == '1',
             'ban_loglimit': True if int(e_uci.get('banip', 'global', 'ban_loglimit', default=100)) > 0 else False,
-            'ban_logcount': e_uci.get('banip', 'global', 'ban_logcount', default=1),
-            'ban_logterm': e_uci.get('banip', 'global', 'ban_logterm', list=True, default=[]),
+            'jails': [{'name': j, 'enabled': j in ns_jails} for j in JAILS],
             'ban_icmplimit': e_uci.get('banip', 'global', 'ban_icmplimit', default=ban_icmplimit_default, dtype=int),
             'ban_synlimit': e_uci.get('banip', 'global', 'ban_synlimit', default=ban_synlimit_default, dtype=int),
             'ban_udplimit': e_uci.get('banip', 'global', 'ban_udplimit', default=ban_udplimit_default, dtype=int),
@@ -566,14 +571,13 @@ def edit_settings(e_uci, payload):
             raise ValidationError('ban_loglimit', 'invalid', payload['ban_loglimit'])
 
         if payload['ban_loglimit']:
-            if 'ban_logcount' not in payload:
-                raise ValidationError('ban_logcount', 'required')
-            if not isinstance(payload['ban_logcount'], int):
-                raise ValidationError('ban_logcount', 'invalid', payload['ban_logcount'])
-            if 'ban_logterm' not in payload:
-                raise ValidationError('ban_logterm', 'required')
-            if not isinstance(payload['ban_logterm'], list):
-                raise ValidationError('ban_logterm', 'invalid', payload['ban_logterm'])
+            # jails is optional: when omitted, ns_jails is left unchanged
+            if 'jails' in payload:
+                if not isinstance(payload['jails'], list):
+                    raise ValidationError('jails', 'invalid', payload['jails'])
+                for item in payload['jails']:
+                    if item not in JAILS:
+                        raise ValidationError('jails', 'invalid', item)
             if 'ban_nftexpiry' not in payload:
                 raise ValidationError('ban_nftexpiry', 'required')
             if not isinstance(payload['ban_nftexpiry'], str):
@@ -602,10 +606,14 @@ def edit_settings(e_uci, payload):
             e_uci.set('banip', 'global', 'ban_udplimit', max(0, payload['ban_udplimit']))
         else:
             e_uci.set('banip', 'global', 'ban_udplimit', 100 if payload['ban_udplimit'] else 0)
+        try:
+            e_uci.delete('banip', 'global', 'ban_logterm')
+        except:
+            pass
 
         if payload['ban_loglimit']:
-            e_uci.set('banip', 'global', 'ban_logcount', payload['ban_logcount'])
-            e_uci.set('banip', 'global', 'ban_logterm', payload['ban_logterm'])
+            if 'jails' in payload:
+                e_uci.set('banip', 'global', 'ns_jails', payload['jails'])
             e_uci.set('banip', 'global', 'ban_nftexpiry', payload['ban_nftexpiry'])
     else:
         e_uci.set('banip', 'global', 'ban_enabled', '0')
@@ -889,87 +897,23 @@ def dns_delete_bypass(e_uci, payload):
     return {'message': 'success'}
 
 
-def __parse_expression(expression):
-    if isinstance(expression, str) or isinstance(expression, int):
-        return ipaddress.ip_address(expression)
-    if isinstance(expression, list):
-        return [__parse_expression(item) for item in expression]
-    if isinstance(expression, dict):
-        if "prefix" in expression:
-            return ipaddress.ip_network(expression["prefix"]["addr"] + "/" + str(expression["prefix"]["len"]))
-        elif "range" in expression:
-            return list(ipaddress.summarize_address_range(
-                __parse_expression(expression["range"][0]),
-                __parse_expression(expression["range"][1])
-            ))
-        elif "elem" in expression:
-            if "timeout" not in expression["elem"] or "expires" not in expression["elem"]:
-                return None
-            return {
-                "timeout": expression["elem"]["timeout"],
-                "expires": expression["elem"]["expires"],
-                "val": __parse_expression(expression["elem"]["val"]),
-            }
-
-    logging.warning('Unsupported expression type: {}'.format(type(expression)))
-    return None
-
-
-def __parse_set(blocklist):
-    """
-    This function parses any set returned by nftables and returns a list of entries
-    """
-    blocked_ips = []
-    if ("nftables" in blocklist
-            and len(blocklist["nftables"]) > 1
-            and "set" in blocklist["nftables"][1]
-            and "elem" in blocklist["nftables"][1]["set"]):
-        blocked_ips = [ip for ip in __parse_expression(blocklist["nftables"][1]["set"]["elem"]) if ip is not None]
-
-    return blocked_ips
-
-
 def list_active_blocks():
+    # expired bans and bans of stopped jails stay in bips, so filter them out
+    now = int(time.time())
     try:
-        output_ipv4 = subprocess.run(["nft", "-j", "list", "set", "inet", "banIP", "blocklist.v4"], check=True,
-                                    capture_output=True, text=True)
-        data = json.loads(output_ipv4.stdout)
-    except subprocess.CalledProcessError:
-        data = {}
-
-    blocks = __parse_set(data)
-
-    try:
-        output_ipv6 = subprocess.run(["nft", "-j", "list", "set", "inet", "banIP", "blocklist.v6"], check=True,
-                                    capture_output=True, text=True)
-        data = json.loads(output_ipv6.stdout)
-    except subprocess.CalledProcessError:
-        data = {}
-
-    blocks = blocks + __parse_set(data)
-    blocks = filter(lambda x: isinstance(x, dict) and "val" in x, blocks)
-    blocks = sorted(blocks, key=lambda x: x["timeout"] - x["expires"])
-    response = []
-    for block in blocks:
-        if not isinstance(block["val"], list):
-            block["val"] = [block["val"]]
-        for item in block["val"]:
-            if isinstance(item, ipaddress.IPv4Address) or isinstance(item, ipaddress.IPv6Address):
-                response.append({
-                    "ip": str(item),
-                    "timeout": block["timeout"],
-                    "expires": block["expires"],
-                })
-            if isinstance(item, ipaddress.IPv4Network) or isinstance(item, ipaddress.IPv6Network):
-                for addr in item:
-                    if isinstance(addr, ipaddress.IPv4Address) or isinstance(addr, ipaddress.IPv6Address):
-                        response.append({
-                            "ip": str(addr),
-                            "timeout": block["timeout"],
-                            "expires": block["expires"],
-                        })
-
-    return response
+        db = sqlite3.connect('file:/var/run/fail2ban/fail2ban.sqlite3?mode=ro', uri=True)
+        try:
+            rows = db.execute(
+                "SELECT ip, bantime, timeofban + bantime - ? FROM bips JOIN jails ON jails.name = bips.jail "
+                "WHERE jails.enabled = 1 AND (bantime < 0 OR timeofban + bantime > ?) "
+                "ORDER BY bantime < 0, timeofban + bantime", (now, now)).fetchall()
+        finally:
+            db.close()
+    except sqlite3.Error:
+        return []
+    # rows are sorted by expiry: the last one per IP is the longest (-1 is permanent)
+    blocks = {ip: {"ip": ip, "timeout": bantime, "expires": -1 if bantime < 0 else left} for ip, bantime, left in rows}
+    return sorted(blocks.values(), key=lambda x: x["timeout"] - x["expires"])
 
 
 def remove_active_block():
@@ -987,14 +931,9 @@ def remove_active_block():
     if not found:
         return validation_error("ip", "invalid", str(ip))
 
-    if isinstance(ip, ipaddress.IPv4Address):
-        blocklist = "blocklist.v4"
-    else:
-        blocklist = "blocklist.v6"
-
     try:
-        subprocess.run(["nft", "delete", "element", "inet", "banIP", blocklist, "{" + str(ip) + "}"], check=True)
-    except subprocess.CalledProcessError:
+        subprocess.run(["fail2ban-client", "unban", str(ip)], capture_output=True, check=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
         return generic_error("remove_active_block_failed")
 
     return {'message': 'success'}
@@ -1088,8 +1027,7 @@ if cmd == 'list':
             'ban_loginbound': True,
             'ban_logoutbound': True,
             'ban_loglimit': True,
-            'ban_logcount': 3,
-            'ban_logterm': ['string'],
+            'jails': ['ns-ssh'],
             'ban_icmplimit': True,
             'ban_synlimit': True,
             'ban_udplimit': True

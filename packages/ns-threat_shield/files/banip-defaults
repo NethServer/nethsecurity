@@ -10,8 +10,11 @@ set banip.global.ban_logcount="3"
 set banip.global.ban_nftexpiry="30m"
 
 delete banip.global.ban_logterm
-add_list banip.global.ban_logterm="Exit before auth from"
-add_list banip.global.ban_logterm="authentication failed for user"
+add_list banip.global.ns_jails="ns-ssh"
+add_list banip.global.ns_jails="ns-webui"
+add_list banip.global.ns_jails="ns-openvpn"
+add_list banip.global.ns_jails="ns-proxy-auth"
+add_list banip.global.ns_jails="ns-proxy-scan"
 
 set banip.global.ban_icmplimit="100"
 set banip.global.ban_synlimit="10"

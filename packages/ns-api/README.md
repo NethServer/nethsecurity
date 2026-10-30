@@ -6160,8 +6160,10 @@ api-cli ns.threatshield list-settings
 
 Response example:
 ```json
-{"data": {"enabled": true}}
+{"data": {"ban_icmplimit": 100, "ban_icmplimit_default": 25, "ban_loginbound": true, "ban_loglimit": true, "ban_logoutbound": true, "ban_logprerouting": true, "ban_nftexpiry": "30m", "ban_synlimit": 10, "ban_synlimit_default": 10, "ban_udplimit": 100, "ban_udplimit_default": 100, "enabled": true, "jails": [{"enabled": true, "name": "ns-ssh"}, {"enabled": true, "name": "ns-webui"}, {"enabled": false, "name": "ns-openvpn"}, {"enabled": false, "name": "ns-proxy-auth"}, {"enabled": false, "name": "ns-proxy-scan"}]}}
 ```
+
+`jails` lists the fail2ban brute-force jails and whether each one is enabled.
 
 ### edit-settings
 
@@ -6171,9 +6173,9 @@ Configure banip settings:
 - `ban_logprerouting`: Log suspicious packets in the prerouting chain (true or false).
 - `ban_loginbound`: Log suspicious packets in inbound traffic (WAN-input chain) (true or false).
 - `ban_logoutbound`: Log suspicious packets in outbound traffic (LAN-forward chain) (true or false).
-- `ban_loglimit`: Enable or disable scanning of logfiles (true or false).
-- `ban_logcount`: Specify how many times an IP must appear in the log to be considered suspicious (integer).
-- `ban_logterm`: List of regex entries for logfile parsing (list of strings).
+- `ban_loglimit`: Enable or disable fail2ban brute-force detection (true or false).
+- `ban_logcount`: optional and ignored; each fail2ban jail has its own fixed threshold.
+- `jails`: List of fail2ban jails to enable, used if `ban_loglimit` is true; optional, `ns_jails` is left unchanged when omitted; valid names are `ns-ssh`, `ns-webui`, `ns-openvpn`, `ns-proxy-auth`, `ns-proxy-scan` (list of strings).
 - `ban_icmplimit`: Enable or disable icmp DoS detection (true or false).
 - `ban_synlimit`: Enable or disable syn DoS detection (true or false).
 - `ban_udplimit`: Enable or disable udp DoS detection (true or false).
@@ -6181,7 +6183,7 @@ Configure banip settings:
 
 
 ```bash
-api-cli ns.threatshield edit-settings --data '{"enabled": true, "ban_logprerouting": true, "ban_loginbound": true, "ban_logoutbound": true, "ban_loglimit": false, "ban_logcount": 5, "ban_logterm": ["regex1", "regex2"], "ban_icmplimit": true, "ban_synlimit": true, "ban_udplimit": true, "ban_nftexpiry": "1d"}'
+api-cli ns.threatshield edit-settings --data '{"enabled": true, "ban_logprerouting": true, "ban_loginbound": true, "ban_logoutbound": true, "ban_loglimit": true, "jails": ["ns-ssh", "ns-webui"], "ban_icmplimit": true, "ban_synlimit": true, "ban_udplimit": true, "ban_nftexpiry": "1d"}'
 ```
 
 Response example:
@@ -6220,6 +6222,9 @@ Response example:
 ```
 
 ### add-allowed
+
+Changes to the allow list (`add-allowed`, `edit-allowed`, `delete-allowed`) reload banIP and run `/usr/libexec/ts-fail2ban`,
+so fail2ban `ignoreip` follows the allow list and allowlisted IPs are unbanned.
 
 Add an address which is always allowed:
 ```
@@ -6330,6 +6335,42 @@ Response example:
 
 It can raise the following validation errors:
 - `address_not_found` if the address is not inside the block list
+
+### list-active-blocks
+
+List the IP addresses currently banned by fail2ban, read from the `bips` table of the fail2ban database `/var/run/fail2ban/fail2ban.sqlite3`
+(unexpired bans of running jails only):
+```
+api-cli ns.threatshield list-active-blocks
+```
+
+Response example:
+```json
+[{"ip": "198.51.100.9", "timeout": 1800, "expires": 1741}]
+```
+
+`timeout` is the ban duration and `expires` the remaining time, both in seconds; both are `-1` for a permanent ban.
+An IP banned by more than one jail is listed once, with the longest expiry.
+The list is empty if fail2ban is not running or has never started.
+
+### remove-active-block
+
+Unban an IP address from all fail2ban jails (`fail2ban-client unban`):
+```
+api-cli ns.threatshield remove-active-block --data '{"ip": "198.51.100.9"}'
+```
+
+Response example:
+```json
+{"message": "success"}
+```
+
+It can raise the following validation errors:
+- `required` if `ip` is missing
+- `invalid` if `ip` is not a valid IP address or it is not currently banned
+
+It can raise the following errors:
+- `remove_active_block_failed` if fail2ban fails to unban the IP
 
 ### dns-list-blocklist
 

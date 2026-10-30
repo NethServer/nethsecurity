@@ -1,0 +1,105 @@
+#!/usr/bin/python3
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Generate the fail2ban jail overrides from banip UCI options, then start or stop fail2ban
+
+import ipaddress
+import json
+import os
+import re
+import subprocess
+import sys
+
+from euci import EUci
+from nethsec import utils
+
+JAIL_FILE = "/etc/fail2ban/jail.d/90-ns-threat_shield.local"
+ALLOWLIST = "/etc/banip/banip.allowlist"
+BRUTE_FORCE_JAILS = ["ns-ssh", "ns-webui", "ns-openvpn", "ns-proxy-auth", "ns-proxy-scan"]
+
+
+def allowlist():
+    allowed = []
+    try:
+        with open(ALLOWLIST) as f:
+            for line in f:
+                value = (line.split() or [""])[0]
+                # skip scope ids (fe80::1%eth0): fail2ban interpolates % in its config
+                if "%" in value:
+                    continue
+                # comments, MAC addresses and empty lines raise ValueError
+                try:
+                    allowed.append(str(ipaddress.ip_network(value, strict=False)))
+                except ValueError:
+                    pass
+    except FileNotFoundError:
+        pass
+    return allowed
+
+
+def ignore_list(uci):
+    # the firewall own addresses are covered by fail2ban ignoreself
+    wan_devices = utils.get_all_wan_devices(uci)
+    dump = json.loads(
+        subprocess.run(["ubus", "call", "network.interface", "dump"], capture_output=True, check=True).stdout
+    )
+    networks = []
+    for iface in dump.get("interface", []):
+        if iface.get("l3_device") in wan_devices or iface.get("device") in wan_devices:
+            continue
+        # delegated IPv6 prefixes (ip6assign) are not listed in ipv6-address
+        addresses = iface.get("ipv4-address", []) + iface.get("ipv6-address", [])
+        addresses += iface.get("ipv6-prefix-assignment", [])
+        networks += [str(ipaddress.ip_interface(f"{a['address']}/{a['mask']}").network) for a in addresses]
+    # dict keeps the order and drops duplicates
+    return list(dict.fromkeys(["127.0.0.0/8", "::1"] + networks + allowlist()))
+
+
+def main():
+    uci = EUci()
+    loglimit = uci.get("banip", "global", "ban_loglimit", dtype=int, default=0) > 0
+    jails = uci.get("banip", "global", "ns_jails", list=True, default=())
+    enabled = {jail: loglimit and jail in jails for jail in BRUTE_FORCE_JAILS}
+
+    # stopping does not need the network, so decide it before reading the interfaces
+    if uci.get("banip", "global", "ban_enabled", default="0") != "1" or not any(enabled.values()):
+        subprocess.run(["/etc/init.d/fail2ban", "disable"])
+        subprocess.run(["/etc/init.d/fail2ban", "stop"])
+        return
+
+    try:
+        ignoreip = ignore_list(uci)
+    except subprocess.CalledProcessError:
+        # netifd is not running yet (e.g. uci-defaults): keep the current configuration
+        print("ts-fail2ban: network status not available, skipped", file=sys.stderr)
+        return
+    # fail2ban reads the same time format as banIP (e.g. 30m, 1h, 3d)
+    bantime = uci.get("banip", "global", "ban_nftexpiry", default="")
+    if not re.fullmatch(r"\d+[smhdw]", bantime):
+        bantime = "30m"
+    lines = ["[DEFAULT]", f"ignoreip = {' '.join(ignoreip)}", f"bantime = {bantime}"]
+    for jail, value in enabled.items():
+        lines += ["", f"[{jail}]", f"enabled = {'true' if value else 'false'}"]
+    content = "\n".join(lines) + "\n"
+    try:
+        with open(JAIL_FILE) as f:
+            changed = f.read() != content
+    except FileNotFoundError:
+        changed = True
+    if changed:
+        # atomic write: the callers can run concurrently
+        tmp = f"{JAIL_FILE}.{os.getpid()}"
+        with open(tmp, "w") as f:
+            f.write(content)
+        os.replace(tmp, JAIL_FILE)
+
+    # restart only on changes, start is a no-op when already running
+    subprocess.run(["/etc/init.d/fail2ban", "enable"])
+    subprocess.run(["/etc/init.d/fail2ban", "restart" if changed else "start"])
+
+
+if __name__ == "__main__":
+    main()
