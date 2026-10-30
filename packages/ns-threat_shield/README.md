@@ -77,7 +77,7 @@ and bans offending IPs in the nftables table `inet f2b-table`.
 
 | jail | detects | bans after |
 |---|---|---|
-| `ns-ssh` | SSH login failures | 5 in 10m |
+| `ns-ssh` | SSH login failures and disconnects before login | 5 in 10m |
 | `ns-webui` | web UI and API login failures | 8 in 1h |
 | `ns-openvpn` | road warrior authentication and TLS handshake failures | 6 in 10m |
 | `ns-proxy-auth` | reverse proxy 403 and Basic auth 401 responses | 6 in 10m |
