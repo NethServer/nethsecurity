@@ -199,9 +199,50 @@ def test_create_default_mwan(e_uci, mocker):
 
 def test_create_unique_mwan(e_uci, mocker):
     mocker.patch('subprocess.run')
-    mwan.store_policy(e_uci, 'this', [])
+    interfaces = [
+        {
+            'name': 'RED_1',
+            'metric': '10',
+            'weight': '100',
+        }
+    ]
+    mwan.store_policy(e_uci, 'this', interfaces)
     with pytest.raises(ValueError):
-        mwan.store_policy(e_uci, 'this', [])
+        mwan.store_policy(e_uci, 'this', interfaces)
+
+
+def test_store_policy_without_interfaces(e_uci, mocker):
+    mocker.patch('subprocess.run')
+    with pytest.raises(ValidationError) as e:
+        mwan.store_policy(e_uci, 'empty', [])
+    assert e.value.args[0] == 'interfaces'
+    assert e.value.args[1] == 'required'
+    assert e_uci.get('mwan3', 'ns_empty', default=None) is None
+
+
+def test_edit_policy_without_interfaces(e_uci, mocker):
+    mocker.patch('subprocess.run')
+    mwan.store_policy(e_uci, 'default', [
+        {
+            'name': 'RED_1',
+            'metric': '10',
+            'weight': '100',
+        }
+    ])
+    with pytest.raises(ValidationError) as e:
+        mwan.edit_policy(e_uci, 'ns_default', 'default', [])
+    assert e.value.args[0] == 'interfaces'
+    assert e.value.args[1] == 'required'
+    assert e_uci.get('mwan3', 'ns_default', 'use_member', list=True) == ('ns_RED_1_M10_W100',)
+
+
+def test_index_policy_without_members(e_uci, mocker):
+    mocker.patch('subprocess.run')
+    e_uci.set('mwan3', 'ns_void', 'policy')
+    e_uci.set('mwan3', 'ns_void', 'label', 'void')
+    policy = next(policy for policy in mwan.index_policies(e_uci) if policy['name'] == 'ns_void')
+    assert policy['members'] == {}
+    assert policy['type'] == 'custom'
 
 
 def test_metric_generation(e_uci):
