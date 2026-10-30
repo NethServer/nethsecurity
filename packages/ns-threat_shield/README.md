@@ -81,7 +81,7 @@ and bans offending IPs in the nftables table `inet f2b-table`.
 | `ns-webui` | web UI and API login failures | 8 in 1h |
 | `ns-openvpn` | road warrior authentication and TLS handshake failures | 6 in 10m |
 | `ns-proxy-auth` | reverse proxy 403 and Basic auth 401 responses | 6 in 10m |
-| `ns-proxy-scan` | reverse proxy 404 responses | 20 in 2m |
+| `ns-proxy-scan` | reverse proxy and web UI 404 responses | 20 in 2m |
 
 Never banned: loopback, the networks of non-WAN interfaces, the IP and CIDR entries of the banIP allowlist
 and the firewall's own addresses.
@@ -116,7 +116,7 @@ fail2ban-client unban 203.0.113.7
 - bans are lost on reboot
 - a ban drops all traffic from the IP, also replies to connections opened by the firewall or LAN hosts
 - allowlisting a banned IP frees it, but the ban can come back if the IP leaves the allowlist before the ban expires
-- the proxy jails do not cover path rules on the `_lan` server
+- `ns-proxy-auth` does not cover the web UI and the path rules on the `_lan` server: their access log has only 404 responses
 - `ns-proxy-auth` counts 401 responses only for Basic auth
 
 ### Custom jails
