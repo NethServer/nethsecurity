@@ -8,25 +8,16 @@ metadata:
 
 ## The filesystem you're writing to
 
-Checked on a NethSecurity 8.8 x86 device (OpenWrt 25.12, apk):
-
 | Path | Backed by | Reboot | Package upgrade | sysupgrade / backup / HA sync |
 |---|---|---|---|---|
-| `/etc/config/*` (UCI) | root overlay | kept | kept (see conffiles) | **kept**: `base-files-essential` keep.d lists `/etc/config/` |
-| other files under `/etc`, `/usr`, `/opt` | root overlay | kept | overwritten if shipped by the package, unless a conffile | kept only if declared in a package's `conffiles` (or listed in keep.d) |
+| `/etc/config/*` (UCI) | root overlay | kept | kept (see conffiles) | kept |
+| other files under `/etc`, `/usr`, `/opt` | root overlay | kept | overwritten if shipped by the package, unless a conffile | kept only if declared in `conffiles` |
 | `/var/*` (symlink to `/tmp`) | tmpfs (RAM) | **lost** | kept | not kept |
-| `/mnt/data/*` | optional ext4 disk (`ns-storage`, `fstab.ns_data`) | kept | kept | not kept (not part of the backup) |
+| `/mnt/data/*` | optional disk (`ns-storage`) | kept | kept | not kept |
 
-The root overlay is small (222M with 82% used on the test box) and shared with packages. Anything that grows over time doesn't belong there.
+The root overlay is small and shared with packages. Anything that grows over time doesn't belong there.
 
-sysupgrade, the backup archive (`ns.backup` runs `sysupgrade -k -b`) and HA sync (`ns-rsync.sh` iterates `sysupgrade -l`) all use **the same list**:
-
-1. every path in `/etc/sysupgrade.conf` and `/lib/upgrade/keep.d/*`, unconditionally;
-2. every package conffile whose content differs from the checksum shipped in the package (`/lib/apk/packages/*.conffiles_static`).
-
-The Makefile's `conffiles` define feeds both. At build time (`include/package-pack.mk`), each entry the package ships as a regular file gets a checksum in `conffiles_static`. Every other entry (a file created at runtime, a directory) is written to a generated `/lib/upgrade/keep.d/<pkg>`.
-
-So one `conffiles` line makes a path survive sysupgrade, land in backups and get synced to the HA backup node. Check the result with `sysupgrade -l`.
+sysupgrade, backup and HA sync share one keep list, fed by the Makefile `conffiles`. One `conffiles` line makes a path survive all three; check with `sysupgrade -l`.
 
 ## Pick the location
 
@@ -38,144 +29,74 @@ So one `conffiles` line makes a path survive sysupgrade, land in backups and get
 | Non-UCI file that's genuinely user data (certificates, an uploaded list) | `/etc/<pkg>/...` declared in the Makefile `conffiles` |
 | Runtime state: pid, socket, lock, cache, last-run marker | `/var/run/<pkg>/` |
 | Small runtime values shell scripts share | UCI state: `uci -P /var/state set <pkg>.<section>.<opt>=...` |
-| Data that grows (DB, history, metrics, logs) | `/mnt/data/<pkg>/` when storage is ok, else `/var/lib/<pkg>/` with a size/retention cap |
+| Data that grows (DB, history, metrics, logs) | storage when available, else `/var/lib/<pkg>/` with a size/retention cap |
 
-The test for "UCI or file": if a human or the API would ever edit it, it's UCI. Files that are a function of UCI are build artifacts. Persisting them creates two sources of truth that drift after a restore or HA sync.
+The test for "UCI or file": if a human or the API would ever edit it, it's UCI. Files that are a function of UCI are build artifacts; persisting them creates two sources of truth that drift after a restore or HA sync.
 
 ## UCI configuration
 
-Ship the default config in the package and declare it as a conffile:
-
-```makefile
-define Package/ns-foo/conffiles
-/etc/config/ns-foo
-endef
-
-define Package/ns-foo/install
-	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_CONF) ./files/ns-foo.conf $(1)/etc/config/ns-foo
-	...
-endef
-```
-
-```
-config main 'config'
-	option enabled '0'
-```
-
+- Ship the default config as `/etc/config/ns-foo` with `$(INSTALL_CONF)` and list it in `Package/ns-foo/conffiles`, using the package's own name.
 - Use named sections (`config main 'config'`) for singletons so code can address `ns-foo.config.enabled` directly.
-- The `conffiles` define must use the package's own name (`Package/ns-foo/conffiles`). A typo there silently drops the declaration.
-- **Adding or renaming options later is a migration, not a change to the shipped file.** apk keeps a conffile the user modified and writes the new version next to it as `*.apk-new`, which nothing reads (several are sitting in `/etc` on the test device). Write a uci-default that sets the new option only when missing:
-
-  ```sh
-  uci -q get ns-foo.config.new_opt > /dev/null || uci set ns-foo.config.new_opt='default'
-  ```
-
-  See the `ns-background-work` skill for uci-default rules (idempotent, runs on every upgrade).
-- APIs don't commit; `ns.commit` commits and fires reload triggers. Shell scripts outside the API that change UCI commit their own package (`uci commit ns-foo`).
-
-Reading config from shell uses `/lib/functions.sh`: `config_load`, `config_get <var> <section> <option> [default]`, `config_get_bool`, `config_foreach`, `config_list_foreach`. Python uses `EUci` (see the `python-nethsecurity` skill).
-
-`references/uci.md` has the UCI file syntax, every `uci` CLI command, the full shell API (`config_*`, `uci_*`, state helpers) with its gotchas, and links to the sysupgrade/conffiles source. Read it before writing UCI-handling shell code instead of guessing a helper.
+- Add or rename options with a uci-default that sets them only when missing, not by changing the shipped file: a user-modified conffile isn't replaced on upgrade (the new one lands as `*.apk-new`). See `ns-background-work` for uci-default rules.
+- APIs don't commit, `ns.commit` does. Shell scripts outside the API commit their own package and reload what they changed.
+- Shell reads config with `/lib/functions.sh`; Python uses `EUci` (see `python-nethsecurity`).
 
 ## Secrets
 
-Keep them as an option in the package's UCI config, like `ns-plug.config.secret`. That way they're in the backup, survive sysupgrade and reach the HA peer with no extra work. The backup archive is encrypted only when `/etc/backup.pass` is set, so treat it as potentially plaintext.
+Keep them as an option in the package's UCI config, like `ns-plug.config.secret`, so they follow backup, sysupgrade and HA with no extra work. Treat the backup as potentially plaintext.
 
 When handing a secret to a process:
 
-- never on the command line: argv is world-readable in `ps` and `/proc`;
-- write it to a file under `/var/run/<pkg>/` created with `umask 077` and pass the path, as `victoria-metrics/files/vmalert.initd` does;
+- never on the command line;
+- write it to a `umask 077` file under `/var/run/<pkg>/` and pass the path, as `victoria-metrics/files/vmalert.initd` does;
 - or pass it through `procd_set_param env` when the program only reads env.
 
 Never log a secret, and keep it out of API responses: return a boolean like `has_secret` instead.
 
 ## Runtime state
 
-- Create directories at service start (`mkdir -p /var/run/ns-foo` in `start_service`), never at package install: `/var` is empty after every reboot.
+- Create directories at service start, never at package install: `/var` is empty after every reboot.
 - Anything under `/var` must be rebuildable. If losing it on reboot is a bug, it belongs in UCI or on storage.
 
 ## Persistent data and ns-storage
 
-Data storage is optional. `storage-status` (from `ns-storage`) prints `ok` only when `fstab.ns_data` is configured **and** its label is actually mounted at the target. It prints `error` when configured but not mounted, and `not_configured` otherwise.
+Storage is optional. Pick the path from `storage-status` printing `ok`, not from `fstab.ns_data` being set: a configured but unmounted disk would make you fill the root filesystem. Fall back to `/var/lib/<pkg>`.
 
-Decide the path from the real status, not from the fstab config. A configured-but-failed disk leaves an empty `/mnt/data` directory on the overlay, and writing there fills the root filesystem:
+- On tmpfs, always cap the data: retention, max size, or row count.
+- Let the user override the path with a UCI option, and only auto-detect when it's empty.
+- React to storage being added or removed from `ns-storage/files/add-storage` and `remove-storage`, next to the other consumers, not from block hotplug events.
+- To flush tmpfs data to disk periodically, drop an executable in `/usr/libexec/sync-data/`.
 
-```sh
-local data_dir max_size
-if [ "$(storage-status 2>/dev/null)" = "ok" ]; then
-	data_dir="$(uci -q get fstab.ns_data.target)/ns-foo"
-else
-	data_dir="/var/lib/ns-foo"
-	max_size="50MB"
-fi
-mkdir -p "$data_dir"
-```
-
-- Without storage, data lives on tmpfs (RAM) and is lost on reboot. Always cap it there: retention, max size, or row count.
-- Let the user override the path with a UCI option (e.g. `storage_path`), and only auto-detect when it's empty.
-
-**Storage added or removed**: `ns-storage/files/add-storage` and `remove-storage` restart each consumer explicitly. A new consumer adds its own line to both:
-
-```sh
-# add-storage, after the mount and existing restarts
-/etc/init.d/ns-foo restart
-
-# remove-storage, stop before the unmount and start after it
-/etc/init.d/ns-foo stop
-...
-/etc/init.d/ns-foo start
-```
-
-When the consumer keeps something in `/var` that should move to the disk on mount, put a merge step next to the restart in `add-storage` (as the OpenVPN connections DB does). Don't watch block hotplug events for it.
-
-**Nightly flush**: `sync-data` runs from cron at 01:40 and executes every executable in `/usr/libexec/sync-data/`. Drop a script there to copy tmpfs data to the disk when the consumer can't write to storage directly.
+Read `packages/ns-storage/README.md` before wiring a new consumer.
 
 ## Non-UCI files that must persist
 
-Declare them in the Makefile `conffiles`, next to the UCI config. Don't ship a separate `.keep` file:
+Declare them in the Makefile `conffiles`, next to the UCI config (directories with a trailing `/`). Don't ship a separate `.keep` file. Read `include/package-pack.mk` for how shipped and runtime-created entries differ.
 
-```makefile
-define Package/ns-foo/conffiles
-/etc/config/ns-foo
-/etc/ns-foo/certs/
-/etc/ns-foo/token
-endef
-```
-
-- Shipped files (`/etc/config/ns-foo`) are kept once they differ from the package version, and aren't overwritten on upgrade.
-- Paths the package doesn't ship (`/etc/ns-foo/token` created at runtime, the `certs/` directory) land in the generated `/lib/upgrade/keep.d/ns-foo` and are kept unconditionally.
-- Directories are listed with a trailing `/` by convention.
-
-Everything listed is also copied to the HA backup node. Whether the backup node actually applies it is handled by `ns-ha` restore hooks, not by `conffiles`.
-
-Don't add generated files, caches or anything large. On subscribed systems the backup archive is uploaded nightly by `ns-plug` (`send-backup`).
+Don't add generated files, caches or anything large: everything listed goes into the backup and to the HA peer.
 
 ## Don't copy
 
-- `packages/ns-dpi/files/20_dpi` creates `/etc/config/dpi` with `uci import` from a uci-default instead of shipping it as a conffile. The ns-dpi Makefile also declares the conffile under `Package/ns-plug/conffiles`. Its own TODO says so.
-- `packages/ns-openvpn/files/20-openvpn-merge-connections-db` is a block hotplug handler that polls `/proc/mounts` in a sleep loop to detect storage. Use the explicit call from `add-storage` instead.
-- `*.keep` files installed to `/lib/upgrade/keep.d` by hand (`ns-plug`, `ns-api`, `ns-api-server`, `ns-dedalo`). Put those paths in `conffiles` instead.
-- `victoria-metrics/files/victoria-metrics.initd` and `victoria-logs/files/victoria-logs.initd` pick `/mnt/data` when `fstab.ns_data.target` is set, without checking it's mounted. Copy their tmpfs fallback and caps, not their detection.
+Configs created with `uci import` from a uci-default instead of a shipped conffile, hand-installed `*.keep` files, storage detection by polling `/proc/mounts` or by reading `fstab.ns_data.target` alone.
 
 ## Verify on a device
 
 ```sh
 sysupgrade -l | grep ns-foo          # in backup, sysupgrade and HA sync?
-ls /lib/upgrade/keep.d/
 find /etc -name '*.apk-new'          # conffiles skipped on upgrade
 storage-status
-df -h / /tmp /mnt/data               # overlay and RAM headroom
-du -sh /var/lib/ns-foo /mnt/data/ns-foo
+df -h / /tmp /mnt/data
 ```
 
 ## Sources
 
-Re-check against these when `OWRT_VERSION` changes:
+Read the OpenWrt files at the tag `OWRT_VERSION` in `build.conf.defaults` names:
 
-- `sysupgrade` (keep list, conffile checksums): https://github.com/openwrt/openwrt/blob/v25.12.5/package/base-files/files/sbin/sysupgrade
-- conffile packaging for apk (`conffiles_static`): https://github.com/openwrt/openwrt/blob/v25.12.5/include/package-pack.mk
+- `package/base-files/files/sbin/sysupgrade` (keep list, conffile checksums)
+- `include/package-pack.mk` (`conffiles` handling)
+- `package/base-files/files/lib/functions.sh` (`config_*` shell API)
+- `package/system/uci/files/lib/config/uci.sh` (`uci_*` shell helpers, state helpers)
 - Wiki, UCI: https://openwrt.org/docs/guide-user/base-system/uci
-- Wiki, configuration in scripts (`config_load`, `config_get`, ...): https://openwrt.org/docs/guide-developer/config-scripting
+- Wiki, configuration in scripts: https://openwrt.org/docs/guide-developer/config-scripting
 - Wiki, backup and restore: https://openwrt.org/docs/guide-user/troubleshooting/backup_restore
 - `packages/ns-storage/README.md`, `packages/ns-ha/README.md` in this repo
