@@ -7,7 +7,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=victoria-logs
 # renovate: datasource=github-tags depName=VictoriaMetrics/VictoriaLogs
-PKG_VERSION:=1.51.0
+PKG_VERSION:=1.53.0
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
@@ -19,7 +19,7 @@ PKG_HASH:=skip
 PKG_MAINTAINER:=Tommaso Bailetti <tommaso.bailetti@nethesis.it>
 PKG_LICENSE:=Apache-2.0
 
-PKG_BUILD_DEPENDS:=golang/host
+PKG_BUILD_DEPENDS:=golang1.27/host
 PKG_BUILD_PARALLEL:=1
 PKG_BUILD_FLAGS:=no-mips16
 
