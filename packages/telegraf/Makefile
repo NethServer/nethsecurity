@@ -7,8 +7,8 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=telegraf
 # renovate: datasource=github-tags depName=influxdata/telegraf
-PKG_VERSION:=1.39.1
-PKG_RELEASE:=5
+PKG_VERSION:=1.40.2
+PKG_RELEASE:=1
  
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://codeload.github.com/influxdata/telegraf/tar.gz/v$(PKG_VERSION)?
@@ -19,7 +19,7 @@ PKG_HASH:=skip
 PKG_MAINTAINER:=Tommaso Bailetti <tommaso.bailetti@nethesis.it>
 PKG_LICENSE:=MIT
 
-PKG_BUILD_DEPENDS:=golang/host
+PKG_BUILD_DEPENDS:=golang1.27/host
 PKG_BUILD_PARALLEL:=1
 PKG_BUILD_FLAGS:=no-mips16
 
