@@ -295,6 +295,71 @@ def get_all_devices_by_zone(uci, zone, exclude_aliases=False):
     return list(set(devices))
 
 
+def get_interface_l3_device(uci, interface):
+    '''
+    Retrieve the network device that carries the IP traffic of the given logical interface.
+    Alias interfaces are resolved to the device of their parent interface, aliases of aliases are not supported.
+
+    Arguments:
+      - uci -- EUci pointer
+      - interface -- Logical interface name
+
+    Returns:
+      - The device name as a string, None if it can't be resolved
+    '''
+    device = uci.get('network', interface, 'device', default='')
+    # alias interface: use the parent interface
+    if device.startswith('@'):
+        interface = device[1:]
+        device = uci.get('network', interface, 'device', default='')
+    if uci.get('network', interface, default='') != 'interface':
+        return None
+    proto = uci.get('network', interface, 'proto', default='')
+    # these protocols create a device named after the interface
+    if proto in ('wireguard', 'xfrm'):
+        return interface
+    if proto == 'pppoe':
+        return f'pppoe-{interface}'
+    if proto == 'bonding':
+        return f'bond-{interface}'
+    # alias of alias
+    if device.startswith('@'):
+        return None
+    return device or uci.get('network', interface, 'name', default='') or None
+
+
+def get_all_zone_devices_with_interfaces(uci):
+    '''
+    Retrieve all devices associated to firewall zones, along with the logical interfaces bound to them
+
+    Arguments:
+      - uci -- EUci pointer
+
+    Returns:
+      - A dictionary with device names as keys and lists of interface names as values,
+        interfaces named like the device itself are not listed
+    '''
+    bound = {}
+    for section in uci.get('network', list=True, default=[]):
+        if uci.get('network', section, default='') == 'interface':
+            device = get_interface_l3_device(uci, section)
+            if device and device != section:
+                bound.setdefault(device, []).append(section)
+
+    devices = {}
+    for section in uci.get('firewall', list=True, default=[]):
+        if uci.get('firewall', section, default='') != 'zone':
+            continue
+        for device in uci.get('firewall', section, 'device', list=True, default=[]):
+            devices[device] = bound.get(device, [])
+        for network in uci.get('firewall', section, 'network', list=True, default=[]):
+            device = get_interface_l3_device(uci, network)
+            if device:
+                devices[device] = bound.get(device, [])
+
+    return devices
+
+
 def get_all_wan_devices(uci, exclude_aliases=False):
     """
     Retrieve all devices associated to the wan zone
