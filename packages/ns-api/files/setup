@@ -1138,17 +1138,23 @@ confirm_exit() {
 	whiptail --title "Exit" --yesno "You have unsaved network changes.\nExit without applying?" 10 70
 }
 
+change_password() {
+	passwd
+}
+
 main_menu() {
 	while true; do
-		run_dialog --title "Setup" --cancel-button "Exit" --menu "Choose an action" 14 70 3 \
+		run_dialog --title "Setup" --cancel-button "Exit" --menu "Choose an action" 16 70 4 \
 			network "Configure network" \
 			keymap "Keyboard layout: ${KEYMAP}" \
+			password "Change root password" \
 			exit "Exit without applying" || { confirm_exit && break; continue; }
 		selection="$WHIPTAIL_RESULT"
 
 		case "$selection" in
 			keymap) pick_keymap ;;
 			network) network_menu ;;
+			password) change_password ;;
 			exit) confirm_exit && break ;;
 		esac
 	done
