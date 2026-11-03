@@ -1,0 +1,17 @@
+#!/bin/sh
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Triggered by hotplug when a block device is added, after 10-mount.
+# If the data storage got mounted after boot, restart to move the rules cache onto it.
+
+[ "$ACTION" = "add" ] || exit 0
+[ "$DEVTYPE" = "partition" ] || exit 0
+
+target=$(uci -q get fstab.ns_data.target)
+[ -n "$target" ] || exit 0
+grep -q "^/dev/$DEVNAME $target " /proc/mounts || exit 0
+
+/etc/init.d/snort running && /etc/init.d/snort restart
+exit 0
