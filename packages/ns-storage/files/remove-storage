@@ -19,11 +19,6 @@ data_disk=''
 uci -q delete fstab.ns_data || :
 uci commit fstab
 
-# Configuring rsyslog
-uci -q delete rsyslog.ns_data || :
-uci commit rsyslog
-/etc/init.d/rsyslog restart
-
 # Removing sync-data cron job
 (crontab -l 2>/dev/null || :) | grep -v "/usr/sbin/sync-data" | sort | uniq | crontab -
 /etc/init.d/cron restart
