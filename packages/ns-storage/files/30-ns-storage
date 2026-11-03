@@ -1,0 +1,32 @@
+#!/bin/sh
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Triggered by hotplug when a block device is added or removed, after 10-mount.
+# Move DHCP leases onto the data storage when it gets mounted, or back to /tmp when it goes away.
+
+[ "$DEVTYPE" = "partition" ] || exit 0
+
+target=$(uci -q get fstab.ns_data.target)
+[ -n "$target" ] || exit 0
+
+case "$ACTION" in
+    add)
+        grep -q "^/dev/$DEVNAME $target " /proc/mounts || exit 0
+        ;;
+    remove)
+        grep -q " $target " /proc/mounts && exit 0
+        case "$(uci -q get dhcp.ns_dnsmasq.leasefile)" in
+            "$target"/*) ;;
+            *) exit 0 ;;
+        esac
+        ;;
+    *)
+        exit 0
+        ;;
+esac
+
+/etc/init.d/ns-storage-check start
+/etc/init.d/dnsmasq running && /etc/init.d/dnsmasq restart
+exit 0

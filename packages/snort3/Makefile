@@ -109,6 +109,8 @@ define Package/snort3/install
 
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/snort.init $(1)/etc/init.d/snort
+	$(INSTALL_DIR) $(1)/etc/hotplug.d/block
+	$(INSTALL_BIN) ./files/30-snort $(1)/etc/hotplug.d/block/
 
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/snort.config $(1)/etc/config/snort

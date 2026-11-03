@@ -21,7 +21,7 @@ define Package/ns-storage
 	CATEGORY:=NethSecurity
 	TITLE:=NethSecurity storage manager
 	URL:=https://github.com/NethServer/nethsecurity/
-	DEPENDS:=+parted +block-mount +rsync +tune2fs +blockd +nvme-cli +smartmontools +telegraf
+	DEPENDS:=+parted +block-mount +rsync +tune2fs +blockd +nvme-cli +smartmontools +telegraf +dnsmasq-full
 	EXTRA_DEPENDS:=telegraf (>=1.40.2)
 	PKGARCH:=all
 endef
@@ -40,6 +40,7 @@ define Package/ns-storage/install
 	$(INSTALL_DIR) $(1)/usr/libexec
 	$(INSTALL_DIR) $(1)/usr/libexec/sync-data
 	$(INSTALL_DIR) $(1)/etc/init.d
+	$(INSTALL_DIR) $(1)/etc/hotplug.d/block
 	$(INSTALL_BIN) ./files/add-storage $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-storage-setup-partition $(1)/usr/libexec
 	$(INSTALL_BIN) ./files/ns-storage-setup-disk $(1)/usr/libexec
@@ -54,6 +55,7 @@ define Package/ns-storage/install
 	$(INSTALL_BIN) ./files/33-ns-storage-drop-disk-log.uci-default $(1)/etc/uci-defaults/33-ns-storage-drop-disk-log
 	$(INSTALL_BIN) ./files/storage-status $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-storage-check.init $(1)/etc/init.d/ns-storage-check
+	$(INSTALL_BIN) ./files/30-ns-storage $(1)/etc/hotplug.d/block/
 	$(INSTALL_DIR) $(1)/etc/telegraf.conf.d
 	$(INSTALL_DATA) ./files/smart.telegraf $(1)/etc/telegraf.conf.d/smart.conf
 endef

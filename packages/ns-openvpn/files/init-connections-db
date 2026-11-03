@@ -48,7 +48,7 @@ else:
 try:
     u = EUci()
     storage = u.get('fstab', 'ns_data', 'target')
-    if storage and os.path.isdir(storage):
+    if storage and os.path.ismount(storage):
         storage_dir = os.path.join(storage, 'openvpn', os.environ["INSTANCE"])
         os.makedirs(storage_dir, exist_ok=True)
         database_path = os.path.join(storage_dir, 'connections.db')
