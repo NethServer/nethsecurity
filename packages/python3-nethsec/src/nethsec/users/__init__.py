@@ -731,6 +731,60 @@ def delete_remote_user(uci, name, database):
     uci.save("users")
     return True
 
+def remote_user_exists(uci, name, database):
+    '''
+    Check if a user exists inside a remote LDAP database
+
+    Arguments:
+      - uci -- EUci pointer
+      - name -- User name
+      - database -- Database identifier
+
+    Returns:
+      - True if the user exists, False otherwise
+
+    Raises:
+      - subprocess.CalledProcessError if the LDAP server can't be queried
+    '''
+    if get_database_type(uci, database) != "ldap":
+        raise utils.ValidationError('database', 'db_not_ldap', database)
+    ldap = uci.get_all("users", database)
+    uri = ldap.get("uri", "")
+    base_dn = ldap.get("base_dn", "")
+    user_attr = ldap.get("user_attr", "uid")
+    tls_reqcert = ldap.get("tls_reqcert", "never")
+    starttls = int(ldap.get("start_tls", 0))
+    bind_dn = ldap.get("bind_dn")
+    bind_password = ldap.get("bind_password")
+
+    ldapsearch_command = [
+        "/usr/bin/ldapsearch",
+        "-LLL",
+        "-H", uri,
+        "-b", base_dn,
+    ]
+
+    if bind_dn:
+        ldapsearch_command.append("-D")
+        ldapsearch_command.append(bind_dn)
+        ldapsearch_command.append("-w")
+        ldapsearch_command.append(bind_password)
+    else:
+        ldapsearch_command.append("-x")
+
+    if starttls:
+        ldapsearch_command.append("-Z")
+
+    # static filter to limit the number of returned attributes and entries
+    ldapsearch_command.append(f"{user_attr}={name}")
+
+    env = os.environ.copy()
+    env['LDAPTLS_REQCERT'] = tls_reqcert
+
+    proc = subprocess.run(ldapsearch_command, env=env, check=True, capture_output=True, text=True)
+    # search for a generic field since different LDAP servers have different DN formats
+    return "objectclass" in proc.stdout.lower()
+
 def shadow_password(password):
     '''
     Generate a shadow password
