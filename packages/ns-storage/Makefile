@@ -21,7 +21,8 @@ define Package/ns-storage
 	CATEGORY:=NethSecurity
 	TITLE:=NethSecurity storage manager
 	URL:=https://github.com/NethServer/nethsecurity/
-	DEPENDS:=+parted +block-mount +logrotate +rsync +tune2fs +blockd
+	DEPENDS:=+parted +block-mount +logrotate +rsync +tune2fs +blockd +nvme-cli +smartmontools +telegraf
+	EXTRA_DEPENDS:=telegraf (>=1.40.2)
 	PKGARCH:=all
 endef
  
@@ -72,6 +73,8 @@ define Package/ns-storage/install
 	$(INSTALL_CONF) ./files/data.conf $(1)/etc/logrotate.d
 	$(INSTALL_BIN) ./files/storage-status $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-storage-check.init $(1)/etc/init.d/ns-storage-check
+	$(INSTALL_DIR) $(1)/etc/telegraf.conf.d
+	$(INSTALL_DATA) ./files/smart.telegraf $(1)/etc/telegraf.conf.d/smart.conf
 endef
  
 $(eval $(call BuildPackage,ns-storage))
