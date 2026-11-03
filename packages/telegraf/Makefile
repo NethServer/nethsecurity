@@ -45,6 +45,7 @@ GO_PKG_TAGS:= \
 	inputs.ping \
 	inputs.processes \
 	inputs.sensors \
+	inputs.smart \
 	inputs.system \
 	inputs.wireguard \
 	inputs.tail \
@@ -100,12 +101,6 @@ define Package/telegraf/install
 	$(INSTALL_BIN) ./files/telegraf-storage-status $(1)/usr/libexec/telegraf-storage-status
 	$(INSTALL_BIN) ./files/telegraf-mwan $(1)/usr/libexec/telegraf-mwan
 	$(INSTALL_BIN) ./files/telegraf-ha-alert $(1)/usr/libexec/telegraf-ha-alert
-endef
-
-define Package/telegraf/postinst
-#!/bin/sh
-[ -z "$${IPKG_INSTROOT}" ] && /etc/init.d/telegraf restart
-exit 0
 endef
 
 $(eval $(call GoBinPackage,telegraf))
