@@ -12,6 +12,8 @@
 
 import os
 import sys
+import syslog
+import subprocess
 from euci import EUci
 from nethsec import users
 
@@ -66,8 +68,19 @@ if user is None:
     # User not found
     sys.exit(2)
 
-if user.get("openvpn_enabled", "0") == "1":
-    sys.exit(0)
-else:
+if user.get("openvpn_enabled", "0") != "1":
     # User is disabled
     sys.exit(1)
+
+# If user DB is remote, check the existence of the user
+# in the LDAP server
+if users.get_database_type(uci, db) == "ldap":
+    try:
+        if not users.remote_user_exists(uci, cn, db):
+            syslog.syslog(syslog.LOG_WARNING, f"Connection refused for user '{cn}': user not found in remote database '{db}'")
+            sys.exit(2)
+    except subprocess.CalledProcessError as e:
+        syslog.syslog(syslog.LOG_ERR, f"Connection refused for user '{cn}': can't query remote database '{db}': {e.stderr.strip()}")
+        sys.exit(6)
+
+sys.exit(0)
