@@ -1,15 +1,3 @@
-diff --git a/net/openvpn/Makefile b/net/openvpn/Makefile
---- a/net/openvpn/Makefile
-+++ b/net/openvpn/Makefile
-@@ -10,7 +10,7 @@
- PKG_NAME:=openvpn
- 
- PKG_VERSION:=2.7.4
--PKG_RELEASE:=2
-+PKG_RELEASE:=3
- 
- PKG_SOURCE_URL:=\
- 	https://build.openvpn.net/downloads/releases/ \
 diff --git a/net/openvpn/files/openvpn.init b/net/openvpn/files/openvpn.init
 --- a/net/openvpn/files/openvpn.init
 +++ b/net/openvpn/files/openvpn.init
