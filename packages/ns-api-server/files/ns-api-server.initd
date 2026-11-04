@@ -55,6 +55,13 @@ start_service() {
         :*) vmalert_http_listen_addr="127.0.0.1${vmalert_http_listen_addr}" ;;
     esac
 
+    config_load victoria-logs
+    local vl_http_listen_addr
+    config_get vl_http_listen_addr main http_listen_addr "127.0.0.1:9428"
+    case "$vl_http_listen_addr" in
+        :*) vl_http_listen_addr="127.0.0.1${vl_http_listen_addr}" ;;
+    esac
+
     procd_set_param env GIN_MODE=release \
         LISTEN_ADDRESS=127.0.0.1:8090 \
         SECRET_JWT="${SECRET_JWT}" \
@@ -65,6 +72,7 @@ start_service() {
         UPLOAD_FILE_MAX_SIZE=${UPLOAD_FILE_MAX_SIZE} \
         VICTORIA_METRICS_URL="http://${vm_http_listen_addr}" \
         VMALERT_URL="http://${vmalert_http_listen_addr}" \
+        VICTORIA_LOGS_URL="http://${vl_http_listen_addr}" \
         GLOBAL_RATE_LIMIT_AVERAGE=${GLOBAL_RATE_LIMIT_AVERAGE} \
         GLOBAL_RATE_LIMIT_BURST=${GLOBAL_RATE_LIMIT_BURST}
 
@@ -76,7 +84,7 @@ start_service() {
 }
 
 service_triggers() {
-    procd_add_reload_trigger victoria-metrics vmalert
+    procd_add_reload_trigger victoria-metrics vmalert victoria-logs
 }
 
 reload_service() {
