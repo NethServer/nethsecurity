@@ -1,0 +1,12 @@
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Stop crond from logging every job it runs, errors are still logged
+[ "$(uci -q get system.@system[0].cronloglevel)" != "" ] && exit 0
+
+uci -q batch << EOI
+set system.@system[0].cronloglevel="9"
+commit system
+EOI

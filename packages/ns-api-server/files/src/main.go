@@ -45,7 +45,7 @@ import (
 
 func main() {
 	// init logs with syslog
-	logs.Init("nethsecurity_api")
+	logs.Init("nethsecurity-api")
 
 	// init configuration
 	configuration.Init()
