@@ -5,7 +5,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-START=90
+# required by nginx
+START=79
 
 USE_PROCD=1
 
