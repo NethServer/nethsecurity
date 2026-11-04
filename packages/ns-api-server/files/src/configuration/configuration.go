@@ -54,7 +54,7 @@ func Init() {
 	if os.Getenv("SECRET_JWT") != "" {
 		Config.SecretJWT = os.Getenv("SECRET_JWT")
 	} else {
-		logs.Logs.Println("[CRITICAL][ENV] SECRET_JWT variable is empty")
+		logs.Crit("[ENV] SECRET_JWT variable is empty")
 		os.Exit(1)
 	}
 
@@ -67,14 +67,14 @@ func Init() {
 	if os.Getenv("SECRETS_DIR") != "" {
 		Config.SecretsDir = os.Getenv("SECRETS_DIR")
 	} else {
-		logs.Logs.Println("[CRITICAL][ENV] SECRETS_DIR variable is empty")
+		logs.Crit("[ENV] SECRETS_DIR variable is empty")
 		os.Exit(1)
 	}
 
 	if os.Getenv("TOKENS_DIR") != "" {
 		Config.TokensDir = os.Getenv("TOKENS_DIR")
 	} else {
-		logs.Logs.Println("[CRITICAL][ENV] TOKENS_DIR variable is empty")
+		logs.Crit("[ENV] TOKENS_DIR variable is empty")
 		os.Exit(1)
 	}
 

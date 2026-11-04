@@ -10,16 +10,46 @@
 package logs
 
 import (
-	"log"
+	"fmt"
+	"io"
+	"log/syslog"
 	"os"
 )
 
-var Logs *log.Logger
+var writer *syslog.Writer
+
+// Output receives the log lines when syslog isn't available
+var Output io.Writer = os.Stderr
 
 func Init(name string) {
-	// init syslog writer
-	logger := log.New(os.Stderr, name+" ", log.Ldate|log.Ltime|log.Lshortfile)
+	w, err := syslog.New(syslog.LOG_DAEMON|syslog.LOG_INFO, name)
+	if err != nil {
+		fmt.Fprintln(Output, "[ERR][LOGS] cannot connect to syslog: "+err.Error())
+		return
+	}
+	writer = w
+}
 
-	// assign writer to Logs var
-	Logs = logger
+func Info(msg string) {
+	if writer == nil {
+		fmt.Fprintln(Output, msg)
+		return
+	}
+	writer.Info(msg)
+}
+
+func Err(msg string) {
+	if writer == nil {
+		fmt.Fprintln(Output, msg)
+		return
+	}
+	writer.Err(msg)
+}
+
+func Crit(msg string) {
+	if writer == nil {
+		fmt.Fprintln(Output, msg)
+		return
+	}
+	writer.Crit(msg)
 }

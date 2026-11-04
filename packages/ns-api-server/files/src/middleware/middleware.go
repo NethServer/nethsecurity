@@ -118,7 +118,7 @@ func InitJWT() *jwt.GinJWTMiddleware {
 			err := methods.CheckAuthentication(username, password)
 			if err != nil {
 				// login failed, write also the IP address of the client
-				logs.Logs.Println("[INFO][AUTH] authentication failed for user " + utils.SanitizeForLog(username) + " from " + c.ClientIP() + ": " + err.Error())
+				logs.Info("[AUTH] authentication failed for user " + utils.SanitizeForLog(username) + " from " + c.ClientIP() + ": " + err.Error())
 
 				// return JWT error
 				return nil, jwt.ErrFailedAuthentication
@@ -127,7 +127,7 @@ func InitJWT() *jwt.GinJWTMiddleware {
 			onBehalfOf := checkOnBehalfOf(loginVals.OnBehalfOf, username)
 
 			// login ok action
-			logs.Logs.Println("[INFO][AUTH] authentication success for user " + utils.SanitizeForLog(username) + logSuffixOnBehalfOf(onBehalfOf) + " from " + c.ClientIP())
+			logs.Info("[AUTH] authentication success for user " + utils.SanitizeForLog(username) + logSuffixOnBehalfOf(onBehalfOf) + " from " + c.ClientIP())
 
 			// return user auth model
 			return &models.UserAuthorizations{
@@ -194,7 +194,7 @@ func InitJWT() *jwt.GinJWTMiddleware {
 			// check if token exists
 			if !methods.CheckTokenValidation(claims["id"].(string), token.Raw) {
 				// write logs
-				logs.Logs.Println("[INFO][AUTH] authorization failed for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims) + ". " + reqMethod + " " + reqURI)
+				logs.Info("[AUTH] authorization failed for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims) + ". " + reqMethod + " " + reqURI)
 
 				// not authorized
 				return false
@@ -234,7 +234,7 @@ func InitJWT() *jwt.GinJWTMiddleware {
 				reqBody = jsonB
 			}
 
-			logs.Logs.Println("[INFO][AUTH] authorization success for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims) + ". " + reqMethod + " " + reqURI + " " + utils.SanitizeForLog(reqBody))
+			logs.Info("[AUTH] authorization success for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims) + ". " + reqMethod + " " + reqURI + " " + utils.SanitizeForLog(reqBody))
 
 			// authorized
 			return true
@@ -250,7 +250,7 @@ func InitJWT() *jwt.GinJWTMiddleware {
 			}
 
 			// write logs
-			logs.Logs.Println("[INFO][AUTH] login response success for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims))
+			logs.Info("[AUTH] login response success for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims))
 
 			// return 200 OK
 			c.JSON(200, gin.H{"code": 200, "expire": t, "token": token})
@@ -264,7 +264,7 @@ func InitJWT() *jwt.GinJWTMiddleware {
 			methods.SetTokenValidation(claims["id"].(string), token)
 
 			// write logs
-			logs.Logs.Println("[INFO][AUTH] refresh response success for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims))
+			logs.Info("[AUTH] refresh response success for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims))
 
 			// return 200 OK
 			c.JSON(200, gin.H{"code": 200, "expire": t, "token": token})
@@ -278,14 +278,14 @@ func InitJWT() *jwt.GinJWTMiddleware {
 			methods.DelTokenValidation(claims["id"].(string), tokenObj.Raw)
 
 			// write logs
-			logs.Logs.Println("[INFO][AUTH] logout response success for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims))
+			logs.Info("[AUTH] logout response success for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims))
 
 			// reutrn 200 OK
 			c.JSON(200, gin.H{"code": 200})
 		},
 		Unauthorized: func(c *gin.Context, code int, message string) {
 			// write logs
-			logs.Logs.Println("[INFO][AUTH] unauthorized request: " + utils.SanitizeForLog(message))
+			logs.Info("[AUTH] unauthorized request: " + utils.SanitizeForLog(message))
 
 			// response not authorized
 			c.JSON(code, structs.Map(response.StatusUnauthorized{
@@ -302,7 +302,7 @@ func InitJWT() *jwt.GinJWTMiddleware {
 
 	// check middleware errors
 	if errDefine != nil {
-		logs.Logs.Println("[ERR][AUTH] middleware definition error: " + errDefine.Error())
+		logs.Err("[AUTH] middleware definition error: " + errDefine.Error())
 	}
 
 	// init middleware
@@ -310,7 +310,7 @@ func InitJWT() *jwt.GinJWTMiddleware {
 
 	// check error on initialization
 	if errInit != nil {
-		logs.Logs.Println("[ERR][AUTH] middleware initialization error: " + errInit.Error())
+		logs.Err("[AUTH] middleware initialization error: " + errInit.Error())
 	}
 
 	// return object
