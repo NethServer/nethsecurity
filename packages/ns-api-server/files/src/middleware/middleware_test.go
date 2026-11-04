@@ -10,7 +10,6 @@ package middleware
 import (
 	"bytes"
 	"encoding/json"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -57,7 +56,7 @@ func TestLoginLogInjection(t *testing.T) {
 			configuration.Config.SecretJWT = "test-secret"
 
 			var buf bytes.Buffer
-			logs.Logs = log.New(&buf, "", 0)
+			logs.Output = &buf
 
 			gin.SetMode(gin.TestMode)
 			jwtMiddleware = nil
