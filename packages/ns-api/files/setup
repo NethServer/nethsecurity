@@ -1142,12 +1142,40 @@ change_password() {
 	passwd
 }
 
+remote_access_status() {
+	if [ "$(uci -q get firewall.ns_allow_ui.enabled)" = "0" ]; then
+		printf '%s' 'closed'
+	else
+		printf '%s' 'open'
+	fi
+}
+
+toggle_remote_access() {
+	if [ "$(remote_access_status)" = "open" ]; then
+		state='closed'
+		value='0'
+	else
+		state='open'
+		value='1'
+	fi
+
+	uci set "firewall.ns_allow_ui.enabled=$value" &&
+	uci commit firewall &&
+	/etc/init.d/firewall reload || {
+		whiptail --title "Setup Error" --msgbox "Unable to change remote access." 10 70
+		return 1
+	}
+
+	whiptail --title "Setup" --msgbox "Remote access to port 9090 from WAN is now $state." 10 70
+}
+
 main_menu() {
 	while true; do
-		run_dialog --title "Setup" --cancel-button "Exit" --menu "Choose an action" 16 70 4 \
+		run_dialog --title "Setup" --cancel-button "Exit" --menu "Choose an action" 18 70 5 \
 			network "Configure network" \
 			keymap "Keyboard layout: ${KEYMAP}" \
 			password "Change root password" \
+			remote-access "Toggle access to port 9090 from WAN: $(remote_access_status)" \
 			exit "Exit without applying" || { confirm_exit && break; continue; }
 		selection="$WHIPTAIL_RESULT"
 
@@ -1155,6 +1183,7 @@ main_menu() {
 			keymap) pick_keymap ;;
 			network) network_menu ;;
 			password) change_password ;;
+			remote-access) toggle_remote_access ;;
 			exit) confirm_exit && break ;;
 		esac
 	done
