@@ -70,6 +70,7 @@ define Package/ns-storage/install
 	$(INSTALL_BIN) ./files/30_ns-storage $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/31-ns-storage-default.uci-default $(1)/etc/uci-defaults/31-ns-storage-default
 	$(INSTALL_BIN) ./files/32-ns-storage-convert-uuid.uci-default $(1)/etc/uci-defaults/32-ns-storage-convert-uuid
+	$(INSTALL_BIN) ./files/33-ns-storage-cleanup-root.uci-default $(1)/etc/uci-defaults/33-ns-storage-cleanup-root
 	$(INSTALL_CONF) ./files/data.conf $(1)/etc/logrotate.d
 	$(INSTALL_BIN) ./files/storage-status $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-storage-check.init $(1)/etc/init.d/ns-storage-check

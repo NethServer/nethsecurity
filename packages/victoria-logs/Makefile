@@ -43,7 +43,7 @@ define Package/victoria-logs
 	CATEGORY:=NethServer
 	TITLE:=Victoria Logs
 	URL:=https://github.com/VictoriaMetrics/VictoriaLogs
-	DEPENDS:=$(GO_ARCH_DEPENDS) +rsyslog
+	DEPENDS:=$(GO_ARCH_DEPENDS) +rsyslog +ns-storage
 endef
 
 define Package/victoria-logs/description

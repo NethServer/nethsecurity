@@ -1,0 +1,27 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Remove data written to the root partition while the data storage wasn't mounted
+[ -n "$(ls -A /overlay/upper/mnt/data 2>/dev/null)" ] || exit 0
+
+services=""
+for service in rsyslog dnsmasq victoria-metrics victoria-logs snort; do
+    if [ -x "/etc/init.d/$service" ] && "/etc/init.d/$service" running; then
+        "/etc/init.d/$service" stop
+        services="$services $service"
+    fi
+done
+
+if ! grep -q " /mnt/data " /proc/mounts || umount /mnt/data; then
+    rm -rf /mnt/data
+    mkdir -p /mnt/data
+    block mount
+fi
+
+for service in $services; do
+    "/etc/init.d/$service" start
+done

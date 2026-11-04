@@ -43,7 +43,7 @@ define Package/victoria-metrics
 	CATEGORY:=NethServer
 	TITLE:=Victoria Metrics
 	URL:=https://github.com/VictoriaMetrics/VictoriaMetrics
-	DEPENDS:=$(GO_ARCH_DEPENDS)
+	DEPENDS:=$(GO_ARCH_DEPENDS) +ns-storage
 endef
  
 define Package/victoria-metrics/description
