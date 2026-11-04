@@ -77,8 +77,8 @@ if user.get("openvpn_enabled", "0") != "1":
 if users.get_database_type(uci, db) == "ldap":
     try:
         if not users.remote_user_exists(uci, cn, db):
-            syslog.syslog(syslog.LOG_WARNING, f"Connection refused for user '{cn}': user not found in remote database '{db}'")
-            sys.exit(2)
+            # User not found in remote database
+            sys.exit(7)
     except subprocess.CalledProcessError as e:
         syslog.syslog(syslog.LOG_ERR, f"Connection refused for user '{cn}': can't query remote database '{db}': {e.stderr.strip()}")
         sys.exit(6)
