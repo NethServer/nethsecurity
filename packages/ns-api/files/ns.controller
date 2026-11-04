@@ -280,7 +280,7 @@ def dump_openvpn_connections():
     ret = []    
     u = EUci()
     base_path = u.get('fstab', 'ns_data', 'target', default='')
-    if not os.path.isdir(base_path):
+    if not os.path.ismount(base_path):
         base_path = '/var'
     pattern = os.path.join(base_path, 'openvpn', '*', 'connections.db')
     for db_file in glob.glob(pattern):

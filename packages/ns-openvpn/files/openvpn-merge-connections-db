@@ -81,7 +81,7 @@ def _merge_var_into_storage(var_db, storage_db):
     except Exception:
         return 0
 
-if not os.path.isdir(STORAGE_BASE):
+if not os.path.ismount(STORAGE_BASE):
     raise SystemExit(0)
 
 var_openvpn = os.path.join(VAR_BASE, 'openvpn')
