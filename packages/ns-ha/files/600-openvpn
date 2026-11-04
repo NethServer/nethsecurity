@@ -3,6 +3,8 @@
 # shellcheck source=/dev/null
 . /lib/functions/keepalived/hotplug.sh
 
+ns_ha_chain_is_stale && exit 0
+
 set_service_name openvpn
 
 set_restart_if_master
