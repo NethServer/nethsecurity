@@ -1141,9 +1141,9 @@ confirm_exit() {
 change_password() {
 	clear
 	if passwd; then
-		whiptail --title "Setup" --msgbox "Root password changed." 10 70
+		whiptail --title "Success" --msgbox "Root password changed." 10 70
 	else
-		whiptail --title "Setup Error" --msgbox "Root password not changed." 10 70
+		whiptail --title "Error" --msgbox "Root password not changed." 10 70
 	fi
 }
 
@@ -1167,11 +1167,11 @@ toggle_remote_access() {
 	uci set "firewall.ns_allow_ui.enabled=$value" &&
 	uci commit firewall &&
 	/etc/init.d/firewall reload || {
-		whiptail --title "Setup Error" --msgbox "Unable to change remote access." 10 70
+		whiptail --title "Error" --msgbox "Unable to change remote access." 10 70
 		return 1
 	}
 
-	whiptail --title "Setup" --msgbox "Remote access to port 9090 from WAN is now $state." 10 70
+	whiptail --title "Success" --msgbox "Remote access to port 9090 from WAN is now $state." 10 70
 }
 
 main_menu() {
