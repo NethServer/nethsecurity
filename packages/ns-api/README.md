@@ -1601,9 +1601,10 @@ Response example:
       "id": "ns_d486faa0",
       "connected": false,
       "expiration": "",
-      "expired": false
+      "expired": false,
       "used": false,
-      "matches": []
+      "matches": [],
+      "valid": true
     },
     {
       "local": true,
@@ -1624,7 +1625,20 @@ Response example:
       "expiration": 2012741635,
       "expired": false,
       "used": true,
-      "matches": ["firewall/ns_allow_xx"]
+      "matches": ["firewall/ns_allow_xx"],
+      "valid": true
+    },
+    {
+      "id": "ns_91a99e42",
+      "name": "mario",
+      "openvpn_enabled": "0",
+      "openvpn_ipaddr": "",
+      "expiration": 0,
+      "expired": false,
+      "used": false,
+      "matches": [],
+      "connected": false,
+      "valid": false
     }
   ]
 }
@@ -1633,6 +1647,9 @@ Response example:
 The following fields may not be present:
 - `password`
 - `ipaddr`
+
+The `valid` field is `false` if the user has an OpenVPN account but it no longer exists inside the remote user database,
+for example when it has been deleted from the LDAP/AD server. Both enabled and disabled accounts are listed.
 
 If `connected` field is `true`, the user object should contain also:
 - `real_address`, the remote address
