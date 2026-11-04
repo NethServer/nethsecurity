@@ -29,7 +29,7 @@ on:
 jobs:
   vars:
     name: 'Compute build variables'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       owrt_version: ${{ steps.compute.outputs.owrt_version }}
       target: ${{ steps.compute.outputs.target }}
