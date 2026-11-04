@@ -1139,7 +1139,12 @@ confirm_exit() {
 }
 
 change_password() {
-	passwd
+	clear
+	if passwd; then
+		whiptail --title "Setup" --msgbox "Root password changed." 10 70
+	else
+		whiptail --title "Setup Error" --msgbox "Root password not changed." 10 70
+	fi
 }
 
 remote_access_status() {
