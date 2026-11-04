@@ -13,7 +13,7 @@ import subprocess
 import sys
 from euci import EUci
 
-from nethsec import utils
+from nethsec import utils, users
 
 MIGRATE_DIR = '/tmp/migration'
 UPLOAD_PATH = '/var/run/ns-api-server/uploads/'
@@ -39,19 +39,22 @@ if cmd == 'list':
 elif cmd == 'call':
     action = sys.argv[2]
     if action == 'migrate':
-        try:
-            data = json.load(sys.stdin)
-            export_archive = f'{UPLOAD_PATH}{data["archive"]}'
-            cmd = ['/usr/sbin/ns-import']
-            for m in data['mappings']:
-                cmd.append("-m")
-                cmd.append(f'{m["old"]}={m["new"]}')
-            cmd.append(export_archive)
-            subprocess.run(cmd, check=True, capture_output=True)
-            # return success
-            print(json.dumps({'result': 'success'}))
-        except RuntimeError as error:
-            print(json.dumps(utils.generic_error(error.args[0])))
+        if not users.caller_is_superuser(EUci()):
+            print(json.dumps(utils.generic_error('forbidden')))
+        else:
+            try:
+                data = json.load(sys.stdin)
+                export_archive = f'{UPLOAD_PATH}{data["archive"]}'
+                cmd = ['/usr/sbin/ns-import']
+                for m in data['mappings']:
+                    cmd.append("-m")
+                    cmd.append(f'{m["old"]}={m["new"]}')
+                cmd.append(export_archive)
+                subprocess.run(cmd, check=True, capture_output=True)
+                # return success
+                print(json.dumps({'result': 'success'}))
+            except RuntimeError as error:
+                print(json.dumps(utils.generic_error(error.args[0])))
 
     elif action == 'list-source-devices':
         ret = []

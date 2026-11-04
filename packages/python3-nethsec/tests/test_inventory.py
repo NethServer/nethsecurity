@@ -797,6 +797,9 @@ config login 'controller'
 
 config login 'ns_7fe3e016'
 	option username 'example'
+
+config login 'ns_don'
+	option username 'nethsupport'
 """
 
 def _setup_db(tmp_path):
