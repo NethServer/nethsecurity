@@ -43,7 +43,7 @@ define Package/victoria-logs
 	CATEGORY:=NethServer
 	TITLE:=Victoria Logs
 	URL:=https://github.com/VictoriaMetrics/VictoriaLogs
-	DEPENDS:=$(GO_ARCH_DEPENDS) +rsyslog
+	DEPENDS:=$(GO_ARCH_DEPENDS) +rsyslog +ns-storage
 endef
 
 define Package/victoria-logs/description
@@ -58,6 +58,8 @@ define Package/victoria-logs/install
 	$(call GoPackage/Package/Install/Bin,$(1))
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/victoria-logs.initd $(1)/etc/init.d/victoria-logs
+	$(INSTALL_DIR) $(1)/etc/hotplug.d/block
+	$(INSTALL_BIN) ./files/30-victoria-logs $(1)/etc/hotplug.d/block/
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DATA) ./files/victoria-logs.conf $(1)/etc/config/victoria-logs
 	$(INSTALL_DIR) $(1)/etc/rsyslog.d

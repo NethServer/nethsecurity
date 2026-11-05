@@ -18,7 +18,7 @@ from nethsec import snort
 from euci import EUci
 
 # Use persistent storage when /mnt/data is available so rule archives survive reboots
-DATA_DIR = "/mnt/data/ns-snort" if os.path.isdir("/mnt/data") else "/var/ns-snort"
+DATA_DIR = "/mnt/data/ns-snort" if os.path.ismount("/mnt/data") else "/var/ns-snort"
 # Generated rules must stay in snort config_dir, they're rebuilt from the archives on every start
 RULES_DIR = "/var/ns-snort/rules"
 BACKUP_DIR = "/var/ns-snort/old.rules"

@@ -24,6 +24,7 @@ start_service() {
     local disk_mount
     config_load fstab
     config_get disk_mount ns_data target
+    [ -n "$disk_mount" ] && grep -q " $disk_mount " /proc/mounts || disk_mount=""
 
     # Auto-detect storage_path if not customized
     if [ -z "$storage_path" ]; then

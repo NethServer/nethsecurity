@@ -43,7 +43,7 @@ define Package/victoria-metrics
 	CATEGORY:=NethServer
 	TITLE:=Victoria Metrics
 	URL:=https://github.com/VictoriaMetrics/VictoriaMetrics
-	DEPENDS:=$(GO_ARCH_DEPENDS)
+	DEPENDS:=$(GO_ARCH_DEPENDS) +ns-storage
 endef
  
 define Package/victoria-metrics/description
@@ -60,6 +60,8 @@ define Package/victoria-metrics/install
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/victoria-metrics.initd $(1)/etc/init.d/victoria-metrics
 	$(INSTALL_BIN) ./files/vmalert.initd $(1)/etc/init.d/vmalert
+	$(INSTALL_DIR) $(1)/etc/hotplug.d/block
+	$(INSTALL_BIN) ./files/30-victoria-metrics $(1)/etc/hotplug.d/block/
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DATA) ./files/victoria-metrics.conf $(1)/etc/config/victoria-metrics
 	$(INSTALL_DATA) ./files/vmalert.conf $(1)/etc/config/vmalert
