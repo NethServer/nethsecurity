@@ -271,7 +271,12 @@ func InitJWT() *jwt.GinJWTMiddleware {
 		},
 		LogoutResponse: func(c *gin.Context, code int) {
 			//get claims
-			tokenObj, _ := InstanceJWT().ParseToken(c)
+			tokenObj, err := InstanceJWT().ParseToken(c)
+			// invalid or missing token: nothing to log out
+			if err != nil {
+				c.JSON(200, gin.H{"code": 200})
+				return
+			}
 			claims := jwt.ExtractClaimsFromToken(tokenObj)
 
 			// set token to invalid
