@@ -3,15 +3,13 @@
 As default, logs are written inside a volatile in-memory directory to prevent errors
 on the root file system in case of failure.
 
-The `ns-storage` package configures the system to save a copy of the logs inside an extra data local storage,
-like a USB stick.
+The `ns-storage` package configures an extra data local storage, like a USB stick, where services keep
+their persistent data. Persistent logs are stored there by victoria-logs.
 
 Features:
 
 - device initialization and mounting
-- rsyslog configuration
 - dnsmasq DHCP lease persistence on mounted storage
-- logrotate for extra log files
 - customizable cron job to sync data once a day
 
 ## Add a data storage
@@ -67,8 +65,7 @@ add-storage /dev/sda
 The script will mount the storage at `/mnt/data` and configure
 the system as follow:
 
-- rsyslog will write logs also inside `/mnt/data/log/messages` file
-- logrotate will rotate `/mnt/data/log/messages` once a week (see `/etc/logrotate/data.conf` for more info)
+- victoria-logs will store logs inside `/mnt/data/victoria-logs-data`, see the victoria-logs README for retention
 - dnsmasq will store DHCP leases inside `/mnt/data/dnsmasq/dhcp.leases`; `/tmp/dhcp.leases` remains available as a compatibility symlink while the storage is mounted
 
 ### Storage status alert
