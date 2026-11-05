@@ -94,7 +94,12 @@ expand_config() {
 	> ${CONFIG_FILE}
 	echo "include(file=\"${BASE_CONFIG_FILE}\" mode=\"optional\")" >> ${CONFIG_FILE}
 	for m in ${modules}; do
-		echo "module(load=\"${m}\")" >> ${CONFIG_FILE}
+		if [ "${m}" = "imklog" ]; then
+			# early userspace (preinit, procd, block, mount_root) logs to kmsg with non-kernel facilities
+			echo "module(load=\"imklog\" permitNonKernelFacility=\"on\")" >> ${CONFIG_FILE}
+		else
+			echo "module(load=\"${m}\")" >> ${CONFIG_FILE}
+		fi
 	done
 	echo "${input_t}" >> ${CONFIG_FILE}
 	echo "${input_u}" >> ${CONFIG_FILE}

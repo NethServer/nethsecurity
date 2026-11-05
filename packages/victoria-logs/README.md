@@ -12,12 +12,7 @@ This package provides **Victoria Logs** for centralized log storage and aggregat
 
 ## Installation
 
-This package is **not installed by default**. To enable Victoria Logs:
-
-```bash
-# Install the package
-apk add victoria-logs
-```
+This package is installed by default and it's where persistent logs are kept when a data storage is mounted.
 
 The package depends on rsyslog. This service will automatically start on installation.
 
