@@ -15,6 +15,10 @@ for service in rsyslog dnsmasq victoria-metrics victoria-logs snort; do
         services="$services $service"
     fi
 done
+if [ -n "$services" ]; then
+    sync
+    sleep 5
+fi
 
 # A non-recursive bind of / shows what's under /mnt/data without unmounting the storage
 root=$(mktemp -d)
