@@ -242,6 +242,20 @@ Finally, copy the patch outside the container and run the build.
 
 Note: before submitting a patch using this method, please try to open a pull request to the upstream repository!
 
+### Kernel patches
+
+To backport a kernel fix before OpenWrt ships it, add a patch that creates a new file inside
+`target/linux/generic/backport-6.12/` of the OpenWrt tree.
+`builder/apply-patches.sh` applies every file under `patches/` inside the matching directory, so a patch saved as
+`patches/target/linux/generic/<name>.patch` runs inside `target/linux/generic/`.
+OpenWrt then applies the new kernel patch together with its own backports.
+
+Example: `patches/target/linux/generic/100-cve-2026-98432-ipv4-inet_opt-use-after-free.patch` adds
+`backport-6.12/790-v7.3-ipv4-free-inet_opt-and-ireq_opt-after-an-RCU-grace-period.patch`.
+
+Remove the patch when `OWRT_VERSION` moves to a release that already includes the fix,
+otherwise the build fails because the file already exists.
+
 ### Override upstream packages
 
 It is possible to replace upstream packages with local ones.
