@@ -7141,6 +7141,31 @@ Output example:
 }
 ```
 
+### list-devices
+
+List the devices associated to firewall zones, usable to limit a NAT rule to a specific device:
+```
+api-cli ns.nat list-devices
+```
+
+The `id` is the device name, the `label` also contains the logical interfaces bound to the device, if any.
+Alias interfaces are resolved to the device of their parent interface, PPPoE and bonding interfaces
+to the device they create (`pppoe-<interface>` and `bond-<interface>`).
+Aliases of aliases are not supported and are not listed.
+
+Output example:
+```json
+{
+  "devices": [
+    {"id": "br-lan", "label": "br-lan (lan)"},
+    {"id": "eth1", "label": "eth1 (f1000, al_f1000)"},
+    {"id": "pppoe-wan", "label": "pppoe-wan (wan, wan6)"},
+    {"id": "tunrw1", "label": "tunrw1"},
+    {"id": "wg1", "label": "wg1"}
+  ]
+}
+```
+
 ### add-rule
 
 Add a new NAT rule:
