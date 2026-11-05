@@ -35,14 +35,6 @@ uci set fstab.ns_data.label="$LABEL"
 uci set fstab.ns_data.enabled=1
 uci commit fstab
 
-# setup rsyslog to write log into the device
-mkdir -p "$mdir/log"
-uci set rsyslog.ns_data=selector
-uci set rsyslog.ns_data.source='*.*'
-uci set rsyslog.ns_data.destination="$mdir/log/messages"
-uci commit rsyslog
-/etc/init.d/rsyslog restart
-
 crontab -l | grep -q '/usr/sbin/sync-data' || echo '40 1 * * * /usr/sbin/sync-data' >> /etc/crontabs/root
 /etc/init.d/cron restart
 
