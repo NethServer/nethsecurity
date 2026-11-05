@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**NethSecurity** is an OpenWrt-based Linux firewall, built inside a rootless Podman container. Read `build.conf.example` for the current versions — `OWRT_VERSION` (OpenWrt) and `NETHSECURITY_VERSION` (NethSecurity). Never assume either from memory or from versions quoted elsewhere; check upstream sources against the tag `OWRT_VERSION` names.
+**NethSecurity** is an OpenWrt-based Linux firewall, built inside a rootless Podman container. Read `build.conf.defaults` for the current versions — `OWRT_VERSION` (OpenWrt) and `NETHSECURITY_VERSION` (NethSecurity). Never assume either from memory or from versions quoted elsewhere; check upstream sources against the tag `OWRT_VERSION` names.
 
 ---
 
@@ -20,7 +20,7 @@ This project has domain-specific skills available. You MUST activate the relevan
 
 ## Build System
 
-**Do not commit `build.conf`** — it is git-ignored. Copy from `build.conf.example` and populate locally.
+**Do not commit `build.conf`** — it is git-ignored. `build-nethsec.sh` loads `build.conf.defaults` (tracked), then `build.conf` as local overrides: copy it from `build.conf.defaults` and edit locally.
 
 **For build verification, prefer GitHub Actions** — inspect CI status and logs via the GitHub MCP server (`github-mcp-server-actions_list`, `github-mcp-server-actions_get`, `github-mcp-server-get_job_logs`). Only run a local build if explicitly required.
 
