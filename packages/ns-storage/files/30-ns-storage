@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Triggered by hotplug when a block device is added, after 10-mount.
+# If the data storage got mounted after boot, move logs and DHCP leases onto it.
+
+[ "$ACTION" = "add" ] || exit 0
+[ "$DEVTYPE" = "partition" ] || exit 0
+
+target=$(uci -q get fstab.ns_data.target)
+[ -n "$target" ] || exit 0
+grep -q "^/dev/$DEVNAME $target " /proc/mounts || exit 0
+
+/etc/init.d/ns-storage-check start
+/etc/init.d/rsyslog running && /etc/init.d/rsyslog restart
+/etc/init.d/dnsmasq running && /etc/init.d/dnsmasq restart
+exit 0

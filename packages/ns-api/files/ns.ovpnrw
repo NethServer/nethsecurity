@@ -254,7 +254,7 @@ def archive_connections_db(instance):
 def get_connections_db_path(ovpninstance):
     u = EUci()
     base_path = u.get('fstab', 'ns_data', 'target', default='')
-    if not os.path.isdir(base_path):
+    if not os.path.ismount(base_path):
         base_path = '/var'
     return os.path.join(base_path, 'openvpn', ovpninstance, 'connections.db')
 

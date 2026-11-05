@@ -19,7 +19,7 @@ validate_snort_section() {
 
 download_rules () {
 	# Prefer data storage if available, otherwise use /var/ns-snort.
-	if [ -d "/mnt/data" ] ; then
+	if grep -q " /mnt/data " /proc/mounts ; then
 		cache_dir="/mnt/data/ns-snort"
 	else
 		cache_dir="/var/ns-snort"

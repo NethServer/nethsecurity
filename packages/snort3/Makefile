@@ -29,7 +29,7 @@ define Package/snort3
     +libpthread +libuuid +zlib +libhwloc +USE_MUSL:libtirpc @HAS_LUAJIT_ARCH +luajit +libatomic \
     +kmod-nft-queue +liblzma +ucode +ucode-mod-fs +ucode-mod-uci \
     +PACKAGE_gperftools:gperftools \
-    +PACKAGE_vectorscan:vectorscan
+    +PACKAGE_vectorscan:vectorscan +ns-storage
   USERID:=snort=975:snort=975
   TITLE:=Lightweight Network Intrusion Detection System
   URL:=http://www.snort.org/
@@ -109,6 +109,8 @@ define Package/snort3/install
 
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/snort.init $(1)/etc/init.d/snort
+	$(INSTALL_DIR) $(1)/etc/hotplug.d/block
+	$(INSTALL_BIN) ./files/30-snort $(1)/etc/hotplug.d/block/
 
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/snort.config $(1)/etc/config/snort

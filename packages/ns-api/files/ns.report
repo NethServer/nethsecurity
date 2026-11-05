@@ -48,7 +48,7 @@ def get_cached_report(report_name, cache_timeout=900):
 def get_ovpnrw_db_path(instance):
     u = EUci()
     base_path = u.get('fstab', 'ns_data', 'target', default='')
-    if not os.path.isdir(base_path):
+    if not os.path.ismount(base_path):
         base_path = '/var'
     return os.path.join(base_path, 'openvpn', instance, 'connections.db')
 
