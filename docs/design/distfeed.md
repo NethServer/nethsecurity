@@ -49,6 +49,7 @@ https://${endpoint}/${version}/packages/${package_arch}/base/packages.adb
 https://${endpoint}/${version}/packages/${package_arch}/luci/packages.adb
 https://${endpoint}/${version}/packages/${package_arch}/nethsecurity/packages.adb
 https://${endpoint}/${version}/packages/${package_arch}/packages/packages.adb
+https://${endpoint}/${version}/packages/${package_arch}/telephony/packages.adb
 ```
 
 Since all scripts inside `/etc/apk/repositories.d/*list` are executed by alphabetical order, we can define the following:
