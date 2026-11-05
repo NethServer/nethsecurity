@@ -1,1 +1,3 @@
+# Re-enable: the backup 10_disable_services may have disabled it
+/etc/init.d/ns-restore-extra-packages enable
 /etc/init.d/ns-restore-extra-packages start
