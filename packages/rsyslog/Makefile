@@ -74,6 +74,8 @@ define Package/rsyslog/install
 	$(INSTALL_BIN) ./files/rsyslog.init $(1)/etc/init.d/rsyslog
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_CONF) ./files/20_rsyslog $(1)/etc/uci-defaults
+	$(INSTALL_DIR) $(1)/etc/apk/commit_hooks.d
+	$(INSTALL_BIN) ./files/rsyslog.commit-hook $(1)/etc/apk/commit_hooks.d/rsyslog
 endef
 
 define Package/rsyslog/config
