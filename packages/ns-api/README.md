@@ -6291,9 +6291,9 @@ It can raise the following validation errors:
 
 ### add-custom-blocklist
 
-Add a custom blocklist, a plain list with one IP/CIDR per line; enable it with `edit-blocklist`:
+Add a custom blocklist, a plain list with one IP/CIDR per line:
 ```
-api-cli ns.threatshield add-custom-blocklist --data '{"name": "myfeed", "url_4": "https://example.com/v4.txt", "url_6": "", "chain": "in", "description": "my blocklist"}'
+api-cli ns.threatshield add-custom-blocklist --data '{"name": "myfeed", "url_4": "https://example.com/v4.txt", "url_6": "", "chain": "in", "description": "my blocklist", "enabled": true}'
 ```
 
 Fields:
@@ -6301,6 +6301,7 @@ Fields:
 - `url_4`, `url_6`: IPv4 and IPv6 list URLs, at least one is required, same rules of `add-allowlist-url`
 - `chain`: `in` (inbound), `out` (outbound) or `inout` (both), default `in`
 - `description`: optional
+- `enabled`: optional boolean, default `true`; adds or removes the feed from `ban_feed` like `edit-blocklist`
 
 Response example:
 ```json
@@ -6312,14 +6313,16 @@ It can raise the following validation errors:
 - `name_already_present` if the name is already used
 - `url_required` if both URLs are empty
 - `invalid_url` if a URL is not valid
-- `invalid` for a wrong `chain` or `description`
+- `invalid` for a wrong `chain`, `description` or `enabled`
 
 ### edit-custom-blocklist
 
 Edit a custom blocklist, the name can't be changed:
 ```
-api-cli ns.threatshield edit-custom-blocklist --data '{"name": "myfeed", "url_4": "https://example.com/v4.txt", "url_6": "https://example.com/v6.txt", "chain": "inout", "description": "my blocklist"}'
+api-cli ns.threatshield edit-custom-blocklist --data '{"name": "myfeed", "url_4": "https://example.com/v4.txt", "url_6": "https://example.com/v6.txt", "chain": "inout", "description": "my blocklist", "enabled": false}'
 ```
+
+If `enabled` is missing, the feed state is not changed.
 
 Response example:
 ```json

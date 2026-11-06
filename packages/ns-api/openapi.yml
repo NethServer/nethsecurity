@@ -148,6 +148,10 @@ components:
         description:
           type: string
           example: my blocklist
+        enabled:
+          type: boolean
+          description: Add the feed to ban_feed; defaults to true on add, unchanged on edit when missing
+          example: true
 
   securitySchemes:
     BearerAuth:
@@ -925,7 +929,7 @@ paths:
                   - $ref: "#/components/schemas/Error"
   POST /ubus/ns.threatshield/add-custom-blocklist:
     post:
-      summary: Add a custom banIP blocklist, enable it with edit-blocklist
+      summary: Add a custom banIP blocklist, enabled by default
       operationId: ns.threatshield.add-custom-blocklist
       tags:
         - threatshield

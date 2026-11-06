@@ -654,14 +654,20 @@ def set_custom_blocklist(e_uci, name, payload):
 
 def add_custom_blocklist(e_uci, payload):
     name = validate_list_name(e_uci, payload)
+    enabled = validate_bool(payload, 'enabled') if 'enabled' in payload else True
     set_custom_blocklist(e_uci, name, payload)
+    edit_blocklist(e_uci, {'blocklist': name, 'enabled': enabled})
     return {'name': name}
 
 def edit_custom_blocklist(e_uci, payload):
     name = payload.get('name', '')
     if name not in (utils.get_all_by_type(e_uci, 'banip', 'ns_blockfeed') or {}):
         raise ValidationError('name', 'custom_blocklist_not_found', name)
+    # enabled is optional on edit: keep the current state when missing
+    enabled = validate_bool(payload, 'enabled') if 'enabled' in payload else None
     set_custom_blocklist(e_uci, name, payload)
+    if enabled is not None:
+        edit_blocklist(e_uci, {'blocklist': name, 'enabled': enabled})
     return {'message': 'success'}
 
 def delete_custom_blocklist(e_uci, payload):
@@ -1234,8 +1240,8 @@ if cmd == 'list':
         'add-allowlist-url': {'name': 'myallow', 'url': 'https://example.com/allow.txt', 'description': 'optional', 'enabled': True},
         'edit-allowlist-url': {'name': 'myallow', 'url': 'https://example.com/allow.txt', 'description': 'optional', 'enabled': True},
         'delete-allowlist-url': {'name': 'myallow'},
-        'add-custom-blocklist': {'name': 'myfeed', 'url_4': 'https://example.com/v4.txt', 'url_6': '', 'chain': 'in', 'description': 'optional'},
-        'edit-custom-blocklist': {'name': 'myfeed', 'url_4': 'https://example.com/v4.txt', 'url_6': '', 'chain': 'in', 'description': 'optional'},
+        'add-custom-blocklist': {'name': 'myfeed', 'url_4': 'https://example.com/v4.txt', 'url_6': '', 'chain': 'in', 'description': 'optional', 'enabled': True},
+        'edit-custom-blocklist': {'name': 'myfeed', 'url_4': 'https://example.com/v4.txt', 'url_6': '', 'chain': 'in', 'description': 'optional', 'enabled': True},
         'delete-custom-blocklist': {'name': 'myfeed'},
         'list-settings': {},
         'edit-settings': {
