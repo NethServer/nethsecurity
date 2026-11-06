@@ -73,6 +73,7 @@ define Package/ns-ha/install
 	$(INSTALL_DATA) ./files/700-nginx $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/800-adblock $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/800-banip $(1)/etc/hotplug.d/keepalived
+	$(INSTALL_DATA) ./files/810-fail2ban $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/800-netifyd $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/800-flashstart $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/800-ui $(1)/etc/hotplug.d/keepalived

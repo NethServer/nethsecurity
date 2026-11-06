@@ -42,7 +42,7 @@ The following features are supported:
 - Multi-WAN (mwan3)
 - DPI rules
 - Netifyd informatics configuration
-- Threat shield IP (banip)
+- Threat shield IP (banip, fail2ban)
 - Threat shield DNS (adblock)
 - Reverse proxy (nginx)
 - ACME certificates
@@ -638,7 +638,7 @@ The backup node maintains synchronized configuration but keeps most services dis
 
 **Disabled services on backup:**
 - DHCP and DNS server (dnsmasq)
-- Threat shield (banip, adblock)
+- Threat shield (banip, fail2ban, adblock)
 - OpenVPN server and tunnels
 - MAC binding
 - Multi-WAN (mwan3)

@@ -16,7 +16,7 @@ define Package/banip
 	SECTION:=net
 	CATEGORY:=Network
 	TITLE:=banIP blocks IPs via named nftables Sets
-	DEPENDS:=+jshn +jsonfilter +firewall4 +gawk +ca-bundle +rpcd +rpcd-mod-rpcsys +telegraf
+	DEPENDS:=+jshn +jsonfilter +firewall4 +gawk +ca-bundle +rpcd +rpcd-mod-rpcsys
 	PKGARCH:=all
 endef
 
@@ -69,9 +69,6 @@ define Package/banip/install
 
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/95-banip-housekeeping $(1)/etc/uci-defaults
-
-	$(INSTALL_DIR) $(1)/etc/telegraf.conf.d
-	$(INSTALL_DATA) ./files/banip.telegraf $(1)/etc/telegraf.conf.d/banip.conf
 endef
 
 $(eval $(call BuildPackage,banip))
