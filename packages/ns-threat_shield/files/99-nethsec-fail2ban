@@ -1,0 +1,32 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Move the banIP log monitor settings to the fail2ban jails on upgrade
+
+# fail2ban reports each ban directly: drop the Insights queue sender cron job
+crontab -l 2>/dev/null | grep -v /usr/sbin/send-insights-blocklist | crontab -
+
+# ban_logterm is set only before the migration: an empty ns_jails is a valid admin choice
+if [ -n "$(uci -q get banip.global.ban_logterm)" ] && [ -z "$(uci -q get banip.global.ns_jails)" ]; then
+	# banIP log patterns are not migrated: the fail2ban jails replace them
+	uci -q delete banip.global.ban_logterm
+	# the banIP block hook never fires without the log monitor, fail2ban reports to Insights
+	if [ "$(uci -q get banip.global.ban_blockhook)" = "/usr/libexec/ts-insights-hook" ]; then
+		uci -q delete banip.global.ban_blockhook
+	fi
+	# NethSecurity jail list, hard-coded in packages/ns-api/files/ns.threatshield and packages/ns-threat_shield/files/{ts-fail2ban,99-nethsec-fail2ban,banip-defaults,fail2ban/jail.d/10-ns-threat_shield.conf}: keep them in sync
+	for jail in ns-ssh ns-webui ns-openvpn ns-proxy-auth ns-proxy-scan; do
+		uci add_list banip.global.ns_jails="$jail"
+	done
+	uci commit banip
+	/etc/init.d/banip running && /etc/init.d/banip restart
+fi
+
+# rsyslog is not running yet: the boot sequence starts fail2ban later
+/usr/libexec/ts-fail2ban --no-start
+
+exit 0
