@@ -13,6 +13,7 @@ import os.path
 import subprocess
 import json
 import logging
+import logging.handlers
 import time
 from os import environ
 
@@ -82,7 +83,8 @@ def download_license() -> str:
 if __name__ == "__main__":
     logger = logging.getLogger()
     logger.setLevel(environ.get("LOGLEVEL", "INFO").upper())
-    handler = logging.StreamHandler()
+    handler = logging.handlers.SysLogHandler("/dev/log", logging.handlers.SysLogHandler.LOG_DAEMON)
+    handler.ident = "dpi-license-update: "
     logger.addHandler(handler)
 
     try:
