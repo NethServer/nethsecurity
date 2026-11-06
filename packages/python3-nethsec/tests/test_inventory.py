@@ -432,7 +432,7 @@ config banip 'global'
     list ban_feed 'test1'
     list ban_feed 'mytest'
 
-config ns_allowurl 'ns_allow1'
+config ns_allowurl 'allow1'
 	option url 'https://example.com/allow.txt'
 	option enabled '1'
 

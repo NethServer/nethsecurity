@@ -104,12 +104,12 @@ components:
 
     ThreatShieldAllowlistUrl:
       type: object
-      required: [id, builtin, url, description, enabled]
+      required: [name, builtin, url, description, enabled]
       properties:
-        id:
+        name:
           type: string
-          description: UCI section id, `nethesis` for the built-in Nethesis allowlist
-          example: ns_8a2c41f0
+          description: UCI section name, `nethesis` for the built-in Nethesis allowlist
+          example: partners
         builtin:
           type: boolean
           description: True for the Nethesis allowlist, which can only be enabled or disabled
@@ -828,8 +828,12 @@ paths:
           application/json:
             schema:
               type: object
-              required: [url, description, enabled]
+              required: [name, url, description, enabled]
               properties:
+                name:
+                  type: string
+                  description: Allowlist name, same rules of custom blocklist names, which share the same namespace
+                  example: partners
                 url:
                   type: string
                   description: http(s) URL, max 512 chars, only `A-Za-z0-9._~:/?&=%+,@-` characters
@@ -848,11 +852,11 @@ paths:
               schema:
                 oneOf:
                   - type: object
-                    required: [id]
+                    required: [name]
                     properties:
-                      id:
+                      name:
                         type: string
-                        example: ns_8a2c41f0
+                        example: partners
                   - $ref: "#/components/schemas/ValidationError"
                   - $ref: "#/components/schemas/Error"
   POST /ubus/ns.threatshield/edit-allowlist-url:
@@ -867,12 +871,12 @@ paths:
           application/json:
             schema:
               type: object
-              required: [id, enabled]
+              required: [name, enabled]
               properties:
-                id:
+                name:
                   type: string
-                  description: Section id, or `nethesis` to toggle the built-in allowlist (only `enabled` is used)
-                  example: ns_8a2c41f0
+                  description: Allowlist name (not editable), or `nethesis` to toggle the built-in allowlist (only `enabled` is used)
+                  example: partners
                 url:
                   type: string
                   example: https://example.com/allow.txt
@@ -904,11 +908,11 @@ paths:
           application/json:
             schema:
               type: object
-              required: [id]
+              required: [name]
               properties:
-                id:
+                name:
                   type: string
-                  example: ns_8a2c41f0
+                  example: partners
       responses:
         "200":
           description: Result

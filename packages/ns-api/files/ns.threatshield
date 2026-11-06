@@ -576,14 +576,23 @@ def edit_blocklist(e_uci, payload):
     e_uci.save('banip')
     return {'message': 'success'}
 
+# allowlist and blocklist names share the banip section namespace
+def validate_list_name(e_uci, payload):
+    name = payload.get('name', '')
+    if not isinstance(name, str) or not re.fullmatch(r'[a-z][a-z0-9]{2,15}', name) or name.startswith(('yoroi', 'nethesis')) or name in ('allowlist', 'blocklist'):
+        raise ValidationError('name', 'invalid_name', name)
+    if name in list_feeds() or name in e_uci.get('banip'):
+        raise ValidationError('name', 'name_already_present', name)
+    return name
+
 def list_allowlist_urls(e_uci):
     ret = []
     if has_credentials(e_uci):
-        ret.append({'id': 'nethesis', 'builtin': True, 'url': '', 'description': 'Nethesis global allowlist', 'enabled': e_uci.get('banip', 'nethesis', 'enabled', default='1') != '0'})
+        ret.append({'name': 'nethesis', 'builtin': True, 'url': '', 'description': 'Nethesis global allowlist', 'enabled': e_uci.get('banip', 'nethesis', 'enabled', default='1') != '0'})
     for sid, s in (utils.get_all_by_type(e_uci, 'banip', 'ns_allowurl') or {}).items():
         if sid == 'nethesis':
             continue
-        ret.append({'id': sid, 'builtin': False, 'url': s.get('url', ''), 'description': s.get('description', ''), 'enabled': s.get('enabled', '1') == '1'})
+        ret.append({'name': sid, 'builtin': False, 'url': s.get('url', ''), 'description': s.get('description', ''), 'enabled': s.get('enabled', '1') == '1'})
     return {'data': ret}
 
 def set_allowlist_url(e_uci, sid, payload):
@@ -600,12 +609,12 @@ def set_allowlist_url(e_uci, sid, payload):
     e_uci.save('banip')
 
 def add_allowlist_url(e_uci, payload):
-    sid = utils.get_random_id()
-    set_allowlist_url(e_uci, sid, payload)
-    return {'id': sid}
+    name = validate_list_name(e_uci, payload)
+    set_allowlist_url(e_uci, name, payload)
+    return {'name': name}
 
 def edit_allowlist_url(e_uci, payload):
-    sid = payload.get('id', '')
+    sid = payload.get('name', '')
     if sid == 'nethesis':
         enabled = validate_bool(payload, 'enabled')
         e_uci.set('banip', 'nethesis', 'ns_allowurl')
@@ -613,16 +622,16 @@ def edit_allowlist_url(e_uci, payload):
         e_uci.save('banip')
         return {'message': 'success'}
     if sid not in (utils.get_all_by_type(e_uci, 'banip', 'ns_allowurl') or {}):
-        raise ValidationError('id', 'allowlist_url_not_found', sid)
+        raise ValidationError('name', 'allowlist_url_not_found', sid)
     set_allowlist_url(e_uci, sid, payload)
     return {'message': 'success'}
 
 def delete_allowlist_url(e_uci, payload):
-    sid = payload.get('id', '')
+    sid = payload.get('name', '')
     if sid == 'nethesis':
-        raise ValidationError('id', 'builtin_allowlist_url_not_deletable', sid)
+        raise ValidationError('name', 'builtin_allowlist_url_not_deletable', sid)
     if sid not in (utils.get_all_by_type(e_uci, 'banip', 'ns_allowurl') or {}):
-        raise ValidationError('id', 'allowlist_url_not_found', sid)
+        raise ValidationError('name', 'allowlist_url_not_found', sid)
     e_uci.delete('banip', sid)
     e_uci.save('banip')
     return {'message': 'success'}
@@ -644,11 +653,7 @@ def set_custom_blocklist(e_uci, name, payload):
     e_uci.save('banip')
 
 def add_custom_blocklist(e_uci, payload):
-    name = payload.get('name', '')
-    if not isinstance(name, str) or not re.fullmatch(r'[a-z][a-z0-9]{2,15}', name) or name.startswith(('yoroi', 'nethesis')) or name in ('allowlist', 'blocklist'):
-        raise ValidationError('name', 'invalid_name', name)
-    if name in list_feeds() or name in e_uci.get('banip'):
-        raise ValidationError('name', 'name_already_present', name)
+    name = validate_list_name(e_uci, payload)
     set_custom_blocklist(e_uci, name, payload)
     return {'name': name}
 
@@ -1226,9 +1231,9 @@ if cmd == 'list':
         'list-blocklist': {},
         'edit-blocklist': { "blocklist": "blocklist_name", "enabled": True },
         'list-allowlist-urls': {},
-        'add-allowlist-url': {'url': 'https://example.com/allow.txt', 'description': 'optional', 'enabled': True},
-        'edit-allowlist-url': {'id': 'ns_12345678', 'url': 'https://example.com/allow.txt', 'description': 'optional', 'enabled': True},
-        'delete-allowlist-url': {'id': 'ns_12345678'},
+        'add-allowlist-url': {'name': 'myallow', 'url': 'https://example.com/allow.txt', 'description': 'optional', 'enabled': True},
+        'edit-allowlist-url': {'name': 'myallow', 'url': 'https://example.com/allow.txt', 'description': 'optional', 'enabled': True},
+        'delete-allowlist-url': {'name': 'myallow'},
         'add-custom-blocklist': {'name': 'myfeed', 'url_4': 'https://example.com/v4.txt', 'url_6': '', 'chain': 'in', 'description': 'optional'},
         'edit-custom-blocklist': {'name': 'myfeed', 'url_4': 'https://example.com/v4.txt', 'url_6': '', 'chain': 'in', 'description': 'optional'},
         'delete-custom-blocklist': {'name': 'myfeed'},

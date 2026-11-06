@@ -6224,8 +6224,8 @@ Response example:
 ```json
 {
   "data": [
-    {"id": "nethesis", "builtin": true, "url": "", "description": "Nethesis global allowlist", "enabled": true},
-    {"id": "ns_8a2c41f0", "builtin": false, "url": "https://example.com/allow.txt", "description": "partner networks", "enabled": true}
+    {"name": "nethesis", "builtin": true, "url": "", "description": "Nethesis global allowlist", "enabled": true},
+    {"name": "partners", "builtin": false, "url": "https://example.com/allow.txt", "description": "partner networks", "enabled": true}
   ]
 }
 ```
@@ -6234,32 +6234,35 @@ Response example:
 
 Add a remote allowlist URL, a plain list with one IP/CIDR per line:
 ```
-api-cli ns.threatshield add-allowlist-url --data '{"url": "https://example.com/allow.txt", "description": "partner networks", "enabled": true}'
+api-cli ns.threatshield add-allowlist-url --data '{"name": "partners", "url": "https://example.com/allow.txt", "description": "partner networks", "enabled": true}'
 ```
 
+The `name` follows the same rules of `add-custom-blocklist`: allowlist and custom blocklist names share the same namespace.
 The `url` must be `http` or `https`, max 512 chars, made only of `A-Za-z0-9._~:/?&=%+,@-` characters.
 Credentials inside the URL (`https://user:pass@host/...`) are stored in plain text.
 
 Response example:
 ```json
-{"id": "ns_8a2c41f0"}
+{"name": "partners"}
 ```
 
 It can raise the following validation errors:
+- `invalid_name` if the name does not match the rules
+- `name_already_present` if the name is already used by an allowlist or a blocklist
 - `invalid_url` if the URL is not valid
 - `url_already_present` if the URL is already in the list
 - `required`, `invalid` for missing or wrong `enabled`, `description`
 
 ### edit-allowlist-url
 
-Edit a remote allowlist URL:
+Edit a remote allowlist URL, the name can't be changed:
 ```
-api-cli ns.threatshield edit-allowlist-url --data '{"id": "ns_8a2c41f0", "url": "https://example.com/allow.txt", "description": "partner networks", "enabled": false}'
+api-cli ns.threatshield edit-allowlist-url --data '{"name": "partners", "url": "https://example.com/allow.txt", "description": "partner networks", "enabled": false}'
 ```
 
 Disable the Nethesis allowlist (only `enabled` is used):
 ```
-api-cli ns.threatshield edit-allowlist-url --data '{"id": "nethesis", "enabled": false}'
+api-cli ns.threatshield edit-allowlist-url --data '{"name": "nethesis", "enabled": false}'
 ```
 
 Response example:
@@ -6267,14 +6270,14 @@ Response example:
 {"message": "success"}
 ```
 
-It can raise the same validation errors of `add-allowlist-url`, plus:
-- `allowlist_url_not_found` if the `id` does not exist
+It can raise the same validation errors of `add-allowlist-url` except the `name` ones, plus:
+- `allowlist_url_not_found` if the `name` does not exist
 
 ### delete-allowlist-url
 
 Delete a remote allowlist URL:
 ```
-api-cli ns.threatshield delete-allowlist-url --data '{"id": "ns_8a2c41f0"}'
+api-cli ns.threatshield delete-allowlist-url --data '{"name": "partners"}'
 ```
 
 Response example:
@@ -6283,8 +6286,8 @@ Response example:
 ```
 
 It can raise the following validation errors:
-- `allowlist_url_not_found` if the `id` does not exist
-- `builtin_allowlist_url_not_deletable` if the `id` is `nethesis`
+- `allowlist_url_not_found` if the `name` does not exist
+- `builtin_allowlist_url_not_deletable` if the `name` is `nethesis`
 
 ### add-custom-blocklist
 
@@ -6294,7 +6297,7 @@ api-cli ns.threatshield add-custom-blocklist --data '{"name": "myfeed", "url_4":
 ```
 
 Fields:
-- `name`: `^[a-z][a-z0-9]{2,15}$`, must not start with `yoroi` or `nethesis` and must not be a built-in feed name
+- `name`: `^[a-z][a-z0-9]{2,15}$`, must not start with `yoroi` or `nethesis`, must not be `allowlist`, `blocklist` or a built-in feed name, shared with allowlist names
 - `url_4`, `url_6`: IPv4 and IPv6 list URLs, at least one is required, same rules of `add-allowlist-url`
 - `chain`: `in` (inbound), `out` (outbound) or `inout` (both), default `in`
 - `description`: optional
