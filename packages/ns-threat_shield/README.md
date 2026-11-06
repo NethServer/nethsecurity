@@ -27,6 +27,30 @@ After machine registration, above categories will be automatically added to exis
 
 A special global allowlist will also be added to banip (`ban_allowurl` option).
 
+### Custom allowlists and blocklists
+
+`ts-ip` owns `banip.global.ban_allowurl` and `/etc/banip/banip.custom.feeds` and rebuilds them from UCI:
+
+| UCI (`banip`) | options | effect |
+|---|---|---|
+| `config ns_allowurl 'nethesis'` | `enabled` (`0` disables, missing section or option means enabled) | built-in row: Nethesis allowlist URL added to `ban_allowurl`, only with ns-plug credentials; the URL is never stored, a `url` option is ignored |
+| `config ns_allowurl '<id>'` | `url`, `description`, `enabled` | enabled URLs added to `ban_allowurl` |
+| `config ns_blockfeed '<name>'` | `url_4`, `url_6`, `chain` (`in`, `out`, `inout`), `description` | feed added to `banip.custom.feeds` with `"rule": "feed 1"` (one IP/CIDR per line); enabled when `<name>` is in `global.ban_feed` |
+
+`banip.custom.feeds` content:
+
+| ns-plug credentials | custom feeds | file |
+|---|---|---|
+| yes | any | `banip.feeds` + `banip.nethesis.feeds` + custom feeds |
+| no | yes | `banip.feeds` + custom feeds |
+| no | no | empty, banip uses `banip.feeds` |
+
+- custom feed names must not start with `yoroi` or `nethesis`: those names are removed from `ban_feed` on units without credentials
+- `banip.custom.feeds` is replaced only by a complete and changed file: banip removes from `ban_feed` the feeds missing from it
+- the `adjust-banip.py` post-commit hook runs `ts-ip` before restarting banip when `banip` changes, and removes from `/tmp/banIP-backup` the backups of the changed lists (`banIP.allowlist.gz`, `banIP.<name>.v4.gz`, `banIP.<name>.v6.gz`): banip start restores backups instead of downloading
+- when `global.ns_allowurl_migrated` is not `1`, `ts-ip` moves the non-Nethesis `ban_allowurl` entries into `ns_allowurl` sections and sets it
+- APIs: `ns.threatshield` `*-allowlist-url(s)`, `*-custom-blocklist` and `list-blocklist`, see [ns-api](../ns-api/README.md#nsthreatshield)
+
 ### Examples
 
 #### Start the service

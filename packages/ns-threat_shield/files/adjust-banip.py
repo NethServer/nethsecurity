@@ -14,13 +14,30 @@ from euci import EUci
 # The changes variable is already within the scope from the caller
 if 'banip' in changes or 'network' in changes:
 
+    # banIP start restores lists from backups: drop the changed ones to force a download
+    stale = []
+
     # if ban_country property was modified, remove stale backup files to prevent old country selections from being restored
     if 'banip' in changes and any('ban_country' in op for op in changes['banip']):
-        for backup_file in ['/tmp/banIP-backup/banIP.country.v4.gz', '/tmp/banIP-backup/banIP.country.v6.gz']:
-            try:
-                os.remove(backup_file)
-            except FileNotFoundError:
-                pass
+        stale += ['country.v4', 'country.v6']
+
+    # rebuild custom feeds and ban_allowurl from UCI before banIP (re)starts
+    if 'banip' in changes:
+        allow_before = EUci().get('banip', 'global', 'ban_allowurl', list=True, default=[])
+        subprocess.run(["/usr/sbin/ts-ip"])
+        uci = EUci()
+        if allow_before != uci.get('banip', 'global', 'ban_allowurl', list=True, default=[]):
+            stale.append('allowlist')
+        for op in changes['banip']:
+            # changed or deleted ns_blockfeed sections
+            if len(op) > 1 and str(op[1]).isalnum() and uci.get('banip', op[1], default='ns_blockfeed') == 'ns_blockfeed':
+                stale += [f'{op[1]}.v4', f'{op[1]}.v6']
+
+    for name in stale:
+        try:
+            os.remove(f'/tmp/banIP-backup/banIP.{name}.gz')
+        except FileNotFoundError:
+            pass
     
     uci = EUci()
     enabled = uci.get('banip', 'global', 'ban_enabled', default='0')
