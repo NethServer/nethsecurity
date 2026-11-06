@@ -448,7 +448,7 @@ func ValidateAuth(tokenString string, ensureTokenExists bool) bool {
 		})
 
 		if err != nil {
-			logs.Err("[JWT] error in JWT token validation: " + err.Error())
+			logs.Err("[JWT] error in JWT token validation: " + utils.SanitizeForLog(err.Error()))
 			return false
 		}
 

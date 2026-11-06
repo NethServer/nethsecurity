@@ -427,6 +427,8 @@ config banip 'global'
 	option ban_autoblocklist '1'
 	option ban_allowlistonly '0'
 	option ban_nftexpiry '1d'
+	list ns_jails 'ns-ssh'
+	list ns_jails 'ns-webui'
 	option ban_logcount '3'
 	list ban_feed 'nethesislvl3'
     list ban_feed 'test1'
@@ -895,6 +897,15 @@ def test_fact_threat_shield(tmp_path):
 	u = _setup_db(tmp_path)
 	assert inventory.fact_threat_shield(u) == {"enabled": True, "community": 1, "enterprise": 1, "enterprise_feeds": ["nethesislvl3"], "geoblocking": 0}
      
+def test_fact_fail2ban(tmp_path):
+	u = _setup_db(tmp_path)
+	assert inventory.fact_fail2ban(u) == {"enabled": True, "jails": ["ns-ssh", "ns-webui"]}
+	u.set("banip", "global", "ban_loglimit", "0")
+	assert inventory.fact_fail2ban(u) == {"enabled": False, "jails": []}
+	u.set("banip", "global", "ban_loglimit", "100")
+	u.set("banip", "global", "ban_enabled", "0")
+	assert inventory.fact_fail2ban(u) == {"enabled": False, "jails": []}
+
 def test_fact_ui(tmp_path):
 	u = _setup_db(tmp_path)
 	assert inventory.fact_ui(u) == {"luci": False, "port443": True, "port9090": True}

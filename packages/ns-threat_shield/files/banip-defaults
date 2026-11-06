@@ -1,5 +1,6 @@
 [ "$(uci -q get banip.global.ban_loginbound)" != "" ] && exit 0
 
+# NethSecurity jail list, hard-coded in packages/ns-api/files/ns.threatshield and packages/ns-threat_shield/files/{ts-fail2ban,99-nethsec-fail2ban,banip-defaults,fail2ban/jail.d/10-ns-threat_shield.conf}: keep them in sync
 uci -q batch << EOI
 set banip.global.ban_loginbound="1"
 set banip.global.ban_logoutbound="1"
@@ -10,8 +11,11 @@ set banip.global.ban_logcount="3"
 set banip.global.ban_nftexpiry="30m"
 
 delete banip.global.ban_logterm
-add_list banip.global.ban_logterm="Exit before auth from"
-add_list banip.global.ban_logterm="authentication failed for user"
+add_list banip.global.ns_jails="ns-ssh"
+add_list banip.global.ns_jails="ns-webui"
+add_list banip.global.ns_jails="ns-openvpn"
+add_list banip.global.ns_jails="ns-proxy-auth"
+add_list banip.global.ns_jails="ns-proxy-scan"
 
 set banip.global.ban_icmplimit="100"
 set banip.global.ban_synlimit="10"
