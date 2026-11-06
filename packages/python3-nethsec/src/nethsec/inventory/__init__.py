@@ -423,13 +423,18 @@ def fact_rpcd_users(uci: EUci):
 def fact_threat_shield(uci: EUci):
     ret = { 'enabled': False, 'community': 0, 'enterprise': 0, 'enterprise_feeds': [], 'geoblocking': 0 }
     ret['enabled'] = uci.get('banip', 'global', 'ban_enabled', default='0') == '1'
+    custom = utils.get_all_by_type(uci, 'banip', 'ns_blockfeed') or {}
+    ret['custom_blocklists'] = len(custom)
+    ret['custom_allowlists'] = len([s for s in (utils.get_all_by_type(uci, 'banip', 'ns_allowurl') or {}) if s != 'nethesis'])
+    registered = uci.get('ns-plug', 'config', 'system_id', default='') != '' and uci.get('ns-plug', 'config', 'secret', default='') != ''
+    ret['nethesis_allowlist'] = registered and uci.get('banip', 'nethesis', 'enabled', default='1') != '0'
     try:
         feeds = uci.get_all("banip", "global", "ban_feed")
         for feed in feeds:
             if feed.startswith("nethesis") or feed.startswith("yoroi"):
                 ret['enterprise'] += 1
                 ret['enterprise_feeds'].append(feed)
-            else:
+            elif feed not in custom:
                 ret['community'] += 1
         if 'country' in feeds:
             ret['geoblocking'] = len(uci.get('banip', 'global', 'ban_country', list=True, default=[]))
