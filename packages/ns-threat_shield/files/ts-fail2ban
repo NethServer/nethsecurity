@@ -1,0 +1,128 @@
+#!/usr/bin/python3
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Generate the fail2ban jail overrides from banip UCI options, then start or stop fail2ban
+
+import ipaddress
+import json
+import os
+import re
+import subprocess
+import sys
+
+from euci import EUci
+from nethsec import utils
+
+JAIL_FILE = "/etc/fail2ban/jail.d/90-ns-threat_shield.local"
+ALLOWLIST = "/etc/banip/banip.allowlist"
+# NethSecurity jail list, hard-coded in packages/ns-api/files/ns.threatshield and packages/ns-threat_shield/files/{ts-fail2ban,99-nethsec-fail2ban,banip-defaults,fail2ban/jail.d/10-ns-threat_shield.conf}: keep them in sync
+BRUTE_FORCE_JAILS = [
+    "ns-ssh",
+    "ns-webui",
+    "ns-openvpn",
+    "ns-proxy-auth",
+    "ns-proxy-scan",
+]
+
+
+def allowlist():
+    allowed = []
+    try:
+        with open(ALLOWLIST) as f:
+            for line in f:
+                value = (line.split() or [""])[0]
+                # skip scope ids (fe80::1%eth0): fail2ban interpolates % in its config
+                if "%" in value:
+                    continue
+                # comments, MAC addresses and empty lines raise ValueError
+                try:
+                    allowed.append(str(ipaddress.ip_network(value, strict=False)))
+                except ValueError:
+                    pass
+    except FileNotFoundError:
+        pass
+    return allowed
+
+
+def ignore_list(uci):
+    # static LAN addresses only, ignoreself covers the firewall own addresses
+    wan = []
+    for section, zone in utils.get_all_by_type(uci, "firewall", "zone").items():
+        if zone.get("name") == "wan":
+            wan += uci.get("firewall", section, "network", list=True, default=())
+    networks = []
+    for iface in utils.get_all_by_type(uci, "network", "interface"):
+        if iface in wan:
+            continue
+        addresses = list(uci.get("network", iface, "ip6addr", list=True, default=()))
+        netmask = uci.get("network", iface, "netmask", default="")
+        for ipaddr in uci.get("network", iface, "ipaddr", list=True, default=()):
+            addresses.append(f"{ipaddr}/{netmask}" if netmask else ipaddr)
+        for address in addresses:
+            try:
+                networks.append(str(ipaddress.ip_interface(address).network))
+            except ValueError:
+                pass
+    # dict keeps the order and drops duplicates
+    return list(dict.fromkeys(["127.0.0.0/8", "::1"] + networks + allowlist()))
+
+
+def is_ha_backup():
+    # same keepalived state check as ns-ha-enable, non-HA units report "unknown"
+    status = subprocess.run(
+        ["/usr/libexec/rpcd/ns.ha", "call", "status"], capture_output=True
+    )
+    try:
+        return json.loads(status.stdout).get("state") == "backup"
+    except ValueError:
+        return False
+
+
+def main():
+    uci = EUci()
+    loglimit = uci.get("banip", "global", "ban_loglimit", dtype=int, default=100) > 0
+    jails = uci.get("banip", "global", "ns_jails", list=True, default=())
+    enabled = {jail: loglimit and jail in jails for jail in BRUTE_FORCE_JAILS}
+
+    if uci.get("banip", "global", "ban_enabled", default="0") != "1" or not any(
+        enabled.values()
+    ):
+        subprocess.run(["/etc/init.d/fail2ban", "disable"])
+        subprocess.run(["/etc/init.d/fail2ban", "stop"])
+        return
+
+    ignoreip = ignore_list(uci)
+    # fail2ban reads the same time format as banIP (e.g. 30m, 1h, 3d)
+    bantime = uci.get("banip", "global", "ban_nftexpiry", default="")
+    if not re.fullmatch(r"\d+[smhdw]", bantime):
+        bantime = "30m"
+    lines = ["[DEFAULT]", f"ignoreip = {' '.join(ignoreip)}", f"bantime = {bantime}"]
+    for jail, value in enabled.items():
+        lines += ["", f"[{jail}]", f"enabled = {'true' if value else 'false'}"]
+    content = "\n".join(lines) + "\n"
+    try:
+        with open(JAIL_FILE) as f:
+            changed = f.read() != content
+    except FileNotFoundError:
+        changed = True
+    if changed:
+        # atomic write: the callers can run concurrently
+        tmp = f"{JAIL_FILE}.{os.getpid()}"
+        with open(tmp, "w") as f:
+            f.write(content)
+        os.replace(tmp, JAIL_FILE)
+
+    # restart only on changes, start is a no-op when already running
+    subprocess.run(["/etc/init.d/fail2ban", "enable"])
+    if "--no-start" in sys.argv:
+        return
+    # on the HA backup ns-ha 810-fail2ban starts it when the node becomes master
+    if not is_ha_backup():
+        subprocess.run(["/etc/init.d/fail2ban", "restart" if changed else "start"])
+
+
+if __name__ == "__main__":
+    main()

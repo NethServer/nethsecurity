@@ -28,23 +28,26 @@ AUTHORIZED_KEYS = "/etc/dropbear/authorized_keys"
 dns_cache = {}
 
 try:
-    _vm_addr = EUci().get("victoria-metrics", "main", "http_listen_addr", default="127.0.0.1:8428")
+    _vl_addr = EUci().get("victoria-logs", "main", "http_listen_addr", default="127.0.0.1:9428")
 except Exception:
-    _vm_addr = "127.0.0.1:8428"
-VM_URL = f"http://{_vm_addr}"
+    _vl_addr = "127.0.0.1:9428"
+VL_URL = f"http://{_vl_addr}"
+FAIL2BAN_BAN_QUERY = 'app_name:"fail2ban.actions" "] Ban " | extract "[<jail>] Ban <ip>" | math floor(_time / 1e9) as ts | fields ts, jail, ip'
+# prerouting lines have no feed and are skipped
+BANIP_BLOCK_QUERY = 'app_name:kernel "banIP/" | extract "banIP/<chain>/<verdict>/<feed>: " | filter feed:* | extract " SRC=<src> " | extract " DST=<dst> " | math floor(_time / 1e9) as ts | fields ts, chain, feed, src, dst'
 
-def vm_export(metric, start, end):
-    params = urllib.parse.urlencode({"match[]": metric, "start": start, "end": end})
-    series = []
+def vl_query(query, start, end):
+    data = urllib.parse.urlencode({"query": query, "start": start, "end": end}).encode()
+    rows = []
     try:
-        with urllib.request.urlopen(f"{VM_URL}/api/v1/export?{params}", timeout=10) as resp:
+        with urllib.request.urlopen(f"{VL_URL}/select/logsql/query", data=data, timeout=10) as resp:
             for line in resp.read().decode().splitlines():
                 line = line.strip()
                 if line:
-                    series.append(json.loads(line))
+                    rows.append(json.loads(line))
     except Exception:
         pass
-    return series
+    return rows
 
 # Utility functions
 
@@ -205,15 +208,8 @@ def dump_ts_malware():
     ret = []
     end = int(time.time())
     start = end - 1200  # last 20 minutes
-    for serie in vm_export("banip_blocked_bytes", start, end):
-        labels = serie.get("metric", {})
-        src = labels.get("src", "")
-        dst = labels.get("dst", "")
-        category = labels.get("feed", "")
-        chain = labels.get("chain", "")
-        for ts in serie.get("timestamps", []):
-            # VM timestamps are in milliseconds
-            ret.append({"timestamp": int(ts) // 1000, "src": src, "dst": dst, "category": category, "chain": chain})
+    for row in vl_query(BANIP_BLOCK_QUERY, start, end):
+        ret.append({"timestamp": int(row["ts"]), "src": row.get("src", ""), "dst": row.get("dst", ""), "category": row["feed"], "chain": row.get("chain", "")})
 
     return {"data": ret}
  
@@ -221,13 +217,9 @@ def dump_ts_attacks():
     ret = []
     end = int(time.time())
     start = end - 1200  # last 20 minutes
-    for serie in vm_export("banip_banned", start, end):
-        ip = serie.get("metric", {}).get("ip", "")
-        if not ip:
-            continue
-        for ts in serie.get("timestamps", []):
-            # VM timestamps are in milliseconds
-            ret.append({"timestamp": int(ts) // 1000, "ip": ip})
+    for ban in vl_query(FAIL2BAN_BAN_QUERY, start, end):
+        if ban.get("ip"):
+            ret.append({"timestamp": int(ban["ts"]), "ip": ban["ip"], "jail": ban.get("jail", "")})
     return {"data": ret}
 
 def dump_mwan_events():
