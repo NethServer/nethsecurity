@@ -38,6 +38,7 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: ${{ matrix.path }}/go.mod
+          cache-dependency-path: ${{ matrix.path }}/go.sum
 
       - name: Install govulncheck
         run: go install golang.org/x/vuln/cmd/govulncheck@latest
@@ -45,6 +46,12 @@ jobs:
       - name: Run govulncheck
         run: govulncheck -format sarif ./... > govulncheck.sarif
         continue-on-error: true
+
+      # govulncheck emits one identical stack per matching OSV affected entry, SARIF requires them unique
+      - name: Deduplicate SARIF stacks
+        run: |
+          jq '.runs[].results[] |= if .stacks then .stacks |= unique else . end' govulncheck.sarif > deduped.sarif
+          mv deduped.sarif govulncheck.sarif
 
       - name: Upload SARIF to code scanning
         uses: github/codeql-action/upload-sarif@v4
