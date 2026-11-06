@@ -7,8 +7,8 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=victoria-logs
 # renovate: datasource=github-tags depName=VictoriaMetrics/VictoriaLogs
-PKG_VERSION:=1.51.0
-PKG_RELEASE:=2
+PKG_VERSION:=1.53.0
+PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://codeload.github.com/VictoriaMetrics/VictoriaLogs/tar.gz/v$(PKG_VERSION)?
@@ -19,7 +19,7 @@ PKG_HASH:=skip
 PKG_MAINTAINER:=Tommaso Bailetti <tommaso.bailetti@nethesis.it>
 PKG_LICENSE:=Apache-2.0
 
-PKG_BUILD_DEPENDS:=golang/host
+PKG_BUILD_DEPENDS:=golang1.27/host
 PKG_BUILD_PARALLEL:=1
 PKG_BUILD_FLAGS:=no-mips16
 
@@ -65,6 +65,8 @@ define Package/victoria-logs/install
 	$(INSTALL_DATA) ./files/victoria-logs.conf $(1)/etc/config/victoria-logs
 	$(INSTALL_DIR) $(1)/etc/rsyslog.d
 	$(INSTALL_CONF) ./files/rsyslog-victoria-logs.conf $(1)/etc/rsyslog.d/victoria-logs.conf
+	$(INSTALL_DIR) $(1)/etc/rsyslog.d/victoria-logs.d
+	$(INSTALL_DATA) ./files/rsyslog-victoria-logs.d.conf $(1)/etc/rsyslog.d/victoria-logs.d/victoria-logs.conf
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/35_victoria-logs $(1)/etc/uci-defaults/35_victoria-logs
 endef

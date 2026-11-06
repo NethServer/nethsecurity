@@ -1076,7 +1076,7 @@ f_nftremove() {
 # backup/restore/remove blocklists
 #
 f_list() {
-	local file files item array safe_url safe_ips safe_cname safe_domains ip out_rc file_name name
+	local file files item array safe_url safe_ips safe_cname safe_domains ip out_rc file_name name log_url
 	local mode="${1}" src_name="${2:-"${src_name}"}" in_rc="${src_rc:-0}" use_cname="0"
 
 	case "${mode}" in
@@ -1222,7 +1222,12 @@ f_list() {
 				: >"${src_tmpfile}"
 			fi
 		else
-			f_log "info" "download of '${src_name}' failed, url: ${src_url}, rule: ${src_rset:-"-"}, categories: ${src_cat:-"-"}, rc: ${src_rc}"
+			# strip user:password@ to keep feed credentials out of the log
+			case "${src_url}" in
+			*://*@*) log_url="${src_url%%://*}://${src_url##*@}" ;;
+			*) log_url="${src_url}" ;;
+			esac
+			f_log "info" "download of '${src_name}' failed, url: ${log_url}, rule: ${src_rset:-"-"}, categories: ${src_cat:-"-"}, rc: ${src_rc}"
 			if [ "${adb_action}" != "boot" ] && [ "${adb_action}" != "start" ]; then
 				f_list restore
 				out_rc="${?}"

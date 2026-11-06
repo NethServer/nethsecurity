@@ -23,7 +23,7 @@ import (
 func NewReverseProxy(rawBaseURL string) *httputil.ReverseProxy {
 	target, err := url.Parse(rawBaseURL)
 	if err != nil {
-		logs.Logs.Println("[CRITICAL][PROXY] invalid backend URL:", rawBaseURL, err.Error())
+		logs.Crit("[PROXY] invalid backend URL: " + rawBaseURL + " " + err.Error())
 	}
 
 	proxy := httputil.NewSingleHostReverseProxy(target)
@@ -31,7 +31,7 @@ func NewReverseProxy(rawBaseURL string) *httputil.ReverseProxy {
 		ResponseHeaderTimeout: 10 * time.Second,
 	}
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
-		logs.Logs.Println("[ERROR][PROXY] backend unreachable:", err.Error())
+		logs.Err("[PROXY] backend unreachable: " + err.Error())
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadGateway)
 		json.NewEncoder(w).Encode(structs.Map(response.StatusBadGateway{

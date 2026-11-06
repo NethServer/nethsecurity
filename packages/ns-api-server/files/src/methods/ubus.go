@@ -51,7 +51,7 @@ func UBusCallAction(c *gin.Context) {
 		stdin, err := cmd.StdinPipe()
 		if err != nil {
 			// log full response for debugging if ubus call fails
-			logs.Logs.Println("[ERROR][UBUS][STDIN] ubus stdin pipe error:", err.Error())
+			logs.Err("[UBUS][STDIN] ubus stdin pipe error: " + err.Error())
 			c.JSON(http.StatusInternalServerError, structs.Map(response.StatusBadRequest{
 				Code:    500,
 				Message: "ubus call action failed",
@@ -96,8 +96,8 @@ func UBusCallAction(c *gin.Context) {
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		// log full response for debugging if ubus call fails
-		logs.Logs.Println("[ERROR][UBUS][PROCESS] ubus execution error:", err.Error())
-		logs.Logs.Println("[ERROR][UBUS][OUTPUT] ubus execution output:", string(out))
+		logs.Err("[UBUS][PROCESS] ubus execution error: " + err.Error())
+		logs.Err("[UBUS][OUTPUT] ubus execution output: " + string(out))
 		c.JSON(http.StatusInternalServerError, structs.Map(response.StatusBadRequest{
 			Code:    500,
 			Message: "ubus call action failed",
@@ -113,8 +113,8 @@ func UBusCallAction(c *gin.Context) {
 	errorMessage, errFound := jsonParsed.Path("error").Data().(string)
 	if errFound {
 		// log full response for debugging if we find {"error": ...} in response
-		logs.Logs.Println(fmt.Sprintf(
-			"[ERROR][UBUS][RESPONSE] ubus application error: Message='%s', Data='%s'",
+		logs.Err(fmt.Sprintf(
+			"[UBUS][RESPONSE] ubus application error: Message='%s', Data='%s'",
 			errorMessage,
 			jsonParsed.String(),
 		))

@@ -8,6 +8,6 @@
 # ns-plug register/unregister hook: ts-ip does not reload banip, since it also runs during upgrades
 
 /usr/sbin/ts-ip
-# the banip log service reads the hook, the feeds and the allowlist only on start
+# banip reads the feeds and the allowlist only on start
 /etc/init.d/banip reload
 exit 0

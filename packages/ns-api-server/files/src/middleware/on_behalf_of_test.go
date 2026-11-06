@@ -9,7 +9,6 @@ package middleware
 
 import (
 	"bytes"
-	"log"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -129,7 +128,7 @@ func TestOnBehalfOfLogSuffix(t *testing.T) {
 	jwtMiddleware = nil
 
 	var buf bytes.Buffer
-	logs.Logs = log.New(&buf, "", 0)
+	logs.Output = &buf
 
 	token, _, err := InstanceJWT().TokenGenerator(&models.UserAuthorizations{
 		Username:   controllerUser,

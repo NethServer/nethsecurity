@@ -7,8 +7,8 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=victoria-metrics
 # renovate: datasource=github-tags depName=VictoriaMetrics/VictoriaMetrics
-PKG_VERSION:=1.146.0
-PKG_RELEASE:=3
+PKG_VERSION:=1.153.0
+PKG_RELEASE:=1
  
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://codeload.github.com/VictoriaMetrics/VictoriaMetrics/tar.gz/v$(PKG_VERSION)?
@@ -19,7 +19,7 @@ PKG_HASH:=skip
 PKG_MAINTAINER:=Tommaso Bailetti <tommaso.bailetti@nethesis.it>
 PKG_LICENSE:=Apache-2.0
 
-PKG_BUILD_DEPENDS:=golang/host
+PKG_BUILD_DEPENDS:=golang1.27/host
 PKG_BUILD_PARALLEL:=1
 PKG_BUILD_FLAGS:=no-mips16
 
@@ -66,6 +66,8 @@ define Package/victoria-metrics/install
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DATA) ./files/victoria-metrics.conf $(1)/etc/config/victoria-metrics
 	$(INSTALL_DATA) ./files/vmalert.conf $(1)/etc/config/vmalert
+	$(INSTALL_DIR) $(1)/etc/rsyslog.d/victoria-logs.d
+	$(INSTALL_DATA) ./files/rsyslog-victoria-logs.conf $(1)/etc/rsyslog.d/victoria-logs.d/victoria-metrics.conf
 endef
 
 define Package/victoria-metrics/postinst

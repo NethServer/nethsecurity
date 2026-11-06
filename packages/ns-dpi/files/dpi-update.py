@@ -12,6 +12,7 @@ from euci import EUci
 import os.path
 import subprocess
 import logging
+import logging.handlers
 from os import environ
 import json
 
@@ -65,7 +66,8 @@ def download_file(session: Session, url: str, filename: str) -> bool:
 if __name__ == "__main__":
     logger = logging.getLogger()
     logger.setLevel(environ.get("LOGLEVEL", "INFO").upper())
-    handler = logging.StreamHandler()
+    handler = logging.handlers.SysLogHandler("/dev/log", logging.handlers.SysLogHandler.LOG_DAEMON)
+    handler.ident = "dpi-update: "
     logger.addHandler(handler)
 
     e_uci = EUci()

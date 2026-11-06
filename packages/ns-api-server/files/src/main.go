@@ -45,7 +45,7 @@ import (
 
 func main() {
 	// init logs with syslog
-	logs.Init("nethsecurity_api")
+	logs.Init("nethsecurity-api")
 
 	// init configuration
 	configuration.Init()
@@ -123,6 +123,12 @@ func main() {
 	authGroup.Any("/metrics/query", methods.ProxyTo(victoriaMetricsProxy, "/api/v1/query"))
 	authGroup.Any("/metrics/query_range", methods.ProxyTo(victoriaMetricsProxy, "/api/v1/query_range"))
 	authGroup.Any("/alerts/alerts", methods.ProxyTo(methods.NewReverseProxy(configuration.Config.VMAlertURL), "/api/v1/alerts"))
+
+	// reverse proxies to VictoriaLogs
+	victoriaLogsProxy := methods.NewReverseProxy(configuration.Config.VictoriaLogsURL)
+	authGroup.Any("/logs/query", methods.ProxyTo(victoriaLogsProxy, "/select/logsql/query"))
+	authGroup.Any("/logs/hits", methods.ProxyTo(victoriaLogsProxy, "/select/logsql/hits"))
+	authGroup.Any("/logs/field_values", methods.ProxyTo(victoriaLogsProxy, "/select/logsql/field_values"))
 
 	// handle missing endpoint
 	router.NoRoute(func(c *gin.Context) {

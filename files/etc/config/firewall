@@ -36,6 +36,7 @@ config rule 'ns_allow_ui'
 	option src 'wan'
 	option dest_port '9090'
 	option target 'ACCEPT'
+	option enabled '0'
 
 # We need to accept udp packets on port 68,
 # see https://dev.openwrt.org/ticket/4108

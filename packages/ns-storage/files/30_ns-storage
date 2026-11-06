@@ -19,8 +19,6 @@ config selector ns_memory
 	option destination ':omfile:\$log_rotation'
 EOI
 
-crontab -l | grep -q '/usr/sbin/logrotate /etc/logrotate.conf' || echo '5 1 * * * /usr/sbin/logrotate /etc/logrotate.conf' >> /etc/crontabs/root
-
 # Default log_size in case of error
 log_size=52428800
 
