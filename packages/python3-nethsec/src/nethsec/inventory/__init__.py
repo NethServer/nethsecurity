@@ -440,6 +440,13 @@ def fact_threat_shield(uci: EUci):
         pass
     return ret
 
+def fact_fail2ban(uci: EUci):
+    # same rules as ts-fail2ban: banIP on, log monitor on (ban_loglimit > 0), at least one jail
+    jails = []
+    if uci.get('banip', 'global', 'ban_enabled', default='0') == '1' and uci.get('banip', 'global', 'ban_loglimit', dtype=int, default=100) > 0:
+        jails = list(uci.get('banip', 'global', 'ns_jails', list=True, default=[]))
+    return { 'enabled': len(jails) > 0, 'jails': jails }
+
 def fact_adblock(uci: EUci):
     ret = { 'enabled': False, 'community': 0, 'enterprise': 0, 'enterprise_feeds': [] }
     ret['enabled'] = uci.get('adblock', 'global', 'ts_enabled', default='0') == '1'
