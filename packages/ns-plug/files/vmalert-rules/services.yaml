@@ -11,7 +11,8 @@ groups:
     eval_alignment: false
     rules:
       - alert: ServiceDown
-        expr: 'procd_service_running == 0 and procd_service_exit_code != 0'
+        # Show ns-plug as "controller" in alerts
+        expr: 'label_replace(procd_service_running == 0 and procd_service_exit_code != 0, "service", "controller", "service", "ns-plug")'
         for: "5m"
         labels:
           severity: "critical"
