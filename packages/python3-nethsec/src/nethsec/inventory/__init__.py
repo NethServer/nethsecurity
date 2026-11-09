@@ -292,6 +292,9 @@ def get_mount_points():
 
     return result
 
+def get_disks():
+    return _run_json("lsblk -J -b -o NAME,TYPE,SIZE,PTTYPE,ROTA,TRAN,FSTYPE,MOUNTPOINT").get("blockdevices", [])
+
 ## Facts
 ## These functions are used to send info about system to legacy my.nethesis.it
 ## The format should not be changed until legacy my.nethesis.it is alive
