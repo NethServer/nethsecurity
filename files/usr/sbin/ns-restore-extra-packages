@@ -7,8 +7,15 @@
 # Runs via procd init script which handles respawn on failure.
 #
 
-if ! grep -qE '\w+\s+overlay$' /etc/backup/installed_packages.txt &>/dev/null; then
+# Disable before stop: stop makes procd kill this very process
+finish() {
+    /etc/init.d/ns-restore-extra-packages disable
+    /etc/init.d/ns-restore-extra-packages stop
     exit 0
+}
+
+if ! grep -qE '\w+\s+overlay$' /etc/backup/installed_packages.txt &>/dev/null; then
+    finish
 fi
 
 # Check network connectivity
@@ -39,9 +46,7 @@ while IFS= read -r package; do
 done < <(grep -E '\w+\s+overlay$' /etc/backup/installed_packages.txt | awk '{print $1}')
 
 if [ -z "$failed_packages" ]; then
-    /etc/init.d/ns-restore-extra-packages stop
-    /etc/init.d/ns-restore-extra-packages disable
-    exit 0
+    finish
 else
     echo "Some packages failed to restore, will retry later"
     exit 1
