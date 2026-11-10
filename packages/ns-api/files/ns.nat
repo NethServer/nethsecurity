@@ -46,12 +46,11 @@ elif cmd == 'call':
             print(json.dumps({'rules': firewall.list_nat_rules(e_uci)}))
         elif action == 'list-devices':
             devices = []
-            for zone in firewall.list_zones(e_uci).values():
-                for device in utils.get_all_devices_by_zone(e_uci, zone.get('name')):
-                    devices.append({
-                        'id': device,
-                        'label': utils.get_interface_from_device(e_uci, device) or device
-                    })
+            for device, interfaces in sorted(utils.get_all_zone_devices_with_interfaces(e_uci).items()):
+                devices.append({
+                    'id': device,
+                    'label': f'{device} ({", ".join(interfaces)})' if interfaces else device
+                })
             json.dump({
                 'devices': devices,
             }, sys.stdout)

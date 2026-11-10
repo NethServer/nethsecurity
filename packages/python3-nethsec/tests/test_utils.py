@@ -190,6 +190,109 @@ def test_get_all_lan_devices(tmp_path):
     u = _setup_db(tmp_path)
     assert(set(utils.get_all_lan_devices(u)) == set(['vnet3']))
 
+zone_devices_network_db = """
+config interface 'lan'
+	option device 'br-lan'
+	option proto 'static'
+
+config interface 'f1000'
+	option device 'eth1'
+	option proto 'static'
+
+config interface 'al_f1000'
+	option device '@f1000'
+	option proto 'static'
+
+config interface 'wan'
+	option device 'eth2'
+	option proto 'pppoe'
+
+config interface 'wan6'
+	option device '@wan'
+	option proto 'dhcpv6'
+
+config interface 'bond1'
+	option proto 'bonding'
+	list slaves 'eth3'
+
+config interface 'wg1'
+	option proto 'wireguard'
+
+config interface 'ipsec1'
+	option proto 'xfrm'
+
+config interface 'ns_tun1'
+	option device 'tuntun1'
+	option proto 'none'
+
+config interface 'al_al_f1000'
+	option device '@al_f1000'
+
+config interface 'al_missing'
+	option device '@missing'
+
+config interface 'loop1'
+	option device '@loop2'
+
+config interface 'loop2'
+	option device '@loop1'
+"""
+
+zone_devices_firewall_db = """
+config zone
+	option name 'lan'
+	list network 'lan'
+	list network 'bond1'
+
+config zone
+	option name 'wan'
+	list network 'f1000'
+	list network 'al_f1000'
+	list network 'wan'
+	list network 'wan6'
+	list network 'loop1'
+
+config zone
+	option name 'vpn'
+	list network 'wg1'
+	list network 'ipsec1'
+	list device 'tunrw1'
+	list device 'tuntun1'
+"""
+
+def test_get_interface_l3_device(tmp_path):
+    with tmp_path.joinpath('network').open('w') as fp:
+        fp.write(zone_devices_network_db)
+    u = EUci(confdir=tmp_path.as_posix())
+    assert utils.get_interface_l3_device(u, 'f1000') == 'eth1'
+    assert utils.get_interface_l3_device(u, 'al_f1000') == 'eth1'
+    assert utils.get_interface_l3_device(u, 'wan') == 'pppoe-wan'
+    assert utils.get_interface_l3_device(u, 'wan6') == 'pppoe-wan'
+    assert utils.get_interface_l3_device(u, 'bond1') == 'bond-bond1'
+    assert utils.get_interface_l3_device(u, 'wg1') == 'wg1'
+    assert utils.get_interface_l3_device(u, 'ipsec1') == 'ipsec1'
+    assert utils.get_interface_l3_device(u, 'al_al_f1000') == None
+    assert utils.get_interface_l3_device(u, 'al_missing') == None
+    assert utils.get_interface_l3_device(u, 'loop1') == None
+    assert utils.get_interface_l3_device(u, 'missing') == None
+
+def test_get_all_zone_devices_with_interfaces(tmp_path):
+    with tmp_path.joinpath('network').open('w') as fp:
+        fp.write(zone_devices_network_db)
+    with tmp_path.joinpath('firewall').open('w') as fp:
+        fp.write(zone_devices_firewall_db)
+    u = EUci(confdir=tmp_path.as_posix())
+    assert utils.get_all_zone_devices_with_interfaces(u) == {
+        'br-lan': ['lan'],
+        'bond-bond1': ['bond1'],
+        'eth1': ['f1000', 'al_f1000'],
+        'pppoe-wan': ['wan', 'wan6'],
+        'wg1': [],
+        'ipsec1': [],
+        'tunrw1': [],
+        'tuntun1': ['ns_tun1'],
+    }
+
 def test_get_random_id():
     id1 = utils.get_random_id()
     id2 = utils.get_random_id()
