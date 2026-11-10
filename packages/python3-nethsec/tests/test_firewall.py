@@ -916,6 +916,13 @@ def test_list_input_rules(u):
        assert 'proto' in r
        assert 'active_zone' in r
 
+def test_enrich_rule_ns_tag(u):
+    assert firewall.enrich_rule(u, {'ns_tag': 'notautomated'})['ns_tag'] == ['notautomated']
+    assert firewall.enrich_rule(u, {'ns_tag': 'notautomated'})['system_rule'] == False
+    assert firewall.enrich_rule(u, {'ns_tag': ('automated', 'x')})['ns_tag'] == ['automated', 'x']
+    assert firewall.enrich_rule(u, {'ns_tag': ('automated',)})['system_rule'] == True
+    assert firewall.enrich_rule(u, {})['ns_tag'] == []
+
 def test_list_service_suggestions(u, mocker):
     mocker.patch('builtins.open', mocker.mock_open(read_data=services_file))
     mock_isfile = mocker.patch('os.path.isfile')

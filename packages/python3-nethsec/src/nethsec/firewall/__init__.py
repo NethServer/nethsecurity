@@ -1110,7 +1110,9 @@ def enrich_rule(uci, rule: dict) -> dict:
     Returns:
         enriched rule
     """
-    if 'automated' in rule.get('ns_tag', []):
+    ns_tag = rule.get('ns_tag', [])
+    rule['ns_tag'] = [ns_tag] if type(ns_tag) == str else list(ns_tag)
+    if 'automated' in rule['ns_tag']:
         rule['system_rule'] = True
     else:
         rule['system_rule'] = False
@@ -1159,8 +1161,6 @@ def enrich_rule(uci, rule: dict) -> dict:
             rule['ns_service'] = 'custom'
         else:
             rule['ns_service'] = ''
-    if not 'ns_tag' in rule:
-        rule['ns_tag'] = []
     rule['log'] = True if rule.get('log', '0') == '1' else False
     rule['enabled'] = True if rule.get('enabled', '1') == '1' else False
     return rule
