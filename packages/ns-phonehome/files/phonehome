@@ -61,6 +61,7 @@ data = {
         },
         "pci": list(pci.values()),
         "mountpoints": mount_points,
+        "disks": inventory.get_disks(),
         "features": features
     }
 }
