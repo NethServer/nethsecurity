@@ -1,4 +1,5 @@
 import pytest
+import subprocess
 from nethsec import utils, users
 from euci import EUci, UciExceptionNotFound
 from unittest.mock import MagicMock, patch
@@ -426,6 +427,33 @@ def test_delete_remote_user_with_vpn_account(tmp_path):
         users.delete_remote_user(u, "jane", database="ldap2")
     assert e.value.message == "user_has_vpn_account"
     assert users.get_user_by_name(u, "jane", "ldap2")
+
+def test_remote_user_exists(tmp_path):
+    u = _setup_db(tmp_path)
+    ldif = "dn: uid=jane,ou=People,dc=directory,dc=nh\nobjectClass: posixAccount\nuid: jane\n"
+    with patch('nethsec.users.subprocess.run') as mock_run:
+        mock_run.return_value = MagicMock(stdout=ldif)
+        assert users.remote_user_exists(u, "jane", "ldap2")
+        assert mock_run.call_args[0][0][-1] == "uid=jane"
+
+def test_remote_user_not_exists(tmp_path):
+    u = _setup_db(tmp_path)
+    with patch('nethsec.users.subprocess.run') as mock_run:
+        mock_run.return_value = MagicMock(stdout="")
+        assert not users.remote_user_exists(u, "jane", "ldap2")
+
+def test_remote_user_exists_ldap_unreachable(tmp_path):
+    u = _setup_db(tmp_path)
+    with patch('nethsec.users.subprocess.run') as mock_run:
+        mock_run.side_effect = subprocess.CalledProcessError(255, "ldapsearch", stderr="Can't contact LDAP server")
+        with pytest.raises(subprocess.CalledProcessError):
+            users.remote_user_exists(u, "jane", "ldap2")
+
+def test_remote_user_exists_local_db(tmp_path):
+    u = _setup_db(tmp_path)
+    with pytest.raises(utils.ValidationError) as e:
+        users.remote_user_exists(u, "jane", "main")
+    assert e.value.message == "db_not_ldap"
 
 def test_shadow_password():
     shadow = users.shadow_password("test")
