@@ -951,17 +951,17 @@ f_nftinit() {
 	#
 	if [ "${ban_logprerouting}" = "1" ]; then
 		if [ "${ban_logratelimit}" = "0" ]; then
-			log_icmp="log level ${ban_nftloglevel} prefix \"banIP/pre-icmp/drop: \""
-			log_syn="log level ${ban_nftloglevel} prefix \"banIP/pre-syn/drop: \""
-			log_udp="log level ${ban_nftloglevel} prefix \"banIP/pre-udp/drop: \""
-			log_tcp="log level ${ban_nftloglevel} prefix \"banIP/pre-tcp/drop: \""
-			log_ct="log level ${ban_nftloglevel} prefix \"banIP/pre-ct/drop: \""
+			log_icmp="log group 1 prefix \"banIP/pre-icmp/drop: \""
+			log_syn="log group 1 prefix \"banIP/pre-syn/drop: \""
+			log_udp="log group 1 prefix \"banIP/pre-udp/drop: \""
+			log_tcp="log group 1 prefix \"banIP/pre-tcp/drop: \""
+			log_ct="log group 1 prefix \"banIP/pre-ct/drop: \""
 		else
-			log_icmp="limit name \"loglimit\" log level ${ban_nftloglevel} prefix \"banIP/pre-icmp/drop: \""
-			log_syn="limit name \"loglimit\" log level ${ban_nftloglevel} prefix \"banIP/pre-syn/drop: \""
-			log_udp="limit name \"loglimit\" log level ${ban_nftloglevel} prefix \"banIP/pre-udp/drop: \""
-			log_tcp="limit name \"loglimit\" log level ${ban_nftloglevel} prefix \"banIP/pre-tcp/drop: \""
-			log_ct="limit name \"loglimit\" log level ${ban_nftloglevel} prefix \"banIP/pre-ct/drop: \""
+			log_icmp="limit name \"loglimit\" log group 1 prefix \"banIP/pre-icmp/drop: \""
+			log_syn="limit name \"loglimit\" log group 1 prefix \"banIP/pre-syn/drop: \""
+			log_udp="limit name \"loglimit\" log group 1 prefix \"banIP/pre-udp/drop: \""
+			log_tcp="limit name \"loglimit\" log group 1 prefix \"banIP/pre-tcp/drop: \""
+			log_ct="limit name \"loglimit\" log group 1 prefix \"banIP/pre-ct/drop: \""
 		fi
 	fi
 
@@ -1116,11 +1116,11 @@ f_down() {
 	# set log target
 	#
 	if [ "${ban_logratelimit}" = "0" ]; then
-		[ "${ban_loginbound}" = "1" ] && log_inbound="log level ${ban_nftloglevel} prefix \"banIP/inbound/${ban_blockpolicy}/${feed}: \""
-		[ "${ban_logoutbound}" = "1" ] && log_outbound="log level ${ban_nftloglevel} prefix \"banIP/outbound/reject/${feed}: \""
+		[ "${ban_loginbound}" = "1" ] && log_inbound="log group 1 prefix \"banIP/inbound/${ban_blockpolicy}/${feed}: \""
+		[ "${ban_logoutbound}" = "1" ] && log_outbound="log group 1 prefix \"banIP/outbound/reject/${feed}: \""
 	else
-		[ "${ban_loginbound}" = "1" ] && log_inbound="limit name \"loglimit\" log level ${ban_nftloglevel} prefix \"banIP/inbound/${ban_blockpolicy}/${feed}: \""
-		[ "${ban_logoutbound}" = "1" ] && log_outbound="limit name \"loglimit\" log level ${ban_nftloglevel} prefix \"banIP/outbound/reject/${feed}: \""
+		[ "${ban_loginbound}" = "1" ] && log_inbound="limit name \"loglimit\" log group 1 prefix \"banIP/inbound/${ban_blockpolicy}/${feed}: \""
+		[ "${ban_logoutbound}" = "1" ] && log_outbound="limit name \"loglimit\" log group 1 prefix \"banIP/outbound/reject/${feed}: \""
 	fi
 
 	# set feed target

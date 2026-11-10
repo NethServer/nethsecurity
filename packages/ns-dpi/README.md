@@ -23,7 +23,7 @@ uci commit dpi
 
 Global options, in the `config` section:
 
-- `log_blocked`: `1` logs the blocked connections in `/var/log/messages`, with the `DPI block: ` prefix
+- `log_blocked`: `1` logs the blocked connections in `/var/log/messages` through ulogd (NFLOG group 2), with the `DPI block: ` prefix
 
 Application group (`appgroup` section), a named set of members:
 

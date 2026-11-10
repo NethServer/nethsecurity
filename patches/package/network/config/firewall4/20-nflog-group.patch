@@ -1,0 +1,118 @@
+diff -Naur firewall4.ori/patches/20-nflog-group.patch firewall4/patches/20-nflog-group.patch
+--- firewall4.ori/patches/20-nflog-group.patch	1970-01-01 00:00:00.000000000 +0000
++++ firewall4/patches/20-nflog-group.patch	2026-11-10 00:00:00.000000000 +0000
+@@ -0,0 +1,114 @@
++Send fw4 logs to NFLOG group 0, handled by ulogd, instead of the kernel log.
++
++--- a/root/usr/share/firewall4/templates/mangle-rule.uc
+++++ b/root/usr/share/firewall4/templates/mangle-rule.uc
++@@ -66,7 +66,7 @@
++ {%+ if (rule.counter): -%}
++ 	counter {%+ endif -%}
++ {%+ if (rule.log): -%}
++-	log prefix {{ fw4.quote(rule.log, true) }} {%+ endif -%}
+++	log group 0 prefix {{ fw4.quote(rule.log, true) }} {%+ endif -%}
++ {%+ if (rule.target == "mark"): -%}
++ 	meta mark set {{
++ 		(rule.set_xmark.mask == 0xFFFFFFFF)
++--- a/root/usr/share/firewall4/templates/redirect.uc
+++++ b/root/usr/share/firewall4/templates/redirect.uc
++@@ -62,16 +62,16 @@
++ 		redirect.ipset.invert ? ' !=' : ''
++ 	}} @{{ redirect.ipset.name }} {%+ endif -%}
++ {%+ if (redirect.log && redirect.log_limit): -%}
++-	limit rate {{ redirect.log_limit.rate }}/{{ redirect.log_limit.unit }} log prefix {{ fw4.quote(redirect.log, true) }}
+++	limit rate {{ redirect.log_limit.rate }}/{{ redirect.log_limit.unit }} log group 0 prefix {{ fw4.quote(redirect.log, true) }}
++ 		{%+ include("redirect.uc", { fw4, zone, redirect: { ...redirect, log: 0 } }) %}
++ {%+ elif (redirect.log && zone?.log_limit): -%}
++-	limit name "{{ zone.name }}.log_limit" log prefix {{ fw4.quote(redirect.log, true) }}
+++	limit name "{{ zone.name }}.log_limit" log group 0 prefix {{ fw4.quote(redirect.log, true) }}
++ 		{%+ include("redirect.uc", { fw4, zone, redirect: { ...redirect, log: 0 } }) %}
++ {%+ else -%}
++ {%+  if (redirect.counter): -%}
++ 	counter {%+ endif -%}
++ {%+  if (redirect.log): -%}
++-	log prefix {{ fw4.quote(redirect.log, true) }} {%+ endif -%}
+++	log group 0 prefix {{ fw4.quote(redirect.log, true) }} {%+ endif -%}
++ {%   if (redirect.target == "redirect"): -%}
++ 	redirect{% if (redirect.rport): %} to {{ fw4.port(redirect.rport) }}{% endif %}
++ {%-  elif (redirect.target == "accept" || redirect.target == "masquerade"): -%}
++--- a/root/usr/share/firewall4/templates/ruleset.uc
+++++ b/root/usr/share/firewall4/templates/ruleset.uc
++@@ -252,7 +252,7 @@
++ 		jump {{ zone.forward }}_to_{{ zone.name }}
++ {%  if (fw4.forward_policy() != "accept" && (zone.log & 1)): %}
++ 		{%+ if (zone.log_limit): %}limit name "{{ zone.name }}.log_limit" {%+ endif -%}
++-		log prefix "{{ fw4.forward_policy() }} {{ zone.name }} forward: "
+++		log group 0 prefix "{{ fw4.forward_policy() }} {{ zone.name }} forward: "
++ {%  endif %}
++ 	}
++
++--- a/root/usr/share/firewall4/templates/rule.uc
+++++ b/root/usr/share/firewall4/templates/rule.uc
++@@ -70,16 +70,16 @@
++ 		rule.ipset.invert ? ' !=' : ''
++ 	}} @{{ rule.ipset.name }} {%+ endif -%}
++ {%+ if (rule.log && rule.log_limit): -%}
++-	limit rate {{ rule.log_limit.rate }}/{{ rule.log_limit.unit }} log prefix {{ fw4.quote(rule.log, true) }}
+++	limit rate {{ rule.log_limit.rate }}/{{ rule.log_limit.unit }} log group 0 prefix {{ fw4.quote(rule.log, true) }}
++ 		{%+ include("rule.uc", { fw4, zone, rule: { ...rule, log: 0 } }) %}
++ {%+ elif (rule.log && zone?.log_limit): -%}
++-	limit name "{{ zone.name }}.log_limit" log prefix {{ fw4.quote(rule.log, true) }}
+++	limit name "{{ zone.name }}.log_limit" log group 0 prefix {{ fw4.quote(rule.log, true) }}
++ 		{%+ include("rule.uc", { fw4, zone, rule: { ...rule, log: 0 } }) %}
++ {%+ else -%}
++ {%+  if (rule.counter): -%}
++ 	counter {%+ endif -%}
++ {%+  if (rule.log): -%}
++-	log prefix {{ fw4.quote(rule.log, true) }} {%+ endif -%}
+++	log group 0 prefix {{ fw4.quote(rule.log, true) }} {%+ endif -%}
++ {%+  if (rule.target == "mark"): -%}
++ 	meta mark set {{
++ 		(rule.set_xmark.mask == 0xFFFFFFFF)
++--- a/root/usr/share/firewall4/templates/zone-drop-invalid.uc
+++++ b/root/usr/share/firewall4/templates/zone-drop-invalid.uc
++@@ -2,12 +2,12 @@
++ 	meta nfproto {{ fw4.nfproto(zone.masq ? 4 : 6) }} {%+ endif -%}
++ {%+ include("zone-match.uc", { egress: true, rule }) -%}
++ ct state invalid {%+ if ((zone.log & 1) && zone.log_limit): -%}
++-	limit name "{{ zone.name }}.log_limit" log prefix "drop {{ zone.name }} invalid ct state: "
+++	limit name "{{ zone.name }}.log_limit" log group 0 prefix "drop {{ zone.name }} invalid ct state: "
++ 		{%+ include("zone-drop-invalid.uc", { fw4, zone: { ...zone, log: 0 }, rule }) %}
++ {%+ else -%}
++ {%+  if (zone.counter): -%}
++ 	counter {%+ endif -%}
++ {%+  if (zone.log & 1): -%}
++-	log prefix "drop {{ zone.name }} invalid ct state: " {%+ endif -%}
+++	log group 0 prefix "drop {{ zone.name }} invalid ct state: " {%+ endif -%}
++ drop comment "!fw4: Prevent NAT leakage"
++ {%+ endif -%}
++--- a/root/usr/share/firewall4/templates/zone-mssfix.uc
+++++ b/root/usr/share/firewall4/templates/zone-mssfix.uc
++@@ -2,7 +2,7 @@
++ 	meta nfproto {{ fw4.nfproto(rule.family) }} {%+ endif -%}
++ {%+ include("zone-match.uc", { egress, rule }) -%}
++ tcp flags syn / syn,fin,rst tcp option maxseg size set rt mtu {%+ if (zone.log & 2): -%}
++-	log prefix "MSSFIX {{ zone.name }} out: " {%+ endif -%}
+++	log group 0 prefix "MSSFIX {{ zone.name }} out: " {%+ endif -%}
++ comment "!fw4: Zone {{ zone.name }} {{
++ 	fw4.nfproto(rule.family, true)
++ }} {{ egress ? "egress" : "ingress" }} MTU fixing"
++--- a/root/usr/share/firewall4/templates/zone-verdict.uc
+++++ b/root/usr/share/firewall4/templates/zone-verdict.uc
++@@ -2,13 +2,13 @@
++ 	meta nfproto {{ fw4.nfproto(rule.family) }} {%+ endif -%}
++ {%+ include("zone-match.uc", { egress, rule }) -%}
++ {%+ if (verdict != "accept" && (zone.log & 1) && zone.log_limit): -%}
++-	limit name "{{ zone.name }}.log_limit" log prefix "{{ verdict }} {{ zone.name }} {{ egress ? "out" : "in" }}: "
+++	limit name "{{ zone.name }}.log_limit" log group 0 prefix "{{ verdict }} {{ zone.name }} {{ egress ? "out" : "in" }}: "
++ 		{%+ include("zone-verdict.uc", { fw4, zone: { ...zone, log: 0 }, rule, egress, verdict }) %}
++ {%+ else -%}
++ {%+  if (zone.counter): -%}
++ 	counter {%+ endif -%}
++ {%+  if (verdict != "accept" && (zone.log & 1)): -%}
++-	log prefix "{{ verdict }} {{ zone.name }} {{ egress ? "out" : "in" }}: " {%+ endif -%}
+++	log group 0 prefix "{{ verdict }} {{ zone.name }} {{ egress ? "out" : "in" }}: " {%+ endif -%}
++ {%   if (verdict == "reject"): -%}
++ 	jump handle_reject comment "!fw4: reject {{ zone.name }} {{ fw4.nfproto(rule.family, true) }} traffic"
++ {%   else -%}

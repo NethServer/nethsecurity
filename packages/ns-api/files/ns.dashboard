@@ -146,7 +146,7 @@ def count_openvpn_rw():
 
 def count_threat_shield_ip():
     # banIP blocks logged in the last hour, prerouting lines have no feed
-    query = 'app_name:kernel "banIP/" | extract "banIP/<chain>/<verdict>/<feed>: " | filter feed:* | stats count() blocked'
+    query = 'app_name:in(kernel, banIP) "banIP/" | extract "banIP/<chain>/<verdict>/<feed>: " | filter feed:* | stats count() blocked'
     data = urllib.parse.urlencode({"query": query, "start": "1h"}).encode()
     try:
         with urllib.request.urlopen(f"{VL_URL}/select/logsql/query", data=data, timeout=5) as resp:

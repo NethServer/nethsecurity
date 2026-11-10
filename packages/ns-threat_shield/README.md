@@ -27,9 +27,10 @@ After machine registration, above categories will be automatically added to exis
 
 A special global allowlist will also be added to banip (`ban_allowurl` option).
 
-Blocks are counted from the banIP kernel log lines in Victoria Logs, not from metrics, as `ns.dashboard counter` and
-`ns.controller dump-ts-malware` do; blocks per feed in the last hour:
-`app_name:kernel "banIP/" | extract "banIP/<chain>/<verdict>/<feed>: " | filter feed:* | stats by (feed) count() blocked`
+Blocks are counted from the banIP log lines in Victoria Logs, not from metrics, as `ns.dashboard counter` and
+`ns.controller dump-ts-malware` do. banIP logs to NFLOG group 1 and ulogd writes the lines to syslog, stored with
+`banIP` as app, older lines still have `kernel`; blocks per feed in the last hour:
+`app_name:in(kernel, banIP) "banIP/" | extract "banIP/<chain>/<verdict>/<feed>: " | filter feed:* | stats by (feed) count() blocked`
 
 ### Examples
 
