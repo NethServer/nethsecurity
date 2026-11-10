@@ -10,6 +10,25 @@ All NethServer projects follow a shared development process.
 
 See [NethServer development handbook](https://handbook.nethserver.org/) for a detailed guide on how to contribute to NethSecurity.
 
+## Release cycle and CVE handling
+
+### Image releases
+
+- A new NethSecurity image should be released for every OpenWrt release.
+- Release earlier if needed, for example when a security issue cannot wait for the next OpenWrt release.
+- For a critical CVE (CVSS 9.0-10.0) in userspace, try to cherry-pick the fix into the affected package and release it as a package update. If the cherry-pick is not possible, release a new image.
+- For CVEs with a lower rating, wait for the next OpenWrt release.
+
+### Supported versions
+
+Two image versions are supported at the same time: the current one and the previous one.
+
+- The build system must allow releasing packages for both versions.
+- New features and bug fixes go only to the current version.
+- The previous version receives only security fixes.
+- When development of a new image starts (e.g. 8.9.0), the previous version is frozen: only security fixes are accepted.
+- Older images are not supported. Still, for a high or critical CVE affecting them, it is good practice to document a mitigation or workaround.
+
 ## Release process
 
 The release process is branch-driven and fully automated by GitHub Actions.
