@@ -59,6 +59,7 @@ recent host Ruby (4.x), so the site is built in a `ruby:3.3` container and the
 - `files/` is the rootfs overlay for the final image. `files/etc/uci-defaults` holds first-boot defaults.
 - Runtime web stack: **nginx** serves `ns-ui` from `/www-ns` and proxies `/api/` → **ns-api-server** on `127.0.0.1:8090`; `ns-api-server` handles auth/JWT and forwards calls to ubus/rpcd handlers.
 - System monitoring alerts, including HA alerts, follow the Telegraf → Victoria Metrics/vmalert -> Mimir.
+- Every syslog line is cleaned up once by `/etc/rsyslog.d/rules.conf` (rsyslog package) before any output: app without version, trimmed message, and the hostname fixed to UCI `system.hostname` by `rsyslog.init`, never the DNS-resolved FQDN. Packages ship their own rules in `/etc/rsyslog.d/rules.d/<pkg>.conf` to change `$.app`, `$.msg`, `$.sev` or set `$.drop`, and every output (log files, forwarders, controller, Victoria Logs) uses the `ns-file`, `ns-rfc3164` or `ns-rfc5424` template built from those fields. The cleanup runs before `/etc/rsyslog.conf` too, and file and forward actions without a template default to `ns-file` and `ns-rfc3164`, so custom rules get clean logs as well. Selectors still filter on the original severity.
 - Many local packages are thin wrappers around upstream code. When changing behavior in one of those areas, inspect the matching upstream repo first and treat the local package as integration glue.
 
 ---
