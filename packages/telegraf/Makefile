@@ -44,6 +44,7 @@ GO_PKG_TAGS:= \
 	inputs.nstat \
 	inputs.ping \
 	inputs.processes \
+	inputs.procstat \
 	inputs.sensors \
 	inputs.smart \
 	inputs.system \
@@ -92,6 +93,7 @@ define Package/telegraf/install
 	$(INSTALL_DATA) ./files/telegraf.conf.d/services.conf $(1)/etc/telegraf.conf.d/services.conf
 	$(INSTALL_DATA) ./files/telegraf.conf.d/mwan.conf $(1)/etc/telegraf.conf.d/mwan.conf
 	$(INSTALL_DATA) ./files/telegraf.conf.d/ha.conf $(1)/etc/telegraf.conf.d/ha.conf
+	$(INSTALL_DATA) ./files/telegraf.conf.d/procstat.conf $(1)/etc/telegraf.conf.d/procstat.conf
 	$(INSTALL_DIR) $(1)/etc/rsyslog.d/victoria-logs.d
 	$(INSTALL_DATA) ./files/rsyslog-victoria-logs.conf $(1)/etc/rsyslog.d/victoria-logs.d/telegraf.conf
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
