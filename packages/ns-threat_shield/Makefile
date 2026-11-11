@@ -67,6 +67,8 @@ define Package/ns-threat_shield/install
 	$(INSTALL_BIN) ./files/banip-defaults $(1)/etc/uci-defaults/99-nethsec-banip
 	$(INSTALL_BIN) ./files/99-nethsec-fail2ban $(1)/etc/uci-defaults/99-nethsec-fail2ban
 	$(INSTALL_BIN) ./files/banip-extra-defaults $(1)/etc/uci-defaults/96-nethsec-banip-extra
+	$(INSTALL_BIN) ./files/ts-allowurl-migrate $(1)/usr/libexec/ts-allowurl-migrate
+	$(INSTALL_BIN) ./files/ts-allowurl-migrate $(1)/etc/uci-defaults/97-nethsec-banip-allowurl
 	$(INSTALL_BIN) ./files/97-nethsec-banip-feeds $(1)/etc/uci-defaults/97-nethsec-banip-feeds
 	$(INSTALL_BIN) ./files/banip-insights-defaults $(1)/etc/uci-defaults/98-nethsec-banip-insights
 	$(INSTALL_BIN) ./files/35_ns-threat_shield $(1)/etc/uci-defaults/35_ns-threat_shield
