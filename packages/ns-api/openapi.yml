@@ -102,6 +102,58 @@ components:
           description: Optional free-form description associated with the domain
           example: my allow1
 
+    ThreatShieldAllowlistUrl:
+      type: object
+      required: [name, builtin, url, description, enabled]
+      properties:
+        name:
+          type: string
+          description: UCI section name, `nethesis` for the built-in Nethesis allowlist
+          example: partners
+        builtin:
+          type: boolean
+          description: True for the Nethesis allowlist, read-only and enabled only on units with ns-plug credentials
+          example: false
+        url:
+          type: string
+          description: Remote IP list URL, empty for the built-in row
+          example: https://example.com/allow.txt
+        description:
+          type: string
+          example: partner networks
+        enabled:
+          type: boolean
+          example: true
+
+    ThreatShieldCustomBlocklist:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          description: Feed name, `^[a-z][a-z0-9]{2,15}$`, not starting with yoroi or nethesis, not a built-in feed name
+          example: myfeed
+        url_4:
+          type: string
+          description: IPv4 list URL, one IP/CIDR per line (at least one of url_4 or url_6 is required)
+          example: https://example.com/v4.txt
+        url_6:
+          type: string
+          description: IPv6 list URL, one IP/CIDR per line
+          example: ""
+        chain:
+          type: string
+          enum: [in, out, inout]
+          description: Defaults to `in` when omitted
+          example: in
+        description:
+          type: string
+          example: my blocklist
+        enabled:
+          type: boolean
+          description: Add the feed to ban_feed; defaults to true on add, unchanged on edit when missing
+          example: true
+
   securitySchemes:
     BearerAuth:
       type: http
@@ -745,5 +797,211 @@ paths:
                       message:
                         type: string
                         example: success
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.threatshield/list-allowlist-urls:
+    post:
+      summary: List banIP remote allowlist URLs, including the built-in Nethesis allowlist
+      operationId: ns.threatshield.list-allowlist-urls
+      tags:
+        - threatshield
+      responses:
+        "200":
+          description: Result
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ThreatShieldAllowlistUrl"
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.threatshield/add-allowlist-url:
+    post:
+      summary: Add a banIP remote allowlist URL
+      operationId: ns.threatshield.add-allowlist-url
+      tags:
+        - threatshield
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, url, enabled]
+              properties:
+                name:
+                  type: string
+                  description: Allowlist name, same rules of custom blocklist names, which share the same namespace
+                  example: partners
+                url:
+                  type: string
+                  description: http(s) URL, max 512 chars, only `A-Za-z0-9._~:/?&=%+,@-` characters
+                  example: https://example.com/allow.txt
+                description:
+                  type: string
+                  description: Optional, defaults to empty
+                  example: partner networks
+                enabled:
+                  type: boolean
+                  example: true
+      responses:
+        "200":
+          description: Result
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required: [name]
+                    properties:
+                      name:
+                        type: string
+                        example: partners
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.threatshield/edit-allowlist-url:
+    post:
+      summary: Replace a banIP remote allowlist URL (the Nethesis allowlist cannot be edited); omitted description is removed
+      operationId: ns.threatshield.edit-allowlist-url
+      tags:
+        - threatshield
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, url, enabled]
+              properties:
+                name:
+                  type: string
+                  description: Allowlist name (not editable)
+                  example: partners
+                url:
+                  type: string
+                  example: https://example.com/allow.txt
+                description:
+                  type: string
+                  example: partner networks
+                enabled:
+                  type: boolean
+                  example: true
+      responses:
+        "200":
+          description: Result
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.threatshield/delete-allowlist-url:
+    post:
+      summary: Delete a banIP remote allowlist URL (the Nethesis allowlist cannot be deleted)
+      operationId: ns.threatshield.delete-allowlist-url
+      tags:
+        - threatshield
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  example: partners
+      responses:
+        "200":
+          description: Result
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.threatshield/add-custom-blocklist:
+    post:
+      summary: Add a custom banIP blocklist, enabled by default
+      operationId: ns.threatshield.add-custom-blocklist
+      tags:
+        - threatshield
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ThreatShieldCustomBlocklist"
+      responses:
+        "200":
+          description: Result
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required: [name]
+                    properties:
+                      name:
+                        type: string
+                        example: myfeed
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.threatshield/edit-custom-blocklist:
+    post:
+      summary: Replace a custom banIP blocklist (name is not renamable); omitted fields are reset (chain to `in`), omitted enabled keeps the feed state
+      operationId: ns.threatshield.edit-custom-blocklist
+      tags:
+        - threatshield
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ThreatShieldCustomBlocklist"
+      responses:
+        "200":
+          description: Result
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/Error"
+  POST /ubus/ns.threatshield/delete-custom-blocklist:
+    post:
+      summary: Delete a custom banIP blocklist and remove it from ban_feed
+      operationId: ns.threatshield.delete-custom-blocklist
+      tags:
+        - threatshield
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  example: myfeed
+      responses:
+        "200":
+          description: Result
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
                   - $ref: "#/components/schemas/ValidationError"
                   - $ref: "#/components/schemas/Error"
