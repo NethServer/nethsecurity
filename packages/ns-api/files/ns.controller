@@ -34,7 +34,7 @@ except Exception:
 VL_URL = f"http://{_vl_addr}"
 FAIL2BAN_BAN_QUERY = 'app_name:"fail2ban.actions" "] Ban " | extract "[<jail>] Ban <ip>" | math floor(_time / 1e9) as ts | fields ts, jail, ip'
 # prerouting lines have no feed and are skipped
-BANIP_BLOCK_QUERY = 'app_name:in(kernel, banIP) "banIP/" | extract "banIP/<chain>/<verdict>/<feed>: " | filter feed:* | extract " SRC=<src> " | extract " DST=<dst> " | math floor(_time / 1e9) as ts | fields ts, chain, feed, src, dst'
+BANIP_BLOCK_QUERY = 'app_name:kernel "banIP/" | extract "banIP/<chain>/<verdict>/<feed>: " | filter feed:* | extract " SRC=<src> " | extract " DST=<dst> " | math floor(_time / 1e9) as ts | fields ts, chain, feed, src, dst'
 
 def vl_query(query, start, end):
     data = urllib.parse.urlencode({"query": query, "start": start, "end": end}).encode()

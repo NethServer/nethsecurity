@@ -58,7 +58,7 @@ table inet ns-binding {
         iifname {{ iface }} jump binding
         {%- endif %}
         {%- endfor %}
-        counter limit rate 1/second log group 3 prefix "ns-binding DROP: "
+        counter limit rate 1/second log flags all prefix "ns-binding DROP: "
     }
 
     chain forward {
@@ -72,7 +72,7 @@ table inet ns-binding {
         iifname {{ iface }} jump binding
         {%- endif %}
         {%- endfor %}
-        counter limit rate 1/second log group 3 prefix "ns-binding DROP: "
+        counter limit rate 1/second log flags all prefix "ns-binding DROP: "
     }
 
     chain soft-binding {
