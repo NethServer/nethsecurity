@@ -1,0 +1,15 @@
+#!/bin/sh /etc/rc.common
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-3.0-only
+#
+
+# Remove support accounts left by a session interrupted by a reboot or crash.
+# The tunnel itself is started on demand only.
+
+START=99
+
+start() {
+	/usr/sbin/support-tunnel cleanup
+}
