@@ -9,6 +9,7 @@ Telegraf is the metrics collection agent that gathers host and service metrics a
 ```
 /usr/libexec/telegraf-services       ← service status via ubus
 /var/run/mwan3/iface_state/          ← WAN interface status via mwan3 state files
+/var/run/netifyd/status.json         ← netifyd flow table and plugin licenses
 /proc filesystem                     ← CPU, memory, disk, network
      │
      ▼
@@ -142,6 +143,10 @@ procstat_lookup_running{filter="openvpn"} = number of matching processes
 # Memory of every monitored service, summing multi-process ones
 curl -s 'http://127.0.0.1:8428/api/v1/query?query=sum(procstat_memory_rss)by(filter)'
 ```
+
+### netifyd Monitoring (netifyd.conf)
+
+Shipped by the `netifyd` package, see [its README](../netifyd/README.md#monitoring).
 
 ## Advanced Configuration
 
