@@ -6533,6 +6533,21 @@ Response example:
 `time` is the ban start (unix timestamp), `timeout` the ban duration in seconds (`-1` for a permanent ban), `active` tells if the ban is still in place, `failures` and `matches` are the failures and log lines that triggered the ban.
 Bans are kept until fail2ban purges them (`dbpurgeage`, default 1 day); they survive reboot only when the data storage is mounted.
 
+### list-blocklist-bans
+
+List the IP addresses banned by banIP lists, the most active first:
+```
+api-cli ns.threatshield list-blocklist-bans
+```
+
+Response example:
+```json
+{"data": [{"ip": "203.0.113.77", "list": "blocklist", "direction": "inbound", "time": 1762412400, "hits": 12, "matches": ["<log line>"]}]}
+```
+
+`list` is the banIP feed, `direction` is `inbound` (banned source) or `outbound` (banned destination), `time` is the last logged drop (unix timestamp), `hits` the logged drops and `matches` up to 5 latest log lines.
+Rows come from the banIP drops logged in VictoriaLogs in the last hour, at most 500 rows; `hits` is a lower bound because banIP rate-limits its log lines.
+
 ### remove-active-block
 
 Unban an IP address from all fail2ban jails:
