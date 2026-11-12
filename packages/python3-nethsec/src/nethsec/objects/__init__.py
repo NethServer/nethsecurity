@@ -92,7 +92,7 @@ def is_used_object(uci, database_id):
         if uci.get('mwan3', section, 'ns_src', default=None) == database_id or uci.get('mwan3', section, 'ns_dst', default=None) == database_id:
             matches.append(f'mwan3/{section}')
     for section in uci.get_all("dpi"):
-        if uci.get('dpi', section, 'source', default=None) == database_id:
+        if database_id in uci.get('dpi', section, 'source_object', list=True, default=[]):
             matches.append(f'dpi/{section}')
     for section in uci.get_all("objects"):
         try:
@@ -878,7 +878,10 @@ def get_info(uci, database_id):
         if not name:
             name = uci.get(database, id, 'label', default=None)
             if not name:
-                name = id
+                # DPI rules keep their name here
+                name = uci.get(database, id, 'ns_name', default=None)
+                if not name:
+                    name = id
         return {'database': database, 'id': id, 'name': name, 'type': type, 'family': family}
     except:
         return None

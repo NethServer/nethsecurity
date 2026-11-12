@@ -3801,6 +3801,10 @@ Rules with `ns_visible '0'` are left out.
   previous schema, carry their raw `criteria` and can be renamed, enabled, disabled, reordered and
   deleted, but not edited
 - `match_all`: the rule matches every flow instead of naming application groups
+- `source_objects`: objects the source references, with their `name`, `type` and `subtype` (the same
+  values `ns.objects list-hosts` reports). An object gone from the configuration is reported with its id
+  as name and `null` type. `empty` is true when the object has no address, e.g. a VPN user whose
+  reserved IP was removed: the rule matches no host for that object
 - `index`: position of the rule in the list
 
 Example response:
@@ -3813,7 +3817,16 @@ Example response:
          "name": "Block streaming",
          "enabled": true,
          "action": "block",
-         "source": ["192.168.1.0/24"],
+         "source": [],
+         "source_objects": [
+            {
+               "id": "objects/ns_16faa17f",
+               "name": "office",
+               "type": "host_set",
+               "subtype": "host_set",
+               "empty": false
+            }
+         ],
          "appgroups": [
             {
                "id": "ns_1a2b3c4d5",
@@ -3830,6 +3843,7 @@ Example response:
          "enabled": true,
          "action": "allow",
          "source": [],
+         "source_objects": [],
          "appgroups": [],
          "match_all": true,
          "managed": true,
@@ -3841,6 +3855,7 @@ Example response:
          "enabled": true,
          "action": "block",
          "source": [],
+         "source_objects": [],
          "appgroups": [],
          "match_all": false,
          "managed": false,
@@ -3860,7 +3875,8 @@ api-cli ns.dpi add-rule --data '{
   "name": "Block streaming",
   "enabled": true,
   "action": "block",
-  "source": ["192.168.1.0/24"],
+  "source": [],
+  "source_objects": ["objects/ns_16faa17f"],
   "appgroups": ["ns_1a2b3c4d5"],
   "match_all": false,
   "position": "bottom"
@@ -3872,7 +3888,12 @@ api-cli ns.dpi add-rule --data '{
 - `action`: mandatory, `block` or `allow`. `allow` stops the evaluation, so the rules below it don't apply
   to the matching flows
 - `source`: addresses, networks or ranges, IPv4 or IPv6, e.g.
-  `["192.168.1.1", "192.168.1.0/24", "10.0.0.10-10.0.0.20"]`. Empty or omitted matches every host
+  `["192.168.1.1", "192.168.1.0/24", "10.0.0.10-10.0.0.20"]`. Empty or omitted, together with
+  `source_objects`, matches every host
+- `source_objects`: ids of objects whose addresses the rule is narrowed to, see `list-source-objects`:
+  host sets, DHCP static leases, DNS records and VPN users with a reserved IP. Domain sets are refused.
+  Alternative to `source`: a rule can't have both (`source_objects_with_source`). A change to a
+  referenced object applies to the rule on commit, without editing it
 - `appgroups`: ids of the application groups to match, see `list-appgroups`. Mandatory unless
   `match_all` is `true`
 - `match_all`: match every flow, optionally narrowed by `source`. `appgroups` must be empty. Defaults to
@@ -3899,6 +3920,7 @@ api-cli ns.dpi edit-rule --data '{
   "enabled": false,
   "action": "block",
   "source": [],
+  "source_objects": [],
   "appgroups": ["ns_1a2b3c4d5"],
   "match_all": false
 }'
@@ -3909,6 +3931,34 @@ Example response:
 ```json
 {
    "id": "ns_3869dc35"
+}
+```
+
+### list-source-objects
+
+List the objects a rule source can reference: the same objects as `ns.objects list-hosts`, domain sets
+excluded.
+
+```bash
+api-cli ns.dpi list-source-objects
+```
+
+Example response:
+
+```json
+{
+   "values": [
+      {
+         "name": "office",
+         "family": "ipv4",
+         "id": "objects/ns_16faa17f",
+         "singleton": false,
+         "subtype": "host_set",
+         "used": true,
+         "matches": ["dpi/ns_3869dc35"],
+         "type": "host_set"
+      }
+   ]
 }
 ```
 

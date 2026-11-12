@@ -62,6 +62,16 @@ config = {
 
 u = EUci()
 
+# address groups of the objects referenced by the rule sources: written before the criteria that
+# reference them, and reloaded by the agent together with this file. If they can't be written, the
+# rules using objects are skipped below: their criteria would reference groups that don't exist
+try:
+    dpi.write_address_groups(u)
+    address_groups_ok = True
+except OSError as error:
+    syslog.syslog(syslog.LOG_ERR, f"dpi-config: cannot write the address groups: {error}")
+    address_groups_ok = False
+
 # a rule from the schema used before application groups existed carries at least one of these fields;
 # dpi.migrate_schema converts it, so one still here was not migrated yet
 legacy_fields = ('device', 'application', 'protocol', 'category')
@@ -93,6 +103,9 @@ for section in u.get_all('dpi'):
         if criteria and not criteria.endswith(';'):
             criteria = f'{criteria};'
     else:
+        if rule.get('source_object') and not address_groups_ok:
+            syslog.syslog(syslog.LOG_WARNING, f"dpi-config: skipping {section}, its source objects are not available")
+            continue
         # application groups, optionally narrowed to a source, or a match-all rule
         criteria = dpi.build_rule_criteria(u, rule)
     if not criteria:
