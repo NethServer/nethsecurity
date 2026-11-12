@@ -609,6 +609,11 @@ Executed when a node becomes the active (master) node:
   - Enables all network interfaces and services that were active on the failed primary using `/usr/libexec/ns-ha-enable` script
   - Activates WireGuard interfaces, IPsec tunnels, and routes imported from `/etc/ha`
 
+WAN interfaces come up first and the gratuitous ARP is sent right after, then the services (dnsmasq, adblock,
+banIP, Snort and the others) are restarted. WireGuard and IPsec interfaces come up after them (`850-vpn`, calling
+`ns-ha-enable --vpn`), followed by the swanctl and OpenVPN restarts, so traffic and protection are back
+before VPNs restore.
+
 #### NOTIFY_BACKUP
 
 Executed on the backup node during normal operation or when the primary node recovers:
