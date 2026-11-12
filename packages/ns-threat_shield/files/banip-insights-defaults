@@ -11,4 +11,4 @@
 [ -n "$(uci -q get ns-plug.config.secret)" ] || exit 0
 grep -q nethesisinsightslvl2 /etc/banip/banip.custom.feeds 2>/dev/null && exit 0
 
-/usr/sbin/ts-ip
+/usr/sbin/ts-ip --no-start

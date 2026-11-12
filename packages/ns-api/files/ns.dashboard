@@ -189,7 +189,8 @@ def check_banip():
 def check_ts_ip():
     u = EUci()
     bip_status = check_banip()
-    ts_enabled = "bl.nethesis.it" in u.get("banip", "global", "ban_allowurl", default="")
+    # threat shield IP is active on units with ns-plug credentials
+    ts_enabled = u.get("ns-plug", "config", "system_id", default="") != "" and u.get("ns-plug", "config", "secret", default="") != ""
     if not ts_enabled or bip_status == "disabled":
         return "disabled"
     if ts_enabled and bip_status == "ok":

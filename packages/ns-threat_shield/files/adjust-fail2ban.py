@@ -9,5 +9,6 @@
 import subprocess
 
 # `changes` is injected by ns.commit when the hook is exec'd
-if changes.keys() & {"banip", "network", "firewall"}:  # noqa: F821
+# banip changes are covered by adjust-banip.py, whose ts-ip run ends with ts-fail2ban
+if changes.keys() & {"network", "firewall"}:  # noqa: F821
     subprocess.run(["/usr/libexec/ts-fail2ban"])

@@ -31,6 +31,32 @@ Blocks are counted from the banIP kernel log lines in Victoria Logs, not from me
 `ns.controller dump-ts-malware` do; blocks per feed in the last hour:
 `app_name:kernel "banIP/" | extract "banIP/<chain>/<verdict>/<feed>: " | filter feed:* | stats by (feed) count() blocked`
 
+### Custom allowlists and blocklists
+
+`ts-ip` owns `banip.global.ban_allowurl` and `/etc/banip/banip.custom.feeds` and rebuilds them from UCI.
+With ns-plug credentials the Nethesis allowlist URL is always the first `ban_allowurl` entry: it can't be disabled and it is never stored in UCI, because the credentials rotate.
+
+| UCI (`banip`) | options | effect |
+|---|---|---|
+| `config ns_allowurl '<name>'` | `url`, `description`, `enabled` | enabled URLs added to `ban_allowurl` |
+| `config ns_blockfeed '<name>'` | `url_4`, `url_6`, `chain` (`in`, `out`, `inout`), `description` | feed added to `banip.custom.feeds` with `"rule": "feed 1"` (one IP/CIDR per line); enabled when `<name>` is in `global.ban_feed` |
+
+`banip.custom.feeds` content:
+
+| ns-plug credentials | custom feeds | file |
+|---|---|---|
+| yes | any | `banip.feeds` + `banip.nethesis.feeds` + custom feeds |
+| no | yes | `banip.feeds` + custom feeds |
+| no | no | empty, banip uses `banip.feeds` |
+
+- custom feed names must not start with `yoroi` or `nethesis`: those names are removed from `ban_feed` on units without credentials
+- allowlist names follow the custom blocklist name rules and share the same namespace (banip section names)
+- `banip.custom.feeds` is replaced only by a complete and changed file: banip removes from `ban_feed` the feeds missing from it
+- a non-empty `banip.custom.feeds` holds copies of `banip.feeds` (and `banip.nethesis.feeds` when registered), which banip then ignores: uci-defaults `95-banip-housekeeping` (banip upgrade) and `97-nethsec-banip-feeds` (ns-threat_shield upgrade) refresh it with `ts-ip --no-start` (no fail2ban restart)
+- the `adjust-banip.py` post-commit hook runs `ts-ip` before restarting banip when `banip` changes, and removes from `/tmp/banIP-backup` the backups of the changed lists (`banIP.allowlist.gz`, `banIP.<name>.v4.gz`, `banIP.<name>.v6.gz`): banip start restores backups instead of downloading
+- when `global.ns_allowurl_migrated` is not `1`, `ts-allowurl-migrate` (run on install/upgrade as uci-defaults `97-nethsec-banip-allowurl`, and by every `ts-ip` run, so a restored old backup is migrated on the next banip commit or register/unregister) moves the non-Nethesis `ban_allowurl` entries into `ns_allowurl` sections named `allow<n>` and sets it
+- APIs: `ns.threatshield` `*-allowlist-url(s)`, `*-custom-blocklist` and `list-blocklist`, see [ns-api](../ns-api/README.md#nsthreatshield)
+
 ### Examples
 
 #### Start the service
