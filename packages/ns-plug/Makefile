@@ -21,7 +21,7 @@ define Package/ns-plug
 	CATEGORY:=NethSecurity
 	TITLE:=NethSecurity controller client
 	URL:=https://github.com/NethServer/nethsecurity-controller/
-	DEPENDS:=+openvpn +lscpu +python3-nethsec +python3-yaml +telegraf +victoria-metrics +jq
+	DEPENDS:=+openvpn +lscpu +python3-nethsec +python3-requests +python3-yaml +telegraf +victoria-metrics +jq
 	PKGARCH:=all
 endef
  
@@ -56,6 +56,7 @@ if [ -z "$${IPKG_INSTROOT}" ]; then
   crontab -l | grep -v "/usr/sbin/send-backup" | sort | uniq | crontab -
   crontab -l | grep -v "/usr/sbin/send-inventory" | sort | uniq | crontab -
   crontab -l | grep -v "/usr/sbin/send-heartbeat" | sort | uniq | crontab -
+  crontab -l | grep -v "/usr/sbin/subscription-info" | sort | uniq | crontab -
   sed -i '/\/usr\/libexec\/ns-plug\/mwan-hooks/d' /etc/mwan3.user
 fi
 exit 0
@@ -85,7 +86,10 @@ define Package/ns-plug/install
 	$(INSTALL_BIN) ./files/send-inventory.init $(1)/etc/init.d/send-inventory
 	$(INSTALL_BIN) ./files/register $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/unregister $(1)/usr/sbin
-	$(INSTALL_BIN) ./files/subscription-info $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/subscription-info.py $(1)/usr/sbin/subscription-info
+	$(INSTALL_BIN) ./files/subscription-info.init $(1)/etc/init.d/subscription-info
+	$(INSTALL_BIN) ./files/subscription-info-refresh $(1)/usr/share/ns-plug/hooks/register/50subscription-info
+	$(INSTALL_BIN) ./files/subscription-info-refresh $(1)/usr/share/ns-plug/hooks/unregister/50subscription-info
 	$(INSTALL_BIN) ./files/update-packages $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/inventory $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/ns-download $(1)/usr/bin
