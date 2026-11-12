@@ -94,8 +94,8 @@ define Package/telegraf/install
 	$(INSTALL_DATA) ./files/telegraf.conf.d/mwan.conf $(1)/etc/telegraf.conf.d/mwan.conf
 	$(INSTALL_DATA) ./files/telegraf.conf.d/ha.conf $(1)/etc/telegraf.conf.d/ha.conf
 	$(INSTALL_DATA) ./files/telegraf.conf.d/procstat.conf $(1)/etc/telegraf.conf.d/procstat.conf
-	$(INSTALL_DIR) $(1)/etc/rsyslog.d/victoria-logs.d
-	$(INSTALL_DATA) ./files/rsyslog-victoria-logs.conf $(1)/etc/rsyslog.d/victoria-logs.d/telegraf.conf
+	$(INSTALL_DIR) $(1)/etc/rsyslog.d/rules.d
+	$(INSTALL_DATA) ./files/rsyslog-rules.conf $(1)/etc/rsyslog.d/rules.d/telegraf.conf
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/uci-defaults/99-telegraf-migrate-netdata $(1)/etc/uci-defaults/99-telegraf-migrate-netdata
 	$(INSTALL_DIR) $(1)/usr/sbin
