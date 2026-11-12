@@ -67,8 +67,8 @@ define Package/ns-openvpn/install
 	$(INSTALL_BIN) ./files/99_ns-openvpn-allow-deprecated-static-crypto $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/openvpn-status $(1)/usr/bin
 	$(INSTALL_BIN) ./files/openvpn-kill $(1)/usr/bin
-	$(INSTALL_DIR) $(1)/etc/rsyslog.d/victoria-logs.d
-	$(INSTALL_DATA) ./files/rsyslog-victoria-logs.conf $(1)/etc/rsyslog.d/victoria-logs.d/ns-openvpn.conf
+	$(INSTALL_DIR) $(1)/etc/rsyslog.d/rules.d
+	$(INSTALL_DATA) ./files/rsyslog-rules.conf $(1)/etc/rsyslog.d/rules.d/ns-openvpn.conf
 endef
 
 define Package/ns-openvpn/prerm
