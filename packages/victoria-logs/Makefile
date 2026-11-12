@@ -65,8 +65,8 @@ define Package/victoria-logs/install
 	$(INSTALL_DATA) ./files/victoria-logs.conf $(1)/etc/config/victoria-logs
 	$(INSTALL_DIR) $(1)/etc/rsyslog.d
 	$(INSTALL_CONF) ./files/rsyslog-victoria-logs.conf $(1)/etc/rsyslog.d/victoria-logs.conf
-	$(INSTALL_DIR) $(1)/etc/rsyslog.d/victoria-logs.d
-	$(INSTALL_DATA) ./files/rsyslog-victoria-logs.d.conf $(1)/etc/rsyslog.d/victoria-logs.d/victoria-logs.conf
+	$(INSTALL_DIR) $(1)/etc/rsyslog.d/rules.d
+	$(INSTALL_DATA) ./files/rsyslog-rules.conf $(1)/etc/rsyslog.d/rules.d/victoria-logs.conf
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/35_victoria-logs $(1)/etc/uci-defaults/35_victoria-logs
 endef
