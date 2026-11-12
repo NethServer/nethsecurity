@@ -14,42 +14,62 @@ import (
 	"io"
 	"log/syslog"
 	"os"
+	"sync"
 )
 
-var writer *syslog.Writer
+var (
+	mu     sync.Mutex
+	tag    string
+	writer *syslog.Writer
+)
 
 // Output receives the log lines when syslog isn't available
 var Output io.Writer = os.Stderr
 
 func Init(name string) {
-	w, err := syslog.New(syslog.LOG_DAEMON|syslog.LOG_INFO, name)
-	if err != nil {
+	tag = name
+	if _, err := connect(); err != nil {
 		fmt.Fprintln(Output, "[ERR][LOGS] cannot connect to syslog: "+err.Error())
-		return
 	}
-	writer = w
+}
+
+// connect returns the syslog writer, retrying the connection if Init couldn't open it
+func connect() (*syslog.Writer, error) {
+	mu.Lock()
+	defer mu.Unlock()
+	if writer == nil && tag != "" {
+		w, err := syslog.New(syslog.LOG_DAEMON|syslog.LOG_INFO, tag)
+		if err != nil {
+			return nil, err
+		}
+		writer = w
+	}
+	return writer, nil
 }
 
 func Info(msg string) {
-	if writer == nil {
+	w, _ := connect()
+	if w == nil {
 		fmt.Fprintln(Output, msg)
 		return
 	}
-	writer.Info(msg)
+	w.Info(msg)
 }
 
 func Err(msg string) {
-	if writer == nil {
+	w, _ := connect()
+	if w == nil {
 		fmt.Fprintln(Output, msg)
 		return
 	}
-	writer.Err(msg)
+	w.Err(msg)
 }
 
 func Crit(msg string) {
-	if writer == nil {
+	w, _ := connect()
+	if w == nil {
 		fmt.Fprintln(Output, msg)
 		return
 	}
-	writer.Crit(msg)
+	w.Crit(msg)
 }
