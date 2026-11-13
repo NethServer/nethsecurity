@@ -34,6 +34,49 @@ func lastIPv4(line string) string {
 	return m[len(m)-1]
 }
 
+func TestMaskSensitiveFields(t *testing.T) {
+	fields := []string{"password", "bind_password", "peer_private_key", "pre_shared_key", "private_key", "Psk"}
+
+	cases := map[string]struct{ in, want string }{
+		"wireguard tunnel, keeping the public key": {
+			`{"path":"ns.wireguard","method":"edit-tunnel","payload":{"id":"wg1","server_public_key":"cHVi","peer_private_key":"cHJpdg==","pre_shared_key":"cHNr","route_all_traffic":false}}`,
+			`{"path":"ns.wireguard","method":"edit-tunnel","payload":{"id":"wg1","server_public_key":"cHVi","peer_private_key":"XXX","pre_shared_key":"XXX","route_all_traffic":false}}`,
+		},
+		"wireguard import config": {
+			`{"path":"ns.wireguard","method":"import-configuration","payload":{"config":"W0ludGVyZmFjZV0="}}`,
+			`{"path":"ns.wireguard","method":"import-configuration","payload":{"config":"XXX"}}`,
+		},
+		"config of other paths": {
+			`{"path":"ns.uci","method":"get","payload":{"config":"network"}}`,
+			`{"path":"ns.uci","method":"get","payload":{"config":"network"}}`,
+		},
+		"only exact field names": {
+			`{"Psk":"static","psk":"x","bind_password":"p","password_changed":"1"}`,
+			`{"Psk":"XXX","psk":"x","bind_password":"XXX","password_changed":"1"}`,
+		},
+		"value equal to a field is not taken for a field": {
+			`{"name":"password","user":"root"}`,
+			`{"name":"password","user":"root"}`,
+		},
+		"escaped quotes inside the value": {
+			`{"password":"a\"b","user":"root"}`,
+			`{"password":"XXX","user":"root"}`,
+		},
+		"commit changes": {
+			`{"changes":{"network":[["set","wg1","private_key","cHJpdg=="],["set","wg1","disabled","0"]]}}`,
+			`{"changes":{"network":[["set","wg1","private_key","XXX"],["set","wg1","disabled","0"]]}}`,
+		},
+	}
+
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			if got := maskSensitiveFields(c.in, fields); got != c.want {
+				t.Fatalf("got %q, want %q", got, c.want)
+			}
+		})
+	}
+}
+
 // TestLoginLogInjection reproduces the unauthenticated DoS. banIP bans EVERY IP
 // found on a physical line matching its search term, so a crafted username must
 // never put an attacker-chosen IP onto the failed-auth log line (whether via a
