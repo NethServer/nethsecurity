@@ -841,7 +841,8 @@ def edit_user(args):
     if user_id == None:
         return utils.validation_error("username", "user_not_found", args["username"])
 
-    if args["ipaddr"] and u.get("users", user_id, 'openvpn_ipaddr', default="") != args["ipaddr"]:
+    old_ipaddr = u.get("users", user_id, 'openvpn_ipaddr', default="")
+    if args["ipaddr"] and old_ipaddr != args["ipaddr"]:
         valid, error = is_valid_ip(ovpninstance, args["ipaddr"])
         if not valid:
             return utils.validation_error("ipaddr", error, args["ipaddr"])
@@ -856,6 +857,11 @@ def edit_user(args):
             pass
     u.set("users", user_id, "openvpn_enabled", args["enabled"])
     u.commit("users")
+    # reload dpi if the ipaddr changed and the user is used by dpi
+    if u.get("users", user_id, 'openvpn_ipaddr', default="") != old_ipaddr:
+        _, matches = objects.is_used_object(u, f"users/{user_id}")
+        if any(match.startswith("dpi/") for match in matches):
+            subprocess.run(["/etc/init.d/dpi", "reload"], check=False, capture_output=True)
     return {"result": "success"}
 
 def delete_user(ovpninstance, username):
