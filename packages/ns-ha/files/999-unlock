@@ -4,19 +4,26 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 # Release the global keepalived hotplug lock acquired by 00-lock.
-# Only acts when the flag file created by 00-lock is present — this avoids
-# incorrectly releasing a lock held by a concurrent event in the rare case
-# where 00-lock timed out and proceeded without acquiring the lock.
+# Only acts when the flag file created by 00-lock holds this chain's PID, so a
+# chain that timed out and proceeded without the lock doesn't release it.
 
 case "$ACTION" in
 	NOTIFY_MASTER|NOTIFY_BACKUP|NOTIFY_FAULT|NOTIFY_STOP) ;;
 	*) return 0 2>/dev/null || exit 0 ;;
 esac
 
+# shellcheck source=/dev/null
+. /lib/functions/keepalived/hotplug.sh
+
+if ns_ha_chain_is_stale; then
+	log_info "$ACTION superseded by a newer event, skipped remaining actions"
+fi
+rm -f "/var/run/ns-ha/chain.$$"
+
 LOCKFILE="/var/lock/keepalived-hotplug.lock"
 ACQUIRED_FLAG="/var/lock/keepalived-hotplug-acquired"
 
-if [ -f "$ACQUIRED_FLAG" ]; then
+if [ "$(cat "$ACQUIRED_FLAG" 2>/dev/null)" = "$$" ]; then
 	rm -f "$ACQUIRED_FLAG"
 	lock -u "$LOCKFILE"
 fi

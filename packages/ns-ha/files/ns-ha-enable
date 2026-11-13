@@ -155,9 +155,12 @@ if __name__ == "__main__":
     if status.get("state") != "master":
         # Execute only on master node, no matter the role
         sys.exit(0)
+    # VPN interfaces come up in a later hotplug step (850-vpn), after the essential services
+    if '--vpn' in sys.argv:
+        enable_interfaces('wg_interfaces')
+        enable_interfaces('ipsec_interfaces')
+        sys.exit(0)
     enable_interfaces('wan_interfaces')
-    enable_interfaces('wg_interfaces')
-    enable_interfaces('ipsec_interfaces')
     enable_hotspot_mac()
     send_gratuitous_arp('wan_interfaces')
     subprocess.run(["/sbin/reload_config"], capture_output=True)
