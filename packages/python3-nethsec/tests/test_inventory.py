@@ -295,7 +295,7 @@ config dedalo 'config'
 flashstart_db = """
 config main 'global'
 	option enabled '0'
-	option proplus '1'
+	option plan 'plus'
 	option password 'xxx'
 	option username 'xxx@nethsecurity.org'
 	list zones 'lan'
@@ -847,7 +847,7 @@ def test_fact_hotspot(tmp_path):
 
 def test_fact_flashstart(tmp_path):
     u = _setup_db(tmp_path)
-    assert inventory.fact_flashstart(u) == {"enabled": False, "bypass": 2, "custom_servers": 1, "pro_plus": True}
+    assert inventory.fact_flashstart(u) == {"enabled": False, "bypass": 2, "custom_servers": 1, "plan": "plus"}
     
 def test_fact_openvpn_rw(tmp_path):
 	u = _setup_db(tmp_path)

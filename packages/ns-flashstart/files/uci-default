@@ -28,7 +28,7 @@ then
 fi
 
 # Issue: https://github.com/NethServer/nethsecurity/issues/1162
-if [ -z "$(uci -q get flashstart.global.proplus)" ]
+if [ -z "$(uci -q get flashstart.global.proplus)" ] && [ -z "$(uci -q get flashstart.global.plan)" ]
 then
   # remove dnsdist
   rm -rf /etc/dnsdist.conf.d/
@@ -46,8 +46,20 @@ then
     uci -q delete "$config"
   done
   # set default
-  uci -q set flashstart.global.proplus=0
+  uci -q set flashstart.global.plan=pro
   uci -q set flashstart.global.log_level=warning
+  uci commit flashstart
+fi
+
+# Issue: https://github.com/NethServer/nethsecurity/issues/1982
+if [ -z "$(uci -q get flashstart.global.plan)" ]
+then
+  if [ "$(uci -q get flashstart.global.proplus)" = "1" ]; then
+    uci -q set flashstart.global.plan=plus
+  else
+    uci -q set flashstart.global.plan=pro
+  fi
+  uci -q delete flashstart.global.proplus
   uci commit flashstart
 fi
 

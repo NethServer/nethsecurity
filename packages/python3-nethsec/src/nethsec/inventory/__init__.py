@@ -317,9 +317,9 @@ def fact_netifyd(uci: EUci):
 def fact_flashstart(uci: EUci):
     enabled = uci.get('flashstart', 'global', 'enabled', default='0') == '1'
     bypass = len(uci.get('flashstart', 'global', 'bypass', list=True, default=[]))
-    pro_plus = uci.get('flashstart', 'global', 'proplus', dtype=bool, default=False)
+    plan = uci.get('flashstart', 'global', 'plan', default='pro')
     custom_servers = len(uci.get('flashstart', 'global', 'custom_servers', list=True, default=[]))
-    return { 'enabled': enabled, 'bypass': bypass, 'pro_plus': pro_plus, 'custom_servers': custom_servers }
+    return { 'enabled': enabled, 'bypass': bypass, 'plan': plan, 'custom_servers': custom_servers }
 
 def fact_openvpn_rw(uci: EUci):
     ret = { 'enabled': 0, 'server': 0, 'instances': [] }

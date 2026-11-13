@@ -3995,6 +3995,7 @@ Example response:
 {
    "values": {
       "enabled": false,
+      "plan": "pro",
       "username": "user",
       "password": "password",
       "zones": [
@@ -4008,13 +4009,15 @@ Example response:
 
 ```
 
+`plan` is one of `essential`, `pro` or `plus` (Secure Essential, Secure Pro, Secure Plus).
+
 ### set-config
 
 Sets configuration of Flashstart service, **BEWARE** this commits directly the uci changes due to the need to restart
 flashstart service. The automatic uci commit is made inside `dhcp` and `flashstart` config.
 
 ```bash
-api-cli ns.flashstart set-config --data '{"enabled": true, "username": "user", "password": "password", "zones": ["lan"], "bypass": ["192.168.1.1"]}'
+api-cli ns.flashstart set-config --data '{"enabled": true, "plan": "pro", "username": "user", "password": "password", "zones": ["lan"], "bypass": ["192.168.1.1"]}'
 ```
 
 Example response:
