@@ -37,7 +37,7 @@ def __validate_server(item: str) -> bool:
 def __fetch_data():
     return {
         'enabled': e_uci.get('flashstart', 'global', 'enabled', dtype=bool, default=False),
-        'proplus': e_uci.get('flashstart', 'global', 'proplus', dtype=bool, default=False),
+        'plan': e_uci.get('flashstart', 'global', 'plan', default='pro'),
         'username': e_uci.get('flashstart', 'global', 'username', default=''),
         'password': e_uci.get('flashstart', 'global', 'password', default=''),
         'zones': [zone for zone in e_uci.get('flashstart', 'global', 'zones', list=True, default=[])
@@ -57,7 +57,7 @@ if cmd == 'list':
         'list-zones': {},
         'set-config': {
             'enabled': False,
-            'proplus': False,
+            'plan': 'str',
             'username': 'str',
             'password': 'str',
             'zones': 'str',
@@ -78,7 +78,7 @@ elif cmd == 'call':
                 raise ValidationError('enabled', 'invalid')
             if data['enabled']:
                 validation = {
-                    'proplus': bool,
+                    'plan': str,
                     'username': str,
                     'password': str,
                     'zones': list,
@@ -90,6 +90,8 @@ elif cmd == 'call':
                         raise ValidationError(key, 'required')
                     if not isinstance(data[key], value):
                         raise ValidationError(key, 'invalid', data[key])
+                if data['plan'] not in ('essential', 'pro', 'plus'):
+                    raise ValidationError('plan', 'invalid', data['plan'])
                 if len(data['zones']) <= 0:
                     raise ValidationError('zones', 'required')
                 for bypass in data['bypass']:
@@ -117,7 +119,7 @@ elif cmd == 'call':
 
             e_uci.set('flashstart', 'global', 'enabled', data['enabled'])
             if data['enabled']:
-                e_uci.set('flashstart', 'global', 'proplus', data['proplus'])
+                e_uci.set('flashstart', 'global', 'plan', data['plan'])
                 e_uci.set('flashstart', 'global', 'username', data['username'])
                 e_uci.set('flashstart', 'global', 'password', data['password'])
                 e_uci.set('flashstart', 'global', 'zones', data['zones'])
