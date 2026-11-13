@@ -9,6 +9,7 @@ Telegraf is the metrics collection agent that gathers host and service metrics a
 ```
 /usr/libexec/telegraf-services       ← service status via ubus
 /var/run/mwan3/iface_state/          ← WAN interface status via mwan3 state files
+/var/run/netifyd/status.json         ← netifyd flow table and plugin licenses
 /proc filesystem                     ← CPU, memory, disk, network
      │
      ▼
@@ -122,6 +123,30 @@ curl -s 'http://127.0.0.1:8428/api/v1/query?query=mwan_interface_online'
 ```
 storage_status_error = 1 (error) or 0 (ok / not configured)
 ```
+
+### Process Resource Monitoring (procstat.conf)
+
+**How it works**: Every 30 seconds, Telegraf `procstat` collects CPU and memory usage of the most resource-intensive daemons and of the user-facing services. Each process group is a filter named after its procd service, so it can be matched with `procd_service`. Services that run more than one process with the same name (`openvpn`, `ns-plug`, `dropbear`, `nginx`, `dnsmasq`) also get a `pid` tag.
+
+These metrics are kept in the local Victoria Metrics only, the controller exporter drops them.
+
+**Metric format**:
+```
+procstat_cpu_usage{filter="snort", process_name="snort3"} = percent
+procstat_memory_rss{filter="nginx", process_name="nginx", pid="9086"} = bytes
+procstat_lookup_running{filter="openvpn"} = number of matching processes
+```
+
+#### Querying Process Usage
+
+```bash
+# Memory of every monitored service, summing multi-process ones
+curl -s 'http://127.0.0.1:8428/api/v1/query?query=sum(procstat_memory_rss)by(filter)'
+```
+
+### netifyd Monitoring (netifyd.conf)
+
+Shipped by the `netifyd` package, see [its README](../netifyd/README.md#monitoring).
 
 ## Advanced Configuration
 

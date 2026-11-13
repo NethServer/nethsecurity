@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-START=95
+START=99
 STOP=5
 USE_PROCD=1
 

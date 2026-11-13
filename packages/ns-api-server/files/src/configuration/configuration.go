@@ -33,6 +33,7 @@ type Configuration struct {
 
 	VictoriaMetricsURL string `json:"victoria_metrics_url"`
 	VMAlertURL         string `json:"vmalert_url"`
+	VictoriaLogsURL    string `json:"victoria_logs_url"`
 
 	// Generous global per-IP rate limit applied to every API route as a coarse
 	// safety net; 0 disables it
@@ -53,7 +54,7 @@ func Init() {
 	if os.Getenv("SECRET_JWT") != "" {
 		Config.SecretJWT = os.Getenv("SECRET_JWT")
 	} else {
-		logs.Logs.Println("[CRITICAL][ENV] SECRET_JWT variable is empty")
+		logs.Crit("[ENV] SECRET_JWT variable is empty")
 		os.Exit(1)
 	}
 
@@ -66,21 +67,25 @@ func Init() {
 	if os.Getenv("SECRETS_DIR") != "" {
 		Config.SecretsDir = os.Getenv("SECRETS_DIR")
 	} else {
-		logs.Logs.Println("[CRITICAL][ENV] SECRETS_DIR variable is empty")
+		logs.Crit("[ENV] SECRETS_DIR variable is empty")
 		os.Exit(1)
 	}
 
 	if os.Getenv("TOKENS_DIR") != "" {
 		Config.TokensDir = os.Getenv("TOKENS_DIR")
 	} else {
-		logs.Logs.Println("[CRITICAL][ENV] TOKENS_DIR variable is empty")
+		logs.Crit("[ENV] TOKENS_DIR variable is empty")
 		os.Exit(1)
 	}
 
 	if os.Getenv("SENSITIVE_LIST") != "" {
 		Config.SensitiveList = strings.Split(os.Getenv("SENSITIVE_LIST"), ",")
 	} else {
-		Config.SensitiveList = []string{"password", "secret", "token"}
+		Config.SensitiveList = []string{
+			"password", "old_password", "ssh_password", "bind_password", "pppoe_password", "passphrase",
+			"secret", "token", "oinkcode",
+			"peer_private_key", "pre_shared_key", "private_key", "preshared_key", "Psk", "Crt",
+		}
 	}
 
 	if os.Getenv("DOWNLOAD_FILE_PATH") != "" {
@@ -110,6 +115,12 @@ func Init() {
 		Config.VMAlertURL = os.Getenv("VMALERT_URL")
 	} else {
 		Config.VMAlertURL = "http://127.0.0.1:8082"
+	}
+
+	if os.Getenv("VICTORIA_LOGS_URL") != "" {
+		Config.VictoriaLogsURL = os.Getenv("VICTORIA_LOGS_URL")
+	} else {
+		Config.VictoriaLogsURL = "http://127.0.0.1:9428"
 	}
 
 	if v, err := strconv.Atoi(os.Getenv("GLOBAL_RATE_LIMIT_AVERAGE")); err == nil {

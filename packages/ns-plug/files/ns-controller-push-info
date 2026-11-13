@@ -64,6 +64,7 @@ try:
         telegraf_config = f"""# Controller prometheus exporter
 [[outputs.prometheus_client]]
   listen = \"{ifconfig_local}:9273\"
+  namedrop = [\"procstat*\"]
 """
         with open('/etc/telegraf.conf.d/controller-prometheus.conf', 'w') as f:
             f.write(telegraf_config)

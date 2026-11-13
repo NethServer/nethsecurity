@@ -1,0 +1,27 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# One-shot: move custom ban_allowurl entries to ns_allowurl sections; run as uci-defaults and by ts-ip (restored old backups)
+
+# URLs are expanded unquoted: no globbing
+set -f
+
+if [ "$(uci -q get banip.global.ns_allowurl_migrated)" != "1" ]; then
+    n=1
+    for url in $(uci -q get banip.global.ban_allowurl); do
+        case "$url" in
+            *bl.nethesis.it*) continue ;;
+        esac
+        uci -q show banip | grep -qF ".url='$url'" && continue
+        while uci -q get banip.allow$n >/dev/null; do n=$((n + 1)); done
+        uci set banip.allow$n=ns_allowurl
+        uci set banip.allow$n.url="$url"
+        uci set banip.allow$n.enabled=1
+    done
+    uci set banip.global.ns_allowurl_migrated=1
+    uci commit banip
+fi

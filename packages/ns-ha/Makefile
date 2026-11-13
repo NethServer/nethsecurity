@@ -64,19 +64,21 @@ define Package/ns-ha/install
 	$(INSTALL_DATA) ./files/500-nathelpers $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/500-netmap $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/560-mac-binding $(1)/etc/hotplug.d/keepalived
-	$(INSTALL_DATA) ./files/600-openvpn $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/600-mwan3 $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/600-qosify $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/600-snort $(1)/etc/hotplug.d/keepalived
-	$(INSTALL_DATA) ./files/600-ipsec $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/600-acme $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/700-nginx $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/800-adblock $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/800-banip $(1)/etc/hotplug.d/keepalived
+	$(INSTALL_DATA) ./files/810-fail2ban $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/800-netifyd $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/800-flashstart $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/800-ui $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/800-dedalo $(1)/etc/hotplug.d/keepalived
+	$(INSTALL_DATA) ./files/850-vpn $(1)/etc/hotplug.d/keepalived
+	$(INSTALL_DATA) ./files/860-ipsec $(1)/etc/hotplug.d/keepalived
+	$(INSTALL_DATA) ./files/860-openvpn $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/900-ns-plug $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/900-phonehome $(1)/etc/hotplug.d/keepalived
 	$(INSTALL_DATA) ./files/900-telegraf $(1)/etc/hotplug.d/keepalived

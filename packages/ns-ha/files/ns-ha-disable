@@ -108,9 +108,10 @@ if __name__ == "__main__":
 		if status.get("role") != "backup":
 			sys.exit(0)
 	# If --force is provided, skip the role check and proceed
+	# WAN first: the new master already sent the gratuitous ARP, this node must stop answering for the WAN IPs
+	disable_interfaces('wan_interfaces')
 	disable_interfaces('wg_interfaces')
 	disable_interfaces('ipsec_interfaces')
-	disable_interfaces('wan_interfaces')
 	disable_hotspot()
      # Do not apply network changes yet, they will be applied when switching to primary
 	if args.force:

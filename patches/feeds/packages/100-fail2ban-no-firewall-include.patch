@@ -1,0 +1,22 @@
+diff --git a/net/fail2ban/Makefile b/net/fail2ban/Makefile
+index 2565c52..cb219f5 100644
+--- a/net/fail2ban/Makefile
++++ b/net/fail2ban/Makefile
+@@ -67,7 +67,6 @@ define Py3Package/fail2ban/install
+ 
+ 	$(INSTALL_DIR) $(1)/etc/config
+ 	$(INSTALL_CONF) ./files/fail2ban.config $(1)/etc/config/fail2ban
+-	$(INSTALL_BIN) ./files/firewall.fail2ban $(1)/etc/firewall.fail2ban
+ 
+ 	$(INSTALL_DIR) $(1)/etc/init.d
+ 	$(INSTALL_BIN) ./files/fail2ban.init $(1)/etc/init.d/fail2ban
+@@ -78,9 +77,6 @@ define Py3Package/fail2ban/install
+ 	$(INSTALL_DIR) $(1)/etc/fail2ban/fail2ban.d
+ 	$(INSTALL_DATA) ./files/db.conf $(1)/etc/fail2ban/fail2ban.d/db.conf
+ 	$(INSTALL_DATA) ./files/uci.conf $(1)/etc/fail2ban/fail2ban.d/uci.conf
+-
+-	$(INSTALL_DIR) $(1)/etc/uci-defaults
+-	$(INSTALL_BIN) ./files/fail2ban.defaults $(1)/etc/uci-defaults/99_fail2ban
+ endef
+ 
+ $(eval $(call Py3Package,fail2ban))

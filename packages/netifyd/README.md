@@ -111,3 +111,16 @@ uci add_list netifyd.config.firewall_traffic='forward'
 uci commit netifyd
 reload_config
 ```
+
+## Monitoring
+
+The package ships `/etc/telegraf.conf.d/netifyd.conf`. Every 60 seconds Telegraf reads `/var/run/netifyd/status.json`, which netifyd rewrites every 15 seconds. When netifyd is stopped the file is missing and Telegraf logs an error for this input.
+
+Metrics:
+```
+netifyd_flows_in_use = flow table entries in use (also flow_count, flows_active, flows_expiring, flows_expired, flows_purged)
+netifyd_lan_flow_dropped, netifyd_wan_flow_dropped = flows dropped, either because the flow table is full or the system is under load
+netifyd_plugin_license_status_id{plugin="proc-nfa", license_status="valid"} = 3 when valid
+```
+
+Plugins that don't report a status (core processor, sinks) are skipped.

@@ -48,7 +48,7 @@ handle_forwarder() {
 	config_get rfc "${config}" rfc "3164"
 
 	if [ "$rfc" = "5424" ]; then
-		opts='Template="RSYSLOG_SyslogProtocol23Format" TCP_Framing="octet-counted"'
+		opts='Template="ns-rfc5424" TCP_Framing="octet-counted"'
 	fi
 
 	if [ "${src}" != "" ] && [ "${target}" != "" ]; then
@@ -85,20 +85,29 @@ expand_config() {
 		input_u="input(type=\"imudp\" port=\"${udp_port}\" address=\"${udp_addr}\")"
 
 	fi
-	config_get template syslog default_template
 	config_foreach handle_selector selector
 	config_foreach handle_forwarder forwarder
 
 	mkdir -p "$(dirname ${CONFIG_FILE})"
 	# shellcheck disable=SC2188
 	> ${CONFIG_FILE}
+	# the configured hostname, rsyslog would otherwise use the FQDN only if DNS answered when it started
+	echo "global(localHostname=\"$(uci -q get system.@system[0].hostname)\")" >> ${CONFIG_FILE}
+	# cleanup and default templates first, so custom rules in the base config get clean logs too
+	echo "include(file=\"/etc/rsyslog.d/rules.conf\")" >> ${CONFIG_FILE}
+	echo "module(load=\"builtin:omfile\" template=\"ns-file\")" >> ${CONFIG_FILE}
+	echo "module(load=\"builtin:omfwd\" template=\"ns-rfc3164\")" >> ${CONFIG_FILE}
 	echo "include(file=\"${BASE_CONFIG_FILE}\" mode=\"optional\")" >> ${CONFIG_FILE}
 	for m in ${modules}; do
-		echo "module(load=\"${m}\")" >> ${CONFIG_FILE}
+		if [ "${m}" = "imklog" ]; then
+			# early userspace (preinit, procd, block, mount_root) logs to kmsg with non-kernel facilities
+			echo "module(load=\"imklog\" permitNonKernelFacility=\"on\")" >> ${CONFIG_FILE}
+		else
+			echo "module(load=\"${m}\")" >> ${CONFIG_FILE}
+		fi
 	done
 	echo "${input_t}" >> ${CONFIG_FILE}
 	echo "${input_u}" >> ${CONFIG_FILE}
-	echo "\$ActionFileDefaultTemplate ${template}" >> ${CONFIG_FILE}
 	echo "\$CreateDirs off" >> ${CONFIG_FILE}
 	echo -e "${selectors}" >> ${CONFIG_FILE}
 	echo -e "${forwarders}" >> ${CONFIG_FILE}
@@ -114,11 +123,13 @@ start_service() {
 	expand_config
 	procd_open_instance
 	procd_set_param command /usr/sbin/rsyslogd -f ${CONFIG_FILE} -n
+	# restart on reload only when one of these files changed
+	procd_set_param file ${CONFIG_FILE} /etc/rsyslog.conf /etc/rsyslog.d/*.conf /etc/rsyslog.d/*/*.conf
 	procd_close_instance
 }
 
 
 service_triggers()
 {
-	procd_add_reload_trigger ${UCI_CONF}
+	procd_add_reload_trigger ${UCI_CONF} system
 }

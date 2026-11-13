@@ -44,6 +44,16 @@ def __set_list_to_uci(e_uci: EUci, config: str, section: str, option: str, new_v
         e_uci.set(config, section, option, new_value)
 
 
+def __add_zone(e_uci: EUci, instance: str):
+    zone = f"{instance}vpn"
+    zone_section, _ = firewall.add_trusted_zone(e_uci, zone, link=f"network/{instance}")
+    if zone_section:
+        # clamp TCP MSS to the tunnel MTU
+        e_uci.set('firewall', zone_section, 'mtu_fix', '1')
+        e_uci.save('firewall')
+    firewall.add_interface_to_zone(e_uci, instance, zone)
+
+
 def generate_wireguard_keys():
     private_key = subprocess.run(["wg", "genkey"], capture_output=True, text=True).stdout.strip()
     public_key = subprocess.run(["wg", "pubkey"], input=private_key, capture_output=True, text=True).stdout.strip()
@@ -324,9 +334,7 @@ def add_server(args):
         ['udp'],
         link=f"network/{instance}"
     )
-    zone = f"{instance}vpn"
-    firewall.add_trusted_zone(e_uci, zone, link=f"network/{instance}")
-    firewall.add_interface_to_zone(e_uci, instance, zone)
+    __add_zone(e_uci, instance)
 
     return {"result": "success"}
 
@@ -671,9 +679,7 @@ def import_configuration(args):
         e_uci.set('network', peer_instance, 'persistent_keepalive', config_parser["Peer"].get("PersistentKeepalive", "25"))
         e_uci.set('network', peer_instance, 'ns_link', f'network/{instance}')
         e_uci.save('network')
-        zone = f"{instance}vpn"
-        firewall.add_trusted_zone(e_uci, zone, link=f"network/{instance}")
-        firewall.add_interface_to_zone(e_uci, instance, zone)
+        __add_zone(e_uci, instance)
     except Exception:
         return utils.validation_error("config", "invalid_file_format")
 
@@ -778,9 +784,7 @@ def add_tunnel(args):
     if 'dns' in args:
         e_uci.set('network', instance, 'dns', args['dns'])
     e_uci.save('network')
-    zone = f"{instance}vpn"
-    firewall.add_trusted_zone(e_uci, zone, link=f"network/{instance}")
-    firewall.add_interface_to_zone(e_uci, instance, zone)
+    __add_zone(e_uci, instance)
 
     return {"result": "success"}
 

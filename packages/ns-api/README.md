@@ -1601,9 +1601,10 @@ Response example:
       "id": "ns_d486faa0",
       "connected": false,
       "expiration": "",
-      "expired": false
+      "expired": false,
       "used": false,
-      "matches": []
+      "matches": [],
+      "valid": true
     },
     {
       "local": true,
@@ -1624,7 +1625,20 @@ Response example:
       "expiration": 2012741635,
       "expired": false,
       "used": true,
-      "matches": ["firewall/ns_allow_xx"]
+      "matches": ["firewall/ns_allow_xx"],
+      "valid": true
+    },
+    {
+      "id": "ns_91a99e42",
+      "name": "mario",
+      "openvpn_enabled": "0",
+      "openvpn_ipaddr": "",
+      "expiration": 0,
+      "expired": false,
+      "used": false,
+      "matches": [],
+      "connected": false,
+      "valid": false
     }
   ]
 }
@@ -1633,6 +1647,9 @@ Response example:
 The following fields may not be present:
 - `password`
 - `ipaddr`
+
+The `valid` field is `false` if the user has an OpenVPN account but it no longer exists inside the remote user database,
+for example when it has been deleted from the LDAP/AD server. Both enabled and disabled accounts are listed.
 
 If `connected` field is `true`, the user object should contain also:
 - `real_address`, the remote address
@@ -2553,7 +2570,7 @@ api-cli ns.dashboard counter --data '{"service": "hosts"}'
 
 Supported services are:
 - `hosts`: return the number of hosts as seen by ARP protocol
-- `threat_shield_ip`: return the number of blocked IPs in the last hour
+- `threat_shield_ip`: return the number of banIP blocks logged in Victoria Logs in the last hour
 - `openvpn_rw`: return the number of clients connected to `ns_roadwarrior1` instance
 
 Response example:
@@ -6118,8 +6135,22 @@ Response example:
 {
   "data": [
     {
+      "name": "myfeed",
+      "type": "community",
+      "custom": true,
+      "enabled": false,
+      "confidence": -1,
+      "description": "my blocklist",
+      "direction": "in",
+      "protocols": [],
+      "ports": [],
+      "url_4": "https://example.com/v4.txt",
+      "url_6": ""
+    },
+    {
       "name": "yoroimallvl1",
       "type": "enterprise",
+      "custom": false,
       "enabled": false,
       "confidence": 10,
       "description": "Yoroi malware - Level 1",
@@ -6130,6 +6161,7 @@ Response example:
     {
       "name": "doh",
       "type": "community",
+      "custom": false,
       "enabled": true,
       "confidence": -1,
       "description": "public DoH-Server",
@@ -6141,8 +6173,11 @@ Response example:
 }
 ```
 
+Custom blocklists are listed first, then the built-in feeds.
+
 Fields:
 - type can be `enterprise` or `community`
+- custom is `true` for custom blocklists (see [add-custom-blocklist](#add-custom-blocklist)), listed from UCI also before commit, with type `community`, confidence `-1` and the extra `url_4` and `url_6` fields
 - confidence can be `-1` if the value is not available
 - direction is the default blocking direction of the feed: `in` (inbound, WAN-input and WAN-forward),
   `out` (outbound, LAN-forward) or `inout` (both)
@@ -6160,8 +6195,10 @@ api-cli ns.threatshield list-settings
 
 Response example:
 ```json
-{"data": {"enabled": true}}
+{"data": {"ban_icmplimit": 100, "ban_icmplimit_default": 25, "ban_loginbound": true, "ban_loglimit": true, "ban_logoutbound": true, "ban_logprerouting": true, "ban_nftexpiry": "30m", "ban_synlimit": 10, "ban_synlimit_default": 10, "ban_udplimit": 100, "ban_udplimit_default": 100, "enabled": true, "jails": [{"enabled": true, "name": "ns-ssh"}, {"enabled": true, "name": "ns-webui"}, {"enabled": false, "name": "ns-openvpn"}, {"enabled": false, "name": "ns-proxy-auth"}, {"enabled": false, "name": "ns-proxy-scan"}]}}
 ```
+
+`jails` lists the fail2ban brute-force jails and whether each one is enabled.
 
 ### edit-settings
 
@@ -6171,9 +6208,9 @@ Configure banip settings:
 - `ban_logprerouting`: Log suspicious packets in the prerouting chain (true or false).
 - `ban_loginbound`: Log suspicious packets in inbound traffic (WAN-input chain) (true or false).
 - `ban_logoutbound`: Log suspicious packets in outbound traffic (LAN-forward chain) (true or false).
-- `ban_loglimit`: Enable or disable scanning of logfiles (true or false).
-- `ban_logcount`: Specify how many times an IP must appear in the log to be considered suspicious (integer).
-- `ban_logterm`: List of regex entries for logfile parsing (list of strings).
+- `ban_loglimit`: Enable or disable fail2ban brute-force detection (true or false).
+- `ban_logcount`: ignored, each fail2ban jail has its own threshold (optional).
+- `jails`: fail2ban jails to enable when `ban_loglimit` is true: `ns-ssh`, `ns-webui`, `ns-openvpn`, `ns-proxy-auth`, `ns-proxy-scan` (list of strings, optional: unchanged when omitted).
 - `ban_icmplimit`: Enable or disable icmp DoS detection (true or false).
 - `ban_synlimit`: Enable or disable syn DoS detection (true or false).
 - `ban_udplimit`: Enable or disable udp DoS detection (true or false).
@@ -6181,7 +6218,7 @@ Configure banip settings:
 
 
 ```bash
-api-cli ns.threatshield edit-settings --data '{"enabled": true, "ban_logprerouting": true, "ban_loginbound": true, "ban_logoutbound": true, "ban_loglimit": false, "ban_logcount": 5, "ban_logterm": ["regex1", "regex2"], "ban_icmplimit": true, "ban_synlimit": true, "ban_udplimit": true, "ban_nftexpiry": "1d"}'
+api-cli ns.threatshield edit-settings --data '{"enabled": true, "ban_logprerouting": true, "ban_loginbound": true, "ban_logoutbound": true, "ban_loglimit": true, "jails": ["ns-ssh", "ns-webui"], "ban_icmplimit": true, "ban_synlimit": true, "ban_udplimit": true, "ban_nftexpiry": "1d"}'
 ```
 
 Response example:
@@ -6191,10 +6228,143 @@ Response example:
 
 ### edit-blocklist
 
-Enable or disable a blocklist:
+Enable or disable a blocklist, custom blocklists included:
 ```
 api-cli ns.threatshield edit-blocklist --data '{ "blocklist": "blocklist_name", "enabled": True }'
 ```
+
+### list-allowlist-urls
+
+List the remote allowlist URLs downloaded by banip (`ban_allowurl`).
+The built-in `nethesis` row is always listed and read-only: `enabled` is true only on units with ns-plug credentials, its URL is never returned.
+```
+api-cli ns.threatshield list-allowlist-urls
+```
+
+Response example:
+```json
+{
+  "data": [
+    {"name": "nethesis", "builtin": true, "url": "", "description": "Nethesis global allowlist", "enabled": true},
+    {"name": "partners", "builtin": false, "url": "https://example.com/allow.txt", "description": "partner networks", "enabled": true}
+  ]
+}
+```
+
+### add-allowlist-url
+
+Add a remote allowlist URL, a plain list with one IP/CIDR per line:
+```
+api-cli ns.threatshield add-allowlist-url --data '{"name": "partners", "url": "https://example.com/allow.txt", "description": "partner networks", "enabled": true}'
+```
+
+The `name` follows the same rules of `add-custom-blocklist`: allowlist and custom blocklist names share the same namespace.
+The `url` must be `http` or `https`, max 512 chars, made only of `A-Za-z0-9._~:/?&=%+,@-` characters.
+Credentials inside the URL (`https://user:pass@host/...`) are stored in plain text.
+
+Response example:
+```json
+{"name": "partners"}
+```
+
+It can raise the following validation errors:
+- `invalid_name` if the name does not match `^[a-z][a-z0-9]{2,15}$`
+- `reserved_name` if the name starts with `yoroi` or `nethesis`, or is `allowlist` or `blocklist`
+- `name_already_present` if the name is already used by an allowlist or a blocklist
+- `invalid_url` if the URL is not valid
+- `url_already_present` if the URL is already in the list
+- `required` for a missing or empty `url` or a missing `enabled`, `invalid` for a non-string `url` or a wrong `enabled` or `description`
+
+### edit-allowlist-url
+
+Edit a remote allowlist URL, the name can't be changed. The edit replaces the entry: `name`, `url` and `enabled` are required, an omitted `description` is removed:
+```
+api-cli ns.threatshield edit-allowlist-url --data '{"name": "partners", "url": "https://example.com/allow.txt", "description": "partner networks", "enabled": false}'
+```
+
+Response example:
+```json
+{"message": "success"}
+```
+
+It can raise the same validation errors of `add-allowlist-url` except the `name` ones, plus:
+- `allowlist_url_not_found` if the `name` does not exist
+- `builtin_allowlist_url_not_editable` if the `name` is `nethesis`
+
+### delete-allowlist-url
+
+Delete a remote allowlist URL:
+```
+api-cli ns.threatshield delete-allowlist-url --data '{"name": "partners"}'
+```
+
+Response example:
+```json
+{"message": "success"}
+```
+
+It can raise the following validation errors:
+- `allowlist_url_not_found` if the `name` does not exist
+- `builtin_allowlist_url_not_deletable` if the `name` is `nethesis`
+
+### add-custom-blocklist
+
+Add a custom blocklist, a plain list with one IP/CIDR per line:
+```
+api-cli ns.threatshield add-custom-blocklist --data '{"name": "myfeed", "url_4": "https://example.com/v4.txt", "url_6": "", "chain": "in", "description": "my blocklist", "enabled": true}'
+```
+
+Fields:
+- `name`: `^[a-z][a-z0-9]{2,15}$`, must not start with `yoroi` or `nethesis`, must not be `allowlist`, `blocklist` or a built-in feed name, shared with allowlist names
+- `url_4`, `url_6`: IPv4 and IPv6 list URLs, at least one is required, same rules of `add-allowlist-url`
+- `chain`: `in` (inbound), `out` (outbound) or `inout` (both), default `in`
+- `description`: optional
+- `enabled`: optional boolean, default `true`; adds or removes the feed from `ban_feed` like `edit-blocklist`
+
+Response example:
+```json
+{"name": "myfeed"}
+```
+
+It can raise the following validation errors:
+- `invalid_name` if the name does not match `^[a-z][a-z0-9]{2,15}$`
+- `reserved_name` if the name starts with `yoroi` or `nethesis`, or is `allowlist` or `blocklist`
+- `name_already_present` if the name is already used
+- `url_required` if both URLs are empty
+- `invalid_url` if a URL is not valid
+- `invalid` for a non-string `url_4` or `url_6`, or a wrong `chain`, `description` or `enabled`
+
+### edit-custom-blocklist
+
+Edit a custom blocklist, the name can't be changed:
+```
+api-cli ns.threatshield edit-custom-blocklist --data '{"name": "myfeed", "url_4": "https://example.com/v4.txt", "url_6": "https://example.com/v6.txt", "chain": "inout", "description": "my blocklist", "enabled": false}'
+```
+
+The edit replaces the feed: an omitted `url_4`, `url_6` or `description` is removed and an omitted `chain` becomes `in`. If `enabled` is missing, the feed state is not changed.
+
+Response example:
+```json
+{"message": "success"}
+```
+
+It can raise the same validation errors of `add-custom-blocklist` except the `name` ones, plus:
+- `custom_blocklist_not_found` if the name does not exist
+
+### delete-custom-blocklist
+
+Delete a custom blocklist and remove it from `ban_feed`:
+```
+api-cli ns.threatshield delete-custom-blocklist --data '{"name": "myfeed"}'
+```
+
+Response example:
+```json
+{"message": "success"}
+```
+
+It can raise the following validation errors:
+- `custom_blocklist_not_found` if the name does not exist
 
 ### list-allowed
 
@@ -6220,6 +6390,8 @@ Response example:
 ```
 
 ### add-allowed
+
+Allow list changes also apply to fail2ban: IP and CIDR entries are never banned, and banned ones are freed.
 
 Add an address which is always allowed:
 ```
@@ -6330,6 +6502,70 @@ Response example:
 
 It can raise the following validation errors:
 - `address_not_found` if the address is not inside the block list
+
+### list-active-blocks
+
+List the IP addresses currently banned by fail2ban:
+```
+api-cli ns.threatshield list-active-blocks
+```
+
+Response example:
+```json
+[{"ip": "198.51.100.9", "timeout": 1800, "expires": 1741, "jails": ["ns-ssh", "ns-webui"]}]
+```
+
+`timeout` is the ban duration and `expires` the remaining time, in seconds (`-1` for a permanent ban); `jails` lists the jails banning the IP.
+The list is empty if fail2ban is not running.
+
+### list-recent-bans
+
+List the bans recorded by fail2ban, newest first:
+```
+api-cli ns.threatshield list-recent-bans
+```
+
+Response example:
+```json
+[{"ip": "198.51.100.9", "jail": "ns-ssh", "time": 1762412310, "timeout": 600, "active": true, "failures": 3, "matches": ["<log line>"]}]
+```
+
+`time` is the ban start (unix timestamp), `timeout` the ban duration in seconds (`-1` for a permanent ban), `active` tells if the ban is still in place, `failures` and `matches` are the failures and log lines that triggered the ban.
+Bans are kept until fail2ban purges them (`dbpurgeage`, default 1 day); they survive reboot only when the data storage is mounted.
+
+### list-blocklist-bans
+
+List the IP addresses banned by banIP lists, the most active first:
+```
+api-cli ns.threatshield list-blocklist-bans
+```
+
+Response example:
+```json
+{"data": [{"ip": "203.0.113.77", "list": "blocklist", "direction": "inbound", "time": 1762412400, "hits": 12, "matches": ["<log line>"]}]}
+```
+
+`list` is the banIP feed, `direction` is `inbound` (banned source) or `outbound` (banned destination), `time` is the last logged drop (unix timestamp), `hits` the logged drops and `matches` up to 5 latest log lines.
+Rows come from the banIP drops logged in VictoriaLogs in the last hour, at most 500 rows; `hits` is a lower bound because banIP rate-limits its log lines.
+
+### remove-active-block
+
+Unban an IP address from all fail2ban jails:
+```
+api-cli ns.threatshield remove-active-block --data '{"ip": "198.51.100.9"}'
+```
+
+Response example:
+```json
+{"message": "success"}
+```
+
+It can raise the following validation errors:
+- `required` if `ip` is missing
+- `invalid` if `ip` is not a valid IP address or it is not currently banned
+
+It can raise the following errors:
+- `remove_active_block_failed` if fail2ban fails to unban the IP
 
 ### dns-list-blocklist
 
@@ -7141,6 +7377,31 @@ Output example:
 }
 ```
 
+### list-devices
+
+List the devices associated to firewall zones, usable to limit a NAT rule to a specific device:
+```
+api-cli ns.nat list-devices
+```
+
+The `id` is the device name, the `label` also contains the logical interfaces bound to the device, if any.
+Alias interfaces are resolved to the device of their parent interface, PPPoE and bonding interfaces
+to the device they create (`pppoe-<interface>` and `bond-<interface>`).
+Aliases of aliases are not supported and are not listed.
+
+Output example:
+```json
+{
+  "devices": [
+    {"id": "br-lan", "label": "br-lan (lan)"},
+    {"id": "eth1", "label": "eth1 (f1000, al_f1000)"},
+    {"id": "pppoe-wan", "label": "pppoe-wan (wan, wan6)"},
+    {"id": "tunrw1", "label": "tunrw1"},
+    {"id": "wg1", "label": "wg1"}
+  ]
+}
+```
+
 ### add-rule
 
 Add a new NAT rule:
@@ -7424,11 +7685,10 @@ api-cli ns.controller dump-mwan-events
 }
 ```
 
-### dumpt-ts-attacks
+### dump-ts-attacks
 
 Dump ThreatShield attacks to the controller as a time series.
-An attack is an IP blocked due to a temporary ban (fail2ban behavior).
-The function reads all data from last 20 minutes. If the firewall has been rebooted, try to read the whole log.
+An attack is a new fail2ban ban, read from the fail2ban `Ban` log lines of the last 20 minutes stored in Victoria Logs; `jail` is the fail2ban jail.
 Returned JSON output can be sent to the controller.
 
 Output example:
@@ -7437,11 +7697,13 @@ Output example:
   "data": [
     {
       "timestamp": 1724230611,
-      "ip": "79.10.245.41"
+      "ip": "79.10.245.41",
+      "jail": "ns-ssh"
     },
     {
       "timestamp": 1724230781,
-      "ip": "79.10.245.41"
+      "ip": "79.10.245.41",
+      "jail": "ns-webui"
     }
   ]
 }
@@ -7450,8 +7712,7 @@ Output example:
 ### dump-ts-malware
 
 Dump ThreatShield malware to the controller as a time series.
-A malware is an IP blocked due to a blocklist.
-The function reads all data from last 20 minutes. If the firewall has been rebooted, try to read the whole log.
+A malware is an IP blocked due to a blocklist, read from the banIP block log lines of the last 20 minutes stored in Victoria Logs; `category` is the blocklist feed.
 
 Output example:
 ```json
@@ -8044,10 +8305,11 @@ Output example:
 
 ### tsip-attack-report
 
-Report the number of blocked IPs by Threat Shield IP using the regexp over the log (like fail2ban).
-Data are searched from the last 24 hours, inside `/var/log/messages` and `/var/log/messages.1.gz` so data can be incomplete
-if the logs do not contain the full 24 hours.
+Report the IPs banned by fail2ban (Threat Shield IP), counting the fail2ban `Ban` log lines stored in Victoria Logs:
+one line per new ban (`Restore Ban` after a restart is not counted).
+Data cover the current day, from local midnight to now; `attack_by_hour` uses the local hour.
 Result is cached for 15 minutes.
+If Victoria Logs cannot be queried, it returns `{"error": "metrics_query_failed"}` and the error is not cached.
 Usage example:
 ```
 api-cli ns.report tsip-attack-report
@@ -9050,8 +9312,8 @@ Response example:
 }
 ```
 
-`lock_status` is `enabled` only when `keepalived.globals.ns_lock_timeout` is set; otherwise it is `disabled`.
-`lock_timeout` shows the configured timeout in seconds.
+`lock_status` is `disabled` only when `keepalived.globals.ns_lock_timeout` is set to `0`; otherwise it is `enabled`.
+`lock_timeout` shows the timeout in seconds, `120` when the option is unset.
 
 Error response example:
 ```json
