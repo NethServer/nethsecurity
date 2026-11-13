@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"io"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -38,6 +39,22 @@ type login struct {
 
 var jwtMiddleware *jwt.GinJWTMiddleware
 var identityKey = "id"
+
+// maskSensitiveFields replaces with XXX the string value of every field named exactly as one of the fields.
+// It covers both "<field>":"<value>" and the "<field>","<value>" pairs of the ns.commit changes.
+func maskSensitiveFields(body string, fields []string) string {
+	// ns.wireguard import-configuration sends the whole configuration, private key included
+	if strings.Contains(body, `"path":"ns.wireguard"`) {
+		fields = append(slices.Clone(fields), "config")
+	}
+
+	for _, field := range fields {
+		r := regexp.MustCompile(`([{\[,]"` + regexp.QuoteMeta(field) + `"[:,])"(?:[^"\\]|\\.)*"`)
+		body = r.ReplaceAllString(body, `${1}"XXX"`)
+	}
+
+	return body
+}
 
 const onBehalfOfKey = "on_behalf_of"
 const onBehalfOfMaxLen = 64
@@ -219,19 +236,8 @@ func InitJWT() *jwt.GinJWTMiddleware {
 				// remove all spaces
 				jsonB = strings.ReplaceAll(jsonB, " ", "")
 
-				// create regex for sensitive words
-				for _, s := range configuration.Config.SensitiveList {
-					// create regex
-					r1 := regexp.MustCompile(`"` + s + `":"(.*?)"`) // match "token|password|secret":"<sensitive>"
-					r2 := regexp.MustCompile(`"` + s + `","(.*?)"`) // match "token|password|secret","<sensitive>"
-
-					// apply regex
-					jsonB = r1.ReplaceAllString(jsonB, `"`+s+`":"XXX"`)
-					jsonB = r2.ReplaceAllString(jsonB, `"`+s+`":"XXX"`)
-				}
-
 				// compose req body
-				reqBody = jsonB
+				reqBody = maskSensitiveFields(jsonB, configuration.Config.SensitiveList)
 			}
 
 			logs.Info("[AUTH] authorization success for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims) + ". " + reqMethod + " " + reqURI + " " + utils.SanitizeForLog(reqBody))
