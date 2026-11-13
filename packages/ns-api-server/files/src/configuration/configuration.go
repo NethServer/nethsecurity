@@ -81,7 +81,11 @@ func Init() {
 	if os.Getenv("SENSITIVE_LIST") != "" {
 		Config.SensitiveList = strings.Split(os.Getenv("SENSITIVE_LIST"), ",")
 	} else {
-		Config.SensitiveList = []string{"password", "secret", "token"}
+		Config.SensitiveList = []string{
+			"password", "old_password", "ssh_password", "bind_password", "pppoe_password", "passphrase",
+			"secret", "token", "oinkcode",
+			"peer_private_key", "pre_shared_key", "private_key", "preshared_key", "Psk", "Crt",
+		}
 	}
 
 	if os.Getenv("DOWNLOAD_FILE_PATH") != "" {
