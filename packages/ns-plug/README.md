@@ -89,6 +89,21 @@ To deregister the machine, execute:
 unregister
 ```
 
+### Subscription status
+
+`subscription-info` prints the subscription status, cached in `/etc/ns-plug/subscription.json`.
+The cache isn't kept across image upgrades.
+
+The remote server is checked:
+- at boot, by the `subscription-info` service, retrying for about 40 minutes until it answers
+- every 4 hours by cron, with `subscription-info --refresh`
+- on register and unregister, by the `50subscription-info` hooks
+- when reading the status and the cache is missing, for another system, not valid, or valid but not
+  confirmed for more than a day; at most once every 30 seconds, with a 5 seconds timeout
+
+Only an answer from the remote server changes the cache: a timeout or a server error keeps the last known status.
+A valid status that can't be confirmed for more than a day is reported as unknown.
+
 ### Hooks
 
 The registration can be customized by adding scripts inside the `/usr/share/ns-plug/hooks/<command>` directory:
