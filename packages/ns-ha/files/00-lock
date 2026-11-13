@@ -8,33 +8,66 @@
 # concurrent hotplug chains from racing when keepalived transitions happen in
 # quick succession.
 #
-# The lock is released by 999-unlock at the end of the hotplug chain.
-# Because hotplug-call sources each script in a subshell, a flag file is used
-# to communicate whether the lock was actually acquired to 999-unlock.
+# Each event also gets a sequence number before waiting for the lock: scripts
+# call ns_ha_chain_is_stale and skip their work once a newer event has started,
+# so only the most recent event is applied regardless of lock acquisition order.
 #
-# On timeout (60 s) the event proceeds with a warning rather than being dropped,
+# The lock is released by 999-unlock at the end of the hotplug chain.
+# Because hotplug-call sources each script in a subshell, a flag file holding
+# the hotplug-call PID tells 999-unlock which chain acquired the lock. When that
+# chain dies before 999-unlock (e.g. keepalived stopped), the next waiter takes
+# the lock over instead of waiting for the timeout.
+#
+# On timeout the event proceeds with a warning rather than being dropped,
 # to avoid leaving the system in an inconsistent state.
+
+# $$ is the PID of hotplug-call, shared by every script of this chain: drop a leftover of a dead chain with the same PID
+rm -f "/var/run/ns-ha/chain.$$"
 
 case "$ACTION" in
 	NOTIFY_MASTER|NOTIFY_BACKUP|NOTIFY_FAULT|NOTIFY_STOP) ;;
 	*) return 0 2>/dev/null || exit 0 ;;
 esac
 
+mkdir -p /var/run/ns-ha
+lock /var/lock/ns-ha-seq
+seq=$(( $(cat /var/run/ns-ha/last_event 2>/dev/null || echo 0) + 1 ))
+echo "$seq" > /var/run/ns-ha/last_event
+lock -u /var/lock/ns-ha-seq
+echo "$seq" > "/var/run/ns-ha/chain.$$"
+
+# Chain files of hotplug-call processes that died before 999-unlock, e.g. killed by a keepalived stop
+for chain in /var/run/ns-ha/chain.*; do
+	[ -d "/proc/${chain##*.}" ] || rm -f "$chain"
+done
+
 LOCKFILE="/var/lock/keepalived-hotplug.lock"
 ACQUIRED_FLAG="/var/lock/keepalived-hotplug-acquired"
 TIMEOUT=$(uci -q get keepalived.globals.ns_lock_timeout)
+TIMEOUT=${TIMEOUT:-120}
 elapsed=0
 
-if [ -z "$TIMEOUT" ] || [ "$TIMEOUT" -le 0 ]; then
+if [ "$TIMEOUT" -le 0 ]; then
 	# Locking disabled by configuration
 	return 0 2>/dev/null || exit 0
 fi
 
 while [ "$elapsed" -lt "$TIMEOUT" ]; do
 	if lock -n "$LOCKFILE" > /dev/null 2>&1; then
-		touch "$ACQUIRED_FLAG"
+		echo "$$" > "$ACQUIRED_FLAG"
 		return 0 2>/dev/null || exit 0
 	fi
+	# Take over the lock when its holder chain died before 999-unlock, serialized so only one waiter releases it
+	lock /var/lock/ns-ha-seq
+	holder=$(cat "$ACQUIRED_FLAG" 2>/dev/null)
+	if [ -n "$holder" ] && [ ! -d "/proc/$holder" ]; then
+		logger -t ns-ha "WARNING: previous event holder $holder is gone, releasing its lock"
+		rm -f "$ACQUIRED_FLAG"
+		lock -u "$LOCKFILE"
+		lock -u /var/lock/ns-ha-seq
+		continue
+	fi
+	lock -u /var/lock/ns-ha-seq
 	sleep 1
 	elapsed=$((elapsed + 1))
 done
