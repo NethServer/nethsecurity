@@ -65,7 +65,7 @@ def __parse_connection_info(flow: Element) -> dict:
     return result
 
 
-def list_connections(labels: list = None):
+def list_connections(labels: list = None, extra_args: list = None):
     """
     List all network connections.
 
@@ -73,6 +73,7 @@ def list_connections(labels: list = None):
      - labels: optional list of label strings to filter by. Only connections that have
                ALL the specified labels are returned. If ``None`` or empty, all
                connections are returned.
+     - extra_args: optional list of extra conntrack arguments, e.g. ``["--orig-src", "10.0.0.1"]``.
 
     Returns:
         list of connections.
@@ -80,7 +81,11 @@ def list_connections(labels: list = None):
     cmd = ["conntrack", "-L", "-o", "labels,xml"]
     if labels:
         cmd.extend(["-l", ",".join(labels)])
+    if extra_args:
+        cmd.extend(extra_args)
     result = subprocess.run(cmd, capture_output=True, text=True)
+    if not result.stdout.strip():
+        return []
     root = ElementTree.fromstring(result.stdout)
     connections = []
     for flow in root.findall('flow'):

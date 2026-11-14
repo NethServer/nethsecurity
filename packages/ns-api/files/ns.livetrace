@@ -1,0 +1,287 @@
+#!/usr/bin/python3
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import fcntl
+import ipaddress
+import json
+import os
+import signal
+import subprocess
+import sys
+import time
+from collections import defaultdict
+
+import requests
+from nethsec import conntrack
+from nethsec.utils import validation_error
+
+STATE = "/var/run/ns-livetrace.json"
+PID = "/var/run/ns-livetrace.pid"
+LOCK = "/var/run/ns-livetrace.lock"
+FLOW_FIELDS = ("protocol", "source", "source_port", "destination", "destination_port")
+ALLOWED_FIELDS = (
+    "protocol",
+    "source",
+    "destination",
+    "destination_port",
+    "in_interface",
+    "out_interface",
+    "rule",
+)
+
+
+def running_pid():
+    try:
+        with open(PID) as f:
+            pid = int(f.read())
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            return pid if b"ns-livetrace" in f.read() else None
+    except (OSError, ValueError):
+        return None
+
+
+def delete_table():
+    subprocess.run(
+        ["nft", "delete", "table", "inet", "ns_livetrace"], capture_output=True
+    )
+
+
+def stop():
+    pid = running_pid()
+    if pid is not None:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+    # a SIGKILLed collector leaves its table behind
+    for _ in range(50):
+        if running_pid() is None:
+            delete_table()
+            return
+        time.sleep(0.1)
+
+
+def start(data):
+    ip = data.get("ip", "")
+    duration = data.get("duration", 120)
+    try:
+        addr = ipaddress.ip_address(ip)
+        # nft cannot trace these addresses
+        if (
+            not isinstance(ip, str)
+            or "%" in str(addr)
+            or getattr(addr, "ipv4_mapped", None)
+            or addr.is_multicast
+            or addr.is_loopback
+            or addr.is_unspecified
+        ):
+            raise ValueError
+    except ValueError:
+        return validation_error("ip", "invalid_ip_address", ip)
+    ip = str(addr)
+    # bool is an int subclass
+    if type(duration) is not int or not 10 <= duration <= 600:
+        return validation_error("duration", "invalid_duration", duration)
+    port = data.get("port") or 0
+    protocol = data.get("protocol") or ""
+    if type(port) is not int or not 0 <= port <= 65535:
+        return validation_error("port", "invalid_port", port)
+    if protocol not in ("", "tcp", "udp"):
+        return validation_error("protocol", "invalid_protocol", protocol)
+    # serialize concurrent starts; the fd is not inherited by the collector
+    with open(LOCK, "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        stop()
+        if running_pid() is not None:
+            return {"error": "session_busy"}
+        # a collector dying before its first write must not show the old session
+        if os.path.exists(STATE):
+            os.remove(STATE)
+        proc = subprocess.Popen(
+            ["/usr/libexec/ns-livetrace", ip, str(duration), str(port), protocol],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        # wait for the collector so the next status reports running
+        for _ in range(50):
+            if running_pid() is not None or proc.poll() is not None:
+                break
+            time.sleep(0.1)
+        if running_pid() is None:
+            # kill the late collector and its helpers so no orphan session survives
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            proc.wait()
+            delete_table()
+            return {"error": "collector_not_started"}
+    return {"message": "success"}
+
+
+def dpi_flows():
+    # ns-flows daemon is optional
+    try:
+        resp = requests.get("http://127.0.0.1:8080/flows", timeout=2)
+        flows = {}
+        for item in resp.json().get("flows", []):
+            flow = item.get("flow") or {}
+            ct_id = (flow.get("conntrack") or {}).get("id")
+            if ct_id is None:
+                continue
+            application = flow.get("detected_application_name") or ""
+            flows[str(ct_id)] = {
+                "application": application.removeprefix("netify."),
+                "dpi_protocol": flow.get("detected_protocol_name") or "",
+                "host": flow.get("host_server_name") or "",
+            }
+        return flows
+    except Exception:
+        return {}
+
+
+def route_devs(addresses):
+    devs = dict.fromkeys(addresses, "")
+    names = {}
+    for a in addresses:
+        try:
+            names[str(ipaddress.ip_address(a))] = a
+        except ValueError:
+            pass
+    if not names:
+        return devs
+    # one ip process for all addresses, results matched by normalized dst
+    try:
+        p = subprocess.run(
+            ["ip", "-j", "-force", "-batch", "-"],
+            input="".join(f"route get {a}\n" for a in names),
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return devs
+    for line in p.stdout.splitlines():
+        try:
+            route = json.loads(line)[0]
+            name = names[str(ipaddress.ip_address(route["dst"]))]
+        except (ValueError, IndexError, KeyError, TypeError):
+            continue
+        if route.get("type") != "local":
+            devs[name] = route.get("dev", "")
+    return devs
+
+
+def status():
+    try:
+        with open(STATE) as f:
+            state = json.load(f)
+    except (OSError, ValueError):
+        state = {
+            "ip": "",
+            "duration": 0,
+            "start": 0,
+            "blocked": [],
+            "dns": [],
+            "flows": {},
+            "failure": "",
+        }
+    running = running_pid() is not None
+    connections = []
+    if running:
+        seen = set()
+        untraced = []
+        dpi = dpi_flows()
+        ip = state["ip"]
+        port = state.get("port", 0)
+        # conntrack needs a protocol to filter by port
+        protocols = [state.get("protocol", "")]
+        if port and not protocols[0]:
+            protocols = ["tcp", "udp"]
+        queries = []
+        for p in protocols:
+            proto = ["-p", p] if p else []
+            dport = ["--dport", str(port)] if port else []
+            sport = ["--reply-port-src", str(port)] if port else []
+            queries += [
+                ["--orig-src", ip, *proto, *dport],
+                ["--reply-src", ip, *proto, *sport],
+            ]
+        for args in queries:
+            for c in conntrack.list_connections(extra_args=args):
+                if c["id"] in seen:
+                    continue
+                seen.add(c["id"])
+                key = "|".join(c.get(k, "") for k in FLOW_FIELDS)
+                conn = {**c, **state["flows"].get(key, {}), **dpi.get(c["id"], {})}
+                # not traced, derive interfaces from the routing table
+                if "in_interface" not in conn:
+                    untraced.append(conn)
+                connections.append(conn)
+        devs = route_devs(
+            {a for c in untraced for a in (c["source"], c["destination"])}
+        )
+        for conn in untraced:
+            conn["in_interface"] = devs[conn["source"]]
+            conn["out_interface"] = devs[conn["destination"]]
+    allowed = defaultdict(list)
+    if not running:
+        # traced allowed flows of the last session, source ports merged
+        for key, flow in state.get("flows", {}).items():
+            protocol, source, sport, destination, port = key.split("|")
+            extra = (flow.get(k, "") for k in ALLOWED_FIELDS[4:])
+            allowed[(protocol, source, destination, port, *extra)].append(sport)
+    return {
+        "running": running,
+        "ip": state["ip"],
+        "duration": state["duration"],
+        "port": state.get("port", 0),
+        "protocol": state.get("protocol", ""),
+        "remaining": max(0, int(state["start"] + state["duration"] - time.time()))
+        if running
+        else 0,
+        "blocked": state["blocked"],
+        "dns": state["dns"],
+        "connections": connections,
+        "allowed": [
+            {**dict(zip(ALLOWED_FIELDS, k)), "count": len(p), "source_ports": p}
+            for k, p in sorted(allowed.items(), key=lambda i: len(i[1]), reverse=True)
+        ],
+        "failure": state.get("failure", ""),
+        "truncated": state.get("truncated", False),
+    }
+
+
+if __name__ == "__main__":
+    cmd = sys.argv[1]
+    if cmd == "list":
+        print(
+            json.dumps(
+                {
+                    "start": {
+                        "ip": "10.10.10.50",
+                        "duration": 120,
+                        "port": 443,
+                        "protocol": "tcp",
+                    },
+                    "stop": {},
+                    "status": {},
+                }
+            )
+        )
+    elif cmd == "call":
+        action = sys.argv[2]
+        if action == "start":
+            print(json.dumps(start(json.load(sys.stdin))))
+        elif action == "stop":
+            # a starting collector has its table but no PID file yet
+            with open(LOCK, "w") as lock:
+                fcntl.flock(lock, fcntl.LOCK_EX)
+                stop()
+            print(json.dumps({"message": "success"}))
+        elif action == "status":
+            print(json.dumps(status()))
