@@ -1844,6 +1844,8 @@ The APIs can raise the following validation errors:
 - reserved_ip_must_be_in_server_network
 - reserverd_ip_already_used
 - reserved_ip_must_be_in_server_network
+- reserved_ip_is_used: the reserved IP can't be removed while the user is used as an object, e.g. by a
+  DPI rule, a firewall rule or a host set; the error value lists where it is used
 
 ### disconnect-user
 
@@ -3803,8 +3805,7 @@ Rules with `ns_visible '0'` are left out.
 - `match_all`: the rule matches every flow instead of naming application groups
 - `source_objects`: objects the source references, with their `name`, `type` and `subtype` (the same
   values `ns.objects list-hosts` reports). An object gone from the configuration is reported with its id
-  as name and `null` type. `empty` is true when the object has no address, e.g. a VPN user whose
-  reserved IP was removed: the rule matches no host for that object
+  as name and `null` type
 - `index`: position of the rule in the list
 
 Example response:
@@ -3823,8 +3824,7 @@ Example response:
                "id": "objects/ns_16faa17f",
                "name": "office",
                "type": "host_set",
-               "subtype": "host_set",
-               "empty": false
+               "subtype": "host_set"
             }
          ],
          "appgroups": [
@@ -8044,6 +8044,11 @@ Example response:
 ## ns.objects
 
 Manage domain sets and host sets.
+
+Every object resolving to addresses (host sets, DHCP static leases, DNS records, VPN users with a reserved
+IP) has a netifyd address group, `/etc/netifyd/address-groups.d/30-<database>_<id>.conf`, used by the DPI
+rules. The `update-address-groups.py` post-commit hook writes them when `objects`, `dhcp` or `users` are
+committed, see the `ns-dpi` package.
 
 ### list-domain-sets
 

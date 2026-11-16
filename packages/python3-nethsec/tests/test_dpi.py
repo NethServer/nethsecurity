@@ -1353,20 +1353,14 @@ config user 'ns_novpn'
 
 
 @pytest.fixture
-def e_uci_sources(e_uci_rules, tmp_path, monkeypatch):
-    """Rules on top of a configuration holding every kind of object, address groups in a temp dir."""
+def e_uci_sources(e_uci_rules):
+    """Rules on top of a configuration holding every kind of object."""
     conf_dir = pathlib.Path(e_uci_rules.confdir())
     conf_dir.joinpath('objects').write_text(objects_config)
     conf_dir.joinpath('dhcp').write_text(dhcp_config)
     conf_dir.joinpath('users').write_text(users_config)
     conf_dir.joinpath('mwan3').write_text('')
-    groups_dir = tmp_path.joinpath('address-groups.d')
-    monkeypatch.setattr(dpi, 'ADDRESS_GROUPS_DIR', groups_dir.as_posix())
     return e_uci_rules
-
-
-def groups_dir():
-    return pathlib.Path(dpi.ADDRESS_GROUPS_DIR)
 
 
 def test_add_rule_with_source_objects(e_uci_sources):
@@ -1431,13 +1425,13 @@ def test_list_rules_reports_source_objects(e_uci_sources):
     rule = dpi.list_rules(e_uci_sources)[0]
     assert rule['source'] == []
     assert rule['source_objects'] == [
-        {'id': 'objects/ns_host', 'name': 'host1', 'type': 'host_set', 'subtype': 'host', 'empty': False},
-        {'id': 'objects/ns_cidr', 'name': 'cidr1', 'type': 'host_set', 'subtype': 'host_set', 'empty': False},
-        {'id': 'objects/ns_range', 'name': 'range1', 'type': 'host_set', 'subtype': 'host_set', 'empty': False},
-        {'id': 'objects/ns_nested', 'name': 'nested1', 'type': 'host_set', 'subtype': 'host_set', 'empty': False},
-        {'id': 'dhcp/ns_lease', 'name': 'lease1', 'type': 'dhcp_static_lease', 'subtype': 'dhcp_static_lease', 'empty': False},
-        {'id': 'dhcp/ns_record', 'name': 'record.lan', 'type': 'dns_record', 'subtype': 'dns_record', 'empty': False},
-        {'id': 'users/ns_vpn', 'name': 'vpnuser', 'type': 'vpn_user', 'subtype': 'vpn_user', 'empty': False},
+        {'id': 'objects/ns_host', 'name': 'host1', 'type': 'host_set', 'subtype': 'host'},
+        {'id': 'objects/ns_cidr', 'name': 'cidr1', 'type': 'host_set', 'subtype': 'host_set'},
+        {'id': 'objects/ns_range', 'name': 'range1', 'type': 'host_set', 'subtype': 'host_set'},
+        {'id': 'objects/ns_nested', 'name': 'nested1', 'type': 'host_set', 'subtype': 'host_set'},
+        {'id': 'dhcp/ns_lease', 'name': 'lease1', 'type': 'dhcp_static_lease', 'subtype': 'dhcp_static_lease'},
+        {'id': 'dhcp/ns_record', 'name': 'record.lan', 'type': 'dns_record', 'subtype': 'dns_record'},
+        {'id': 'users/ns_vpn', 'name': 'vpnuser', 'type': 'vpn_user', 'subtype': 'vpn_user'},
     ]
 
 
@@ -1446,60 +1440,13 @@ def test_list_rules_reports_a_source_object_gone_from_the_configuration(e_uci_so
     rule_id = dpi.add_rule(e_uci_sources, 'Rule', True, 'block', [], [group], source_objects=['objects/ns_host'])
     e_uci_sources.set('dpi', rule_id, 'source_object', ['objects/ns_gone'])
     assert dpi.list_rules(e_uci_sources)[0]['source_objects'] == [
-        {'id': 'objects/ns_gone', 'name': 'objects/ns_gone', 'type': None, 'subtype': None, 'empty': True}]
-
-
-def test_list_rules_reports_source_objects_with_an_empty_group(e_uci_sources):
-    group = group_of(e_uci_sources)
-    dpi.add_rule(e_uci_sources, 'Rule', True, 'block', [], [group],
-                 source_objects=['objects/ns_host', 'objects/ns_with_domain', 'users/ns_vpn'])
-    # a host set holding only a domain set has no address
-    assert [(item['id'], item['empty']) for item in dpi.list_rules(e_uci_sources)[0]['source_objects']] == [
-        ('objects/ns_host', False), ('objects/ns_with_domain', True), ('users/ns_vpn', False)]
-    # the VPN user loses its reserved IP: the rule stays, its group is empty
-    e_uci_sources.delete('users', 'ns_vpn', 'openvpn_ipaddr')
-    assert dpi.list_rules(e_uci_sources)[0]['source_objects'][2] == {
-        'id': 'users/ns_vpn', 'name': 'vpnuser', 'type': 'vpn_user', 'subtype': 'vpn_user', 'empty': True}
+        {'id': 'objects/ns_gone', 'name': 'objects/ns_gone', 'type': None, 'subtype': None}]
 
 
 def test_list_rules_without_source_objects(e_uci_sources):
     group = group_of(e_uci_sources)
     dpi.add_rule(e_uci_sources, 'Rule', True, 'block', [], [group])
     assert dpi.list_rules(e_uci_sources)[0]['source_objects'] == []
-
-
-@pytest.mark.parametrize('object_id, entries', [
-    ('objects/ns_host', ['192.168.1.10/32']),
-    ('objects/ns_cidr', ['192.168.1.0/24']),
-    # an address group ignores ranges: they become CIDR blocks
-    ('objects/ns_range', ['192.168.1.10/31', '192.168.1.12/31']),
-    ('objects/ns_v6range', ['fd00::1/128', 'fd00::2/127', 'fd00::4/128', 'fd00::50/128']),
-    # the object API accepts a reversed range: it is skipped, the rest of the object is kept
-    ('objects/ns_reversed', ['192.168.1.30/32']),
-    # references are resolved, duplicates dropped
-    ('objects/ns_nested', ['192.168.1.10/32', '192.168.1.50/32', '10.0.0.1/32']),
-    # an IPv4-mapped address never matches the IPv4 flow it maps
-    ('objects/ns_mapped', ['192.168.1.10/32', '192.168.2.0/24']),
-    # a zero length prefix matches nothing in a group: its two halves match everything
-    ('objects/ns_all', ['0.0.0.0/1', '128.0.0.0/1']),
-    ('objects/ns_all6', ['::/1', '8000::/1']),
-    ('objects/ns_zone', ['fe80::1/128', 'fe80::10/127']),
-    ('dhcp/ns_lease', ['192.168.1.50/32']),
-    ('dhcp/ns_record', ['192.168.1.60/32']),
-    ('users/ns_vpn', ['10.9.0.2/32']),
-    # objects with no address: an empty group, matching nothing
-    ('users/ns_novpn', []),
-    ('objects/ns_with_domain', []),
-    ('objects/ns_domain', []),
-    ('objects/ns_missing', []),
-])
-def test_write_address_groups_entries(e_uci_sources, object_id, entries):
-    # set directly: add_rule refuses some of these objects
-    e_uci_sources.set('dpi', 'ns_entries', 'rule')
-    e_uci_sources.set('dpi', 'ns_entries', 'source_object', [object_id])
-    dpi.write_address_groups(e_uci_sources)
-    content = groups_dir().joinpath(f"30-{object_id.replace('/', '_')}.conf").read_text()
-    assert [line for line in content.splitlines() if not line.startswith('#')] == entries
 
 
 def test_build_rule_criteria_with_source_objects(e_uci_sources):
@@ -1537,67 +1484,6 @@ def test_build_rule_criteria_keeps_a_source_object_without_addresses(e_uci_sourc
     )
 
 
-def test_write_address_groups(e_uci_sources):
-    group = group_of(e_uci_sources)
-    dpi.add_rule(e_uci_sources, 'One', True, 'block', [], [group], source_objects=['objects/ns_range', 'objects/ns_with_domain'])
-    dpi.add_rule(e_uci_sources, 'Two', False, 'block', [], [group], source_objects=['objects/ns_range', 'dhcp/ns_lease'])
-    tags = dpi.write_address_groups(e_uci_sources)
-    assert sorted(tags) == ['dhcp_ns_lease', 'objects_ns_range', 'objects_ns_with_domain']
-    assert sorted(path.name for path in groups_dir().iterdir()) == [
-        '30-dhcp_ns_lease.conf', '30-objects_ns_range.conf', '30-objects_ns_with_domain.conf']
-    assert groups_dir().joinpath('30-objects_ns_range.conf').read_text() == (
-        '# range1\n# objects/ns_range, generated by dpi-config: do not edit\n192.168.1.10/31\n192.168.1.12/31\n')
-    # an object without addresses still gets its file: the criteria references it
-    assert groups_dir().joinpath('30-objects_ns_with_domain.conf').read_text() == (
-        '# withdomain1\n# objects/ns_with_domain, generated by dpi-config: do not edit\n')
-    assert groups_dir().joinpath('30-dhcp_ns_lease.conf').read_text().startswith(
-        '# lease1\n# dhcp/ns_lease, generated by dpi-config: do not edit\n')
-
-
-def test_write_address_groups_removes_only_its_own_stale_files(e_uci_sources):
-    group = group_of(e_uci_sources)
-    groups_dir().mkdir()
-    generated = '# objects/ns_old, generated by dpi-config: do not edit\n10.0.0.1/32\n'
-    # other prefixes or extensions: kept
-    for name in ('10-agent.conf', '20-other.conf', '30-objects_ns_old.txt'):
-        groups_dir().joinpath(name).write_text(generated)
-    # stale with the prefix: removed, with or without the header, as the agent saves its groups without it
-    groups_dir().joinpath('30-objects_ns_old.conf').write_text('# old1\n' + generated)
-    groups_dir().joinpath('30-objects_ns_saved.conf').write_text('10.0.0.1\n')
-    groups_dir().joinpath('30-dpi_objects_ns_old.conf').write_text('')
-    # referenced, as saved by the agent: rewritten with the header
-    groups_dir().joinpath('30-objects_ns_host.conf').write_text('192.168.1.10\n')
-    dpi.add_rule(e_uci_sources, 'One', True, 'block', [], [group], source_objects=['objects/ns_host'])
-    dpi.write_address_groups(e_uci_sources)
-    assert sorted(path.name for path in groups_dir().iterdir()) == [
-        '10-agent.conf', '20-other.conf', '30-objects_ns_host.conf', '30-objects_ns_old.txt']
-    assert groups_dir().joinpath('30-objects_ns_host.conf').read_text().splitlines()[1] == (
-        '# objects/ns_host, generated by dpi-config: do not edit')
-
-
-def test_write_address_groups_follows_the_object(e_uci_sources):
-    group = group_of(e_uci_sources)
-    rule_id = dpi.add_rule(e_uci_sources, 'One', True, 'block', [], [group], source_objects=['objects/ns_host'])
-    dpi.write_address_groups(e_uci_sources)
-    path = groups_dir().joinpath('30-objects_ns_host.conf')
-    inode = path.stat().st_ino
-    # unchanged: the file is left alone
-    dpi.write_address_groups(e_uci_sources)
-    assert path.stat().st_ino == inode
-    # the object changes: the file follows
-    e_uci_sources.set('objects', 'ns_host', 'ipaddr', ['192.168.1.11'])
-    dpi.write_address_groups(e_uci_sources)
-    assert path.read_text().splitlines()[2:] == ['192.168.1.11/32']
-    # the object is renamed: the file follows
-    e_uci_sources.set('objects', 'ns_host', 'name', 'renamed')
-    dpi.write_address_groups(e_uci_sources)
-    assert path.read_text().splitlines()[0] == '# renamed'
-    # no rule references it anymore: the file goes
-    dpi.edit_rule(e_uci_sources, rule_id, 'One', True, 'block', [], [group])
-    assert dpi.write_address_groups(e_uci_sources) == []
-    assert not path.exists()
-
-
 def test_source_object_is_used(e_uci_sources):
     group = group_of(e_uci_sources)
     assert objects.is_used_object(e_uci_sources, 'objects/ns_cidr') == (False, [])
@@ -1609,26 +1495,3 @@ def test_source_object_is_used(e_uci_sources):
     assert objects.is_used_object(e_uci_sources, 'dhcp/ns_record') == (False, [])
     # the usage is shown with the rule name
     assert objects.get_info(e_uci_sources, f'dpi/{rule_id}')['name'] == 'One'
-
-
-def test_write_address_groups_header_without_name(e_uci_sources):
-    group = group_of(e_uci_sources)
-    dpi.add_rule(e_uci_sources, 'One', True, 'block', [], [group], source_objects=['objects/ns_host'])
-    # the object loses its name, or is gone altogether: the header holds only the id
-    e_uci_sources.delete('objects', 'ns_host', 'name')
-    dpi.write_address_groups(e_uci_sources)
-    assert groups_dir().joinpath('30-objects_ns_host.conf').read_text().splitlines()[0] == (
-        '# objects/ns_host, generated by dpi-config: do not edit')
-    e_uci_sources.delete('objects', 'ns_host')
-    dpi.write_address_groups(e_uci_sources)
-    assert groups_dir().joinpath('30-objects_ns_host.conf').read_text() == (
-        '# objects/ns_host, generated by dpi-config: do not edit\n')
-
-
-def test_write_address_groups_header_name_on_one_line(e_uci_sources):
-    group = group_of(e_uci_sources)
-    dpi.add_rule(e_uci_sources, 'One', True, 'block', [], [group], source_objects=['objects/ns_host'])
-    e_uci_sources.set('objects', 'ns_host', 'name', 'two\nlines')
-    dpi.write_address_groups(e_uci_sources)
-    assert groups_dir().joinpath('30-objects_ns_host.conf').read_text().splitlines()[:2] == [
-        '# two lines', '# objects/ns_host, generated by dpi-config: do not edit']

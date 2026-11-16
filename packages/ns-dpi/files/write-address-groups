@@ -1,0 +1,13 @@
+#!/usr/bin/python3
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Write the netifyd address groups of the firewall objects, see nethsec.objects.write_address_groups
+
+from euci import EUci
+from nethsec import objects
+
+objects.write_address_groups(EUci())

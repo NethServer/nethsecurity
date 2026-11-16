@@ -1,0 +1,16 @@
+#!/bin/sh /etc/rc.common
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Write the netifyd address groups of the firewall objects before netifyd starts (START=99).
+# netifyd saves the groups it holds when it stops, including the ones of objects deleted while it was
+# running: removing them here, before it loads them again, drops them for good.
+
+START=95
+
+start() {
+    /usr/libexec/ns-dpi/write-address-groups
+}

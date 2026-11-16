@@ -12,6 +12,7 @@ import ipaddress
 import json
 import os
 import subprocess
+import syslog
 
 from euci import EUci
 
@@ -886,3 +887,167 @@ def get_info(uci, database_id):
     except:
         return None
         
+
+
+# Address groups
+
+# Every object resolving to IP addresses has its netifyd address group, `ADDRESS_GROUPS_DIR/30-<tag>.conf`,
+# whether a DPI rule uses it or not: a rule source matches it as `local_ip == @<tag>`, and the files follow
+# the objects as they are committed, not the rules.
+
+ADDRESS_GROUPS_DIR = '/etc/netifyd/address-groups.d'
+
+# prefixes below 20 belong to the agent itself, this one belongs to `write_address_groups`: every file
+# carrying it whose object is gone, or has no address anymore, is removed. The agent saves the groups it
+# holds when it stops, without comments and including the ones whose file was removed while it was running:
+# the prefix is what tells such a stale file apart
+ADDRESS_GROUP_FILE_PREFIX = '30-'
+
+# ending of the header comment of every file written here, for whoever reads it
+ADDRESS_GROUP_FILE_MARKER = 'generated from the firewall objects: do not edit'
+
+# (database, section type) of the objects with an address group: everything resolving to addresses.
+# Domain sets are left out: they resolve to addresses only at runtime
+ADDRESS_GROUP_TYPES = (('objects', 'host'), ('dhcp', 'host'), ('dhcp', 'domain'), ('users', 'user'))
+
+
+def address_group_tag(database_id):
+    """
+    The tag of the address group of an object, e.g. `objects_ns_1234` for `objects/ns_1234`.
+
+    Args:
+        database_id: id of the object in the form of `<database>/<id>`
+
+    Returns:
+        the tag, as referenced by a criteria with `@<tag>`
+    """
+    return database_id.replace('/', '_')
+
+
+def _strip_zone(value):
+    """Drop the zone of a link-local address, e.g. `fe80::1%eth0/64` becomes `fe80::1/64`."""
+    if '%' not in value:
+        return value
+    address, _, rest = value.partition('%')
+    _, slash, prefix = rest.partition('/')
+    return f'{address}{slash}{prefix}'
+
+
+def address_group_entries(uci, database_id):
+    """
+    The entries of the address group of an object, written the way an address group can match them:
+    ranges become CIDR blocks, as an address group silently ignores them, and a range whose first address
+    is greater than its last, which the object API accepts, covers the same addresses as the ordered one; an
+    IPv4-mapped IPv6 network becomes the IPv4 network it maps, as it never matches an IPv4 flow; a zero
+    length prefix, which matches nothing, is split into its two halves. A value that cannot be turned into an
+    address is skipped with a log line, as the agent would ignore it.
+
+    Args:
+        uci: EUci pointer
+        database_id: id of the object in the form of `<database>/<id>`
+
+    Returns:
+        the entries, empty when the object has no address the agent can match, or is gone
+    """
+    entries = []
+    for value in get_object_ips(uci, database_id):
+        try:
+            if '-' in value:
+                # the host set keeps the range as entered: only the written networks are ordered
+                first, last = sorted(ipaddress.ip_address(_strip_zone(part.strip())) for part in value.split('-', 1))
+                networks = list(ipaddress.summarize_address_range(first, last))
+            else:
+                networks = [ipaddress.ip_network(_strip_zone(value.strip()), strict=False)]
+        except (ValueError, TypeError) as error:
+            syslog.syslog(syslog.LOG_WARNING, f"objects: skipping {value!r} of {database_id}: {error}")
+            continue
+        for network in networks:
+            if network.version == 6 and network.prefixlen >= 96 and network.network_address.ipv4_mapped:
+                network = ipaddress.ip_network(f'{network.network_address.ipv4_mapped}/{network.prefixlen - 96}')
+            for entry in network.subnets(new_prefix=1) if network.prefixlen == 0 else [network]:
+                if str(entry) not in entries:
+                    entries.append(str(entry))
+    return entries
+
+
+def write_address_groups(uci):
+    """
+    Write the address group of every object resolving to addresses, and remove every other file with the
+    `ADDRESS_GROUP_FILE_PREFIX` prefix: the ones of objects that are gone or have no address anymore. A file
+    is rewritten only when its content changes. The agent loads the files on start and on reload.
+
+    Args:
+        uci: EUci pointer
+
+    Returns:
+        True when a file was written or removed
+    """
+    os.makedirs(ADDRESS_GROUPS_DIR, exist_ok=True)
+    wanted = {}
+    for database in sorted({database for database, _ in ADDRESS_GROUP_TYPES}):
+        try:
+            sections = uci.get_all(database)
+        except Exception:
+            # the configuration doesn't exist
+            continue
+        for section in sections:
+            if (database, uci.get(database, section)) not in ADDRESS_GROUP_TYPES:
+                continue
+            database_id = f'{database}/{section}'
+            entries = address_group_entries(uci, database_id)
+            if not entries:
+                continue
+            # header: the object name, when it has one, on one line, then the id and the marker
+            name = ' '.join(str(uci.get(database, section, 'name', default='')).split())
+            lines = [f'# {name}'] if name else []
+            lines.append(f'# {database_id}, {ADDRESS_GROUP_FILE_MARKER}')
+            lines.extend(entries)
+            wanted[f'{ADDRESS_GROUP_FILE_PREFIX}{address_group_tag(database_id)}.conf'] = \
+                ''.join(f'{line}\n' for line in lines)
+
+    changed = False
+    for filename in os.listdir(ADDRESS_GROUPS_DIR):
+        if filename.startswith(ADDRESS_GROUP_FILE_PREFIX) and filename.endswith('.conf') and filename not in wanted:
+            os.remove(os.path.join(ADDRESS_GROUPS_DIR, filename))
+            changed = True
+
+    for filename, content in wanted.items():
+        path = os.path.join(ADDRESS_GROUPS_DIR, filename)
+        try:
+            with open(path, 'r') as fp:
+                if fp.read() == content:
+                    if os.stat(path).st_mode & 0o777 != 0o644:
+                        os.chmod(path, 0o644)
+                    continue
+        except FileNotFoundError:
+            pass
+        with open(f'{path}.tmp', 'w') as fp:
+            fp.write(content)
+        # readable by the agent whatever the umask of the caller, e.g. the API server
+        os.chmod(f'{path}.tmp', 0o644)
+        os.replace(f'{path}.tmp', path)
+        changed = True
+
+    return changed
+
+
+def update_address_groups(uci):
+    """
+    Write the address groups, see `write_address_groups`, and reload the agent when a file changed and it is
+    running, so it loads them. To be called once the object changes are committed.
+
+    Args:
+        uci: EUci pointer
+
+    Returns:
+        True when a file was written or removed. A file that can't be written is logged, not raised: the
+        object changes are committed already, the next update or boot writes it again
+    """
+    try:
+        changed = write_address_groups(uci)
+    except OSError as error:
+        syslog.syslog(syslog.LOG_ERR, f"objects: cannot write the address groups: {error}")
+        return False
+    if changed and subprocess.run(['/etc/init.d/netifyd', 'running'], capture_output=True).returncode == 0:
+        subprocess.run(['/etc/init.d/netifyd', 'reload'], capture_output=True)
+    return changed
