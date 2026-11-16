@@ -2784,7 +2784,7 @@ Error response:
 
 ### info
 
-Retrieve subscription information from remote server:
+Retrieve subscription information, from the local cache kept by `subscription-info` (see ns-plug README):
 ```
 api-cli ns.subscription info
 ```
@@ -2796,11 +2796,15 @@ Success response:
   "systemd_id": "1af7701a-b2c5-4445-9718-e102c80aef55",
   "plan": "Trial Pizza",
   "expiration": 1697183326,
-  "active": true
+  "active": true,
+  "checked_at": 1762940000,
+  "stale": false
 }
 ```
 
 If the subscription does not expire, `expiration` is set to `0`.
+`checked_at` is the timestamp of the last answer from the remote server, `0` if there's none.
+`stale` is `true` when the last check couldn't reach the remote server and the cached answer is returned.
 
 Error response:
 ```json
