@@ -32,6 +32,7 @@ if not os.path.exists(args.socket_path):
 
 try:
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as tsock:
+        tsock.settimeout(5)
         tsock.connect(args.socket_path)
         fp = tsock.makefile(mode='r', newline='\n')
 
@@ -46,6 +47,8 @@ try:
             msg = fp.readline()
             if args.debug:
                 print(msg, file=sys.stderr)
+            if not msg:
+                exit(1)
             if "ERROR" in msg:
                 exit(1)
             if "END" in msg:

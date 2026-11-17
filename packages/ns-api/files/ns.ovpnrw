@@ -438,6 +438,8 @@ def get_configuration(ovpninstance):
         ret["tun_mtu"] = "1500"
     if not ret.get("mssfix"):
         ret["mssfix"] = "1450"
+    if not ret.get("disable_dco"):
+        ret["disable_dco"] = "0"
 
     if ret.get('push'):
         local = []
@@ -623,6 +625,7 @@ def set_configuration(args):
     # MTU and MSSFix settings
     u.set("openvpn", ovpninstance, "tun_mtu", args.get("tun_mtu", '1500'))
     u.set("openvpn", ovpninstance, "mssfix", args.get("mssfix", '1450'))
+    u.set("openvpn", ovpninstance, "disable_dco", args.get("disable_dco", '0'))
 
     u.save("openvpn")
 
@@ -1297,6 +1300,7 @@ if cmd == 'list':
             "ifconfig_pool": ["10.166.54.4", "10.166.54.20"],
             "tun_mtu": "1500",
             "mssfix": "1450",
+            "disable_dco": "0",
             },
         "remove-instance": {"instance": "roadwarrior1"},
         "import-users": {"instance": "roadwarrior1"},
