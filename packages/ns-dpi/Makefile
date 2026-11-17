@@ -75,7 +75,6 @@ define Package/ns-dpi/install
 	$(INSTALL_BIN) ./files/dpi-license-update.init $(1)/etc/init.d/dpi-license-update
 	$(INSTALL_BIN) ./files/dpi-data-update.init $(1)/etc/init.d/dpi-data-update
 	$(INSTALL_BIN) ./files/dpi-update.init $(1)/etc/init.d/dpi-update
-	$(INSTALL_BIN) ./files/address-groups.init $(1)/etc/init.d/address-groups
 	$(INSTALL_BIN) ./files/dpi $(1)/usr/sbin/
 	$(INSTALL_BIN) ./files/dpi-nft $(1)/usr/sbin/
 	$(INSTALL_BIN) ./files/dpi-config $(1)/usr/sbin/

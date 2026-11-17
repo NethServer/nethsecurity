@@ -104,9 +104,10 @@ until the next reload and then vanishes. Change the generator or its UCI input i
 | `table inet netifyd` (nftables) | `/usr/sbin/ns-netifyd-configure` (on start and reload) | `/etc/config/netifyd` → `ns_config` |
 | `netify-application-catalog.json` and the other catalog/category files | `dpi-data-update` (nightly cron) | Netify's data service |
 | `/usr/share/nftables.d/table-pre/` DPI chains | `/usr/sbin/dpi-nft` | `/etc/config/dpi` |
-| `address-groups.d/30-*.conf` | `nethsec.objects.write_address_groups` (on commit, by `ns.ovpnrw`, at boot) | `/etc/config/objects`, `dhcp`, `users` |
+| `address-groups.d/30-*.conf` | `nethsec.dpi.write_address_groups` (on commit, by `ns.ovpnrw`, by `/usr/sbin/dpi`) | `/etc/config/objects`, `dhcp`, `users` |
 
-`/usr/sbin/dpi` is the whole DPI apply path: `dpi-config` → `dpi-nft` → `/etc/init.d/netifyd reload`.
+`/usr/sbin/dpi` is the whole DPI apply path: `dpi-migrate` → `write-address-groups` → `dpi-config` → `dpi-nft` →
+`/etc/init.d/netifyd reload`.
 Run it after changing `/etc/config/dpi`; don't reproduce its steps by hand.
 
 ---
@@ -205,12 +206,12 @@ Two operational facts:
 
 MAC members only match via `mac ==`, so don't put them in a group a `local_ip` rule references.
 
-The `30-` prefix belongs to `nethsec.objects.write_address_groups`: one `30-<database>_<id>.conf` group
+The `30-` prefix belongs to `nethsec.dpi.write_address_groups`: one `30-<database>_<id>.conf` group
 per firewall object resolving to addresses, used by a DPI rule or not, with a `# <object name>` and a
 `# <id>, generated from the firewall objects: do not edit` header, and every other `30-*.conf` file is
 removed. It runs from the `update-address-groups.py` post-commit hook (`objects`, `dhcp`, `users`), from
-`ns.ovpnrw` (reserved IP of a VPN user) and at boot (`/etc/init.d/address-groups`, `START=95`, before
-netifyd); `dpi-config` only references the groups. The `30-*.conf` files are in
+`ns.ovpnrw` (reserved IP of a VPN user) and from `/usr/sbin/dpi`, before `dpi-config`: at boot the `dpi`
+service (`START=40`) runs it before netifyd (`START=99`); `dpi-config` only references the groups. The `30-*.conf` files are in
 `/lib/upgrade/keep.d/ns-dpi`, so backups and the HA sync carry them. The agent keeps the groups it loaded
 in memory, a reload doesn't drop the ones whose file was removed (it drops their single addresses, not
 their networks), and on stop it saves all of them back, without comments: that's why ownership goes by

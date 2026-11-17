@@ -5,9 +5,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-# Write the netifyd address groups of the firewall objects, see nethsec.objects.write_address_groups
+# Write the netifyd address groups of the firewall objects, see nethsec.dpi.write_address_groups
 
 from euci import EUci
-from nethsec import objects
+from nethsec import dpi
 
-objects.write_address_groups(EUci())
+dpi.write_address_groups(EUci())

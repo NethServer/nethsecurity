@@ -84,12 +84,13 @@ Every firewall object resolving to addresses has a netifyd address group,
 static leases, DNS records and VPN users with a reserved IP. A rule references the object as
 `local_ip == @<database>_<id>`, so `dpi-config` only builds the criteria and never writes a group.
 
-The files follow the objects, not the rules. They are written by `nethsec.objects.write_address_groups`:
+The files follow the objects, not the rules. They are written by `nethsec.dpi.write_address_groups`:
 
 - on commit, by the `update-address-groups.py` post-commit hook of `ns.commit`, when `objects`, `dhcp` or
   `users` change; netifyd is reloaded if a file changed
 - by `ns.ovpnrw` when a VPN user gets, changes or loses its reserved IP, as it commits on its own
-- at boot, by the `address-groups` service (`START=95`), before netifyd starts (`START=99`)
+- by `/usr/sbin/dpi`, so at boot by the `dpi` service (`START=40`), before netifyd starts (`START=99`), and
+  on every DPI reload
 
 Each file starts with a comment holding the object name, when the object has one, followed by a comment
 holding the object id and `generated from the firewall objects: do not edit`. A file is rewritten only when
@@ -106,8 +107,8 @@ HA configuration sync and survive an image upgrade, always matching the configur
 netifyd keeps the groups it loaded in memory, a reload doesn't drop the ones whose file was removed, and
 when it stops it saves all of them back to the directory, without comments. So after a netifyd restart
 the files lose their header until the next write, and the group of a deleted object can come back as a
-file: no rule references it, and the next write removes it. The write at boot runs after the stop that saved it and before the start that would load it again,
-dropping it from memory too.
+file: no rule references it, and the next write removes it. The write at boot runs after the stop that
+saved it and before the start that would load it again, dropping it from memory too.
 
 The addresses are written the way an address group can match them:
 

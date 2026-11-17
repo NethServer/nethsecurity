@@ -10,7 +10,7 @@
 # reloaded when a file changed. DPI rules match an object through its group.
 
 from euci import EUci
-from nethsec import objects
+from nethsec import dpi
 
 if "objects" in changes or "dhcp" in changes or "users" in changes:  # noqa: F821
-    objects.update_address_groups(EUci())
+    dpi.update_address_groups(EUci())

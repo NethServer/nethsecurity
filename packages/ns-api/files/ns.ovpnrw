@@ -16,7 +16,7 @@ import pyotp
 import ipaddress
 import subprocess
 from euci import EUci
-from nethsec import utils, ovpn, firewall, users, objects
+from nethsec import utils, ovpn, firewall, users, objects, dpi
 from datetime import datetime, timezone
 import tarfile
 import io
@@ -808,7 +808,7 @@ def add_user(args):
         users.edit_local_user(u, args['username'], extra_fields=ovpn_config)
     u.commit("users")
     # add related address groups used by DPI rules
-    objects.update_address_groups(u)
+    dpi.update_address_groups(u)
     return {"result": "success"}
 
 def import_users(ovpninstance):
@@ -865,7 +865,7 @@ def edit_user(args):
     u.set("users", user_id, "openvpn_enabled", args["enabled"])
     u.commit("users")
     # update related address groups used by DPI rules
-    objects.update_address_groups(u)
+    dpi.update_address_groups(u)
     return {"result": "success"}
 
 def delete_user(ovpninstance, username):
@@ -900,7 +900,7 @@ def delete_user(ovpninstance, username):
     except:
         pass
     # delete related address groups used by DPI rules
-    objects.update_address_groups(u)
+    dpi.update_address_groups(u)
     try:
         revoke_user_certificate(ovpninstance, username)
     except:

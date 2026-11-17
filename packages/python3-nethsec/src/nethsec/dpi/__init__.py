@@ -11,6 +11,7 @@ Library that handles the DPI rules.
 
 import ipaddress
 import json
+import os
 import subprocess
 import syslog
 
@@ -19,6 +20,62 @@ from euci import EUci
 
 from nethsec import objects, utils
 from nethsec.utils import ValidationError
+
+NETIFYD_DATA_DIR = '/etc/netifyd'
+
+# UCI list name of every member kind, mapped to the API parameter it is fed by
+APPGROUP_MEMBERS = {
+    'app': 'applications',
+    'app_category': 'application_categories',
+    'proto': 'protocols',
+    'proto_category': 'protocol_categories'
+}
+
+# validation error message of every member kind
+__APPGROUP_MEMBER_ERRORS = {
+    'app': 'invalid_application',
+    'app_category': 'invalid_application_category',
+    'proto': 'invalid_protocol',
+    'proto_category': 'invalid_protocol_category'
+}
+
+# characters that would let a member value escape its quoted literal, or terminate the expression
+__APPGROUP_FORBIDDEN_CHARS = '\'"\\;()\n\r\t'
+
+APPGROUP_NAME_MAX_LENGTH = 64
+
+APPGROUP_CATALOG_FILES = {
+    'applications': 'netify-application-catalog.json',
+    'protocols': 'netify-protocol-catalog.json'
+}
+
+UNCATEGORIZED_TAG = ''
+
+# 'allow' attaches a label no nft rule matches: it exists so a rule can win the first-match race and
+# shield its traffic from the block rules below it
+DPI_RULE_ACTIONS = ('block', 'allow')
+
+DPI_RULE_NAME_MAX_LENGTH = 64
+
+DPI_MATCH_ALL_CRITERIA = '*'
+
+DPI_RULE_POSITIONS = ('top', 'bottom')
+
+# netifyd address groups, one file for every object resolving to addresses, see `write_address_groups`
+ADDRESS_GROUPS_DIR = '/etc/netifyd/address-groups.d'
+
+# prefixes below 20 belong to the agent itself, this one belongs to `write_address_groups`: every file
+# carrying it whose object is gone, or has no address anymore, is removed. The agent saves the groups it
+# holds when it stops, without comments and including the ones whose file was removed while it was running:
+# the prefix is what tells such a stale file apart
+_ADDRESS_GROUP_FILE_PREFIX = '30-'
+
+# ending of the header comment of every file written by `write_address_groups`, for whoever reads it
+_ADDRESS_GROUP_FILE_MARKER = 'generated from the firewall objects: do not edit'
+
+# (database, section type) of the objects with an address group, so the ones a rule source can reference:
+# everything resolving to addresses. Domain sets are left out: they resolve to addresses only at runtime
+_ADDRESS_GROUP_TYPES = (('objects', 'host'), ('dhcp', 'host'), ('dhcp', 'domain'), ('users', 'user'))
 
 
 def load_applications() -> dict[int, str]:
@@ -68,30 +125,6 @@ def load_protocols() -> dict[int, str]:
 
 # Application groups: a NethSecurity abstraction, the netifyd plugin has no group primitive.
 # A group is a named set of match members, expanded into an inline expression at generation time.
-
-NETIFYD_DATA_DIR = '/etc/netifyd'
-
-# UCI list name of every member kind, mapped to the API parameter it is fed by
-APPGROUP_MEMBERS = {
-    'app': 'applications',
-    'app_category': 'application_categories',
-    'proto': 'protocols',
-    'proto_category': 'protocol_categories'
-}
-
-# validation error message of every member kind
-__APPGROUP_MEMBER_ERRORS = {
-    'app': 'invalid_application',
-    'app_category': 'invalid_application_category',
-    'proto': 'invalid_protocol',
-    'proto_category': 'invalid_protocol_category'
-}
-
-# characters that would let a member value escape its quoted literal, or terminate the expression
-__APPGROUP_FORBIDDEN_CHARS = '\'"\\;()\n\r\t'
-
-APPGROUP_NAME_MAX_LENGTH = 64
-
 
 def load_categories() -> dict[str, dict[int, str]]:
     """
@@ -176,13 +209,6 @@ def __appgroup_vocabulary(kind: str) -> set[str] | None:
 
     # an unknown value never matches, so a missing vocabulary is a reason to skip the check, not to refuse
     return vocabulary if vocabulary else None
-
-APPGROUP_CATALOG_FILES = {
-    'applications': 'netify-application-catalog.json',
-    'protocols': 'netify-protocol-catalog.json'
-}
-
-UNCATEGORIZED_TAG = ''
 
 
 def list_appgroup_catalog() -> dict[str, list[dict]]:
@@ -540,16 +566,6 @@ def expand_appgroups(e_uci: EUci, config_names: list[str]) -> str:
 # Rules: ordered by priority, first match wins. A rule matches application groups only, optionally
 # narrowed to a source; what it does is decided by its action.
 
-# 'allow' attaches a label no nft rule matches: it exists so a rule can win the first-match race and
-# shield its traffic from the block rules below it
-DPI_RULE_ACTIONS = ('block', 'allow')
-
-DPI_RULE_NAME_MAX_LENGTH = 64
-
-DPI_MATCH_ALL_CRITERIA = '*'
-
-DPI_RULE_POSITIONS = ('top', 'bottom')
-
 
 def __sorted_rules(e_uci: EUci) -> list[tuple[str, dict]]:
     """
@@ -656,11 +672,158 @@ def expand_source(values: list[str]) -> list[str]:
     return expanded
 
 
+# Address groups: every object resolving to IP addresses has its netifyd address group,
+# `ADDRESS_GROUPS_DIR/30-<tag>.conf`, whether a rule uses it or not: a rule source matches it as
+# `local_ip == @<tag>`, and the files follow the objects as they are committed, not the rules.
+
+def _address_group_tag(database_id: str) -> str:
+    """
+    The tag of the address group of an object, e.g. `objects_ns_1234` for `objects/ns_1234`.
+
+    Args:
+      - database_id: id of the object in the form of `<database>/<id>`
+
+    Returns:
+        the tag, as referenced by a criteria with `@<tag>`
+    """
+    return database_id.replace('/', '_')
+
+
+def _strip_zone(value: str) -> str:
+    """Drop the zone of a link-local address, e.g. `fe80::1%eth0/64` becomes `fe80::1/64`."""
+    if '%' not in value:
+        return value
+    address, _, rest = value.partition('%')
+    _, slash, prefix = rest.partition('/')
+    return f'{address}{slash}{prefix}'
+
+
+def _address_group_entries(e_uci: EUci, database_id: str) -> list[str]:
+    """
+    The entries of the address group of an object, written the way an address group can match them:
+    ranges become CIDR blocks, as an address group silently ignores them, and a range whose first address
+    is greater than its last, which the object API accepts, covers the same addresses as the ordered one; an
+    IPv4-mapped IPv6 network becomes the IPv4 network it maps, as it never matches an IPv4 flow; a zero
+    length prefix, which matches nothing, is split into its two halves. A value that cannot be turned into an
+    address is skipped with a log line, as the agent would ignore it.
+
+    Args:
+      - e_uci: euci instance
+      - database_id: id of the object in the form of `<database>/<id>`
+
+    Returns:
+        the entries, empty when the object has no address the agent can match, or is gone
+    """
+    entries = []
+    for value in objects.get_object_ips(e_uci, database_id):
+        try:
+            if '-' in value:
+                # the host set keeps the range as entered: only the written networks are ordered
+                bounds = (ipaddress.ip_address(_strip_zone(part.strip())) for part in value.split('-', 1))
+                first, last = sorted(bounds)
+                networks = list(ipaddress.summarize_address_range(first, last))
+            else:
+                networks = [ipaddress.ip_network(_strip_zone(value.strip()), strict=False)]
+        except (ValueError, TypeError) as error:
+            syslog.syslog(syslog.LOG_WARNING, f"dpi: skipping {value!r} of {database_id}: {error}")
+            continue
+        for network in networks:
+            if network.version == 6 and network.prefixlen >= 96 and network.network_address.ipv4_mapped:
+                network = ipaddress.ip_network(f'{network.network_address.ipv4_mapped}/{network.prefixlen - 96}')
+            for entry in network.subnets(new_prefix=1) if network.prefixlen == 0 else [network]:
+                if str(entry) not in entries:
+                    entries.append(str(entry))
+    return entries
+
+
+def write_address_groups(e_uci: EUci) -> bool:
+    """
+    Write the address group of every object resolving to addresses, and remove every other file with the
+    `_ADDRESS_GROUP_FILE_PREFIX` prefix: the ones of objects that are gone or have no address anymore. A file
+    is rewritten only when its content changes. The agent loads the files on start and on reload.
+
+    Args:
+      - e_uci: euci instance
+
+    Returns:
+        True when a file was written or removed
+    """
+    os.makedirs(ADDRESS_GROUPS_DIR, exist_ok=True)
+    wanted = {}
+    for database in sorted({database for database, _ in _ADDRESS_GROUP_TYPES}):
+        try:
+            sections = e_uci.get_all(database)
+        except Exception:
+            # the configuration doesn't exist
+            continue
+        for section in sections:
+            if (database, e_uci.get(database, section)) not in _ADDRESS_GROUP_TYPES:
+                continue
+            database_id = f'{database}/{section}'
+            entries = _address_group_entries(e_uci, database_id)
+            if not entries:
+                continue
+            # header: the object name, when it has one, on one line, then the id and the marker
+            name = ' '.join(str(e_uci.get(database, section, 'name', default='')).split())
+            lines = [f'# {name}'] if name else []
+            lines.append(f'# {database_id}, {_ADDRESS_GROUP_FILE_MARKER}')
+            lines.extend(entries)
+            filename = f'{_ADDRESS_GROUP_FILE_PREFIX}{_address_group_tag(database_id)}.conf'
+            wanted[filename] = ''.join(f'{line}\n' for line in lines)
+
+    changed = False
+    for filename in os.listdir(ADDRESS_GROUPS_DIR):
+        if filename.startswith(_ADDRESS_GROUP_FILE_PREFIX) and filename.endswith('.conf') and filename not in wanted:
+            os.remove(os.path.join(ADDRESS_GROUPS_DIR, filename))
+            changed = True
+
+    for filename, content in wanted.items():
+        path = os.path.join(ADDRESS_GROUPS_DIR, filename)
+        try:
+            with open(path, 'r') as fp:
+                if fp.read() == content:
+                    if os.stat(path).st_mode & 0o777 != 0o644:
+                        os.chmod(path, 0o644)
+                    continue
+        except FileNotFoundError:
+            pass
+        with open(f'{path}.tmp', 'w') as fp:
+            fp.write(content)
+        # readable by the agent whatever the umask of the caller, e.g. the API server
+        os.chmod(f'{path}.tmp', 0o644)
+        os.replace(f'{path}.tmp', path)
+        changed = True
+
+    return changed
+
+
+def update_address_groups(e_uci: EUci) -> bool:
+    """
+    Write the address groups, see `write_address_groups`, and reload the agent when a file changed and it is
+    running, so it loads them. To be called once the object changes are committed.
+
+    Args:
+      - e_uci: euci instance
+
+    Returns:
+        True when a file was written or removed. A file that can't be written is logged, not raised: the
+        object changes are committed already, the next update or boot writes it again
+    """
+    try:
+        changed = write_address_groups(e_uci)
+    except OSError as error:
+        syslog.syslog(syslog.LOG_ERR, f"dpi: cannot write the address groups: {error}")
+        return False
+    if changed and subprocess.run(['/etc/init.d/netifyd', 'running'], capture_output=True).returncode == 0:
+        subprocess.run(['/etc/init.d/netifyd', 'reload'], capture_output=True)
+    return changed
+
+
 # Source objects: firewall objects resolving to IP addresses, referenced by a rule instead of typing the
-# addresses in. Every such object has its netifyd address group, written by `objects.write_address_groups`
+# addresses in. Every such object has its netifyd address group, written by `write_address_groups`
 # when the object is committed, and the criteria matches it as `local_ip == @<tag>`: the criteria stays one
 # term wide whatever the object holds, and a change to the object only rewrites its file. A source can
-# reference the objects with an address group, see `objects.ADDRESS_GROUP_TYPES`.
+# reference the objects with an address group, see `_ADDRESS_GROUP_TYPES`.
 
 
 def __validate_source_objects(e_uci: EUci, values: list[str], source: list[str]) -> list[str]:
@@ -675,7 +838,7 @@ def __validate_source_objects(e_uci: EUci, values: list[str], source: list[str])
         if not isinstance(value, str) or not objects.is_object_id(value):
             raise ValidationError('source_objects', 'invalid_source_object', value)
         database, _, section = value.partition('/')
-        if not section or (database, e_uci.get(database, section, default=None)) not in objects.ADDRESS_GROUP_TYPES:
+        if not section or (database, e_uci.get(database, section, default=None)) not in _ADDRESS_GROUP_TYPES:
             raise ValidationError('source_objects', 'invalid_source_object', value)
         # a user is an object only with a VPN account holding a reserved address
         if database == 'users' and not e_uci.get('users', section, 'openvpn_ipaddr', default=None):
@@ -690,7 +853,7 @@ def build_rule_criteria(e_uci: EUci, rule: dict) -> str:
     Build the criteria of a managed rule: the source, when set, ANDed with the union of its groups.
 
     The source is made of its addresses or of the address groups of its objects, see
-    `objects.write_address_groups`; a rule holding both, e.g. edited by hand, matches either. An object
+    `write_address_groups`; a rule holding both, e.g. edited by hand, matches either. An object
     without addresses has no group file: the term stays, and a missing group matches nothing.
 
     Args:
@@ -702,7 +865,7 @@ def build_rule_criteria(e_uci: EUci, rule: dict) -> str:
     """
     match = expand_appgroups(e_uci, list(rule.get('appgroup', [])))
     sources = [f'local_ip == {source}' for source in expand_source(list(rule.get('source', [])))]
-    sources += [f"local_ip == @{objects.address_group_tag(object_id)}" for object_id in rule.get('source_object', [])]
+    sources += [f"local_ip == @{_address_group_tag(object_id)}" for object_id in rule.get('source_object', [])]
 
     if not match:
         if not sources:
@@ -819,7 +982,7 @@ def add_rule(e_uci: EUci, name: str, enabled: bool, action: str, source: list[st
       - match_all: the rule matches every flow, narrowed to `source` when one is given. Mutually
         exclusive with `appgroups`
       - source_objects: ids of the objects, in the form of `<database>/<id>`, whose addresses the rule is
-        narrowed to, as an alternative to `source`; see `objects.ADDRESS_GROUP_TYPES` for the accepted ones
+        narrowed to, as an alternative to `source`; see `_ADDRESS_GROUP_TYPES` for the accepted ones
 
     Returns:
         config name of the rule created
@@ -867,7 +1030,7 @@ def edit_rule(e_uci: EUci, config_name: str, name: str, enabled: bool, action: s
       - match_all: the rule matches every flow, narrowed to `source` when one is given. Mutually
         exclusive with `appgroups`
       - source_objects: ids of the objects, in the form of `<database>/<id>`, whose addresses the rule is
-        narrowed to, as an alternative to `source`; see `objects.ADDRESS_GROUP_TYPES` for the accepted ones
+        narrowed to, as an alternative to `source`; see `_ADDRESS_GROUP_TYPES` for the accepted ones
 
     Returns:
         config name of the rule edited
