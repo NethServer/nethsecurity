@@ -1118,6 +1118,7 @@ The following fields are aoptionals:
 - compress
 - auth
 - cipher
+- disable_dco: `1` to turn off data channel offload (DCO), defaults to `0`
 
 Response example:
 ```json
@@ -1149,6 +1150,8 @@ Add a tunnel server with p2p topology:
 ```
 api-cli ns.ovpntunnel add-server --data '{"ns_name": "server2", "port": "2003", "topology": "p2p", "proto": "tcp", "local": ["192.168.100.0/24"], "remote": ["192.168.5.0/24"], "secret": "#\n# 2048 bit OpenVPN static key\n#\n-----BEGIN OpenVPN Static key V1-----....----END OpenVPN Static key V1-----\n", "compress": "", "auth": "", "cipher": "", "ns_public_ip": ["1.2.3.4"], "tls_version_min": "1.2", "ifconfig_local": "192.168.3.1", "ifconfig_remote": "192.168.3.2"}'
 ```
+
+The optional `disable_dco` field set to `1` turns off data channel offload (DCO), defaults to `0`.
 
 Response example:
 ```json
@@ -1521,7 +1524,8 @@ Response example for a server in routed mode:
     "192.168.100.0/24"
   ],
   "ns_dhcp_options": [],
-  "ns_description": "Road Warrior 1"
+  "ns_description": "Road Warrior 1",
+  "disable_dco": "0"
 }
 ```
 
@@ -1555,7 +1559,8 @@ Response example for a server in bridged mode:
   ],
   "ns_pool_start": "192.168.100.240",
   "ns_pool_end": "192.168.100.242",
-  "ns_description": "Road Warrior 1"
+  "ns_description": "Road Warrior 1",
+  "disable_dco": "0"
 }
 ```
 
@@ -1765,6 +1770,8 @@ api-cli ns.ovpnrw set-configuration --data '{"instance": "ns_roadwarrior1", "pro
 ```
 
 Valid values for `proto` field are: `udp` and `tcp-server`
+
+The optional `disable_dco` field set to `1` turns off data channel offload (DCO), defaults to `0`.
 
 Required fields for routed mode:
 - `dev_type` field must be set to `tun`
