@@ -55,6 +55,8 @@ start_service() {
     procd_set_param stdout 1
     procd_set_param stderr 1
     procd_set_param respawn 3600 5 0
+    # a search opens files from every part of every daily partition, the 4096 default ends in a fatal panic
+    procd_set_param limits nofile="1048576 1048576"
     procd_set_param command $PROG
     procd_append_param command -storageDataPath="$storage_path"
     procd_append_param command -retentionPeriod="$retention_period"
