@@ -1,0 +1,13 @@
+diff --git a/net/openvpn/patches/201-dco-stats-no-tls-multi.patch b/net/openvpn/patches/201-dco-stats-no-tls-multi.patch
+new file mode 100644
+--- /dev/null
++++ b/net/openvpn/patches/201-dco-stats-no-tls-multi.patch
+@@ -0,0 +1,8 @@
++--- a/src/openvpn/dco_linux.c
+++++ b/src/openvpn/dco_linux.c
++@@ -1222,3 +1222,4 @@ dco_get_peer_stats(struct context *c, const bool raise_sigusr1_on_err)
++ {
++-    if (!c->c1.tuntap || c->c1.tuntap->dco.ifindex == 0)
+++    /* tls_multi is NULL during a restart, while a persisted tun is still around */
+++    if (!c->c1.tuntap || c->c1.tuntap->dco.ifindex == 0 || !c->c2.tls_multi)
++     {
