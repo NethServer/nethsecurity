@@ -129,6 +129,7 @@ func main() {
 	authGroup.Any("/logs/query", methods.ProxyTo(victoriaLogsProxy, "/select/logsql/query"))
 	authGroup.Any("/logs/hits", methods.ProxyTo(victoriaLogsProxy, "/select/logsql/hits"))
 	authGroup.Any("/logs/field_values", methods.ProxyTo(victoriaLogsProxy, "/select/logsql/field_values"))
+	authGroup.Any("/logs/stream_field_values", methods.ProxyTo(victoriaLogsProxy, "/select/logsql/stream_field_values"))
 
 	// handle missing endpoint
 	router.NoRoute(func(c *gin.Context) {
