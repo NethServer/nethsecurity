@@ -1,0 +1,157 @@
+# shellcheck shell=busybox
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Select the hardware watchdog driver before procd opens /dev/watchdog.
+#
+# Only the first registered device gets /dev/watchdog, so kmodloader must
+# not load watchdog modules on its own: NS_WDT_ALL is blacklisted in
+# /etc/modules.conf. kmodloader honours the blacklist both for
+# /etc/modules-boot.d (before preinit, reading the copy in the read-only
+# image, written by the package postinst) and for /etc/modules.d (from
+# /etc/init.d/boot, reading the overlay copy), while insmod ignores it.
+# /etc/modules.conf is a conffile kept by sysupgrade and backups, so a
+# restore can bring back a copy without the block or with an old one:
+# this hook writes the block again when it differs.
+# This hook loads the modules in priority order and keeps only the ones
+# that found hardware. procd opens /dev/watchdog later, when it enters its
+# early state.
+#
+# Configuration:
+#   system.@system[0].watchdog='0'             disable the watchdog
+#   system.@system[0].watchdog_module='<name>' load only this module
+#   kernel cmdline ns.watchdog=0               disable the watchdog
+#
+
+# Modules blacklisted for kmodloader (see Makefile postinst, which reads
+# this line) and unloaded before selection if loaded anyway. Besides the
+# shipped ones, this lists drivers not shipped on purpose: if an admin
+# installs one, it would take /dev/watchdog at boot. They are loaded only
+# if named in watchdog_module.
+# Unload order matters: iTCO_vendor_support is used by iTCO_wdt
+NS_WDT_ALL="i6300esb iTCO_wdt iTCO_vendor_support sp5100_tco softdog ib700wdt w83627hf_wdt it87_wdt f71808e_wdt mlx_wdt"
+# Auto-detection priority; softdog is never picked automatically
+NS_WDT_AUTO="i6300esb iTCO_wdt sp5100_tco"
+
+NS_WDT_CONF="/etc/modules.conf"
+
+ns_wdt_log() {
+	echo "ns-watchdog: $*" > /dev/kmsg
+}
+
+ns_wdt_count() {
+	# shellcheck disable=SC2012
+	ls /sys/class/watchdog 2>/dev/null | wc -l
+}
+
+ns_wdt_load() {
+	[ "$1" = "iTCO_wdt" ] && insmod iTCO_vendor_support >/dev/null 2>&1
+	insmod "$1" >/dev/null 2>&1
+}
+
+ns_wdt_unload() {
+	rmmod "$1" >/dev/null 2>&1
+	[ "$1" = "iTCO_wdt" ] && rmmod iTCO_vendor_support >/dev/null 2>&1
+	return 0
+}
+
+ns_wdt_blacklist() {
+	local mod block="# BEGIN ns-watchdog"
+
+	for mod in $NS_WDT_ALL; do
+		block="$block
+blacklist $mod"
+	done
+	block="$block
+# END ns-watchdog"
+
+	[ "$(sed -n '/^# BEGIN ns-watchdog$/,/^# END ns-watchdog$/p' "$NS_WDT_CONF" 2>/dev/null)" = "$block" ] && return 0
+	sed -i '/^# BEGIN ns-watchdog$/,/^# END ns-watchdog$/d' "$NS_WDT_CONF" 2>/dev/null
+	echo "$block" >> "$NS_WDT_CONF"
+	ns_wdt_log "restored the modules blacklist in $NS_WDT_CONF"
+}
+
+ns_wdt_disabled() {
+	ns_wdt_log "disabled by $1"
+	[ -n "$kept" ] && ns_wdt_log "$kept is still loaded, procd will use it"
+	return 0
+}
+
+ns_watchdog_select() {
+	local mod before kept="" chosen=""
+
+	[ "$FAILSAFE" = "true" ] && return 0
+
+	ns_wdt_blacklist
+
+	# Safety net: modules should not be loaded here, thanks to the blacklist.
+	# A module whose watchdog is running cannot be unloaded: keep it.
+	# The first one kept was loaded before any other, so it owns
+	# /dev/watchdog.
+	for mod in $NS_WDT_ALL; do
+		[ -d "/sys/module/$mod" ] || continue
+		# Still in use while iTCO_wdt is loaded
+		[ "$mod" = "iTCO_vendor_support" ] && [ -d /sys/module/iTCO_wdt ] && continue
+		if ! rmmod "$mod" >/dev/null 2>&1; then
+			ns_wdt_log "cannot unload $mod, keeping it"
+			[ -z "$kept" ] && kept="$mod"
+		fi
+	done
+
+	case " $(cat /proc/cmdline) " in
+	*" ns.watchdog=0 "*)
+		ns_wdt_disabled "kernel cmdline"
+		return 0
+		;;
+	esac
+
+	if [ "$(uci -q get system.@system[0].watchdog)" = "0" ]; then
+		ns_wdt_disabled "configuration"
+		return 0
+	fi
+
+	mod="$(uci -q get system.@system[0].watchdog_module)"
+	if [ -n "$mod" ]; then
+		if [ -d "/sys/module/$mod" ]; then
+			ns_wdt_log "using $mod (configured, already loaded)"
+		else
+			before="$(ns_wdt_count)"
+			ns_wdt_load "$mod"
+			if [ "$(ns_wdt_count)" -gt "$before" ]; then
+				ns_wdt_log "using $mod (configured)"
+			else
+				ns_wdt_unload "$mod"
+				ns_wdt_log "configured module $mod found no device"
+			fi
+		fi
+		if [ -n "$kept" ] && [ "$kept" != "$mod" ]; then
+			ns_wdt_log "$kept is still loaded, procd will use it"
+		fi
+		return 0
+	fi
+
+	chosen="$kept"
+	for mod in $NS_WDT_AUTO; do
+		[ -d "/sys/module/$mod" ] && continue
+		before="$(ns_wdt_count)"
+		ns_wdt_load "$mod"
+		if [ "$(ns_wdt_count)" -gt "$before" ]; then
+			if [ -z "$chosen" ]; then
+				chosen="$mod"
+			else
+				ns_wdt_log "keeping $mod as secondary device"
+			fi
+		else
+			ns_wdt_unload "$mod"
+		fi
+	done
+
+	if [ -n "$chosen" ]; then
+		ns_wdt_log "using $chosen"
+	else
+		ns_wdt_log "no hardware watchdog found"
+	fi
+}
+
+boot_hook_add preinit_main ns_watchdog_select
