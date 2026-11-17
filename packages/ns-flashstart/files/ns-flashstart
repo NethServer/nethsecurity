@@ -426,7 +426,7 @@ def __sync_pro_plus_profiles():
 
 
 def sync():
-    if e_uci.get('flashstart', 'global', 'proplus', default=False, dtype=bool):
+    if e_uci.get('flashstart', 'global', 'plan', default='pro') == 'plus':
         logging.debug('Syncing pro+ profiles')
         __sync_host_sets()
         __sync_pro_plus_profiles()
