@@ -1,0 +1,162 @@
+diff --git a/net/nginx/Makefile b/net/nginx/Makefile
+index ef90c525d..8dc700605 100644
+--- a/net/nginx/Makefile
++++ b/net/nginx/Makefile
+@@ -8,12 +8,12 @@
+ include $(TOPDIR)/rules.mk
+ 
+ PKG_NAME:=nginx
+-PKG_VERSION:=1.26.3
+-PKG_RELEASE:=4
++PKG_VERSION:=1.30.7
++PKG_RELEASE:=1
+ 
+ PKG_SOURCE:=nginx-$(PKG_VERSION).tar.gz
+ PKG_SOURCE_URL:=https://nginx.org/download/
+-PKG_HASH:=69ee2b237744036e61d24b836668aad3040dda461fe6f570f1787eab570c75aa
++PKG_HASH:=2565b5c837050e958f70fb0f73c48e2bca4542ad349fd356f46fb0c72610bc6e
+ 
+ PKG_MAINTAINER:=Thomas Heil <heil@terminal-consulting.de> \
+ 				Christian Marangi <ansuelsmth@gmail.com>
+@@ -199,8 +199,8 @@ define Package/nginx-mod-luci
+   CATEGORY:=Network
+   SUBMENU:=Web Servers/Proxies
+   TITLE:=Support file for Nginx
+-  URL:=http://nginx.org/
+-  DEPENDS:=+uwsgi +uwsgi-luci-support +nginx +nginx-mod-ubus
++  URL:=https://nginx.org/
++  DEPENDS:=nginx +uwsgi +uwsgi-luci-support +nginx-mod-ubus
+ endef
+ 
+ define Package/nginx-mod-luci/description
+@@ -233,7 +233,7 @@ endef
+ define Package/nginx-mod-lua-resty-lrucache
+   $(call Package/nginx/default)
+   TITLE:=Nginx Lua OpenResty lrucache module
+-  DEPENDS:=@HAS_LUAJIT_ARCH +luajit2
++  DEPENDS:=@HAS_LUAJIT_ARCH +PACKAGE_nginx-mod-lua-resty-lrucache:luajit2
+ endef
+ 
+ define Package/nginx-mod-lua-resty-core
+@@ -290,10 +290,10 @@ define Download/nginx-mod-ts
+ endef
+ 
+ define Download/nginx-mod-naxsi
+-  SOURCE_DATE:=2022-09-14
+-  SOURCE_VERSION:=d714f1636ea49a9a9f4f06dba14aee003e970834
+-  URL:=https://github.com/nbs-system/naxsi.git
+-  MIRROR_HASH:=b0cef5fbf842f283eb5f0686ddd1afcd07d83abd7027c8cfb3e84a2223a34797
++  SOURCE_DATE:=2025-01-05
++  SOURCE_VERSION:=b61ba37b3666b386c7a6d83fbcdf6ca3377395a1
++  URL:=https://github.com/wargio/naxsi.git
++  MIRROR_HASH:=2b8bf06f8e4cee95e287158c193c4930deab097bf1491c03a95dd8b0c2682d4c
+   PROTO:=git
+ endef
+ 
+@@ -356,7 +356,11 @@ $(foreach m,$(PKG_MOD_EXTRA),$(eval $(call Module/Download,$(m))))
+ 
+ define Module/nginx-mod-naxsi/install
+ 	$(INSTALL_DIR) $(1)/etc/nginx
+-	$(INSTALL_CONF) $(PKG_BUILD_DIR)/nginx-mod-naxsi/naxsi_config/naxsi_core.rules $(1)/etc/nginx
++	$(INSTALL_CONF) $(PKG_BUILD_DIR)/nginx-mod-naxsi/naxsi_rules/naxsi_core.rules $(1)/etc/nginx
++endef
++
++define Package/nginx-mod-naxsi/conffiles
++/etc/nginx/naxsi_core.rules
+ endef
+ 
+ define Quilt/Refresh/Package
+@@ -403,7 +407,7 @@ endef
+ define BuildModule
+   define Package/nginx-mod-$(1)
+     $(call Package/nginx/default)
+-    DEPENDS:=+nginx $(2)
++    DEPENDS:=nginx $(2)
+     TITLE:=Nginx $(1) module
+   endef
+ 
+diff --git a/net/nginx/patches/nginx/101-feature_test_fix.patch b/net/nginx/patches/nginx/101-feature_test_fix.patch
+index bdef84b3b..7f57aeb91 100644
+--- a/net/nginx/patches/nginx/101-feature_test_fix.patch
++++ b/net/nginx/patches/nginx/101-feature_test_fix.patch
+@@ -87,7 +87,7 @@
+  ngx_feature_libs=
+ --- a/auto/unix
+ +++ b/auto/unix
+-@@ -853,7 +853,7 @@ ngx_feature_test="void *p; p = memalign(
++@@ -835,7 +835,7 @@ ngx_feature_test="void *p; p = memalign(
+  
+  ngx_feature="mmap(MAP_ANON|MAP_SHARED)"
+  ngx_feature_name="NGX_HAVE_MAP_ANON"
+@@ -96,7 +96,7 @@
+  ngx_feature_incs="#include <sys/mman.h>"
+  ngx_feature_path=
+  ngx_feature_libs=
+-@@ -866,7 +866,7 @@ ngx_feature_test="void *p;
++@@ -848,7 +848,7 @@ ngx_feature_test="void *p;
+  
+  ngx_feature='mmap("/dev/zero", MAP_SHARED)'
+  ngx_feature_name="NGX_HAVE_MAP_DEVZERO"
+@@ -105,7 +105,7 @@
+  ngx_feature_incs="#include <sys/mman.h>
+                    #include <sys/stat.h>
+                    #include <fcntl.h>"
+-@@ -881,7 +881,7 @@ ngx_feature_test='void *p; int  fd;
++@@ -863,7 +863,7 @@ ngx_feature_test='void *p; int  fd;
+  
+  ngx_feature="System V shared memory"
+  ngx_feature_name="NGX_HAVE_SYSVSHM"
+@@ -114,7 +114,7 @@
+  ngx_feature_incs="#include <sys/ipc.h>
+                    #include <sys/shm.h>"
+  ngx_feature_path=
+-@@ -895,7 +895,7 @@ ngx_feature_test="int  id;
++@@ -877,7 +877,7 @@ ngx_feature_test="int  id;
+  
+  ngx_feature="POSIX semaphores"
+  ngx_feature_name="NGX_HAVE_POSIX_SEM"
+diff --git a/net/nginx/patches/nginx/105-optional-libexslt.patch b/net/nginx/patches/nginx/105-optional-libexslt.patch
+index 6c590fb7b..a252a52eb 100644
+--- a/net/nginx/patches/nginx/105-optional-libexslt.patch
++++ b/net/nginx/patches/nginx/105-optional-libexslt.patch
+@@ -1,6 +1,6 @@
+ --- a/auto/options
+ +++ b/auto/options
+-@@ -165,6 +165,7 @@ USE_PERL=NO
++@@ -166,6 +166,7 @@ USE_PERL=NO
+  NGX_PERL=perl
+  
+  USE_LIBXSLT=NO
+@@ -8,7 +8,7 @@
+  USE_LIBGD=NO
+  USE_GEOIP=NO
+  
+-@@ -370,6 +371,7 @@ use the \"--with-mail_ssl_module\" optio
++@@ -372,6 +373,7 @@ use the \"--with-mail_ssl_module\" optio
+          --with-pcre-opt=*)               PCRE_OPT="$value"          ;;
+          --with-pcre-jit)                 PCRE_JIT=YES               ;;
+          --without-pcre2)                 PCRE2=DISABLED             ;;
+diff --git a/net/nginx/patches/nginx/201-ignore-invalid-options.patch b/net/nginx/patches/nginx/201-ignore-invalid-options.patch
+index 37de67dd2..a2e4ddfb6 100644
+--- a/net/nginx/patches/nginx/201-ignore-invalid-options.patch
++++ b/net/nginx/patches/nginx/201-ignore-invalid-options.patch
+@@ -1,6 +1,6 @@
+ --- a/auto/options
+ +++ b/auto/options
+-@@ -415,8 +415,7 @@ $0: warning: the \"--with-sha1-asm\" opt
++@@ -417,8 +417,7 @@ $0: warning: the \"--with-sha1-asm\" opt
+          --test-build-solaris-sendfilev)  NGX_TEST_BUILD_SOLARIS_SENDFILEV=YES ;;
+  
+          *)
+diff --git a/net/nginx/patches/nginx/300-fix-deprecated-openssl-3_0.patch b/net/nginx/patches/nginx/300-fix-deprecated-openssl-3_0.patch
+index 4294ed687..3a8df51cb 100644
+--- a/net/nginx/patches/nginx/300-fix-deprecated-openssl-3_0.patch
++++ b/net/nginx/patches/nginx/300-fix-deprecated-openssl-3_0.patch
+@@ -1,6 +1,6 @@
+ --- a/src/event/quic/ngx_event_quic_protection.c
+ +++ b/src/event/quic/ngx_event_quic_protection.c
+-@@ -510,7 +510,7 @@ ngx_quic_crypto_common(ngx_quic_secret_t
++@@ -520,7 +520,7 @@ ngx_quic_crypto_common(ngx_quic_secret_t
+          }
+      }
+  
