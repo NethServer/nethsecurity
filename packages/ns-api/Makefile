@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-api
-PKG_VERSION:=3.11.4
+PKG_VERSION:=3.11.5
 PKG_RELEASE:=1
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-api-$(PKG_VERSION)
@@ -34,7 +34,7 @@ define Package/ns-api
 		+whiptail \
 		+sshpass \
 		+wireguard-tools
-	EXTRA_DEPENDS:=adblock (>=4.5.3)
+	EXTRA_DEPENDS:=adblock (>=4.5.3), nginx-mod-luci (>=1.30.7), nginx-mod-ubus (>=1.30.7)
 	PKGARCH:=all
 endef
 

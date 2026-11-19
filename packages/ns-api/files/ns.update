@@ -8,7 +8,6 @@
 # Manage packages and system updates
 
 import os
-import re
 import sys
 import json
 import time
@@ -56,18 +55,16 @@ def check_package_updates():
     except Exception as e:
         print(e, file=sys.stderr)
         return utils.generic_error("apk_update_failed")
-    p = subprocess.run(["/usr/sbin/apk-official", "list", "--upgradable"], check=True, capture_output=True, text=True)
-    for line in p.stdout.split("\n"):
-        if not line:
-            continue
-        m = re.match(r'^(\S+)\s+\S+\s+\{(\S+)\}.*\[upgradable from:\s+(\S+)\]', line)
-        if m:
-            full_ver = m.group(1)
-            pkg_name = m.group(2).split("/")[-1]
-            current_full_ver = m.group(3)
-            current_ver = current_full_ver.removeprefix(pkg_name + "-")  # e.g. 26.124.63982~650a6ca
-            latest_ver = full_ver.removeprefix(pkg_name + "-")
-            ret.append({"package": pkg_name, "currentVersion": current_ver, "latestVersion": latest_ver})
+    p = subprocess.run(["/usr/sbin/apk-official", "query", "--upgradable", "--format", "json",
+                        "--fields", "name,version", "*"],
+                       check=True, capture_output=True, text=True)
+    latest = {package["name"]: package["version"] for package in json.loads(p.stdout)}
+    if latest:
+        p = subprocess.run(["/usr/sbin/apk-official", "query", "--installed", "--format", "json",
+                            "--fields", "name,version", *latest],
+                           check=True, capture_output=True, text=True)
+        for package in json.loads(p.stdout):
+            ret.append({"package": package["name"], "currentVersion": package["version"], "latestVersion": latest[package["name"]]})
     # Sort the ret array by the "package" field
     ret.sort(key=lambda package: package["package"])
     return {"updates": ret}
