@@ -30,3 +30,10 @@ To stop don, execute:
 ```
 don stop
 ```
+
+## Support tunnel (beta)
+
+When `ns-support-tunnel` is installed, `don start` also starts the WebSocket
+support tunnel (`support-tunnel start`) and every don cleanup (`don stop`,
+expiry) stops it. A tunnel failure is only logged and never makes the don
+session fail.

@@ -62,6 +62,22 @@ function remove_cron_expiration
     fi
 }
 
+# Beta: the WebSocket support tunnel (ns-support-tunnel) follows the don
+# session. It is optional and must never break don.
+support_tunnel=/usr/sbin/support-tunnel
+
+function start_support_tunnel
+{
+    [ -x "$support_tunnel" ] || return 0
+    "$support_tunnel" start > /dev/null 2>&1 || log_error "Support tunnel not started"
+}
+
+function stop_support_tunnel
+{
+    [ -x "$support_tunnel" ] || return 0
+    "$support_tunnel" stop > /dev/null 2>&1 || log_error "Support tunnel not stopped"
+}
+
 function cleanup
 {
     # Use lock file to prevent concurrent cleanup calls
@@ -73,6 +89,7 @@ function cleanup
     touch "$cleanup_lock"
     # Remove expiration cron job
     remove_cron_expiration
+    stop_support_tunnel
     # stop demons
     [ -f "$sshd_pid" ] && kill "$(cat $sshd_pid)"
     [ -f "$vpn_pid" ] && kill "$(cat $vpn_pid)" && sleep 3 && [ -f "$vpn_pid" ] &&  kill -9 "$(cat $vpn_pid)"
@@ -257,6 +274,8 @@ EOF
 
     # Add expiration cron job
     add_cron_expiration
+
+    start_support_tunnel
 
     log_message "Remote support session started"
 
