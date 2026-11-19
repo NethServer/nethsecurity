@@ -34,7 +34,7 @@ define Package/ns-api
 		+whiptail \
 		+sshpass \
 		+wireguard-tools
-	EXTRA_DEPENDS:=adblock (>=4.5.3)
+	EXTRA_DEPENDS:=adblock (>=4.5.3), nginx-mod-luci (>=1.30.7), nginx-mod-ubus (>=1.30.7)
 	PKGARCH:=all
 endef
 
