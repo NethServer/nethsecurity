@@ -23,14 +23,17 @@ define Package/ns-api
 	URL:=https://github.com/NethServer/nethsecurity-controller/
 	DEPENDS:= \
 		+adblock \
+		+conntrack \
 		+coreutils-date \
 		+coreutils-stty \
+		+ip-full \
 		+python3-idna \
 		+python3-nethsec \
 		+python3-openssl \
 		+python3-requests \
 		+python3-semver \
 		+python3-urllib \
+		+tcpdump \
 		+whiptail \
 		+sshpass \
 		+wireguard-tools
@@ -179,6 +182,8 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.ha.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.flows $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.flows.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_BIN) ./files/ns.livetrace $(1)/usr/libexec/rpcd/
+	$(INSTALL_DATA) ./files/ns.livetrace.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_CONF) files/ns-api.keep $(1)/lib/upgrade/keep.d/ns-api
 	$(INSTALL_CONF) files/msmtp.keep $(1)/lib/upgrade/keep.d/msmtp
@@ -187,6 +192,7 @@ define Package/ns-api/install
 	$(INSTALL_BIN) ./files/load-kernel-modules $(1)/usr/sbin/load-kernel-modules
 	$(INSTALL_BIN) ./files/setup $(1)/usr/sbin/setup
 	$(INSTALL_BIN) ./files/firewall-apply-default-logging $(1)/usr/sbin/firewall-apply-default-logging
+	$(INSTALL_BIN) ./files/ns-livetrace.py $(1)/usr/libexec/ns-livetrace
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/config/ns-api $(1)/etc/config/ns-api
 	$(INSTALL_CONF) ./files/config/ns-wizard $(1)/etc/config/ns-wizard
