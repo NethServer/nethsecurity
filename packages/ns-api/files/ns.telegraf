@@ -308,6 +308,9 @@ def metrics_history(args):
     # Latency and quality reports for monitored hosts
     latency_quality = latency_and_quality_report(start, end, step)
 
+    # Hardware temperature sensors, grouped by chip
+    temperature = temperature_report(q)
+
     return {
         "connections": connections,
         "traffic": traffic_by_interface,
@@ -319,7 +322,74 @@ def metrics_history(args):
         "memory": memory,
         "packets": packets,
         "latency_quality": latency_quality,
+        "temperature": temperature,
     }
+
+
+# Temperatures outside this range (°C) are bogus values reported by some chips,
+# e.g. unconnected inputs or unset thresholds
+TEMP_MIN = 0
+TEMP_MAX = 150
+
+
+def _natural_key(text):
+    """Sort key that orders embedded numbers by value (core_2 before core_10)."""
+    return [int(part) if part.isdigit() else part for part in re.split(r"(\d+)", text)]
+
+
+def _series_values(result):
+    """Return the samples of a range query result as {timestamp: value}, None if malformed."""
+    try:
+        return {int(ts): float(v) for ts, v in result.get("values", [])}
+    except (TypeError, ValueError, AttributeError):
+        return None
+
+
+def temperature_report(q):
+    """Build one temperature series per sensor chip.
+
+    Each chip holds one dataset per sensor feature, plus the lowest "max" (high)
+    and "crit" thresholds of the chip, when the chip exposes them.
+    Values outside TEMP_MIN-TEMP_MAX are dropped.
+    All datasets of a chip are aligned on the same timestamps; missing samples are None.
+    """
+    bounds = f"> {TEMP_MIN} < {TEMP_MAX}"
+    # chip -> list of (label, threshold kind or None, {timestamp: value})
+    chips = {}
+    # Aggregate by chip and feature, so a change of other labels never splits a sensor
+    for r in q(f"max by (chip, feature) (sensors_temp_input {bounds})"):
+        values = _series_values(r)
+        if values is None:
+            continue
+        metric = r.get("metric", {})
+        chip = metric.get("chip", "unknown")
+        feature = metric.get("feature", "unknown")
+        chips.setdefault(chip, []).append((feature, None, values))
+
+    for kind, label in (("max", "High"), ("crit", "Critical")):
+        for r in q(f"min by (chip) (sensors_temp_{kind} {bounds})"):
+            values = _series_values(r)
+            chip = r.get("metric", {}).get("chip", "unknown")
+            if values is None or chip not in chips:
+                continue
+            chips[chip].append((label, kind, values))
+
+    ret = {}
+    for chip, series in chips.items():
+        labels = sorted({ts for _, _, values in series for ts in values})
+        if not labels:
+            continue
+        # Sensor features in natural order, then the "max" and "crit" thresholds
+        series.sort(key=lambda s: ({None: 0, "max": 1, "crit": 2}[s[1]], _natural_key(s[0])))
+        datasets = []
+        for label, kind, values in series:
+            dataset = {"label": label, "data": [values.get(ts) for ts in labels]}
+            if kind:
+                dataset["threshold"] = kind
+            datasets.append(dataset)
+        ret[chip] = {"labels": labels, "datasets": datasets}
+
+    return ret
 
 
 def latency_and_quality_report(start, end, step):

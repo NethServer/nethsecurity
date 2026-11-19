@@ -225,9 +225,29 @@ Output example:
   "processes": { "labels": [], "datasets": [] },
   "memory": { "labels": [], "datasets": [] },
   "packets": { "labels": [], "datasets": [] },
-  "latency_quality": {}
+  "latency_quality": {},
+  "temperature": {
+    "k10temp-pci-00c3": {
+      "labels": [1746608100],
+      "datasets": [
+        { "label": "temp1", "data": [43.5] },
+        { "label": "High", "data": [70.0], "threshold": "max" },
+        { "label": "Critical", "data": [100.0], "threshold": "crit" }
+      ]
+    }
+  }
 }
 ```
+
+`temperature` contains one entry per sensor chip found by the Telegraf `sensors` input (empty when the
+hardware has no sensors). Each chip holds one dataset per sensor feature (`sensors_temp_input`, in °C),
+in natural order (`core_2` before `core_10`), followed by the chip thresholds, marked by the `threshold` field:
+- `max`: lowest `sensors_temp_max` (high) value of the chip
+- `crit`: lowest `sensors_temp_crit` value of the chip
+
+Values outside the 0-150 °C range are dropped, as some chips report bogus readings for unconnected
+inputs or unset thresholds. Thresholds are omitted when the chip does not expose them.
+All datasets of a chip share the same `labels`; a missing sample is `null`.
 
 ### list-alerts
 
