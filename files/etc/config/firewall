@@ -29,6 +29,7 @@ config rule 'ns_allow_https'
 	option src 'wan'
 	option dest_port '443'
 	option target 'ACCEPT'
+	option enabled '0'
 
 config rule 'ns_allow_ui'
 	option name 'Allow-UI-from-WAN'
