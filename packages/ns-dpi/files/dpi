@@ -8,6 +8,9 @@
 # Convert a configuration still on the previous schema, e.g. restored from an old backup or synced
 # by an HA peer: a no-op when there is nothing to migrate
 /usr/libexec/ns-dpi/dpi-migrate
+# Write the address groups of the firewall objects, referenced by the rules with a source object. At boot
+# this runs before netifyd starts, dropping the stale groups it saved when it stopped
+/usr/libexec/ns-dpi/write-address-groups
 # Generate netify flow actions config file
 /usr/sbin/dpi-config
 # Apply nftables rules

@@ -16,7 +16,7 @@ import pyotp
 import ipaddress
 import subprocess
 from euci import EUci
-from nethsec import utils, ovpn, firewall, users, objects
+from nethsec import utils, ovpn, firewall, users, objects, dpi
 from datetime import datetime, timezone
 import tarfile
 import io
@@ -810,6 +810,8 @@ def add_user(args):
     else:
         users.edit_local_user(u, args['username'], extra_fields=ovpn_config)
     u.commit("users")
+    # add related address groups used by DPI rules
+    dpi.update_address_groups(u)
     return {"result": "success"}
 
 def import_users(ovpninstance):
@@ -844,6 +846,12 @@ def edit_user(args):
     if user_id == None:
         return utils.validation_error("username", "user_not_found", args["username"])
 
+    # an object needs its reserved IP: removing it would leave the rules using the user without an address
+    if not args["ipaddr"] and u.get("users", user_id, 'openvpn_ipaddr', default=""):
+        used, matches = objects.is_used_object(u, f'users/{user_id}')
+        if used:
+            return utils.validation_error("ipaddr", "reserved_ip_is_used", matches)
+
     if args["ipaddr"] and u.get("users", user_id, 'openvpn_ipaddr', default="") != args["ipaddr"]:
         valid, error = is_valid_ip(ovpninstance, args["ipaddr"])
         if not valid:
@@ -859,6 +867,8 @@ def edit_user(args):
             pass
     u.set("users", user_id, "openvpn_enabled", args["enabled"])
     u.commit("users")
+    # update related address groups used by DPI rules
+    dpi.update_address_groups(u)
     return {"result": "success"}
 
 def delete_user(ovpninstance, username):
@@ -892,6 +902,8 @@ def delete_user(ovpninstance, username):
         u.commit("users")
     except:
         pass
+    # delete related address groups used by DPI rules
+    dpi.update_address_groups(u)
     try:
         revoke_user_certificate(ovpninstance, username)
     except:
