@@ -1,5 +1,5 @@
 diff --git a/net/nginx/Makefile b/net/nginx/Makefile
-index ef90c525d..8dc700605 100644
+index ef90c525d..a113a7313 100644
 --- a/net/nginx/Makefile
 +++ b/net/nginx/Makefile
 @@ -8,12 +8,12 @@
@@ -9,7 +9,7 @@ index ef90c525d..8dc700605 100644
 -PKG_VERSION:=1.26.3
 -PKG_RELEASE:=4
 +PKG_VERSION:=1.30.7
-+PKG_RELEASE:=1
++PKG_RELEASE:=2
  
  PKG_SOURCE:=nginx-$(PKG_VERSION).tar.gz
  PKG_SOURCE_URL:=https://nginx.org/download/
@@ -66,12 +66,13 @@ index ef90c525d..8dc700605 100644
  endef
  
  define Quilt/Refresh/Package
-@@ -403,7 +407,7 @@ endef
+@@ -403,7 +407,8 @@ endef
  define BuildModule
    define Package/nginx-mod-$(1)
      $(call Package/nginx/default)
 -    DEPENDS:=+nginx $(2)
 +    DEPENDS:=nginx $(2)
++    EXTRA_DEPENDS:=nginx (=$(PKG_VERSION)-r$(PKG_RELEASE))
      TITLE:=Nginx $(1) module
    endef
  
