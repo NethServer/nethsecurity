@@ -19,11 +19,6 @@ data_disk=''
 uci -q delete fstab.ns_data || :
 uci commit fstab
 
-# Configuring rsyslog
-uci -q delete rsyslog.ns_data || :
-uci commit rsyslog
-/etc/init.d/rsyslog restart
-
 # Removing sync-data cron job
 (crontab -l 2>/dev/null || :) | grep -v "/usr/sbin/sync-data" | sort | uniq | crontab -
 /etc/init.d/cron restart
@@ -32,6 +27,12 @@ uci commit rsyslog
 /etc/init.d/dnsmasq stop
 /etc/init.d/victoria-metrics stop
 /etc/init.d/victoria-logs stop 2>/dev/null || :
+# fail2ban is stopped on purpose on HA backup nodes, restart it only if it was running
+fail2ban_running=''
+if /etc/init.d/fail2ban running 2>/dev/null; then
+    fail2ban_running=1
+    /etc/init.d/fail2ban stop
+fi
 # Sync and wait for the disk to be free
 sync && sleep 5
 
@@ -62,3 +63,6 @@ fi
 /etc/init.d/dnsmasq start
 /etc/init.d/victoria-metrics start
 /etc/init.d/victoria-logs start 2>/dev/null || :
+if [ -n "$fail2ban_running" ]; then
+    /etc/init.d/fail2ban start
+fi

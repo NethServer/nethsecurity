@@ -159,7 +159,7 @@ ruleset(name="forward") {
         port="$(echo "$response" | jq -r .data.promtail_port)"
         protocol="tcp"
         TCP_Framing="octet-counted"
-        Template="RSYSLOG_SyslogProtocol23Format"
+        Template="ns-rfc5424"
 
         KeepAlive="on"
         KeepAlive.Probes="3"

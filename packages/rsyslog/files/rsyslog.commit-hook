@@ -1,0 +1,10 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Run by apk after every transaction: pick up config dropped in /etc/rsyslog.d by other packages
+[ "$1" = "post-commit" ] && /etc/init.d/rsyslog reload
+exit 0

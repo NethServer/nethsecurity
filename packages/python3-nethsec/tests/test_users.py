@@ -1,4 +1,5 @@
 import pytest
+import subprocess
 from nethsec import utils, users
 from euci import EUci, UciExceptionNotFound
 from unittest.mock import MagicMock, patch
@@ -317,6 +318,17 @@ def test_delete_local_database(tmp_path):
     with pytest.raises(UciExceptionNotFound) as e:
         u.get('users', 'g1')
 
+def test_delete_local_database_removes_admins(tmp_path):
+    _setup_db(tmp_path)
+    # own savedir, the default one is shared with the other tests
+    tmp_path.joinpath("save").mkdir()
+    u = EUci(confdir=tmp_path.as_posix(), savedir=tmp_path.joinpath("save").as_posix())
+    users.add_local_user(u, "admin9", password="nethesis", database="second")
+    users.set_admin(u, "admin9", "second")
+    users.delete_local_database(u, "second")
+    assert not users.is_admin(u, "admin9")
+
+
 def test_add_local_user(tmp_path):
     u = _setup_db(tmp_path)
     id = users.add_local_user(u, "t1", password="nethesis", description="mydesc", database="second", extra_fields={"openvpn_ipaddr": "1.2.3.4"})
@@ -426,6 +438,33 @@ def test_delete_remote_user_with_vpn_account(tmp_path):
         users.delete_remote_user(u, "jane", database="ldap2")
     assert e.value.message == "user_has_vpn_account"
     assert users.get_user_by_name(u, "jane", "ldap2")
+
+def test_remote_user_exists(tmp_path):
+    u = _setup_db(tmp_path)
+    ldif = "dn: uid=jane,ou=People,dc=directory,dc=nh\nobjectClass: posixAccount\nuid: jane\n"
+    with patch('nethsec.users.subprocess.run') as mock_run:
+        mock_run.return_value = MagicMock(stdout=ldif)
+        assert users.remote_user_exists(u, "jane", "ldap2")
+        assert mock_run.call_args[0][0][-1] == "uid=jane"
+
+def test_remote_user_not_exists(tmp_path):
+    u = _setup_db(tmp_path)
+    with patch('nethsec.users.subprocess.run') as mock_run:
+        mock_run.return_value = MagicMock(stdout="")
+        assert not users.remote_user_exists(u, "jane", "ldap2")
+
+def test_remote_user_exists_ldap_unreachable(tmp_path):
+    u = _setup_db(tmp_path)
+    with patch('nethsec.users.subprocess.run') as mock_run:
+        mock_run.side_effect = subprocess.CalledProcessError(255, "ldapsearch", stderr="Can't contact LDAP server")
+        with pytest.raises(subprocess.CalledProcessError):
+            users.remote_user_exists(u, "jane", "ldap2")
+
+def test_remote_user_exists_local_db(tmp_path):
+    u = _setup_db(tmp_path)
+    with pytest.raises(utils.ValidationError) as e:
+        users.remote_user_exists(u, "jane", "main")
+    assert e.value.message == "db_not_ldap"
 
 def test_shadow_password():
     shadow = users.shadow_password("test")
@@ -624,3 +663,60 @@ def test_get_database(tmp_path):
         "user_display_attr": "cn",
         "starttls": "0"
     }
+
+
+def _setup_superusers_db(tmp_path):
+    u = _setup_db(tmp_path)
+    with tmp_path.joinpath("rpcd").open("w") as fp:
+        fp.write("""
+config login
+	option username 'root'
+
+config login 'controller'
+	option username '3fe5ac6d66e2b8952b194aa1'
+
+config login 'ns_don'
+	option username 'nethsupport'
+
+config login 'ns_1234'
+	option username 'admin3'
+""")
+    return u
+
+
+def test_is_superuser(tmp_path):
+    u = _setup_superusers_db(tmp_path)
+    assert users.is_superuser(u, "root")
+    assert users.is_superuser(u, "3fe5ac6d66e2b8952b194aa1")
+    assert users.is_superuser(u, "nethsupport")
+    assert not users.is_superuser(u, "admin3")
+    assert not users.is_superuser(u, "")
+
+
+def test_caller_is_superuser(tmp_path, monkeypatch):
+    u = _setup_superusers_db(tmp_path)
+    monkeypatch.delenv("NS_API_USER", raising=False)
+    assert users.caller_is_superuser(u)
+    monkeypatch.setenv("NS_API_USER", "nethsupport")
+    assert users.caller_is_superuser(u)
+    monkeypatch.setenv("NS_API_USER", "admin3")
+    assert not users.caller_is_superuser(u)
+
+
+def test_add_local_user_reserved_name(tmp_path):
+    u = _setup_superusers_db(tmp_path)
+    for name in ["root", "Root", "3fe5ac6d66e2b8952b194aa1", "nethsupport"]:
+        with pytest.raises(utils.ValidationError) as e:
+            users.add_local_user(u, name, password="nethesis", database="second")
+        assert e.value.parameter == "name"
+        assert e.value.message == "reserved_name"
+
+
+def test_delete_2fa(tmp_path):
+    tmp_path.joinpath("admin3").mkdir()
+    tmp_path.joinpath("admin3", "secret").write_text("x")
+    users.delete_2fa("", secrets_dir=tmp_path.as_posix())
+    assert tmp_path.exists()
+    users.delete_2fa("admin3", secrets_dir=tmp_path.as_posix())
+    assert not tmp_path.joinpath("admin3").exists()
+    users.delete_2fa("nobody", secrets_dir=tmp_path.as_posix())

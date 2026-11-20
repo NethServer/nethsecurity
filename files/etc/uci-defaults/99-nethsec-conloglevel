@@ -1,0 +1,12 @@
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Keep nft log lines and other kernel noise off the console
+[ "$(uci -q get system.@system[0].conloglevel)" != "" ] && exit 0
+
+uci -q batch << EOI
+set system.@system[0].conloglevel="4"
+commit system
+EOI

@@ -284,7 +284,7 @@ def list_connected_clients(openvpninstance, type="subnet"):
         - a list of connected clients
     """
     try:
-        p = subprocess.run(["/usr/bin/openvpn-status", "-t", type, f"/var/run/openvpn_{openvpninstance}.socket"], check=True, capture_output=True, text=True)
+        p = subprocess.run(["/usr/bin/openvpn-status", "-t", type, f"/var/run/openvpn_{openvpninstance}.socket"], check=True, capture_output=True, text=True, timeout=5)
     except:
         return {}
     return json.loads(p.stdout)

@@ -53,7 +53,7 @@ fi
 exit 0
 endef
 
-define Package/ns-plug/conffiles
+define Package/ns-dpi/conffiles
 /etc/config/dpi
 endef
 
@@ -68,6 +68,7 @@ define Package/ns-dpi/install
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_DIR) $(1)/usr/share/ns-plug/hooks/unregister
 	$(INSTALL_DIR) $(1)/etc/xtables
+	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_CONF) ./files/connlabel.conf $(1)/etc/connlabel.conf
 	$(LN) /etc/connlabel.conf $(1)/etc/xtables/connlabel.conf
 	$(INSTALL_BIN) ./files/dpi.init $(1)/etc/init.d/dpi
@@ -81,6 +82,8 @@ define Package/ns-dpi/install
 	$(INSTALL_BIN) ./files/dpi-data-update.py $(1)/usr/sbin/dpi-data-update
 	$(INSTALL_BIN) ./files/dpi-update.py $(1)/usr/sbin/dpi-update
 	$(INSTALL_BIN) ./files/dpi-migrate.py $(1)/usr/libexec/ns-dpi/dpi-migrate
+	$(INSTALL_BIN) ./files/write-address-groups $(1)/usr/libexec/ns-dpi/write-address-groups
+	$(INSTALL_CONF) ./files/address-groups.keep $(1)/lib/upgrade/keep.d/ns-dpi
 	$(INSTALL_CONF) ./files/20_dpi $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/21_dpi_migrate $(1)/etc/uci-defaults/21_dpi_migrate
 	$(INSTALL_BIN) ./files/23_dpi_drop_options $(1)/etc/uci-defaults/23_dpi_drop_options

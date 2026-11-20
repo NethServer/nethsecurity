@@ -3,7 +3,7 @@ include $(TOPDIR)/rules.mk
 PKG_NAME:=netifyd
 NETIFYD_VERSION:=5.2.9
 PKG_VERSION:=$(NETIFYD_VERSION)
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 PKG_MAINTAINER:=Darryl Sokoloski <darryl@egloo.ca>
 PKG_LICENSE:=Unlicensed
 
@@ -200,6 +200,8 @@ define Package/netifyd/install
 	$(INSTALL_DATA) ./files/usr/share/netifyd/plugins.d/99-netify-sink-http-auto.conf $(1)/usr/share/netifyd/plugins.d/99-netify-sink-http-auto.conf
 	# nethesis additional files
 	$(INSTALL_BIN) ./files/usr/sbin/ns-netifyd-configure.py $(1)/usr/sbin/ns-netifyd-configure
+	$(INSTALL_DIR) $(1)/etc/telegraf.conf.d
+	$(INSTALL_DATA) ./files/etc/telegraf.conf.d/netifyd.conf $(1)/etc/telegraf.conf.d/netifyd.conf
 	# netify-plm
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/$(NETIFYD_FILE_PLM) $(1)/usr/lib/$(NETIFYD_FILE_PLM)
 	$(LN) /usr/lib/$(NETIFYD_FILE_PLM) $(1)/usr/lib/$(NETIFYD_LINK_PLM)

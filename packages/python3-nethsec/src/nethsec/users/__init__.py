@@ -16,6 +16,7 @@ import json
 import os
 import subprocess
 import secrets
+import shutil
 
 from euci import EUci
 from uci import UciExceptionNotFound
@@ -419,6 +420,9 @@ def delete_local_database(uci, name):
   uci.delete('users', name)
   for u in uci.get_all('users'):
       if uci.get('users', u, 'database', default='') == name:
+          username = uci.get('users', u, 'name', default='')
+          if uci.get('users', u, default='') == 'user' and is_admin(uci, username):
+              remove_admin(uci, username)
           uci.delete('users', u)
   uci.save("users")
   return True
@@ -485,6 +489,9 @@ def add_local_user(uci, name, password="", description="", database="main", extr
       - The user identifier
     '''
     utils.validate_username(name)
+    # nethsupport is reserved even while support access is off, its rpcd login exists only when on
+    if is_superuser(uci, name.lower()) or name.lower() == "nethsupport":
+        raise utils.ValidationError("name", "reserved_name", name)
     if get_user_by_name(uci, name, database):
         raise utils.ValidationError('name', 'user_already_exists', name)
     if get_database_type(uci, database) != "local":
@@ -731,6 +738,60 @@ def delete_remote_user(uci, name, database):
     uci.save("users")
     return True
 
+def remote_user_exists(uci, name, database):
+    '''
+    Check if a user exists inside a remote LDAP database
+
+    Arguments:
+      - uci -- EUci pointer
+      - name -- User name
+      - database -- Database identifier
+
+    Returns:
+      - True if the user exists, False otherwise
+
+    Raises:
+      - subprocess.CalledProcessError if the LDAP server can't be queried
+    '''
+    if get_database_type(uci, database) != "ldap":
+        raise utils.ValidationError('database', 'db_not_ldap', database)
+    ldap = uci.get_all("users", database)
+    uri = ldap.get("uri", "")
+    base_dn = ldap.get("base_dn", "")
+    user_attr = ldap.get("user_attr", "uid")
+    tls_reqcert = ldap.get("tls_reqcert", "never")
+    starttls = int(ldap.get("start_tls", 0))
+    bind_dn = ldap.get("bind_dn")
+    bind_password = ldap.get("bind_password")
+
+    ldapsearch_command = [
+        "/usr/bin/ldapsearch",
+        "-LLL",
+        "-H", uri,
+        "-b", base_dn,
+    ]
+
+    if bind_dn:
+        ldapsearch_command.append("-D")
+        ldapsearch_command.append(bind_dn)
+        ldapsearch_command.append("-w")
+        ldapsearch_command.append(bind_password)
+    else:
+        ldapsearch_command.append("-x")
+
+    if starttls:
+        ldapsearch_command.append("-Z")
+
+    # static filter to limit the number of returned attributes and entries
+    ldapsearch_command.append(f"{user_attr}={name}")
+
+    env = os.environ.copy()
+    env['LDAPTLS_REQCERT'] = tls_reqcert
+
+    proc = subprocess.run(ldapsearch_command, env=env, check=True, capture_output=True, text=True)
+    # search for a generic field since different LDAP servers have different DN formats
+    return "objectclass" in proc.stdout.lower()
+
 def shadow_password(password):
     '''
     Generate a shadow password
@@ -913,6 +974,50 @@ def is_admin(uci, username):
         if logins[l].get("username") == username:
             return True
     return False
+
+def is_superuser(uci, username):
+    """
+    Check if a user is root, the controller account or the support account
+
+    Arguments:
+      - uci -- EUci pointer
+      - username -- User name
+
+    Returns:
+      - True if user is a superuser, False otherwise
+    """
+    if username == "root":
+        return True
+    for section in ("controller", "ns_don"):
+        if username and uci.get("rpcd", section, "username", default="") == username:
+            return True
+    return False
+
+
+def caller_is_superuser(uci):
+    """
+    Check if the user calling the API is a superuser, callers outside ns-api-server are trusted as root
+
+    Arguments:
+      - uci -- EUci pointer
+
+    Returns:
+      - True if the caller is a superuser, False otherwise
+    """
+    return is_superuser(uci, os.environ.get("NS_API_USER", "root"))
+
+
+def delete_2fa(username, secrets_dir="/etc/ns-api-server"):
+    """
+    Delete the ns-api-server 2FA secret of a user
+
+    Arguments:
+      - username -- User name
+      - secrets_dir -- ns-api-server secrets directory
+    """
+    # an empty name would remove the whole secrets directory
+    if username:
+        shutil.rmtree(os.path.join(secrets_dir, username), ignore_errors=True)
 
 
 def used_by(uci, database_name):

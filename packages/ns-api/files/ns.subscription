@@ -46,7 +46,7 @@ def info():
     u = EUci()
     try:
         ret = {}
-        p = subprocess.run(["/usr/sbin/subscription-info", "1"], check=True, capture_output=True)
+        p = subprocess.run(["/usr/sbin/subscription-info"], check=True, capture_output=True)
         data = json.loads(p.stdout)
     except:
         sid = u.get('ns-plug', 'config', 'system_id', default=None)
@@ -63,7 +63,7 @@ def info():
         expiration = 0
     type = u.get('ns-plug', 'config', 'type', default='')
 
-    ret = {"server_id": data["id"], "systemd_id": data["uuid"], "plan": data["subscription"]["subscription_plan"]["name"], "expiration": expiration, "active": active, "type": type}
+    ret = {"server_id": data["id"], "systemd_id": data["uuid"], "plan": data["subscription"]["subscription_plan"]["name"], "expiration": expiration, "active": active, "type": type, "checked_at": data.get("checked_at", 0), "stale": data.get("stale", False)}
 
     if type == "enterprise":
         ret["organization"] = data.get("organization", "")

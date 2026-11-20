@@ -104,8 +104,10 @@ until the next reload and then vanishes. Change the generator or its UCI input i
 | `table inet netifyd` (nftables) | `/usr/sbin/ns-netifyd-configure` (on start and reload) | `/etc/config/netifyd` → `ns_config` |
 | `netify-application-catalog.json` and the other catalog/category files | `dpi-data-update` (nightly cron) | Netify's data service |
 | `/usr/share/nftables.d/table-pre/` DPI chains | `/usr/sbin/dpi-nft` | `/etc/config/dpi` |
+| `address-groups.d/30-*.conf` | `nethsec.dpi.write_address_groups` (on commit, by `ns.ovpnrw`, by `/usr/sbin/dpi`) | `/etc/config/objects`, `dhcp`, `users` |
 
-`/usr/sbin/dpi` is the whole DPI apply path: `dpi-config` → `dpi-nft` → `/etc/init.d/netifyd reload`.
+`/usr/sbin/dpi` is the whole DPI apply path: `dpi-migrate` → `write-address-groups` → `dpi-config` → `dpi-nft` →
+`/etc/init.d/netifyd reload`.
 Run it after changing `/etc/config/dpi`; don't reproduce its steps by hand.
 
 ---
@@ -203,6 +205,25 @@ Two operational facts:
   destroy agent-managed and hand-placed groups.
 
 MAC members only match via `mac ==`, so don't put them in a group a `local_ip` rule references.
+
+The `30-` prefix belongs to `nethsec.dpi.write_address_groups`: one `30-<database>_<id>.conf` group
+per firewall object resolving to addresses, used by a DPI rule or not, with a `# <object name>` and a
+`# <id>, generated from the firewall objects: do not edit` header, and every other `30-*.conf` file is
+removed. It runs from the `update-address-groups.py` post-commit hook (`objects`, `dhcp`, `users`), from
+`ns.ovpnrw` (reserved IP of a VPN user) and from `/usr/sbin/dpi`, before `dpi-config`: at boot the `dpi`
+service (`START=40`) runs it before netifyd (`START=99`); `dpi-config` only references the groups. The `30-*.conf` files are in
+`/lib/upgrade/keep.d/ns-dpi`, so backups and the HA sync carry them. The agent keeps the groups it loaded
+in memory, a reload doesn't drop the ones whose file was removed (it drops their single addresses, not
+their networks), and on stop it saves all of them back, without comments: that's why ownership goes by
+prefix. The group of a deleted object therefore comes back as a file on the next agent restart
+(unreferenced, so harmless) until the next write removes it; the boot write runs between the stop that
+saved it and the start that would load it, so after a reboot it is gone from memory too. The
+`flush-address-group` socket command drops a group from memory and deletes its file. A `kill -9` saves nothing. Verified on a device with agent 5.2.9: a reload re-reads the groups
+without restarting the agent; a range line is silently ignored, so ranges are written as CIDR blocks;
+a `/0` matches nothing (in a group and inline), so it is written as two `/1`; an IPv4-mapped IPv6 address
+never matches an IPv4 flow; an empty group or a missing tag matches nothing without errors. IPv6
+literals written inline in a criteria, especially the ones starting with `::`, were seen to trigger an
+intermittent `criteria parse error` that takes the agent down: a group reference never does.
 
 ---
 
