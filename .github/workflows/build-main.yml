@@ -44,7 +44,7 @@ on:
 jobs:
   vars:
     name: 'Compute build variables'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       owrt_version: ${{ steps.compute.outputs.owrt_version }}
       target: ${{ steps.compute.outputs.target }}
@@ -98,7 +98,7 @@ jobs:
 
   tools:
     name: 'Run tools'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: [vars, build]
     if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
     env:
