@@ -8,6 +8,9 @@
 import nsmigration
 from nethsec import utils
 
+# NS7 zone names that differ on NethSecurity
+REFLECTION_ZONE_MAP = {'blue': 'guest', 'orange': 'dmz'}
+
 def add_ipset(u, rname, restrict):
     sname = f"{rname}_ipset"
     # delete existing, if any
@@ -42,9 +45,9 @@ for pf in data['redirects']:
         if restrict:
             sname = add_ipset(u, pfname, restrict)
             u.set('firewall', pfname, 'ipset', sname)
-    # NS7 blue zone is migrated as guest
+    # NS7 blue and orange zones are migrated as guest and dmz
     if pf.get('reflection_zone'):
-        pf['reflection_zone'] = ['guest' if z == 'blue' else z for z in pf['reflection_zone']]
+        pf['reflection_zone'] = [REFLECTION_ZONE_MAP.get(z, z) for z in pf['reflection_zone']]
     for o in pf:
         u.set("firewall", pfname, o, pf[o])
 
