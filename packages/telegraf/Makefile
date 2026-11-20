@@ -7,8 +7,8 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=telegraf
 # renovate: datasource=github-tags depName=influxdata/telegraf
-PKG_VERSION:=1.39.1
-PKG_RELEASE:=5
+PKG_VERSION:=1.40.2
+PKG_RELEASE:=1
  
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://codeload.github.com/influxdata/telegraf/tar.gz/v$(PKG_VERSION)?
@@ -19,7 +19,7 @@ PKG_HASH:=skip
 PKG_MAINTAINER:=Tommaso Bailetti <tommaso.bailetti@nethesis.it>
 PKG_LICENSE:=MIT
 
-PKG_BUILD_DEPENDS:=golang/host
+PKG_BUILD_DEPENDS:=golang1.27/host
 PKG_BUILD_PARALLEL:=1
 PKG_BUILD_FLAGS:=no-mips16
 
@@ -44,7 +44,9 @@ GO_PKG_TAGS:= \
 	inputs.nstat \
 	inputs.ping \
 	inputs.processes \
+	inputs.procstat \
 	inputs.sensors \
+	inputs.smart \
 	inputs.system \
 	inputs.wireguard \
 	inputs.tail \
@@ -91,7 +93,9 @@ define Package/telegraf/install
 	$(INSTALL_DATA) ./files/telegraf.conf.d/services.conf $(1)/etc/telegraf.conf.d/services.conf
 	$(INSTALL_DATA) ./files/telegraf.conf.d/mwan.conf $(1)/etc/telegraf.conf.d/mwan.conf
 	$(INSTALL_DATA) ./files/telegraf.conf.d/ha.conf $(1)/etc/telegraf.conf.d/ha.conf
-	$(INSTALL_DATA) ./files/telegraf.conf.d/banip.conf $(1)/etc/telegraf.conf.d/banip.conf
+	$(INSTALL_DATA) ./files/telegraf.conf.d/procstat.conf $(1)/etc/telegraf.conf.d/procstat.conf
+	$(INSTALL_DIR) $(1)/etc/rsyslog.d/rules.d
+	$(INSTALL_DATA) ./files/rsyslog-rules.conf $(1)/etc/rsyslog.d/rules.d/telegraf.conf
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/uci-defaults/99-telegraf-migrate-netdata $(1)/etc/uci-defaults/99-telegraf-migrate-netdata
 	$(INSTALL_DIR) $(1)/usr/sbin
@@ -101,12 +105,6 @@ define Package/telegraf/install
 	$(INSTALL_BIN) ./files/telegraf-storage-status $(1)/usr/libexec/telegraf-storage-status
 	$(INSTALL_BIN) ./files/telegraf-mwan $(1)/usr/libexec/telegraf-mwan
 	$(INSTALL_BIN) ./files/telegraf-ha-alert $(1)/usr/libexec/telegraf-ha-alert
-endef
-
-define Package/telegraf/postinst
-#!/bin/sh
-[ -z "$${IPKG_INSTROOT}" ] && /etc/init.d/telegraf restart
-exit 0
 endef
 
 $(eval $(call GoBinPackage,telegraf))

@@ -4,6 +4,8 @@
 . /lib/functions/keepalived/hotplug.sh
 . /lib/functions/keepalived/ns.sh
 
+ns_ha_chain_is_stale && exit 0
+
 set_service_name ns-plug
 
 set_restart_if_master
@@ -12,11 +14,11 @@ set_stop_if_backup
 RESTORE_LIST="/tmp/ns-ha/tmp/restore_list"
 
 if [ "$ACTION" == "NOTIFY_BACKUP" ]; then
-    update_cron "disable" "send-heartbeat send-backup send-inventory ns-push-reports update-packages"
+    update_cron "disable" "send-heartbeat send-backup send-inventory ns-push-reports update-packages subscription-info"
 elif [ "$ACTION" == "NOTIFY_MASTER" ]; then
-    update_cron "enable" "send-heartbeat send-backup send-inventory ns-push-reports update-packages"
+    update_cron "enable" "send-heartbeat send-backup send-inventory ns-push-reports update-packages subscription-info"
 elif [ "$ACTION" == "NOTIFY_SYNC" ]; then
-    update_cron "disable" "send-heartbeat send-backup send-inventory ns-push-reports update-packages"
+    update_cron "disable" "send-heartbeat send-backup send-inventory ns-push-reports update-packages subscription-info"
     # Remove backup.pass if it has been unset on the primary
     if ! grep -q /etc/backup.pass "$RESTORE_LIST" && [ -f /etc/backup.pass ]; then
         rm -f /etc/backup.pass

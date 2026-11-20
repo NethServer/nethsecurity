@@ -1,0 +1,17 @@
+diff --git a/net/fail2ban/files/fail2ban.init b/net/fail2ban/files/fail2ban.init
+--- a/net/fail2ban/files/fail2ban.init
++++ b/net/fail2ban/files/fail2ban.init
+@@ -21,6 +21,13 @@
+ 
+ 	config_load fail2ban
+ 	config_get dbfile fail2ban dbfile /var/lib/fail2ban/fail2ban.sqlite3
++	# NethSecurity: keep the DB on the data storage only when it is really mounted
++	if grep -q " /mnt/data " /proc/mounts; then
++		dbfile=/mnt/data/fail2ban/fail2ban.sqlite3
++	else
++		dbfile=/var/run/fail2ban/fail2ban.sqlite3
++	fi
++	mkdir -m 0755 -p "$(dirname "$dbfile")"
+ 
+ 	echo "[Definition]" > "${RUNCONF}"
+ 	echo -n "dbfile = " >> "${RUNCONF}"

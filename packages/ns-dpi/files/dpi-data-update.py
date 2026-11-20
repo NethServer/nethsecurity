@@ -11,6 +11,7 @@ from requests.adapters import HTTPAdapter
 import os.path
 import json
 import logging
+import logging.handlers
 from os import environ
 
 
@@ -81,7 +82,8 @@ def download_data(endpoint: str, filename: str) -> None:
 if __name__ == "__main__":
     logger = logging.getLogger()
     logger.setLevel(environ.get("LOGLEVEL", "INFO").upper())
-    handler = logging.StreamHandler()
+    handler = logging.handlers.SysLogHandler("/dev/log", logging.handlers.SysLogHandler.LOG_DAEMON)
+    handler.ident = "dpi-data-update: "
     logger.addHandler(handler)
 
     errors = []

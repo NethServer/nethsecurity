@@ -1,3 +1,4 @@
+import os
 import pathlib
 import subprocess
 
@@ -5,7 +6,7 @@ import pytest
 from euci import EUci
 from pytest_mock import MockFixture
 
-from nethsec import dpi, utils
+from nethsec import dpi, objects, utils
 from nethsec.utils import ValidationError
 
 applications = {
@@ -745,7 +746,8 @@ def test_add_rule_accepts_every_source_shape(e_uci_rules, source):
 
 
 @pytest.mark.parametrize('source', ['not-an-ip', '192.168.1.300', '192.168.1.20-192.168.1.10',
-                                    '192.168.1.1-2001:db8::1', ''])
+                                    '192.168.1.1-2001:db8::1', '', 'fe80::1%eth0', 'fe80::1%x) || (true',
+                                    'fe80::1%x)-fe80::2'])
 def test_add_rule_refuses_an_invalid_source(e_uci_rules, source):
     group = group_of(e_uci_rules)
     with pytest.raises(ValidationError) as err:
@@ -875,6 +877,7 @@ def test_list_rules(e_uci_rules):
             'enabled': True,
             'action': 'block',
             'source': ['192.168.1.0/24'],
+            'source_objects': [],
             'appgroups': [{'id': group, 'name': 'Group one'}],
             'match_all': False,
             'managed': True,
@@ -912,6 +915,12 @@ def test_expand_source():
     assert dpi.expand_source(['192.168.1.1-192.168.1.4']) == ['192.168.1.1/32', '192.168.1.2/31',
                                                               '192.168.1.4/32']
     assert dpi.expand_source(['10.0.0.1-10.0.0.2']) == ['10.0.0.1/32', '10.0.0.2/32']
+
+
+def test_expand_source_drops_the_zone():
+    assert dpi.expand_source(['fe80::1%x) || (true']) == ['fe80::1']
+    assert dpi.expand_source(['fe80::1%eth0/64']) == ['fe80::1/64']
+    assert dpi.expand_source(['fe80::1%x)-fe80::2']) == ['fe80::1/128', 'fe80::2/128']
 
 
 def test_build_rule_criteria(e_uci_rules):
@@ -1256,3 +1265,569 @@ def test_migrate_schema_is_idempotent(e_uci_legacy, mock_reload):
     assert dpi_config_file(e_uci_legacy) == config_after_first_run
     assert not has_pending_changes(e_uci_legacy)
     assert not reloaded(mock_reload)
+
+
+# Source objects
+
+objects_config = """
+config host 'ns_host'
+	option name 'host1'
+	option family 'ipv4'
+	list ipaddr '192.168.1.10'
+
+config host 'ns_cidr'
+	option name 'cidr1'
+	option family 'ipv4'
+	list ipaddr '192.168.1.0/24'
+
+config host 'ns_range'
+	option name 'range1'
+	option family 'ipv4'
+	list ipaddr '192.168.1.10-192.168.1.13'
+
+config host 'ns_reversed'
+	option name 'reversed1'
+	option family 'ipv4'
+	list ipaddr '192.168.1.20-192.168.1.10'
+	list ipaddr '192.168.1.30'
+
+config host 'ns_nested'
+	option name 'nested1'
+	option family 'ipv4'
+	list ipaddr 'objects/ns_host'
+	list ipaddr 'dhcp/ns_lease'
+	list ipaddr '10.0.0.1'
+	list ipaddr '192.168.1.10'
+
+config host 'ns_mapped'
+	option name 'mapped1'
+	option family 'ipv6'
+	list ipaddr '::ffff:192.168.1.10'
+	list ipaddr '::ffff:192.168.2.0/120'
+
+config host 'ns_all'
+	option name 'all1'
+	option family 'ipv4'
+	list ipaddr '0.0.0.0/0'
+
+config host 'ns_all6'
+	option name 'all6'
+	option family 'ipv6'
+	list ipaddr '::-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff'
+
+config host 'ns_zone'
+	option name 'zone1'
+	option family 'ipv6'
+	list ipaddr 'fe80::1%eth0'
+	list ipaddr 'fe80::10%eth0-fe80::11%eth0'
+
+config host 'ns_v6range'
+	option name 'v6range1'
+	option family 'ipv6'
+	list ipaddr 'fd00::1-fd00::4'
+	list ipaddr 'FD00::50'
+
+config host 'ns_with_domain'
+	option name 'withdomain1'
+	option family 'ipv4'
+	list ipaddr 'objects/ns_domain'
+
+config domain 'ns_domain'
+	option name 'domain1'
+	option family 'ipv4'
+	option timeout '600'
+	list domain 'example.com'
+"""
+
+dhcp_config = """
+config host 'ns_lease'
+	option name 'lease1'
+	option ip '192.168.1.50'
+	option mac '02:00:00:00:00:50'
+
+config domain 'ns_record'
+	option name 'record.lan'
+	option ip '192.168.1.60'
+"""
+
+users_config = """
+config user 'ns_vpn'
+	option name 'vpnuser'
+	option openvpn_ipaddr '10.9.0.2'
+
+config user 'ns_novpn'
+	option name 'novpnuser'
+"""
+
+
+@pytest.fixture
+def e_uci_sources(e_uci_rules):
+    """Rules on top of a configuration holding every kind of object."""
+    conf_dir = pathlib.Path(e_uci_rules.confdir())
+    conf_dir.joinpath('objects').write_text(objects_config)
+    conf_dir.joinpath('dhcp').write_text(dhcp_config)
+    conf_dir.joinpath('users').write_text(users_config)
+    conf_dir.joinpath('mwan3').write_text('')
+    return e_uci_rules
+
+
+def test_add_rule_with_source_objects(e_uci_sources):
+    group = group_of(e_uci_sources)
+    rule_id = dpi.add_rule(e_uci_sources, 'Block hosts', True, 'block', [], [group],
+                           source_objects=['objects/ns_host', 'dhcp/ns_lease', 'objects/ns_host'])
+    assert e_uci_sources.get('dpi', rule_id, 'source_object', list=True) == ('objects/ns_host', 'dhcp/ns_lease')
+    assert e_uci_sources.get('dpi', rule_id, 'source', default=None) is None
+
+
+@pytest.mark.parametrize('object_id', ['objects/ns_host', 'objects/ns_cidr', 'objects/ns_range', 'objects/ns_nested',
+                                       'dhcp/ns_lease', 'dhcp/ns_record', 'users/ns_vpn'])
+def test_add_rule_accepts_every_source_object_kind(e_uci_sources, object_id):
+    group = group_of(e_uci_sources)
+    rule_id = dpi.add_rule(e_uci_sources, 'Rule', True, 'block', [], [group], source_objects=[object_id])
+    assert e_uci_sources.get('dpi', rule_id, 'source_object', list=True) == (object_id,)
+
+
+@pytest.mark.parametrize('object_id', ['objects/ns_domain', 'objects/ns_missing', 'dhcp/ns_missing', 'firewall/ns_lan',
+                                       'users/ns_novpn', '192.168.1.1', '', None, 'objects/'])
+def test_add_rule_refuses_an_invalid_source_object(e_uci_sources, object_id):
+    group = group_of(e_uci_sources)
+    with pytest.raises(ValidationError) as err:
+        dpi.add_rule(e_uci_sources, 'Rule', True, 'block', [], [group], source_objects=[object_id])
+    assert err.value.args[0] == 'source_objects'
+    assert err.value.args[1] == 'invalid_source_object'
+
+
+def test_add_rule_refuses_addresses_and_source_objects_together(e_uci_sources):
+    group = group_of(e_uci_sources)
+    with pytest.raises(ValidationError) as err:
+        dpi.add_rule(e_uci_sources, 'Rule', True, 'block', ['192.168.1.1'], [group],
+                     source_objects=['objects/ns_host'])
+    assert err.value.args[0] == 'source_objects'
+    assert err.value.args[1] == 'source_objects_with_source'
+
+
+def test_edit_rule_refuses_addresses_and_source_objects_together(e_uci_sources):
+    group = group_of(e_uci_sources)
+    rule_id = dpi.add_rule(e_uci_sources, 'Rule', True, 'block', ['192.168.1.1'], [group])
+    with pytest.raises(ValidationError) as err:
+        dpi.edit_rule(e_uci_sources, rule_id, 'Rule', True, 'block', ['192.168.1.1'], [group],
+                      source_objects=['objects/ns_host'])
+    assert err.value.args[1] == 'source_objects_with_source'
+
+
+def test_edit_rule_sets_and_clears_source_objects(e_uci_sources):
+    group = group_of(e_uci_sources)
+    rule_id = dpi.add_rule(e_uci_sources, 'Rule', True, 'block', ['192.168.1.1'], [group])
+    dpi.edit_rule(e_uci_sources, rule_id, 'Rule', True, 'block', [], [group], source_objects=['users/ns_vpn'])
+    assert e_uci_sources.get('dpi', rule_id, 'source_object', list=True) == ('users/ns_vpn',)
+    assert e_uci_sources.get('dpi', rule_id, 'source', default=None) is None
+    dpi.edit_rule(e_uci_sources, rule_id, 'Rule', True, 'block', [], [group])
+    assert e_uci_sources.get('dpi', rule_id, 'source_object', default=None) is None
+
+
+def test_list_rules_reports_source_objects(e_uci_sources):
+    group = group_of(e_uci_sources)
+    dpi.add_rule(e_uci_sources, 'Rule', True, 'block', [], [group],
+                 source_objects=['objects/ns_host', 'objects/ns_cidr', 'objects/ns_range', 'objects/ns_nested',
+                                 'dhcp/ns_lease', 'dhcp/ns_record', 'users/ns_vpn'])
+    rule = dpi.list_rules(e_uci_sources)[0]
+    assert rule['source'] == []
+    assert rule['source_objects'] == [
+        {'id': 'objects/ns_host', 'name': 'host1', 'type': 'host_set', 'subtype': 'host'},
+        {'id': 'objects/ns_cidr', 'name': 'cidr1', 'type': 'host_set', 'subtype': 'host_set'},
+        {'id': 'objects/ns_range', 'name': 'range1', 'type': 'host_set', 'subtype': 'host_set'},
+        {'id': 'objects/ns_nested', 'name': 'nested1', 'type': 'host_set', 'subtype': 'host_set'},
+        {'id': 'dhcp/ns_lease', 'name': 'lease1', 'type': 'dhcp_static_lease', 'subtype': 'dhcp_static_lease'},
+        {'id': 'dhcp/ns_record', 'name': 'record.lan', 'type': 'dns_record', 'subtype': 'dns_record'},
+        {'id': 'users/ns_vpn', 'name': 'vpnuser', 'type': 'vpn_user', 'subtype': 'vpn_user'},
+    ]
+
+
+def test_list_rules_reports_a_source_object_gone_from_the_configuration(e_uci_sources):
+    group = group_of(e_uci_sources)
+    rule_id = dpi.add_rule(e_uci_sources, 'Rule', True, 'block', [], [group], source_objects=['objects/ns_host'])
+    e_uci_sources.set('dpi', rule_id, 'source_object', ['objects/ns_gone'])
+    assert dpi.list_rules(e_uci_sources)[0]['source_objects'] == [
+        {'id': 'objects/ns_gone', 'name': 'objects/ns_gone', 'type': None, 'subtype': None}]
+
+
+def test_list_rules_without_source_objects(e_uci_sources):
+    group = group_of(e_uci_sources)
+    dpi.add_rule(e_uci_sources, 'Rule', True, 'block', [], [group])
+    assert dpi.list_rules(e_uci_sources)[0]['source_objects'] == []
+
+
+def test_build_rule_criteria_with_source_objects(e_uci_sources):
+    group = group_of(e_uci_sources)
+    rule_id = dpi.add_rule(e_uci_sources, 'Rule', True, 'block', [], [group],
+                           source_objects=['objects/ns_host', 'users/ns_vpn'])
+    assert dpi.build_rule_criteria(e_uci_sources, e_uci_sources.get_all('dpi', rule_id)) == (
+        "(local_ip == @objects_ns_host || local_ip == @users_ns_vpn) && (app == 'netify.netflix');"
+    )
+
+
+def test_build_rule_criteria_of_a_rule_edited_by_hand_with_addresses_and_source_objects(e_uci_sources):
+    # the API refuses both together, a rule edited by hand matches either
+    group = group_of(e_uci_sources)
+    rule = {'appgroup': [group], 'source': ['192.168.5.5'], 'source_object': ['objects/ns_range']}
+    assert dpi.build_rule_criteria(e_uci_sources, rule) == (
+        "(local_ip == 192.168.5.5 || local_ip == @objects_ns_range) && (app == 'netify.netflix');"
+    )
+
+
+def test_build_rule_criteria_of_a_match_all_rule_narrowed_to_source_objects(e_uci_sources):
+    rule_id = dpi.add_rule(e_uci_sources, 'Rule', True, 'allow', [], [], match_all=True,
+                           source_objects=['dhcp/ns_lease'])
+    assert dpi.build_rule_criteria(e_uci_sources, e_uci_sources.get_all('dpi', rule_id)) == (
+        '(local_ip == @dhcp_ns_lease);'
+    )
+
+
+def test_build_rule_criteria_keeps_a_source_object_without_addresses(e_uci_sources):
+    # dropping the term would turn the rule into one matching every host
+    group = group_of(e_uci_sources)
+    rule_id = dpi.add_rule(e_uci_sources, 'Rule', True, 'block', [], [group], source_objects=['objects/ns_with_domain'])
+    assert dpi.build_rule_criteria(e_uci_sources, e_uci_sources.get_all('dpi', rule_id)) == (
+        "(local_ip == @objects_ns_with_domain) && (app == 'netify.netflix');"
+    )
+
+
+def test_source_object_is_used(e_uci_sources):
+    group = group_of(e_uci_sources)
+    assert objects.is_used_object(e_uci_sources, 'objects/ns_cidr') == (False, [])
+    rule_id = dpi.add_rule(e_uci_sources, 'One', True, 'block', [], [group], source_objects=['objects/ns_cidr'])
+    assert objects.is_used_object(e_uci_sources, 'objects/ns_cidr') == (True, [f'dpi/{rule_id}'])
+    with pytest.raises(ValidationError) as err:
+        objects.delete_host_set(e_uci_sources, 'ns_cidr')
+    assert err.value.args[1] == 'host_set_is_used'
+    assert objects.is_used_object(e_uci_sources, 'dhcp/ns_record') == (False, [])
+    # the usage is shown with the rule name
+    assert objects.get_info(e_uci_sources, f'dpi/{rule_id}')['name'] == 'One'
+
+# Address groups
+
+groups_objects_db = """
+config host 'ns_host'
+	option name 'host1'
+	option family 'ipv4'
+	list ipaddr '192.168.1.10'
+
+config host 'ns_cidr'
+	option name 'cidr1'
+	option family 'ipv4'
+	list ipaddr '192.168.1.0/24'
+
+config host 'ns_range'
+	option name 'range1'
+	option family 'ipv4'
+	list ipaddr '192.168.1.10-192.168.1.13'
+
+config host 'ns_reversed'
+	option name 'reversed1'
+	option family 'ipv4'
+	list ipaddr '192.168.1.20-192.168.1.10'
+	list ipaddr '192.168.1.30'
+
+config host 'ns_nested'
+	option name 'nested1'
+	option family 'ipv4'
+	list ipaddr 'objects/ns_host'
+	list ipaddr 'dhcp/ns_lease'
+	list ipaddr '10.0.0.1'
+	list ipaddr '192.168.1.10'
+
+config host 'ns_mapped'
+	option name 'mapped1'
+	option family 'ipv6'
+	list ipaddr '::ffff:192.168.1.10'
+	list ipaddr '::ffff:192.168.2.0/120'
+
+config host 'ns_all'
+	option name 'all1'
+	option family 'ipv4'
+	list ipaddr '0.0.0.0/0'
+
+config host 'ns_all6'
+	option name 'all6'
+	option family 'ipv6'
+	list ipaddr '::-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff'
+
+config host 'ns_zone'
+	option name 'zone1'
+	option family 'ipv6'
+	list ipaddr 'fe80::1%eth0'
+	list ipaddr 'fe80::10%eth0-fe80::11%eth0'
+
+config host 'ns_v6range'
+	option name 'v6range1'
+	option family 'ipv6'
+	list ipaddr 'fd00::1-fd00::4'
+	list ipaddr 'FD00::50'
+
+config host 'ns_with_domain'
+	option name 'withdomain1'
+	option family 'ipv4'
+	list ipaddr 'objects/ns_domain'
+
+config domain 'ns_domain'
+	option name 'domain1'
+	option family 'ipv4'
+	option timeout '600'
+	list domain 'example.com'
+"""
+
+groups_dhcp_db = """
+config dnsmasq
+	option domain 'lan'
+
+config host 'ns_lease'
+	option name 'lease1'
+	option ip '192.168.1.50'
+	option mac '02:00:00:00:00:50'
+
+config domain 'ns_record'
+	option name 'record.lan'
+	option ip '192.168.1.60'
+"""
+
+groups_users_db = """
+config local 'main'
+	option description 'Local users'
+
+config user 'ns_vpn'
+	option name 'vpnuser'
+	option database 'main'
+	option openvpn_ipaddr '10.9.0.2'
+
+config user 'ns_novpn'
+	option name 'novpnuser'
+	option database 'main'
+
+config user 'ns_noip'
+	option name 'noipuser'
+	option database 'main'
+	option openvpn_ipaddr ''
+"""
+
+# the objects of the configuration above with at least one address, so with an address group file.
+# Pending changes other tests leave in the default savedir can add more objects: assertions check these
+groups_files = ['30-dhcp_ns_lease.conf', '30-dhcp_ns_record.conf', '30-objects_ns_all.conf',
+                '30-objects_ns_all6.conf', '30-objects_ns_cidr.conf', '30-objects_ns_host.conf',
+                '30-objects_ns_mapped.conf', '30-objects_ns_nested.conf', '30-objects_ns_range.conf',
+                '30-objects_ns_reversed.conf', '30-objects_ns_v6range.conf', '30-objects_ns_zone.conf',
+                '30-users_ns_vpn.conf']
+
+# the objects of the configuration above without addresses, so without a file
+groups_no_files = ['30-objects_ns_domain.conf', '30-objects_ns_with_domain.conf', '30-users_ns_novpn.conf',
+                   '30-users_ns_noip.conf']
+
+
+@pytest.fixture
+def g(tmp_path: pathlib.Path, monkeypatch) -> EUci:
+    """A configuration holding every kind of object, address groups in a temp dir."""
+    conf_dir = tmp_path.joinpath('conf')
+    conf_dir.mkdir()
+    conf_dir.joinpath('objects').write_text(groups_objects_db)
+    conf_dir.joinpath('dhcp').write_text(groups_dhcp_db)
+    conf_dir.joinpath('users').write_text(groups_users_db)
+    save_dir = tmp_path.joinpath('save')
+    save_dir.mkdir()
+    monkeypatch.setattr(dpi, 'ADDRESS_GROUPS_DIR', tmp_path.joinpath('address-groups.d').as_posix())
+    return EUci(confdir=conf_dir.as_posix(), savedir=save_dir.as_posix())
+
+
+def groups_dir() -> pathlib.Path:
+    return pathlib.Path(dpi.ADDRESS_GROUPS_DIR)
+
+
+def group_file(name) -> pathlib.Path:
+    return groups_dir().joinpath(name)
+
+
+def group_files() -> set:
+    return {path.name for path in groups_dir().iterdir()}
+
+
+def test_address_group_tag():
+    assert dpi._address_group_tag('objects/ns_host') == 'objects_ns_host'
+    assert dpi._address_group_tag('users/ns_vpn') == 'users_ns_vpn'
+
+
+@pytest.mark.parametrize('object_id, entries', [
+    ('objects/ns_host', ['192.168.1.10/32']),
+    ('objects/ns_cidr', ['192.168.1.0/24']),
+    # an address group ignores ranges: they become CIDR blocks
+    ('objects/ns_range', ['192.168.1.10/31', '192.168.1.12/31']),
+    ('objects/ns_v6range', ['fd00::1/128', 'fd00::2/127', 'fd00::4/128', 'fd00::50/128']),
+    # the object API accepts a reversed range: it covers the same addresses as the ordered one
+    ('objects/ns_reversed', ['192.168.1.10/31', '192.168.1.12/30', '192.168.1.16/30', '192.168.1.20/32',
+                             '192.168.1.30/32']),
+    # references are resolved, duplicates dropped
+    ('objects/ns_nested', ['192.168.1.10/32', '192.168.1.50/32', '10.0.0.1/32']),
+    # an IPv4-mapped address never matches the IPv4 flow it maps
+    ('objects/ns_mapped', ['192.168.1.10/32', '192.168.2.0/24']),
+    # a zero length prefix matches nothing in a group: its two halves match everything
+    ('objects/ns_all', ['0.0.0.0/1', '128.0.0.0/1']),
+    ('objects/ns_all6', ['::/1', '8000::/1']),
+    ('objects/ns_zone', ['fe80::1/128', 'fe80::10/127']),
+    ('dhcp/ns_lease', ['192.168.1.50/32']),
+    ('dhcp/ns_record', ['192.168.1.60/32']),
+    ('users/ns_vpn', ['10.9.0.2/32']),
+    # objects with no address
+    ('users/ns_novpn', []),
+    ('users/ns_noip', []),
+    ('objects/ns_with_domain', []),
+    ('objects/ns_domain', []),
+    ('objects/ns_missing', []),
+])
+def test_address_group_entries(g, object_id, entries):
+    assert dpi._address_group_entries(g, object_id) == entries
+
+
+def test_write_address_groups(g):
+    assert dpi.write_address_groups(g) is True
+    # one file per object with addresses: no file for domain sets, users without a reserved IP and objects
+    # resolving to no address
+    assert set(groups_files) <= group_files()
+    assert not set(groups_no_files) & group_files()
+    assert all(name.startswith('30-') and name.endswith('.conf') for name in group_files())
+    assert group_file('30-objects_ns_range.conf').read_text() == (
+        '# range1\n# objects/ns_range, generated from the firewall objects: do not edit\n'
+        '192.168.1.10/31\n192.168.1.12/31\n')
+    assert group_file('30-users_ns_vpn.conf').read_text() == (
+        '# vpnuser\n# users/ns_vpn, generated from the firewall objects: do not edit\n10.9.0.2/32\n')
+    # unchanged: nothing is written
+    inode = group_file('30-objects_ns_host.conf').stat().st_ino
+    assert dpi.write_address_groups(g) is False
+    assert group_file('30-objects_ns_host.conf').stat().st_ino == inode
+
+
+def test_write_address_groups_removes_only_its_own_stale_files(g):
+    groups_dir().mkdir()
+    # other prefixes or extensions: kept
+    for name in ('10-agent.conf', '20-other.conf', '30-objects_ns_gone.txt'):
+        group_file(name).write_text('10.0.0.1\n')
+    # objects gone, as written here or as saved by the agent without the header: removed
+    group_file('30-objects_ns_gone.conf').write_text(
+        '# gone1\n# objects/ns_gone, generated from the firewall objects: do not edit\n10.0.0.1/32\n')
+    group_file('30-objects_ns_saved.conf').write_text('10.0.0.1\n')
+    group_file('30-objects_ns_empty.conf').write_text('')
+    # an object without addresses: its file goes too
+    group_file('30-users_ns_novpn.conf').write_text('10.9.0.3\n')
+    # an existing object, as saved by the agent: rewritten with the header
+    group_file('30-objects_ns_host.conf').write_text('192.168.1.10\n')
+    dpi.write_address_groups(g)
+    assert {'10-agent.conf', '20-other.conf', '30-objects_ns_gone.txt'} | set(groups_files) <= group_files()
+    assert not {'30-objects_ns_gone.conf', '30-objects_ns_saved.conf', '30-objects_ns_empty.conf',
+                '30-users_ns_novpn.conf'} & group_files()
+    assert group_file('30-objects_ns_host.conf').read_text().splitlines()[1] == (
+        '# objects/ns_host, generated from the firewall objects: do not edit')
+
+
+def test_write_address_groups_follows_the_objects(g):
+    dpi.write_address_groups(g)
+    host = group_file('30-objects_ns_host.conf')
+    # the object changes: its file follows, and the one of the host set holding it too
+    g.set('objects', 'ns_host', 'ipaddr', ['192.168.1.11'])
+    assert dpi.write_address_groups(g) is True
+    assert host.read_text().splitlines()[2:] == ['192.168.1.11/32']
+    assert group_file('30-objects_ns_nested.conf').read_text().splitlines()[2:] == [
+        '192.168.1.11/32', '192.168.1.50/32', '10.0.0.1/32', '192.168.1.10/32']
+    # the object is renamed: the header follows
+    g.set('objects', 'ns_host', 'name', 'renamed')
+    dpi.write_address_groups(g)
+    assert host.read_text().splitlines()[0] == '# renamed'
+    # the object is deleted: its file goes
+    g.delete('objects', 'ns_host')
+    assert dpi.write_address_groups(g) is True
+    assert not host.exists()
+    # a VPN user loses its reserved IP: its file goes, and comes back with it
+    vpn = group_file('30-users_ns_vpn.conf')
+    g.delete('users', 'ns_vpn', 'openvpn_ipaddr')
+    dpi.write_address_groups(g)
+    assert not vpn.exists()
+    g.set('users', 'ns_vpn', 'openvpn_ipaddr', '10.9.0.5')
+    dpi.write_address_groups(g)
+    assert vpn.read_text().splitlines()[2:] == ['10.9.0.5/32']
+    # a new object: a new file
+    g.set('dhcp', 'ns_new', 'host')
+    g.set('dhcp', 'ns_new', 'name', 'new1')
+    g.set('dhcp', 'ns_new', 'ip', '192.168.1.70')
+    dpi.write_address_groups(g)
+    assert group_file('30-dhcp_ns_new.conf').read_text().splitlines()[2:] == ['192.168.1.70/32']
+
+
+def test_write_address_groups_files_are_readable_whatever_the_umask(g):
+    umask = os.umask(0o077)
+    try:
+        dpi.write_address_groups(g)
+    finally:
+        os.umask(umask)
+    assert group_file('30-objects_ns_host.conf').stat().st_mode & 0o777 == 0o644
+    # an unchanged file keeps its content, its mode is fixed
+    group_file('30-objects_ns_host.conf').chmod(0o600)
+    assert dpi.write_address_groups(g) is False
+    assert group_file('30-objects_ns_host.conf').stat().st_mode & 0o777 == 0o644
+
+
+def test_write_address_groups_header(g):
+    # an object without a name: the header holds only the id
+    g.delete('objects', 'ns_host', 'name')
+    # a name on more lines: joined on one
+    g.set('objects', 'ns_cidr', 'name', 'two\nlines')
+    dpi.write_address_groups(g)
+    assert group_file('30-objects_ns_host.conf').read_text() == (
+        '# objects/ns_host, generated from the firewall objects: do not edit\n192.168.1.10/32\n')
+    assert group_file('30-objects_ns_cidr.conf').read_text().splitlines()[:2] == [
+        '# two lines', '# objects/ns_cidr, generated from the firewall objects: do not edit']
+
+
+def test_write_address_groups_without_configurations(tmp_path, monkeypatch):
+    conf_dir = tmp_path.joinpath('conf')
+    conf_dir.mkdir()
+    save_dir = tmp_path.joinpath('save')
+    save_dir.mkdir()
+    monkeypatch.setattr(dpi, 'ADDRESS_GROUPS_DIR', tmp_path.joinpath('address-groups.d').as_posix())
+    dpi.write_address_groups(EUci(confdir=conf_dir.as_posix(), savedir=save_dir.as_posix()))
+    assert not set(groups_files) & group_files()
+
+
+def netifyd_calls(run):
+    return [call.args[0] for call in run.call_args_list]
+
+
+def test_update_address_groups_reloads_a_running_agent(g, mocker):
+    run = mocker.patch('nethsec.dpi.subprocess.run')
+    run.return_value.returncode = 0
+    assert dpi.update_address_groups(g) is True
+    assert netifyd_calls(run) == [['/etc/init.d/netifyd', 'running'], ['/etc/init.d/netifyd', 'reload']]
+    # nothing changed: no reload
+    run.reset_mock()
+    assert dpi.update_address_groups(g) is False
+    assert netifyd_calls(run) == []
+
+
+def test_address_group_entries_skips_an_invalid_value(g, mocker):
+    log = mocker.patch('nethsec.dpi.syslog.syslog')
+    # a range mixing the families can't become networks: it is skipped, the rest of the object is kept
+    g.set('objects', 'ns_reversed', 'ipaddr', ['192.168.1.10-fd00::1', '192.168.1.30'])
+    assert dpi._address_group_entries(g, 'objects/ns_reversed') == ['192.168.1.30/32']
+    assert "skipping '192.168.1.10-fd00::1' of objects/ns_reversed" in log.call_args.args[1]
+    # the host set itself is left as entered
+    assert g.get('objects', 'ns_reversed', 'ipaddr', list=True) == ('192.168.1.10-fd00::1', '192.168.1.30')
+
+
+def test_update_address_groups_leaves_a_stopped_agent_alone(g, mocker):
+    run = mocker.patch('nethsec.dpi.subprocess.run')
+    run.return_value.returncode = 1
+    assert dpi.update_address_groups(g) is True
+    assert netifyd_calls(run) == [['/etc/init.d/netifyd', 'running']]
+
+
+def test_update_address_groups_logs_a_write_failure(g, mocker):
+    run = mocker.patch('nethsec.dpi.subprocess.run')
+    mocker.patch('nethsec.dpi.write_address_groups', side_effect=PermissionError('denied'))
+    log = mocker.patch('nethsec.dpi.syslog.syslog')
+    assert dpi.update_address_groups(g) is False
+    assert netifyd_calls(run) == []
+    assert 'cannot write the address groups' in log.call_args.args[1]

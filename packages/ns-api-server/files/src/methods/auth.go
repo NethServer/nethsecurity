@@ -216,7 +216,7 @@ func QRCode(c *gin.Context) {
 	secret := make([]byte, 20)
 	_, err := rand.Read(secret)
 	if err != nil {
-		logs.Logs.Println("[ERR][2FA] Failed to generate random secret for QRCode: " + err.Error())
+		logs.Err("[2FA] Failed to generate random secret for QRCode: " + err.Error())
 	}
 
 	// convert to string
@@ -243,7 +243,7 @@ func QRCode(c *gin.Context) {
 	// define URL
 	URL, err := url.Parse("otpauth://totp")
 	if err != nil {
-		logs.Logs.Println("[ERR][2FA] Failed to parse URL for QRCode: " + err.Error())
+		logs.Err("[2FA] Failed to parse URL for QRCode: " + err.Error())
 	}
 
 	// add params
@@ -448,7 +448,7 @@ func ValidateAuth(tokenString string, ensureTokenExists bool) bool {
 		})
 
 		if err != nil {
-			logs.Logs.Println("[ERR][JWT] error in JWT token validation: " + err.Error())
+			logs.Err("[JWT] error in JWT token validation: " + utils.SanitizeForLog(err.Error()))
 			return false
 		}
 
@@ -458,14 +458,14 @@ func ValidateAuth(tokenString string, ensureTokenExists bool) bool {
 					username := claims["id"].(string)
 
 					if !CheckTokenValidation(username, tokenString) {
-						logs.Logs.Println("[ERR][JWT] error JWT token not found")
+						logs.Err("[JWT] error JWT token not found")
 						return false
 					}
 				}
 				return true
 			}
 		} else {
-			logs.Logs.Println("[ERR][JWT] error in JWT token claims")
+			logs.Err("[JWT] error in JWT token claims")
 			return false
 		}
 	}
@@ -542,7 +542,7 @@ func DeleteExpiredTokens() {
 
 	// check read error
 	if err != nil {
-		logs.Logs.Println("[ERR][JWT] Failed to read tokens dir " + configuration.Config.TokensDir + ". Error: " + err.Error())
+		logs.Err("[JWT] Failed to read tokens dir " + configuration.Config.TokensDir + ". Error: " + err.Error())
 	}
 
 	// list usernames
@@ -552,7 +552,7 @@ func DeleteExpiredTokens() {
 
 		// check error
 		if err != nil {
-			logs.Logs.Println("[ERR][JWT] Failed to read tokens file " + configuration.Config.TokensDir + "/" + username.Name() + ". Error: " + err.Error())
+			logs.Err("[JWT] Failed to read tokens file " + configuration.Config.TokensDir + "/" + username.Name() + ". Error: " + err.Error())
 		}
 
 		// get string file
@@ -590,7 +590,7 @@ func DeleteExpiredTokens() {
 
 		// check error
 		if errWrite != nil {
-			logs.Logs.Println("[ERR][JWT] Failed to write new tokens file " + configuration.Config.TokensDir + "/" + username.Name() + ". Error: " + errWrite.Error())
+			logs.Err("[JWT] Failed to write new tokens file " + configuration.Config.TokensDir + "/" + username.Name() + ". Error: " + errWrite.Error())
 		}
 	}
 

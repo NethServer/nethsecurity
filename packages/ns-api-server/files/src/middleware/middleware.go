@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"io"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -38,6 +39,22 @@ type login struct {
 
 var jwtMiddleware *jwt.GinJWTMiddleware
 var identityKey = "id"
+
+// maskSensitiveFields replaces with XXX the string value of every field named exactly as one of the fields.
+// It covers both "<field>":"<value>" and the "<field>","<value>" pairs of the ns.commit changes.
+func maskSensitiveFields(body string, fields []string) string {
+	// ns.wireguard import-configuration sends the whole configuration, private key included
+	if strings.Contains(body, `"path":"ns.wireguard"`) {
+		fields = append(slices.Clone(fields), "config")
+	}
+
+	for _, field := range fields {
+		r := regexp.MustCompile(`([{\[,]"` + regexp.QuoteMeta(field) + `"[:,])"(?:[^"\\]|\\.)*"`)
+		body = r.ReplaceAllString(body, `${1}"XXX"`)
+	}
+
+	return body
+}
 
 const onBehalfOfKey = "on_behalf_of"
 const onBehalfOfMaxLen = 64
@@ -118,7 +135,7 @@ func InitJWT() *jwt.GinJWTMiddleware {
 			err := methods.CheckAuthentication(username, password)
 			if err != nil {
 				// login failed, write also the IP address of the client
-				logs.Logs.Println("[INFO][AUTH] authentication failed for user " + utils.SanitizeForLog(username) + " from " + c.ClientIP() + ": " + err.Error())
+				logs.Info("[AUTH] authentication failed for user " + utils.SanitizeForLog(username) + " from " + c.ClientIP() + ": " + err.Error())
 
 				// return JWT error
 				return nil, jwt.ErrFailedAuthentication
@@ -127,7 +144,7 @@ func InitJWT() *jwt.GinJWTMiddleware {
 			onBehalfOf := checkOnBehalfOf(loginVals.OnBehalfOf, username)
 
 			// login ok action
-			logs.Logs.Println("[INFO][AUTH] authentication success for user " + utils.SanitizeForLog(username) + logSuffixOnBehalfOf(onBehalfOf) + " from " + c.ClientIP())
+			logs.Info("[AUTH] authentication success for user " + utils.SanitizeForLog(username) + logSuffixOnBehalfOf(onBehalfOf) + " from " + c.ClientIP())
 
 			// return user auth model
 			return &models.UserAuthorizations{
@@ -194,7 +211,7 @@ func InitJWT() *jwt.GinJWTMiddleware {
 			// check if token exists
 			if !methods.CheckTokenValidation(claims["id"].(string), token.Raw) {
 				// write logs
-				logs.Logs.Println("[INFO][AUTH] authorization failed for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims) + ". " + reqMethod + " " + reqURI)
+				logs.Info("[AUTH] authorization failed for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims) + ". " + reqMethod + " " + reqURI)
 
 				// not authorized
 				return false
@@ -219,22 +236,11 @@ func InitJWT() *jwt.GinJWTMiddleware {
 				// remove all spaces
 				jsonB = strings.ReplaceAll(jsonB, " ", "")
 
-				// create regex for sensitive words
-				for _, s := range configuration.Config.SensitiveList {
-					// create regex
-					r1 := regexp.MustCompile(`"` + s + `":"(.*?)"`) // match "token|password|secret":"<sensitive>"
-					r2 := regexp.MustCompile(`"` + s + `","(.*?)"`) // match "token|password|secret","<sensitive>"
-
-					// apply regex
-					jsonB = r1.ReplaceAllString(jsonB, `"`+s+`":"XXX"`)
-					jsonB = r2.ReplaceAllString(jsonB, `"`+s+`":"XXX"`)
-				}
-
 				// compose req body
-				reqBody = jsonB
+				reqBody = maskSensitiveFields(jsonB, configuration.Config.SensitiveList)
 			}
 
-			logs.Logs.Println("[INFO][AUTH] authorization success for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims) + ". " + reqMethod + " " + reqURI + " " + utils.SanitizeForLog(reqBody))
+			logs.Info("[AUTH] authorization success for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims) + ". " + reqMethod + " " + reqURI + " " + utils.SanitizeForLog(reqBody))
 
 			// authorized
 			return true
@@ -250,7 +256,7 @@ func InitJWT() *jwt.GinJWTMiddleware {
 			}
 
 			// write logs
-			logs.Logs.Println("[INFO][AUTH] login response success for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims))
+			logs.Info("[AUTH] login response success for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims))
 
 			// return 200 OK
 			c.JSON(200, gin.H{"code": 200, "expire": t, "token": token})
@@ -264,28 +270,33 @@ func InitJWT() *jwt.GinJWTMiddleware {
 			methods.SetTokenValidation(claims["id"].(string), token)
 
 			// write logs
-			logs.Logs.Println("[INFO][AUTH] refresh response success for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims))
+			logs.Info("[AUTH] refresh response success for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims))
 
 			// return 200 OK
 			c.JSON(200, gin.H{"code": 200, "expire": t, "token": token})
 		},
 		LogoutResponse: func(c *gin.Context, code int) {
 			//get claims
-			tokenObj, _ := InstanceJWT().ParseToken(c)
+			tokenObj, err := InstanceJWT().ParseToken(c)
+			// invalid or missing token: nothing to log out
+			if err != nil {
+				c.JSON(200, gin.H{"code": 200})
+				return
+			}
 			claims := jwt.ExtractClaimsFromToken(tokenObj)
 
 			// set token to invalid
 			methods.DelTokenValidation(claims["id"].(string), tokenObj.Raw)
 
 			// write logs
-			logs.Logs.Println("[INFO][AUTH] logout response success for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims))
+			logs.Info("[AUTH] logout response success for user " + utils.SanitizeForLog(claims["id"].(string)) + claimsSuffixOnBehalfOf(claims))
 
 			// reutrn 200 OK
 			c.JSON(200, gin.H{"code": 200})
 		},
 		Unauthorized: func(c *gin.Context, code int, message string) {
 			// write logs
-			logs.Logs.Println("[INFO][AUTH] unauthorized request: " + utils.SanitizeForLog(message))
+			logs.Info("[AUTH] unauthorized request: " + utils.SanitizeForLog(message))
 
 			// response not authorized
 			c.JSON(code, structs.Map(response.StatusUnauthorized{
@@ -302,7 +313,7 @@ func InitJWT() *jwt.GinJWTMiddleware {
 
 	// check middleware errors
 	if errDefine != nil {
-		logs.Logs.Println("[ERR][AUTH] middleware definition error: " + errDefine.Error())
+		logs.Err("[AUTH] middleware definition error: " + errDefine.Error())
 	}
 
 	// init middleware
@@ -310,7 +321,7 @@ func InitJWT() *jwt.GinJWTMiddleware {
 
 	// check error on initialization
 	if errInit != nil {
-		logs.Logs.Println("[ERR][AUTH] middleware initialization error: " + errInit.Error())
+		logs.Err("[AUTH] middleware initialization error: " + errInit.Error())
 	}
 
 	// return object

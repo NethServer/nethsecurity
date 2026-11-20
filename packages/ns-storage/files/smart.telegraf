@@ -1,0 +1,7 @@
+# Disk health monitoring (S.M.A.R.T. via smartctl and nvme-cli)
+
+[[inputs.smart]]
+  interval = "5m"
+
+  [inputs.smart.tags]
+    influxdb_db = "os-metrics"

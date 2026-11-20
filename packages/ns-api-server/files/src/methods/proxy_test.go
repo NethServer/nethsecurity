@@ -9,24 +9,15 @@ import (
 	"bytes"
 	"compress/gzip"
 	"io"
-	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/NethServer/nethsecurity-api/logs"
 	gzipmw "github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 )
-
-// proxy.go logs backend errors; logs.Logs is otherwise only set up in main().
-func TestMain(m *testing.M) {
-	logs.Logs = log.New(os.Stderr, "test ", 0)
-	os.Exit(m.Run())
-}
 
 // httputil.ReverseProxy needs a real ResponseWriter (CloseNotifier/Flusher),
 // which httptest.NewRecorder doesn't implement.

@@ -11,7 +11,12 @@
 
 . /lib/functions.sh
 
+# URLs are expanded unquoted: no globbing
+set -f
+
 keep=''
+custom='{}'
+allow=''
 
 handle_blocklist() {
     # preserve only non-enteprise lists
@@ -20,6 +25,32 @@ handle_blocklist() {
     fi
 }
 
+# custom blocklist: plain IP/CIDR list, one per line
+handle_blockfeed() {
+    local url_4 url_6 chain description
+    config_get url_4 "$1" url_4
+    config_get url_6 "$1" url_6
+    config_get chain "$1" chain in
+    config_get description "$1" description
+    custom=$(printf '%s' "$custom" | jq -c --arg n "$1" --arg u4 "$url_4" --arg u6 "$url_6" --arg c "$chain" --arg d "$description" \
+        '.[$n] = ({rule: "feed 1", chain: $c, descr: $d} + (if $u4 != "" then {url_4: $u4} else {} end) + (if $u6 != "" then {url_6: $u6} else {} end))')
+}
+
+handle_allowurl() {
+    local url enabled
+    config_get url "$1" url
+    config_get_bool enabled "$1" enabled 1
+    [ "$enabled" = "1" ] && [ -n "$url" ] && allow="$allow $url"
+}
+
+
+# replace the feeds file only with a complete and changed one: banIP drops ban_feed names missing from it
+update_feeds() {
+    if [ "$1" = "0" ] && [ -s "$FEEDS_TMP" ] && ! cmp -s "$FEEDS_TMP" "$FEEDS"; then
+        mv -f "$FEEDS_TMP" "$FEEDS"
+    fi
+    rm -f "$FEEDS_TMP"
+}
 
 function exit_error {
     >&2 echo "[ERROR] $@"
@@ -28,58 +59,55 @@ function exit_error {
 
 INSIGHTS_SENDER=/usr/sbin/send-insights-blocklist
 INSIGHTS_HOOK=/usr/libexec/ts-insights-hook
-INSIGHTS_SPOOL=/var/run/ns-insights/threat-events.jsonl
+FEEDS=/etc/banip/banip.custom.feeds
+FEEDS_TMP=/etc/banip/banip.custom.feeds.tmp
 
 SYSTEM_SECRET=$(uci -q get ns-plug.config.secret)
 SYSTEM_ID=$(uci -q get ns-plug.config.system_id)
 TYPE=$(uci -q get ns-plug.config.type)
 
+# migrate custom ban_allowurl entries first, a restored old backup is migrated again
+/usr/libexec/ts-allowurl-migrate
+
+# ts-ip owns ban_allowurl: the Nethesis allowlist (credentials rotate, never stored) plus enabled custom URLs;
+# Nethesis first, banIP stops at the first failed download
+if [ ! -z "$SYSTEM_SECRET" ] && [ ! -z "$SYSTEM_ID" ]; then
+    allow="https://$SYSTEM_ID:$SYSTEM_SECRET@bl.nethesis.it/plain/$TYPE/nethesis-blacklists/whitelist.global"
+fi
+config_load banip
+config_foreach handle_blockfeed ns_blockfeed
+config_foreach handle_allowurl ns_allowurl
+if [ "$(echo $allow)" != "$(uci -q get banip.global.ban_allowurl)" ]; then
+    uci -q delete banip.global.ban_allowurl
+    for url in $allow; do
+        uci add_list banip.global.ban_allowurl="$url"
+    done
+    uci commit banip
+fi
+
 if [ ! -z "$SYSTEM_SECRET" ] && [ ! -z "$SYSTEM_ID" ]; then
     jq -s '.[0] * .[1]' /etc/banip/banip.nethesis.feeds /etc/banip/banip.feeds \
-	    | sed -e "s/__USER__/$SYSTEM_ID/" -e "s/__PASSWORD__/$SYSTEM_SECRET/" -e "s/__TYPE__/$TYPE/" > /etc/banip/banip.custom.feeds
-    # The credentials are part of the URL, so an entry written before a key
-    # rotation keeps fetching as the old pair. Enforce one entry, the current
-    # one: compare the whole set, and del_list per entry (a multi-line value
-    # matches nothing).
-    allow_current="https://$SYSTEM_ID:$SYSTEM_SECRET@bl.nethesis.it/plain/$TYPE/nethesis-blacklists/whitelist.global"
-    allow_have=$(uci -q get banip.global.ban_allowurl | tr " " "\n" | grep bl.nethesis.it)
-    if [ "$allow_have" != "$allow_current" ]; then
-        for allow_stale in $allow_have; do
-            uci del_list banip.global.ban_allowurl="$allow_stale"
-        done
-        uci add_list banip.global.ban_allowurl="$allow_current"
-        uci commit banip
-    fi
-    # Nethesis Insights: every subscription reports the blocked IPs,
-    # the nethesisinsightslvl2 feed is selectable only with the Threat Shield entitlement.
-    # banip supports a single block hook: a custom one is preserved and disables the reporting
-    hook=$(uci -q get banip.global.ban_blockhook)
-    if [ -z "$hook" ]; then
-        uci set banip.global.ban_blockhook="$INSIGHTS_HOOK"
-        uci commit banip
-    elif [ "$hook" != "$INSIGHTS_HOOK" ]; then
-        logger -t threat_shield "Nethesis Insights reporting disabled: custom banip block hook $hook is configured"
-    fi
-    if ! crontab -l 2>/dev/null | grep -q "$INSIGHTS_SENDER"; then
-        { crontab -l 2>/dev/null; echo "*/5 * * * * sleep \$(( RANDOM % 60 )); $INSIGHTS_SENDER"; } | crontab -
-    fi
+	    | sed -e "s/__USER__/$SYSTEM_ID/" -e "s/__PASSWORD__/$SYSTEM_SECRET/" -e "s/__TYPE__/$TYPE/" \
+	    | jq --argjson c "$custom" '. + $c' > "$FEEDS_TMP"
+    update_feeds $?
 else
-    allow=$(uci -q get banip.global.ban_allowurl | tr " " "\n" | grep bl.nethesis.it)
-    if [ "$allow" != "" ]; then
-        # cleanup allowlist
-        uci del_list banip.global.ban_allowurl="$allow"
-        # remove premium blocklist
-        config_load banip
-        config_list_foreach global ban_feed handle_blocklist
+    # remove premium blocklist
+    config_list_foreach global ban_feed handle_blocklist
+    if [ "$(echo $keep)" != "$(uci -q get banip.global.ban_feed)" ]; then
         uci -q delete banip.global.ban_feed
         for k in $keep; do
             uci add_list banip.global.ban_feed=$k
         done
         uci commit banip
     fi
-    > /etc/banip/banip.custom.feeds
-    # stop reporting to Nethesis Insights, the feed is removed with the other enterprise feeds;
-    # a custom block hook is left untouched
+    if [ "$custom" = "{}" ]; then
+        > /etc/banip/banip.custom.feeds
+    else
+        jq --argjson c "$custom" '. + $c' /etc/banip/banip.feeds > "$FEEDS_TMP"
+        update_feeds $?
+    fi
+    # the Insights feed is removed with the other enterprise feeds, ts-insights-hook stops reporting;
+    # remove the banip block hook and the sender cron job left by older releases, a custom hook is left untouched
     if [ "$(uci -q get banip.global.ban_blockhook)" = "$INSIGHTS_HOOK" ]; then
         uci -q delete banip.global.ban_blockhook
         uci commit banip
@@ -87,5 +115,7 @@ else
     if crontab -l 2>/dev/null | grep -q "$INSIGHTS_SENDER"; then
         crontab -l | grep -v "$INSIGHTS_SENDER" | crontab -
     fi
-    rm -f "$INSIGHTS_SPOOL"
 fi
+
+# uci-defaults pass --no-start: no fail2ban (re)start during upgrades, rsyslog is down at first boot
+/usr/libexec/ts-fail2ban "$@"
