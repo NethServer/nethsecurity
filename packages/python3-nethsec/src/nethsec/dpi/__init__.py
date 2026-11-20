@@ -615,6 +615,9 @@ def __validate_source(values: list[str]) -> list[str]:
         if not isinstance(value, str) or not value.strip():
             raise ValidationError('source', 'invalid_source', value)
         source = value.strip()
+        # an IPv6 zone means nothing to local_ip, and its free text would end up in the criteria
+        if '%' in source:
+            raise ValidationError('source', 'invalid_source', value)
         try:
             if '-' in source:
                 first, last = (ipaddress.ip_address(part.strip()) for part in source.split('-', 1))
@@ -664,11 +667,12 @@ def expand_source(values: list[str]) -> list[str]:
     """
     expanded = []
     for value in values:
+        # drop the zone of a value saved before it was refused, e.g. restored from a backup
         if '-' in value:
-            first, last = (ipaddress.ip_address(part.strip()) for part in value.split('-', 1))
+            first, last = (ipaddress.ip_address(_strip_zone(part.strip())) for part in value.split('-', 1))
             expanded.extend(str(network) for network in ipaddress.summarize_address_range(first, last))
         else:
-            expanded.append(value)
+            expanded.append(_strip_zone(value))
     return expanded
 
 
