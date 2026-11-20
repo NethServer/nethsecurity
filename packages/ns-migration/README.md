@@ -134,6 +134,7 @@ Differences since NS7:
 - port forwards with multiple IP limitations will be split into multiple redirects
 - port forwards with multiple ports will be split into multiple redirects
 - the `blue` and `orange` hairpin zones are renamed to `guest` and `dmz`, like the zones themselves
+- VPN zones (`rwopenvpn`, `openvpn`, `ipsec`) are not added as hairpin zones: reflection on them requires an explicit subnet
 
 ## Firewall rules
 

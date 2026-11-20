@@ -10,6 +10,8 @@ from nethsec import utils
 
 # NS7 zone names that differ on NethSecurity
 REFLECTION_ZONE_MAP = {'blue': 'guest', 'orange': 'dmz'}
+# reflection on VPN zones requires an explicit subnet, fw4 disables it anyway
+VPN_ZONES = {'rwopenvpn', 'openvpn', 'ipsec'}
 
 def add_ipset(u, rname, restrict):
     sname = f"{rname}_ipset"
@@ -45,9 +47,9 @@ for pf in data['redirects']:
         if restrict:
             sname = add_ipset(u, pfname, restrict)
             u.set('firewall', pfname, 'ipset', sname)
-    # NS7 blue and orange zones are migrated as guest and dmz
+    # NS7 blue and orange zones are migrated as guest and dmz, VPN zones are dropped
     if pf.get('reflection_zone'):
-        pf['reflection_zone'] = [REFLECTION_ZONE_MAP.get(z, z) for z in pf['reflection_zone']]
+        pf['reflection_zone'] = [REFLECTION_ZONE_MAP.get(z, z) for z in pf['reflection_zone'] if z not in VPN_ZONES]
     for o in pf:
         u.set("firewall", pfname, o, pf[o])
 
