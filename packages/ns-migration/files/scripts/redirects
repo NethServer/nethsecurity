@@ -42,6 +42,9 @@ for pf in data['redirects']:
         if restrict:
             sname = add_ipset(u, pfname, restrict)
             u.set('firewall', pfname, 'ipset', sname)
+    # NS7 blue zone is migrated as guest
+    if pf.get('reflection_zone'):
+        pf['reflection_zone'] = ['guest' if z == 'blue' else z for z in pf['reflection_zone']]
     for o in pf:
         u.set("firewall", pfname, o, pf[o])
 

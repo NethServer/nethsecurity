@@ -133,6 +133,7 @@ Differences since NS7:
 
 - port forwards with multiple IP limitations will be split into multiple redirects
 - port forwards with multiple ports will be split into multiple redirects
+- the `blue` hairpin zone is renamed to `guest`, like the zone itself
 
 ## Firewall rules
 
