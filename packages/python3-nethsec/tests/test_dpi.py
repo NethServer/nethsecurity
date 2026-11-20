@@ -746,7 +746,8 @@ def test_add_rule_accepts_every_source_shape(e_uci_rules, source):
 
 
 @pytest.mark.parametrize('source', ['not-an-ip', '192.168.1.300', '192.168.1.20-192.168.1.10',
-                                    '192.168.1.1-2001:db8::1', ''])
+                                    '192.168.1.1-2001:db8::1', '', 'fe80::1%eth0', 'fe80::1%x) || (true',
+                                    'fe80::1%x)-fe80::2'])
 def test_add_rule_refuses_an_invalid_source(e_uci_rules, source):
     group = group_of(e_uci_rules)
     with pytest.raises(ValidationError) as err:
@@ -914,6 +915,12 @@ def test_expand_source():
     assert dpi.expand_source(['192.168.1.1-192.168.1.4']) == ['192.168.1.1/32', '192.168.1.2/31',
                                                               '192.168.1.4/32']
     assert dpi.expand_source(['10.0.0.1-10.0.0.2']) == ['10.0.0.1/32', '10.0.0.2/32']
+
+
+def test_expand_source_drops_the_zone():
+    assert dpi.expand_source(['fe80::1%x) || (true']) == ['fe80::1']
+    assert dpi.expand_source(['fe80::1%eth0/64']) == ['fe80::1/64']
+    assert dpi.expand_source(['fe80::1%x)-fe80::2']) == ['fe80::1/128', 'fe80::2/128']
 
 
 def test_build_rule_criteria(e_uci_rules):
