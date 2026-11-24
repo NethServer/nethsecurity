@@ -1,0 +1,50 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Restore the data partition entry dropped by an upgrade that resized the root partition
+
+[ "$(uci -q get fstab.ns_data)" = "mount" ] || exit 0
+uuid="$(uci -q get fstab.ns_data.uuid)"
+block info | grep -q -e 'LABEL="ns_data"' -e "UUID=\"${uuid:-none}\"" && exit 0
+
+. /lib/functions.sh
+. /lib/upgrade/common.sh
+
+export_bootdevice && export_partdevice diskdev 0 && export_partdevice rootdev 2 || exit 0
+sys="/sys/block/$diskdev"
+root_start=$(cat "$sys/$rootdev/start")
+root_end=$((root_start + $(cat "$sys/$rootdev/size")))
+
+# stop if a partition already follows the root one
+for start in "$sys"/*/start; do
+    [ "$(cat "$start")" -gt "$root_start" ] && exit 0
+done
+
+# the data partition starts on a MiB boundary: look for its ext4 superblock
+sb=/tmp/ns_data.sb
+mib=$(((root_end + 2047) / 2048))
+last=$((mib + 256))
+found=""
+while [ "$mib" -le "$last" ]; do
+    dd if="/dev/$diskdev" of="$sb" bs=1024 skip=$((mib * 1024 + 1)) count=1 2>/dev/null
+    if [ "$(hexdump -s 56 -n 2 -e '2/1 "%02x"' "$sb")" = "53ef" ]; then
+        sb_label=$(dd if="$sb" bs=1 skip=120 count=16 2>/dev/null | tr -d '\0')
+        sb_uuid=$(hexdump -s 104 -n 16 -e '4/1 "%02x" "-" 2/1 "%02x" "-" 2/1 "%02x" "-" 2/1 "%02x" "-" 6/1 "%02x"' "$sb")
+        if [ "$sb_label" = "ns_data" ] || [ "$sb_uuid" = "$uuid" ]; then
+            found=$mib
+            break
+        fi
+    fi
+    mib=$((mib + 1))
+done
+rm -f "$sb"
+[ -n "$found" ] || exit 0
+
+parted -s --fix -a optimal "/dev/$diskdev" unit MiB mkpart primary ext4 "${found}MiB" 100% >/dev/null 2>&1
+partprobe "/dev/$diskdev" >/dev/null 2>&1
+logger -t ns-storage "Restored data partition at ${found}MiB on /dev/$diskdev"
+exit 0
