@@ -62,7 +62,7 @@ Image layout:
 | Partition | Size | Start | End |
 |---|---|---|---|
 | boot | 16 MiB | 0.25 MiB | 16.25 MiB |
-| root | 390 MiB (`CONFIG_TARGET_ROOTFS_PARTSIZE` in `config/partsize.conf`) | 16.25 MiB | 406.25 MiB |
+| root | 399 MiB (`CONFIG_TARGET_ROOTFS_PARTSIZE` in `config/partsize.conf`) | 16.25 MiB | 415.25 MiB |
 | data, created by images with the 300 MB root | rest of the disk | 416 MiB | end of disk |
 
 - The root partition must not grow past 399 MB, or it overwrites the data partition of existing installs.
