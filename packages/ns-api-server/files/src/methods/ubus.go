@@ -96,7 +96,7 @@ func UBusCallAction(c *gin.Context) {
 			}
 		}
 		if forbidden {
-			logs.Logs.Println("[INFO][AUTH] ubus call forbidden for user " + utils.SanitizeForLog(username) + ". " + utils.SanitizeForLog(jsonUBusCall.Path) + " " + utils.SanitizeForLog(jsonUBusCall.Method))
+			logs.Info("[AUTH] ubus call forbidden for user " + utils.SanitizeForLog(username) + ". " + utils.SanitizeForLog(jsonUBusCall.Path) + " " + utils.SanitizeForLog(jsonUBusCall.Method))
 			c.AbortWithStatusJSON(http.StatusForbidden, structs.Map(response.StatusBadRequest{
 				Code:    403,
 				Message: "ubus call action forbidden",
