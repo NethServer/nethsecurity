@@ -8,8 +8,10 @@
 # Restore the data partition entry dropped by an upgrade that resized the root partition
 
 [ "$(uci -q get fstab.ns_data)" = "mount" ] || exit 0
+label="$(uci -q get fstab.ns_data.label)"
 uuid="$(uci -q get fstab.ns_data.uuid)"
-block info | grep -q -e 'LABEL="ns_data"' -e "UUID=\"${uuid:-none}\"" && exit 0
+[ -n "$label$uuid" ] || exit 0
+block info | grep -q -e "LABEL=\"${label:-//}\"" -e "UUID=\"${uuid:-//}\"" && exit 0
 
 . /lib/functions.sh
 . /lib/upgrade/common.sh
@@ -34,7 +36,7 @@ while [ "$mib" -le "$last" ]; do
     if [ "$(hexdump -s 56 -n 2 -e '2/1 "%02x"' "$sb")" = "53ef" ]; then
         sb_label=$(dd if="$sb" bs=1 skip=120 count=16 2>/dev/null | tr -d '\0')
         sb_uuid=$(hexdump -s 104 -n 16 -e '4/1 "%02x" "-" 2/1 "%02x" "-" 2/1 "%02x" "-" 2/1 "%02x" "-" 6/1 "%02x"' "$sb")
-        if [ "$sb_label" = "ns_data" ] || [ "$sb_uuid" = "$uuid" ]; then
+        if [ "$sb_label" = "$label" ] || [ "$sb_uuid" = "$uuid" ]; then
             found=$mib
             break
         fi
@@ -46,5 +48,17 @@ rm -f "$sb"
 
 parted -s --fix -a optimal "/dev/$diskdev" unit MiB mkpart primary ext4 "${found}MiB" 100% >/dev/null 2>&1
 partprobe "/dev/$diskdev" >/dev/null 2>&1
-logger -t ns-storage "Restored data partition at ${found}MiB on /dev/$diskdev"
-exit 0
+
+# wait for the device of the new partition, retry at next boot if missing
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+    for start in "$sys"/*/start; do
+        part=$(basename "$(dirname "$start")")
+        if [ "$(cat "$start")" -eq $((found * 2048)) ] && [ -b "/dev/$part" ]; then
+            echo "ns-storage: restored data partition /dev/$part at ${found}MiB" > /dev/kmsg
+            exit 0
+        fi
+    done
+    sleep 1
+done
+echo "ns-storage: cannot restore data partition at ${found}MiB on /dev/$diskdev" > /dev/kmsg
+exit 1

@@ -48,7 +48,8 @@ rm -rf /mnt/data
 if [ -z "$data_part" ]; then
     : # no storage was mounted, nothing to release
 elif [ "$rom_disk" == "$data_disk" ]; then
-    # Partition carved out of the OS disk: give the space back
+    # Partition carved out of the OS disk: wipe the file system and give the space back
+    dd if=/dev/zero of="/dev/${data_part}" bs=1M count=1 2>/dev/null
     parted -s "/dev/${data_disk}" rm "$(cat "/sys/class/block/${data_part}/partition")"
 else
     # Secondary drive: keep the partition so its logs can still be

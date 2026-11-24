@@ -67,7 +67,7 @@ Image layout:
 
 - The root partition must not grow past 399 MB, or it overwrites the data partition of existing installs.
 - Sysupgrade with an image whose partition table differs from the disk writes the image partition table: the data partition entry disappears, its data stays on disk.
-- `/etc/uci-defaults/29-ns-storage-restore-partition` runs at first boot, before the fstab mount: if `fstab.ns_data` is set and no `ns_data` filesystem is visible, it scans the boot disk after the root partition, on MiB boundaries up to 256 MiB, for an ext4 superblock with label `ns_data` or UUID `fstab.ns_data.uuid`, then recreates the partition entry with parted up to the end of the disk.
+- `/etc/uci-defaults/29-ns-storage-restore-partition` runs at first boot, before the fstab mount: if `fstab.ns_data` is set and no `ns_data` filesystem is visible, it scans the boot disk after the root partition, on MiB boundaries up to 256 MiB, for an ext4 superblock with label `fstab.ns_data.label` or UUID `fstab.ns_data.uuid`, then recreates the partition entry with parted up to the end of the disk. On failure it exits with an error and runs again at next boot.
 - Downgrading to an image with the 300 MB root drops the entry again, older images have no restore script; upgrading again restores it.
 
 ### Use the device
