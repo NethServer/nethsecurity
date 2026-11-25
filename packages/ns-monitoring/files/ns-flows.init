@@ -6,7 +6,7 @@
 #
 
 USE_PROCD=1
-START=99
+START=98
 
 start_service() {
     config_load ns-flows
