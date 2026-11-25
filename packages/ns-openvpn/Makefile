@@ -56,6 +56,7 @@ define Package/ns-openvpn/install
 	$(INSTALL_BIN) ./files/openvpn-local-auth $(1)/usr/libexec/ns-openvpn/
 	$(INSTALL_BIN) ./files/openvpn-remote-auth $(1)/usr/libexec/ns-openvpn/
 	$(INSTALL_BIN) ./files/openvpn-otp-auth $(1)/usr/libexec/ns-openvpn/
+	$(INSTALL_BIN) ./files/openvpn-password-otp-auth.py $(1)/usr/libexec/ns-openvpn/openvpn-password-otp-auth
 	$(INSTALL_BIN) ./files/01-check-status $(1)/usr/libexec/ns-openvpn/connect-scripts
 	$(INSTALL_BIN) ./files/10-static-lease $(1)/usr/libexec/ns-openvpn/connect-scripts
 	$(INSTALL_BIN) ./files/10-tunnel-iroute $(1)/usr/libexec/ns-openvpn/connect-scripts

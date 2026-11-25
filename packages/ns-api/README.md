@@ -1679,7 +1679,8 @@ Response example:
     "username_password",
     "certificate",
     "username_password_certificate",
-    "username_otp_certificate"
+    "username_otp_certificate",
+    "username_password_otp_certificate"
   ]
 }
 ```

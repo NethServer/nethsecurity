@@ -1,0 +1,11 @@
+diff --git a/net/openvpn/files/openvpn.options b/net/openvpn/files/openvpn.options
+--- a/net/openvpn/files/openvpn.options
++++ b/net/openvpn/files/openvpn.options
+@@ -15,6 +15,7 @@ chroot
+ cipher
+ client_config_dir
+ client_connect
++client_crresponse
+ client_disconnect
+ comp_lzo
+ compress
