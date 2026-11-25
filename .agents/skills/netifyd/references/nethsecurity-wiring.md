@@ -43,18 +43,23 @@ Version bumps and `netify-dist.mk` regeneration are `openwrt-package` territory,
 
 The agent does not capture on devices here. `interfaces.d/10-nfqueue.conf`, written by
 `/usr/sbin/ns-netifyd-configure` on start, declares two nfqueue capture sources with roles, one queue per
-CPU core each (minimum 2), N being the queue count:
+CPU core each (between 2 and 8), N being the queue count:
 
 | Section | role | queue_id | instances |
 |---|---|---|---|
 | `capture-interface-lan` | lan | 50 | N (50 to 50+N-1), fed by `nfq_forward` |
-| `capture-interface-wan` | wan | 50+N | N (50+N to 50+2N-1), fed by `nfq_input` and `nfq_output` |
+| `capture-interface-wan` | wan | 58 | N (58 to 58+N-1), fed by `nfq_input` and `nfq_output` |
+
+WAN starts at 58 whatever N is, so an HA backup still on the old 50-53/54-57 layout that gets this file
+synced leaves its firewall traffic unanalyzed instead of classifying it as lan.
 
 `conntrack_counters = true` on both. Packets arrive because the same script builds `table inet netifyd`
-and queues them there. It's the **only** writer of that table: on start it recreates the whole table, on
-reload (`ns-netifyd-configure reload`) it only flushes and refills the bypass sets, so the base chains stay
-hooked. The table is left in place when netifyd stops, `queue flags bypass` lets packets through. A
-`firewall_traffic` change needs a restart.
+and queues them there. It's the **only** writer of that table. The table comment is a hash of its rendered
+chains: `start` rebuilds the table only when the hash doesn't match the configuration, otherwise it just
+refills the bypass sets. `reload` refills the sets and exits 3 when the table changed (e.g. a
+`firewall_traffic` edit), and the init script then restarts netifyd: a hooked chain can't be deleted while
+netifyd reads its queue, or the queued packets are dropped and the capture thread dies. The table is left in
+place when netifyd stops, `queue flags bypass` lets packets through.
 
 Per chain it short-circuits, in order: `lo`, `ct state untracked`, the `nfq_bypass_v4`/`nfq_bypass_v6`
 sets, then `ct packets > 32` — because the agent only inspects the first 32 packets of a flow

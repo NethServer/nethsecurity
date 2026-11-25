@@ -123,5 +123,10 @@ start_service() {
 
 reload_service() {
 	/usr/sbin/ns-netifyd-configure reload
+	# 3: the nft table changed, it can be rebuilt only with netifyd stopped
+	if [ $? -eq 3 ]; then
+		restart
+		return
+	fi
 	procd_send_signal netifyd
 }

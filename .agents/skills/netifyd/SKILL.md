@@ -101,7 +101,7 @@ until the next reload and then vanishes. Change the generator or its UCI input i
 | File | Written by | Real input |
 |---|---|---|
 | `netify-proc-flow-actions.json` | `/usr/sbin/dpi-config` (via `/usr/sbin/dpi`) | `/etc/config/dpi` |
-| `table inet netifyd` (nftables) | `/usr/sbin/ns-netifyd-configure` (whole table on start, bypass sets on reload) | `/etc/config/netifyd` → `ns_config` |
+| `table inet netifyd` (nftables) | `/usr/sbin/ns-netifyd-configure` (table rebuilt only when its hash changed, bypass sets every run) | `/etc/config/netifyd` → `ns_config` |
 | `interfaces.d/10-nfqueue.conf` | `/usr/sbin/ns-netifyd-configure` (on start) | CPU core count |
 | `netify-application-catalog.json` and the other catalog/category files | `dpi-data-update` (nightly cron) | Netify's data service |
 | `/usr/share/nftables.d/table-pre/` DPI chains | `/usr/sbin/dpi-nft` | `/etc/config/dpi` |
