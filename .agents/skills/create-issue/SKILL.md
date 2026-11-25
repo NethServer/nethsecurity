@@ -99,12 +99,12 @@ Presentation matters (per handbook): use code fences for logs and commands, list
 
 ### 4. Show the draft, then get go-ahead
 
-**Showing the draft means printing, in chat: the title, the complete body, the type, the milestone and the assignee.** Printing the `gh` command instead of the body is not showing the draft. Neither is describing what the body says.
+**Showing the draft means printing, in chat: the title, the complete body, the type, the milestone and the assignee.** Printing the `gh` command instead of the body is not showing the draft. Neither is describing what the body says. Text printed in the same response as an `AskUserQuestion` call is hidden behind the dialog, so the draft goes in a response of its own: print it and end the turn, with the question in plain text at the bottom.
 
 Fields first, permission second — they are separate exchanges:
 
 1. Resolve the field candidates: `gh api repos/NethServer/nethsecurity/milestones --jq '.[].title'` and `gh api user --jq '.login'`. Ask milestone and assignee in one question, offering the nearest open milestone and the user's own login as the suggested answers (both may legitimately be "none"). Ask about type here too if it was ambiguous in step 1.
-2. Re-show the corrected draft in full, then ask separately whether to file it.
+2. Re-show the corrected draft in full and end the turn, asking in plain text whether to file it.
 
 **Never write to GitHub without explicit confirmation for that specific write.** This gate covers every write: `gh issue create`, `gh issue edit`, `gh issue comment`, `gh pr edit`, and any label/milestone/assignee change. Permission to file is not permission to then edit, comment, or touch a PR — each one is asked for on its own. Issues are public and notify subscribers.
 
