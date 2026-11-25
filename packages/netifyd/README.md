@@ -4,6 +4,13 @@ Netifyd is a network intelligence platform that provides DPI (Deep Packet Inspec
 
 For detailed information, visit [https://www.netify.ai/](https://www.netify.ai/).
 
+## NFQueue capture
+
+On start, `ns-netifyd-configure` writes `/etc/netifyd/interfaces.d/10-nfqueue.conf` and creates the `inet netifyd` nft table.
+There's one queue per CPU core for each role, with a minimum of 2: LAN (forward chain) uses the queues from 50, WAN (input and output chains) the ones right after.
+The table isn't removed when netifyd stops: `queue flags bypass` lets the packets through when nobody is listening.
+A reload refreshes only the bypass sets.
+
 ## NFQueue bypass lists
 
 To improve performance, you can configure bypass lists that prevent netifyd from analyzing traffic matching certain IP addresses or CIDR blocks. This is useful for:
@@ -78,6 +85,8 @@ The `firewall_traffic` option is a list of nftables chains to add for DPI analys
 | `output`  | Analyze traffic originated by the firewall itself (e.g., DNS queries, monitoring pings) |
 | `forward` | Analyze traffic passing through the firewall (transit traffic)                          |
 
+Chains are created only when netifyd starts, so a change needs a restart.
+
 By default (if the option is missing or empty after validation), all three chains are enabled.
 
 Invalid chain names trigger a warning and are skipped. If all values are invalid, the configuration falls back to enabling all chains with a warning.
@@ -88,20 +97,20 @@ Invalid chain names trigger a warning and are skipped. If all values are invalid
 # Default: all three chains enabled
 uci delete netifyd.config.firewall_traffic
 uci commit netifyd
-reload_config
+/etc/init.d/netifyd restart
 
 # Analyze only forwarded traffic
 uci del_list netifyd.config.firewall_traffic
 uci add_list netifyd.config.firewall_traffic='forward'
 uci commit netifyd
-reload_config
+/etc/init.d/netifyd restart
 
 # Analyze input and forward, skip firewall-originated traffic
 uci del_list netifyd.config.firewall_traffic
 uci add_list netifyd.config.firewall_traffic='input'
 uci add_list netifyd.config.firewall_traffic='forward'
 uci commit netifyd
-reload_config
+/etc/init.d/netifyd restart
 
 # Full analysis: all chains
 uci del_list netifyd.config.firewall_traffic
@@ -109,5 +118,5 @@ uci add_list netifyd.config.firewall_traffic='input'
 uci add_list netifyd.config.firewall_traffic='output'
 uci add_list netifyd.config.firewall_traffic='forward'
 uci commit netifyd
-reload_config
+/etc/init.d/netifyd restart
 ```

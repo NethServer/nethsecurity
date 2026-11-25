@@ -179,7 +179,6 @@ define Package/netifyd/install
 	$(INSTALL_DATA) ./files/etc/config/netifyd $(1)/etc/config/netifyd
 	$(INSTALL_BIN) ./files/etc/init.d/netifyd $(1)/etc/init.d/netifyd
 	$(INSTALL_DATA) ./files/etc/netifyd.conf $(1)/etc/netifyd.conf
-	$(INSTALL_DATA) ./files/etc/netifyd/interfaces.d/10-nfqueue.conf $(1)/etc/netifyd/interfaces.d/10-nfqueue.conf
 	$(INSTALL_DATA) ./files/etc/netifyd/netify-apps.conf $(1)/etc/netifyd/netify-apps.conf
 	$(INSTALL_DATA) ./files/etc/netifyd/netify-categories.json $(1)/etc/netifyd/netify-categories.json
 	$(INSTALL_DATA) ./files/etc/netifyd/profiles.d/00-default.conf $(1)/etc/netifyd/profiles.d/00-default.conf
