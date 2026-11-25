@@ -50,7 +50,6 @@ define Package/ns-storage/install
 	$(INSTALL_BIN) ./files/rotate-messages $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/sync-data $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/30_ns-storage $(1)/etc/uci-defaults
-	$(INSTALL_BIN) ./files/29-ns-storage-restore-partition.uci-default $(1)/etc/uci-defaults/29-ns-storage-restore-partition
 	$(INSTALL_BIN) ./files/31-ns-storage-default.uci-default $(1)/etc/uci-defaults/31-ns-storage-default
 	$(INSTALL_BIN) ./files/32-ns-storage-convert-uuid.uci-default $(1)/etc/uci-defaults/32-ns-storage-convert-uuid
 	$(INSTALL_BIN) ./files/33-ns-storage-drop-disk-log.uci-default $(1)/etc/uci-defaults/33-ns-storage-drop-disk-log
