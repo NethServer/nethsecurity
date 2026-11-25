@@ -580,6 +580,12 @@ def set_configuration(args):
     for opt in ["client_to_client", "dev_type", "ns_public_ip", "ns_auth_mode", "proto", "ns_description", "auth", "cipher", "compress", "port"]:
         u.set("openvpn", ovpninstance, opt, args.get(opt,''))
 
+    # client_crresponse is used only by username_password_otp_certificate mode
+    try:
+        u.delete("openvpn", ovpninstance, "client_crresponse")
+    except:
+        pass
+
     if args["ns_auth_mode"] == "username_password":
         if db_is_local:
             u.set("openvpn", ovpninstance, "auth_user_pass_verify", "/usr/libexec/ns-openvpn/openvpn-local-auth via-env")
@@ -600,6 +606,18 @@ def set_configuration(args):
             pass
     elif args["ns_auth_mode"] == "username_otp_certificate":
         u.set("openvpn", ovpninstance, "auth_user_pass_verify", "/usr/libexec/ns-openvpn/openvpn-otp-auth via-env")
+        u.set("openvpn", ovpninstance, "script_security", "3")
+        u.set("openvpn", ovpninstance, "reneg_sec", "0")
+        try:
+            u.delete("openvpn", ovpninstance, "verify_client_cert")
+            u.delete("openvpn", ovpninstance, "username_as_common_name")
+        except:
+            pass
+    elif args["ns_auth_mode"] == "username_password_otp_certificate":
+        # verify the password, then ask for the OTP (crtext or CRV1 challenge)
+        u.set("openvpn", ovpninstance, "auth_user_pass_verify", "/usr/libexec/ns-openvpn/openvpn-password-otp-auth via-env")
+        # for clients supporting crtext - verify the OTP sent on the same connection
+        u.set("openvpn", ovpninstance, "client_crresponse", "/usr/libexec/ns-openvpn/openvpn-password-otp-auth")
         u.set("openvpn", ovpninstance, "script_security", "3")
         u.set("openvpn", ovpninstance, "reneg_sec", "0")
         try:
@@ -632,7 +650,7 @@ def set_configuration(args):
     return {"result": "success"}
 
 def list_auth_modes():
-    return {"options": ["username_password", "certificate", "username_password_certificate", "username_otp_certificate"]}
+    return {"options": ["username_password", "certificate", "username_password_certificate", "username_otp_certificate", "username_password_otp_certificate"]}
 
 def list_dhcp_options():
     return {"options": ["DOMAIN", "DNS", "WINS", "NBDD", "NBT", "NBS", "DISABLE-NBT"]}
@@ -1004,6 +1022,10 @@ def download_user_configuration(ovpninstance, username):
     if u.get("openvpn", ovpninstance, "auth_user_pass_verify", default=""):
         config = config + "auth-user-pass\n"
         config = config + "auth-nocache\n"
+        if u.get("openvpn", ovpninstance, "ns_auth_mode", default="") == "username_password_otp_certificate":
+            # clients without crtext support receive a CRV1 challenge after user + pwd authentication
+            # they must ask for the OTP and reconnect instead of exiting
+            config = config + "auth-retry interact\n"
     # Always add reneg-sec 0, since Windows clients are bugged see #1236
     config = config + "reneg-sec 0\n"
     config = config + f"port {u.get('openvpn', ovpninstance, 'port')}\n"

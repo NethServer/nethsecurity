@@ -28,6 +28,7 @@ Supported authentication methods:
 - remote LDAP users with password
 - remote LDAP users with password and certificate
 - authentication based on certificate + otp
+- authentication based on certificate + password + otp, with the OTP asked only after the password is verified (`crtext` or `CRV1` challenge)
 
 Network and firewall configuration:
 
@@ -121,6 +122,33 @@ A client can connect to the server if:
 - the provided user OTP matches the one generated using `oathtool` from the 2FA secret saved inside `openvpn_2fa` field
 
 To enable this authentication the `user_pass_verify` option must be set to `/usr/libexec/ns-openvpn/openvpn-otp-auth via-env`.
+
+#### Users with certificate + password + OTP
+
+The authentication happens in two steps: the OTP is asked only if the password is correct.
+If the password is wrong, the client is rejected immediately.
+
+The OTP is asked in two different ways, depending on the client:
+
+- clients announcing the `crtext` method inside the `IV_SSO` peer info (e.g. OpenVPN GUI, OpenVPN Connect)
+  use the auth-pending API on a single connection: the authentication is deferred, the client shows
+  the OTP prompt and sends the OTP with a `CR_RESPONSE` message, verified by the `client_crresponse` script
+- other clients (e.g. the `openvpn` command line client, NetworkManager-openvpn, Tunnelblick) receive
+  a dynamic challenge (`CRV1`) containing a random state id: the client asks for the OTP and reconnects
+  sending `CRV1::<state_id>::<otp>` as password. The state id is saved inside `/var/run/ns-openvpn/otp-challenge`,
+  it can be used only once and expires after 60 seconds. The client profile contains `auth-retry interact`,
+  so the client asks for the OTP and reconnects instead of exiting
+
+In both cases, the user must enter the OTP within 60 seconds after the password has been accepted:
+after this time the pending authentication or the `CRV1` state id expires and the client must authenticate again.
+
+The OTP must match the 2FA secret saved inside `openvpn_2fa` field.
+The password is checked against the local or remote LDAP database associated to the RoadWarrior instance.
+As for the other modes, the certificate CN must match the user name and the user `openvpn_enabled` field must be set to `1`.
+
+To enable this authentication:
+- the `user_pass_verify` option must be set to `/usr/libexec/ns-openvpn/openvpn-password-otp-auth via-env`
+- the `client_crresponse` option must be set to `/usr/libexec/ns-openvpn/openvpn-password-otp-auth`
 
 #### Remote LDAP users with password
 

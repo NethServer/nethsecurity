@@ -60,7 +60,7 @@ if '@' in cn and is_migrated(instance, os.environ.get("common_name")):
 
 # the certificate must belong to the user who logs in
 username = os.environ.get("username", "").lower()
-if config.get("ns_auth_mode") in ("username_password_certificate", "username_otp_certificate") and username not in (cn.lower(), os.environ.get("common_name").lower()):
+if config.get("ns_auth_mode") in ("username_password_certificate", "username_otp_certificate", "username_password_otp_certificate") and username not in (cn.lower(), os.environ.get("common_name").lower()):
     sys.exit(5)
 
 user = users.get_user_by_name(uci, cn, db)
