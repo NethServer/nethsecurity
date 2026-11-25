@@ -16,8 +16,14 @@ NFQ_TABLE_FILE = '/tmp/netifyd-nfq-table-definition.nft'
 
 
 NFQ_TABLE = """
-table inet netifyd { }
-delete table inet netifyd
+# flush instead of delete: unhooking the base chains drops the packets queued to netifyd
+table inet netifyd {
+    set nfq_bypass_v4 { type ipv4_addr; flags interval; auto-merge; }
+    set nfq_bypass_v6 { type ipv6_addr; flags interval; auto-merge; }
+}
+flush table inet netifyd
+flush set inet netifyd nfq_bypass_v4
+flush set inet netifyd nfq_bypass_v6
 
 table inet netifyd {
     set nfq_bypass_v4 {
@@ -105,6 +111,9 @@ table inet netifyd {
 {%- endif %}
 
 }
+{%- for chain in ['input', 'forward', 'output'] if chain not in firewall_chains %}
+destroy chain inet netifyd nfq_{{ chain }}
+{%- endfor %}
 """
 
 
