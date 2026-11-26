@@ -1,0 +1,33 @@
+--- a/net/nginx/Makefile
++++ b/net/nginx/Makefile
+@@ -39,7 +39,8 @@
+ 	headers-more \
+ 	ts \
+ 	ubus \
+-	njs
++	njs \
++	modsecurity
+ # official and 3rd-party modules
+ PKG_MOD_ALL := \
+ 	$(PKG_MOD_EXTRA) \
+@@ -345,6 +346,14 @@
+   PROTO:=git
+ endef
+ 
++define Download/nginx-mod-modsecurity
++  SOURCE_DATE:=2025-05-21
++  SOURCE_VERSION:=3f4b57df10ce43b1f1c722141f7621dc64838be8
++  URL:=https://github.com/owasp-modsecurity/ModSecurity-nginx.git
++  MIRROR_HASH:=6cbfedda5f1ba3404486d764c956819a6ba59792fd64ead9b4cafbda710db6ef
++  PROTO:=git
++endef
++
+ define Module/Download
+   define Download/nginx-mod-$(1) +=
+ 
+@@ -527,3 +536,5 @@
+ 	Enable MaxMind GeoIP2 module.))
+ $(eval $(call BuildModule,njs,+zlib +libxml2 +libxslt +libpcre2,ngx_http_js, \
+ 	Enable NJS module.))
++$(eval $(call BuildModule,modsecurity,+libmodsecurity,ngx_http_modsecurity, \
++	Enable ModSecurity v3 connector module.))

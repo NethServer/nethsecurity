@@ -1,0 +1,33 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Download the latest OWASP CRS release and enable it in ModSecurity
+
+set -e
+
+crs_dir=/etc/modsecurity/crs
+tmp_dir=$(mktemp -d)
+trap 'rm -rf "$tmp_dir"' EXIT
+
+version=$(curl -fsSL https://api.github.com/repos/coreruleset/coreruleset/releases/latest | jsonfilter -e '@.tag_name')
+version=${version#v}
+curl -fsSL -o "$tmp_dir/crs.tar.gz" "https://github.com/coreruleset/coreruleset/releases/download/v$version/coreruleset-$version-minimal.tar.gz"
+tar -xzf "$tmp_dir/crs.tar.gz" -C "$tmp_dir"
+
+mkdir -p "$crs_dir"
+rm -rf "$crs_dir/rules"
+cp -r "$tmp_dir/coreruleset-$version/rules" "$crs_dir/rules"
+# keep local changes to the setup
+[ -f "$crs_dir/crs-setup.conf" ] || cp "$tmp_dir/coreruleset-$version/crs-setup.conf.example" "$crs_dir/crs-setup.conf"
+
+cat > /etc/modsecurity/crs.conf <<EOF
+Include $crs_dir/crs-setup.conf
+Include $crs_dir/rules/*.conf
+EOF
+
+/etc/init.d/nginx reload
+echo "CRS $version installed"
