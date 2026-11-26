@@ -141,7 +141,7 @@ stop_service() {
     if [ -d $(dirname $DEDALO_CONFIG) ]; then
         rm -rf $(dirname $DEDALO_CONFIG)
     fi
-    interface=$(/sbin/uci get dedalo.config.interface)
+    interface=$(/sbin/uci -q get dedalo.config.interface)
     if [ -n "$interface" ]; then
         ifconfig "$interface" down
         vid=$(echo "$interface" | awk -F. '{print $2}')
