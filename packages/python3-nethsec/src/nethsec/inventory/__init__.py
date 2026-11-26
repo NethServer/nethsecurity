@@ -1020,21 +1020,6 @@ def info_default_ipv6(uci: EUci):
 
     return anonymize(ipv6, uci)
 
-def info_package_updates_available(uci: EUci):
-    """Check if package updates are available"""
-    try:
-        res = subprocess.run(['/usr/libexec/rpcd/ns.update', 'call', 'check-package-updates'],
-                             capture_output=True, text=True, timeout=10)
-        if res.returncode == 0:
-            data = json.loads(res.stdout)
-            if isinstance(data, dict) and 'updates' in data:
-                updates = data['updates']
-                if isinstance(updates, list) and len(updates) > 0:
-                    return True
-    except:
-        pass
-    return False
-
 def info_image_updates_available(uci: EUci):
     """Check if system image updates are available"""
     try:

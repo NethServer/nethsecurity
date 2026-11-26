@@ -1248,42 +1248,6 @@ def test_info_default_ipv6_fallback_to_curl(tmp_path):
 			result = inventory.info_default_ipv6(u)
 			assert result.startswith('anon-')
 
-def test_info_package_updates_available_with_updates():
-	"""Test info_package_updates_available when updates are available"""
-	u = EUci()
-	
-	mock_result = MagicMock()
-	mock_result.returncode = 0
-	mock_result.stdout = '{"updates": ["package1", "package2"]}'
-	
-	with patch('subprocess.run', return_value=mock_result):
-		result = inventory.info_package_updates_available(u)
-		assert result is True
-
-def test_info_package_updates_available_no_updates():
-	"""Test info_package_updates_available when no updates available"""
-	u = EUci()
-	
-	mock_result = MagicMock()
-	mock_result.returncode = 0
-	mock_result.stdout = '{"updates": []}'
-	
-	with patch('subprocess.run', return_value=mock_result):
-		result = inventory.info_package_updates_available(u)
-		assert result is False
-
-def test_info_package_updates_available_command_fails():
-	"""Test info_package_updates_available when command fails"""
-	u = EUci()
-	
-	mock_result = MagicMock()
-	mock_result.returncode = 1
-	mock_result.stdout = ''
-	
-	with patch('subprocess.run', return_value=mock_result):
-		result = inventory.info_package_updates_available(u)
-		assert result is False
-
 def test_parse_version_with_prefix():
 	"""Test parse_version removes NethSecurity prefix"""
 	assert inventory.parse_version('NethSecurity 8.1.0-dev') == (8, 1, 0)
