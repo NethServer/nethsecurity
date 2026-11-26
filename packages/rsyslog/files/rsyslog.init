@@ -8,6 +8,7 @@
 # shellcheck disable=SC2129
 
 START=12
+STOP=89
 
 USE_PROCD=1
 
