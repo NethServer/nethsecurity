@@ -21,6 +21,7 @@ DIST_MK = NETIFYD_PKG_DIR / "netify-dist.mk"
 
 SOURCES: dict[str, str] = {
     "x86": "https://download.netify.ai/5/openwrt/25.12/x86/index.json",
+    "aarch64": "https://download.netify.ai/5/openwrt/25.12/aarch64_generic/index.json",
 }
 
 # maps a SOURCES key to the OpenWrt $(ARCH) value used by the Makefile
