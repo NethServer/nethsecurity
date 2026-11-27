@@ -133,6 +133,8 @@ define Package/ns-api/install
 	$(INSTALL_DATA) ./files/ns.migration.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.ipsectunnel $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.ipsectunnel.json $(1)/usr/share/rpcd/acl.d/
+	$(INSTALL_DIR) $(1)/etc/strongswan.d
+	$(INSTALL_DATA) ./files/strongswan/ns-charon.conf $(1)/etc/strongswan.d/
 	$(INSTALL_BIN) ./files/ns.factoryreset $(1)/usr/libexec/rpcd/
 	$(INSTALL_DATA) ./files/ns.factoryreset.json $(1)/usr/share/rpcd/acl.d/
 	$(INSTALL_BIN) ./files/ns.update $(1)/usr/libexec/rpcd/
