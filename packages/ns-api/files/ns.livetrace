@@ -1,0 +1,338 @@
+#!/usr/bin/python3
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+import fcntl
+import ipaddress
+import json
+import os
+import signal
+import subprocess
+import sys
+import time
+
+import requests
+from euci import EUci
+from nethsec import conntrack, utils
+from nethsec.utils import validation_error
+
+COLLECTOR = "/usr/libexec/ns-api/ns-livetrace"
+# STATE, PID and the table name are also in COLLECTOR, FLOW_FIELDS matches its flow_key(): keep them in sync
+STATE = "/var/run/ns-livetrace.json"
+PID = "/var/run/ns-livetrace.pid"
+LOCK = "/var/run/ns-livetrace.lock"
+FLOW_FIELDS = ("protocol", "source", "source_port", "destination", "destination_port")
+
+
+def running_pid():
+    try:
+        with open(PID) as f:
+            pid = int(f.read())
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            return pid if b"ns-livetrace" in f.read() else None
+    except (OSError, ValueError):
+        return None
+
+
+def delete_table():
+    subprocess.run(
+        ["nft", "delete", "table", "inet", "ns_livetrace"], capture_output=True
+    )
+
+
+def kill_helpers():
+    # a SIGKILLed collector leaves its PID file and its helpers, in its process group
+    try:
+        with open(PID) as f:
+            pid = int(f.read())
+        # a live process with this pid means the pid was reused
+        if not os.path.exists(f"/proc/{pid}"):
+            os.killpg(pid, signal.SIGKILL)
+            os.remove(PID)
+    except (OSError, ValueError):
+        pass
+
+
+def stop():
+    pid = running_pid()
+    if pid is not None:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+    for _ in range(50):
+        if running_pid() is None:
+            kill_helpers()
+            delete_table()
+            return
+        time.sleep(0.1)
+
+
+def start(data):
+    ip = data.get("ip", "")
+    duration = data.get("duration", 60)
+    try:
+        addr = ipaddress.ip_address(ip)
+        # nft cannot trace these addresses
+        if (
+            not isinstance(ip, str)
+            or "%" in str(addr)
+            or getattr(addr, "ipv4_mapped", None)
+            or addr.is_multicast
+            or addr.is_loopback
+            or addr.is_unspecified
+        ):
+            raise ValueError
+    except ValueError:
+        return validation_error("ip", "invalid_ip_address", ip)
+    ip = str(addr)
+    # bool is an int subclass
+    if type(duration) is not int or not 10 <= duration <= 600:
+        return validation_error("duration", "invalid_duration", duration)
+    port = data.get("port") or 0
+    protocol = data.get("protocol") or ""
+    if type(port) is not int or not 0 <= port <= 65535:
+        return validation_error("port", "invalid_port", port)
+    if protocol not in ("", "tcp", "udp"):
+        return validation_error("protocol", "invalid_protocol", protocol)
+    # serialize concurrent starts; the fd is not inherited by the collector
+    with open(LOCK, "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if running_pid() is not None:
+            return {"error": "session_busy"}
+        # remove what a killed collector left behind
+        stop()
+        # a collector dying before its first write must not show the old session
+        if os.path.exists(STATE):
+            os.remove(STATE)
+        proc = subprocess.Popen(
+            [COLLECTOR, ip, str(duration), str(port), protocol],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        # wait for the collector so the next status reports running
+        for _ in range(50):
+            if running_pid() is not None or proc.poll() is not None:
+                break
+            time.sleep(0.1)
+        if running_pid() is None:
+            # kill the late collector and its helpers so no orphan session survives
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            proc.wait()
+            delete_table()
+            return {"error": "collector_not_started"}
+    return {"message": "success"}
+
+
+def dpi_flows():
+    # ns-flows daemon is optional
+    try:
+        resp = requests.get("http://127.0.0.1:8080/flows", timeout=2)
+        flows = {}
+        for item in resp.json().get("flows", []):
+            flow = item.get("flow") or {}
+            ct_id = (flow.get("conntrack") or {}).get("id")
+            if ct_id is None:
+                continue
+            application = flow.get("detected_application_name") or ""
+            flows[str(ct_id)] = {
+                "application": application.removeprefix("netify."),
+                "dpi_protocol": flow.get("detected_protocol_name") or "",
+                "host": flow.get("host_server_name") or "",
+            }
+        return flows
+    except Exception:
+        return {}
+
+
+def route_devs(addresses):
+    devs = dict.fromkeys(addresses, "")
+    names = {}
+    for a in addresses:
+        try:
+            names[str(ipaddress.ip_address(a))] = a
+        except ValueError:
+            pass
+    if not names:
+        return devs
+    # one ip process for all addresses, results matched by normalized dst
+    p = subprocess.run(
+        ["ip", "-j", "-force", "-batch", "-"],
+        input="".join(f"route get {a}\n" for a in names),
+        capture_output=True,
+        text=True,
+    )
+    for line in p.stdout.splitlines():
+        try:
+            route = json.loads(line)[0]
+            name = names[str(ipaddress.ip_address(route["dst"]))]
+        except (ValueError, IndexError, KeyError, TypeError):
+            continue
+        if route.get("type") != "local":
+            devs[name] = route.get("dev", "")
+    return devs
+
+
+def read_state():
+    # a SIGKILLed collector can leave a stale STATE: read it only while the collector runs
+    if running_pid() is not None:
+        try:
+            with open(STATE) as f:
+                return json.load(f)
+        except (OSError, ValueError):
+            # the collector removed it on exit
+            pass
+    return {
+        "running": False,
+        "ip": "",
+        "duration": 0,
+        "port": 0,
+        "protocol": "",
+        "start": 0,
+        "blocked": [],
+        "dns": [],
+        "flows": {},
+        "names": {},
+        "truncated": False,
+    }
+
+
+def conntrack_queries(ip, port, protocol):
+    # conntrack needs a protocol to filter by port
+    if protocol:
+        protocols = [protocol]
+    elif port:
+        protocols = ["tcp", "udp"]
+    else:
+        protocols = [""]
+    queries = []
+    for p in protocols:
+        # connections opened by the client, and opened towards the client
+        opened_by = ["--orig-src", ip]
+        opened_to = ["--reply-src", ip]
+        if p:
+            opened_by += ["-p", p]
+            opened_to += ["-p", p]
+        if port:
+            opened_by += ["--dport", str(port)]
+            opened_to += ["--reply-port-src", str(port)]
+        queries.append(opened_by)
+        queries.append(opened_to)
+    return queries
+
+
+def live_connections(state, flows, names):
+    dpi = dpi_flows()
+    seen = set()
+    connections = []
+    untraced = []
+    for args in conntrack_queries(state["ip"], state["port"], state["protocol"]):
+        for conn in conntrack.list_connections(extra_args=args):
+            # a connection can match more than one query
+            if conn["id"] in seen:
+                continue
+            seen.add(conn["id"])
+            # interfaces and rule, if the session traced it
+            key = "|".join(conn.get(field, "") for field in FLOW_FIELDS)
+            conn.update(flows.get(key, {}))
+            # application and host from DPI
+            conn.update(dpi.get(conn["id"], {}))
+            conn["destination_name"] = names.get(conn["destination"], "")
+            if "in_interface" not in conn:
+                untraced.append(conn)
+            connections.append(conn)
+    # not traced: derive interfaces from the routing table
+    addresses = set()
+    for conn in untraced:
+        addresses.add(conn["source"])
+        addresses.add(conn["destination"])
+    devs = route_devs(addresses)
+    for conn in untraced:
+        conn["in_interface"] = devs[conn["source"]]
+        conn["out_interface"] = devs[conn["destination"]]
+    return connections
+
+
+def device_interfaces():
+    # kernel device to its first UCI interface, an alias only if nothing else is on it
+    uci = EUci()
+    devices = {}
+    aliases = {}
+    for section in uci.get("network", list=True, default=[]):
+        if uci.get("network", section, default="") != "interface":
+            continue
+        device = utils.get_interface_l3_device(uci, section)
+        # wireguard and xfrm devices are named like their interface
+        if not device or device == section:
+            continue
+        # VPN interfaces are created as ns_<name>
+        name = section.removeprefix("ns_")
+        # alias interfaces point to their parent as @<parent>
+        if uci.get("network", section, "device", default="").startswith("@"):
+            aliases.setdefault(device, name)
+        else:
+            devices.setdefault(device, name)
+    for device, name in aliases.items():
+        devices.setdefault(device, name)
+    return devices
+
+
+def status():
+    state = read_state()
+    running = state["running"]
+    # internal fields, not returned as they are
+    flows = state.pop("flows")
+    start = state.pop("start")
+    # names the client resolved the destinations from
+    names = state.pop("names")
+    for blocked in state["blocked"]:
+        blocked["destination_name"] = names.get(blocked["destination"], "")
+    if running:
+        remaining = max(0, int(start + state["duration"] - time.time()))
+        connections = live_connections(state, flows, names)
+    else:
+        remaining = 0
+        connections = []
+    state["running"] = running
+    state["remaining"] = remaining
+    state["connections"] = connections
+    state["device_interfaces"] = device_interfaces()
+    return state
+
+
+if __name__ == "__main__":
+    cmd = sys.argv[1]
+    if cmd == "list":
+        print(
+            json.dumps(
+                {
+                    "start": {
+                        "ip": "10.10.10.50",
+                        "duration": 120,
+                        "port": 443,
+                        "protocol": "tcp",
+                    },
+                    "stop": {},
+                    "status": {},
+                }
+            )
+        )
+    elif cmd == "call":
+        action = sys.argv[2]
+        if action == "start":
+            print(json.dumps(start(json.load(sys.stdin))))
+        elif action == "stop":
+            # a starting collector has its table but no PID file yet
+            with open(LOCK, "w") as lock:
+                fcntl.flock(lock, fcntl.LOCK_EX)
+                stop()
+            print(json.dumps({"message": "success"}))
+        elif action == "status":
+            print(json.dumps(status()))
