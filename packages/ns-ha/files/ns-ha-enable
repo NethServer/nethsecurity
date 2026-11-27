@@ -76,13 +76,21 @@ def get_device_ips(device):
                 ipv6.append(local)
     return ipv4, ipv6
 
+def is_interface_up(interface):
+    # ifup on an interface already up restarts everything depending on it, like xfrm interfaces on their tunlink
+    proc = subprocess.run(["ubus", "call", f"network.interface.{interface}", "status"], capture_output=True, text=True)
+    try:
+        return json.loads(proc.stdout).get('up', False)
+    except json.JSONDecodeError:
+        return False
+
 def enable_interfaces(file):
     u = EUci()
     with open(os.path.join(out_dir, file), 'r') as f:
         interfaces = json.load(f)
     for interface in interfaces:
         disabled = u.get('network', interface, 'disabled', default='0')
-        if disabled == '0':
+        if disabled == '0' and not is_interface_up(interface):
             time.sleep(0.3)
             # Bring the interface up
             subprocess.run(["/sbin/ifup", interface], capture_output=True, text=True)
