@@ -1,0 +1,15 @@
+diff --git a/net/openvpn/patches/200-dco-status-reply.patch b/net/openvpn/patches/200-dco-status-reply.patch
+new file mode 100644
+--- /dev/null
++++ b/net/openvpn/patches/200-dco-status-reply.patch
+@@ -0,0 +1,10 @@
++--- a/src/openvpn/sig.c
+++++ b/src/openvpn/sig.c
++@@ -485,6 +485,3 @@ print_status(struct context *c, struct status_output *so)
++     {
++-        if (dco_get_peer_stats(c, true) < 0)
++-        {
++-            return;
++-        }
+++        dco_get_peer_stats(c, true);
++     }

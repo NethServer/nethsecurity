@@ -9,18 +9,20 @@ import json
 import sys
 
 from euci import EUci
-from nethsec import dpi, utils
+from nethsec import dpi, objects, utils
 
 cmd = sys.argv[1]
 
 if cmd == 'list':
     print(json.dumps({
         'list-rules': {},
+        'list-source-objects': {},
         'add-rule': {
             'name': 'str',
             'enabled': False,
             'action': 'str',
             'source': [],
+            'source_objects': [],
             'appgroups': [],
             'match_all': False,
             'position': 'str'
@@ -31,6 +33,7 @@ if cmd == 'list':
             'enabled': False,
             'action': 'str',
             'source': [],
+            'source_objects': [],
             'appgroups': [],
             'match_all': False
         },
@@ -102,17 +105,20 @@ elif cmd == 'call':
                 print(json.dumps(utils.generic_error('catalog_not_available')))
         elif action == 'list-rules':
             print(json.dumps({'values': dpi.list_rules(e_uci)}))
+        elif action == 'list-source-objects':
+            print(json.dumps({'values': objects.list_objects(e_uci, include_domain_sets=False)}))
         elif action == 'add-rule':
             data = json.load(sys.stdin)
             config_name = dpi.add_rule(e_uci, data['name'], data['enabled'], data['action'],
                                        data.get('source', []), data.get('appgroups', []),
-                                       data.get('position', 'bottom'), data.get('match_all', False))
+                                       data.get('position', 'bottom'), data.get('match_all', False),
+                                       data.get('source_objects', []))
             print(json.dumps({'id': config_name}))
         elif action == 'edit-rule':
             data = json.load(sys.stdin)
             config_name = dpi.edit_rule(e_uci, data['id'], data['name'], data['enabled'], data['action'],
                                         data.get('source', []), data.get('appgroups', []),
-                                        data.get('match_all', False))
+                                        data.get('match_all', False), data.get('source_objects', []))
             print(json.dumps({'id': config_name}))
         elif action == 'delete-rule':
             data = json.load(sys.stdin)

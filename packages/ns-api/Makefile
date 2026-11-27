@@ -7,7 +7,7 @@ include $(TOPDIR)/rules.mk
  
 PKG_NAME:=ns-api
 PKG_VERSION:=3.11.5
-PKG_RELEASE:=1
+PKG_RELEASE:=2
  
 PKG_BUILD_DIR:=$(BUILD_DIR)/ns-api-$(PKG_VERSION)
 
@@ -34,7 +34,7 @@ define Package/ns-api
 		+whiptail \
 		+sshpass \
 		+wireguard-tools
-	EXTRA_DEPENDS:=adblock (>=4.5.3), nginx-mod-luci (>=1.30.7), nginx-mod-ubus (>=1.30.7)
+	EXTRA_DEPENDS:=adblock (>=4.5.3)
 	PKGARCH:=all
 endef
 
@@ -198,6 +198,7 @@ define Package/ns-api/install
 	$(INSTALL_BIN) ./files/post-commit/update-timezone.py $(1)/usr/libexec/ns-api/post-commit
 	$(INSTALL_BIN) ./files/post-commit/restart-wireguard.py $(1)/usr/libexec/ns-api/post-commit
 	$(INSTALL_BIN) ./files/post-commit/clear-user-tokens.py $(1)/usr/libexec/ns-api/post-commit
+	$(INSTALL_BIN) ./files/post-commit/update-address-groups.py $(1)/usr/libexec/ns-api/post-commit
 	$(INSTALL_BIN) ./files/pre-commit/clean-network.py $(1)/usr/libexec/ns-api/pre-commit
 	$(INSTALL_BIN) ./files/remove-pppoe-keepalive $(1)/usr/share/ns-api
 	$(INSTALL_DIR) $(1)/etc/uci-defaults

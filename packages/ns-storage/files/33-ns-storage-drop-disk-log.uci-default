@@ -1,0 +1,17 @@
+#!/bin/sh
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+# Persistent logs are stored by victoria-logs, rsyslog no longer writes to /mnt/data/log/messages
+if [ "$(uci -q get rsyslog.ns_data)" = "selector" ]; then
+    uci delete rsyslog.ns_data
+    uci commit rsyslog
+fi
+
+crontab -l 2>/dev/null | grep -q '/usr/sbin/logrotate /etc/logrotate.conf' && \
+    crontab -l | grep -v '/usr/sbin/logrotate /etc/logrotate.conf' | crontab -
+
+exit 0

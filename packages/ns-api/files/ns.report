@@ -19,12 +19,17 @@ import urllib.parse
 import urllib.request
 from euci import EUci
 
-# VictoriaMetrics HTTP API base URL
+# VictoriaMetrics and VictoriaLogs HTTP API base URLs
 try:
-    _vm_addr = EUci().get("victoria-metrics", "main", "http_listen_addr", default="127.0.0.1:8428")
+    _uci = EUci()
+    _vm_addr = _uci.get("victoria-metrics", "main", "http_listen_addr", default="127.0.0.1:8428")
+    _vl_addr = _uci.get("victoria-logs", "main", "http_listen_addr", default="127.0.0.1:9428")
 except Exception:
     _vm_addr = "127.0.0.1:8428"
+    _vl_addr = "127.0.0.1:9428"
 VM_URL = f"http://{_vm_addr}"
+VL_URL = f"http://{_vl_addr}"
+FAIL2BAN_BAN_QUERY = 'app_name:"fail2ban.actions" "] Ban " | extract "[<jail>] Ban <ip>" | math floor(_time / 1e9) as ts | fields ts, jail, ip'
 
 ## Utility functions
 
@@ -45,6 +50,16 @@ def get_cached_report(report_name, cache_timeout=900):
             return json.load(f)
     return None
 
+def fail2ban_bans(start, end):
+    data = urllib.parse.urlencode({"query": FAIL2BAN_BAN_QUERY, "start": start, "end": end}).encode()
+    bans = []
+    with urllib.request.urlopen(f"{VL_URL}/select/logsql/query", data=data, timeout=10) as resp:
+        for line in resp.read().decode().splitlines():
+            line = line.strip()
+            if line:
+                bans.append(json.loads(line))
+    return bans
+
 def get_ovpnrw_db_path(instance):
     u = EUci()
     base_path = u.get('fstab', 'ns_data', 'target', default='')
@@ -55,51 +70,29 @@ def get_ovpnrw_db_path(instance):
 ## API
 
 def tsip_attack_report():
-    file_paths = ['/var/log/messages.1.gz', '/var/log/messages']
-    search_terms = 'banIP.*add IP'
+    now = datetime.now()
+    start = int(now.replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
+    try:
+        bans = fail2ban_bans(start, int(now.timestamp()))
+    except Exception as e:
+        print(f"Error querying Victoria Logs: {e}", file=sys.stderr)
+        return utils.generic_error("metrics_query_failed")
 
-    # Get the current date in the format '%b %e ' (e.g., 'Aug  8 ')
-    date_str = datetime.now().strftime('%b %e ').rstrip()
-    # Regex pattern to extract IP addresses
-    ip_pattern = re.compile(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b')
-    # Regex pattern to extract hour from timestamp
-    hour_pattern = re.compile(r'(\d{2}):(\d{2}):(\d{2})')
-
-    ip_count = defaultdict(int)   
+    ip_count = defaultdict(int)
     hourly_count = [0] * 24
     first_seen = 0
-
-    for file_path in file_paths:
-        if file_path.endswith('.gz'):
-            command = f'zcat {file_path} | grep "{date_str}" | grep "{search_terms}"'
-        else:
-            command = f'grep "{date_str}" {file_path} | grep "{search_terms}"'
-
-        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        for line in process.stdout:
-            line = line.decode('utf-8')
-            # Find all IP addresses in the line
-            ips = ip_pattern.findall(line)
-            
-            # Extract the hour from the timestamp
-            hour_match = hour_pattern.search(line)
-            if hour_match:
-                hour = int(hour_match.group(1))
-                hourly_count[hour] += 1
-
-            # Extract full date and time of the first matching line and convert it to timestamp
-            if not first_seen:
-                # Example line: 'Aug  8 00:00:01', but add current year
-                first_seen = datetime.strptime(f"{datetime.now().year} {line[:15]}", '%Y %b %d %H:%M:%S').timestamp()
-            
-            for ip in ips:
-                ip_count[ip] += 1
-
-        process.stdout.close()
-        process.wait()
+    for ban in bans:
+        ip = ban.get("ip", "")
+        if not ip:
+            continue
+        ts = int(ban["ts"])
+        hourly_count[datetime.fromtimestamp(ts).hour] += 1
+        ip_count[ip] += 1
+        if not first_seen or ts < first_seen:
+            first_seen = ts
 
     return {
-        "first_seen": int(first_seen),
+        "first_seen": first_seen,
         "attack_count": sum(ip_count.values()),
         "attack_by_ip": sorted(ip_count.items(), key=lambda item: item[1], reverse=True),
         "attack_by_hour": format_hourly_data(hourly_count),
@@ -439,7 +432,8 @@ elif cmd == 'call':
         ret = get_cached_report('tsip-attack-report', 900)
         if ret is None:
             ret = tsip_attack_report()
-            save_cached_report('tsip-attack-report', ret)
+            if 'error' not in ret:
+                save_cached_report('tsip-attack-report', ret)
     elif action == "ovpnrw-list-days":
         data = json.loads(sys.stdin.read())
         ret = ovpnrw_list_days(data.get('instance'))

@@ -15,16 +15,10 @@ storage_check()
 {
   if [ "$(storage-status)" = "error" ]; then
     echo "Storage is in error state, disabling write to disk."
-    uci -q delete rsyslog.ns_data
-    uci commit
     crontab -l | grep -v "/usr/sbin/sync-data" | sort | uniq | crontab -
-  elif [ "$(storage-status)" = "ok" ] && [ -z "$(uci -q get rsyslog.ns_data)" ]; then
-    echo "Storage is in ok state, enabling write to disk if not enabled."
-    crontab -l | grep -q '/usr/sbin/sync-data' || echo '40 1 * * * /usr/sbin/sync-data' >> /etc/crontabs/root
-    uci set rsyslog.ns_data=selector
-    uci set rsyslog.ns_data.source='*.*'
-    uci set rsyslog.ns_data.destination="/mnt/data/log/messages"
-    uci commit rsyslog
+  elif [ "$(storage-status)" = "ok" ] && ! crontab -l | grep -q '/usr/sbin/sync-data'; then
+    echo "Storage is in ok state, enabling write to disk."
+    echo '40 1 * * * /usr/sbin/sync-data' >> /etc/crontabs/root
   fi
 
   /usr/libexec/ns-storage-dhcp-leases

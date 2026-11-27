@@ -116,12 +116,17 @@ service_triggers()
 start_service() {
 	[ ! -d /var/run/netifyd ] && mkdir -p /var/run/netifyd
 
-	/usr/sbin/ns-netifyd-configure
+	/usr/sbin/ns-netifyd-configure start
 	config_load netifyd
 	config_foreach start_netifyd netifyd
 }
 
 reload_service() {
-	/usr/sbin/ns-netifyd-configure
+	/usr/sbin/ns-netifyd-configure reload
+	# 3: the nft table changed, it can be rebuilt only with netifyd stopped
+	if [ $? -eq 3 ]; then
+		restart
+		return
+	fi
 	procd_send_signal netifyd
 }

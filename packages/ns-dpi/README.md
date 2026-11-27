@@ -40,7 +40,10 @@ Rule (`rule` section):
 - `action`: `block` or `allow`
 - `priority`: evaluation order, starting at `1`; the first rule matching a flow wins
 - `appgroup`: list of application groups to match
-- `source`: list of addresses, networks or ranges to narrow the rule to; empty means every host
+- `source`: list of addresses, networks or ranges to narrow the rule to; empty, together with
+  `source_object`, means every host
+- `source_object`: list of objects, in the form `<database>/<id>`, whose addresses narrow the rule, as
+  an alternative to `source`: host sets, DHCP static leases, DNS records and VPN users with a reserved IP
 - `ns_match_all`: `1` matches every flow instead of naming application groups
 - `ns_managed`: `1` for the rules created by the API
 - `criteria`: raw netifyd expression, used by the rules not created by the API; the API can't edit them
@@ -71,8 +74,50 @@ config rule 'ns_9d40be71'
 	option action 'block'
 	option priority '2'
 	list appgroup 'ns_1a2b3c4d'
-	list source '192.168.1.0/24'
+	list source_object 'objects/ns_16faa17f'
 ```
+
+### Objects as source
+
+Every firewall object resolving to addresses has a netifyd address group,
+`/etc/netifyd/address-groups.d/30-<database>_<id>.conf`, whether a rule uses it or not: host sets, DHCP
+static leases, DNS records and VPN users with a reserved IP. A rule references the object as
+`local_ip == @<database>_<id>`, so `dpi-config` only builds the criteria and never writes a group.
+
+The files follow the objects, not the rules. They are written by `nethsec.dpi.write_address_groups`:
+
+- on commit, by the `update-address-groups.py` post-commit hook of `ns.commit`, when `objects`, `dhcp` or
+  `users` change; netifyd is reloaded if a file changed
+- by `ns.ovpnrw` when a VPN user gets, changes or loses its reserved IP, as it commits on its own
+- by `/usr/sbin/dpi`, so at boot by the `dpi` service (`START=40`), before netifyd starts (`START=99`), and
+  on every DPI reload
+
+Each file starts with a comment holding the object name, when the object has one, followed by a comment
+holding the object id and `generated from the firewall objects: do not edit`. A file is rewritten only when
+its content changes. The `30-` prefix belongs to the writer: every `30-*.conf` file whose object is gone,
+or has no address, is removed; files with other prefixes are never touched. An object with no address has
+no file: a rule referencing it matches no host, as a missing group matches nothing. The reserved IP of a
+VPN user can't be removed while the user is used as an object (`ns.ovpnrw edit-user` fails with
+`reserved_ip_is_used`), so a rule can lose its addresses only when the configuration is changed outside
+the API, e.g. when a whole user database is deleted.
+
+The `30-*.conf` files are listed in `/lib/upgrade/keep.d/ns-dpi`, so they are part of the backup, of the
+HA configuration sync and survive an image upgrade, always matching the configuration they come with.
+
+netifyd keeps the groups it loaded in memory, a reload doesn't drop the ones whose file was removed, and
+when it stops it saves all of them back to the directory, without comments. So after a netifyd restart
+the files lose their header until the next write, and the group of a deleted object can come back as a
+file: no rule references it, and the next write removes it. The write at boot runs after the stop that
+saved it and before the start that would load it again, dropping it from memory too.
+
+The addresses are written the way an address group can match them:
+
+- ranges become CIDR blocks, as address groups ignore them. A range whose first address is greater than
+  its last becomes the CIDR blocks of the ordered range; the host set itself is left as entered
+- references to other objects are resolved
+- IPv4-mapped IPv6 addresses (`::ffff:a.b.c.d`) become IPv4 addresses, as they never match IPv4 flows
+- `0.0.0.0/0` and `::/0` become their two `/1` halves, as a zero length prefix matches nothing
+- the zone of link-local addresses is dropped
 
 ## Migration from the previous schema
 
@@ -96,6 +141,16 @@ Check the generated rules:
 ```
 cat /etc/netifyd/netify-proc-flow-actions.json
 nft list chain inet fw4 dpi_actions
+```
+
+Check the address groups of the objects:
+```
+head /etc/netifyd/address-groups.d/30-*
+```
+
+Write them again from the configuration:
+```
+/usr/libexec/ns-dpi/write-address-groups
 ```
 
 List the blocked connections:

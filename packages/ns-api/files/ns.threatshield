@@ -10,16 +10,30 @@ import re
 import sys
 import json
 import urllib
+import urllib.parse
 import urllib.request
 import urllib.error
-import logging
 import ipaddress
 from euci import EUci
 from nethsec.utils import ValidationError, validation_error, generic_error
 from nethsec import utils, firewall
 import base64
+import calendar
 import time
+import sqlite3
 import subprocess
+
+# NethSecurity jail list, hard-coded in packages/ns-api/files/ns.threatshield and packages/ns-threat_shield/files/{ts-fail2ban,99-nethsec-fail2ban,banip-defaults,fail2ban/jail.d/10-ns-threat_shield.conf}: keep them in sync
+JAILS = ['ns-ssh', 'ns-webui', 'ns-openvpn', 'ns-proxy-auth', 'ns-proxy-scan']
+
+# VictoriaLogs query: banIP drops of the last hour, one row per (ip, feed, direction); pre-* lines have no feed
+BANIP_LOGS_QUERY = (
+    'app_name:kernel "banIP/" | extract "banIP/<chain>/<verdict>/<feed>: " | filter feed:* '
+    r'| replace_regexp ("\\.v[46](MAC)?$", "") at feed '
+    '| extract if (chain:inbound) "SRC=<ip> " | extract if (chain:outbound) "DST=<ip> " | filter ip:* '
+    '| stats by (ip, feed, chain) count() hits, max(_time) last, json_values(_msg) sort by (_time desc) limit 5 as matches '
+    '| sort by (hits desc, last desc) | limit 500'
+)
 
 ## continent codes map
 
@@ -315,6 +329,55 @@ def list_feeds():
         with open('/etc/banip/banip.feeds') as f:
             return json.loads(f.read())
 
+def get_custom_feeds(e_uci):
+    ret = {}
+    for name, s in (utils.get_all_by_type(e_uci, 'banip', 'ns_blockfeed') or {}).items():
+        feed = {'rule': 'feed 1', 'chain': s.get('chain', 'in'), 'descr': s.get('description', '')}
+        for url in ('url_4', 'url_6'):
+            if s.get(url):
+                feed[url] = s.get(url)
+        ret[name] = feed
+    return ret
+
+def builtin_feeds():
+    return set(read_json('/etc/banip/banip.feeds')) | set(read_json('/etc/banip/banip.nethesis.feeds'))
+
+def list_all_feeds(e_uci):
+    # the generated file is updated on commit: take custom feeds from UCI
+    builtin = builtin_feeds()
+    feeds = {k: v for k, v in list_feeds().items() if k in builtin}
+    feeds.update(get_custom_feeds(e_uci))
+    return feeds
+
+def has_credentials(e_uci):
+    return e_uci.get('ns-plug', 'config', 'system_id', default='') != '' and e_uci.get('ns-plug', 'config', 'secret', default='') != ''
+
+def validate_url(payload, parameter, required=True):
+    url = payload.get(parameter, '')
+    if not isinstance(url, str):
+        raise ValidationError(parameter, 'invalid', url)
+    if url == '':
+        if required:
+            raise ValidationError(parameter, 'required')
+        return ''
+    # banIP expands URLs unquoted in shell: allow only safe characters
+    if len(url) > 512 or not re.fullmatch(r'https?://[A-Za-z0-9._~:/?&=%+,@-]+', url) or not urllib.parse.urlparse(url).hostname:
+        raise ValidationError(parameter, 'invalid_url', url)
+    return url
+
+def validate_string(payload, parameter):
+    value = payload.get(parameter, '')
+    if not isinstance(value, str) or len(value) > 128 or '\n' in value:
+        raise ValidationError(parameter, 'invalid', value)
+    return value
+
+def validate_bool(payload, parameter):
+    if parameter not in payload:
+        raise ValidationError(parameter, 'required')
+    if not isinstance(payload[parameter], bool):
+        raise ValidationError(parameter, 'invalid', payload[parameter])
+    return payload[parameter]
+
 def get_block_list():
     return get_allow_list('/etc/banip/banip.blocklist')
 
@@ -343,6 +406,9 @@ def write_allow_list(allow_list, file='/etc/banip/banip.allowlist'):
                 f.write(' #' + x['description'])
             f.write('\n')
     subprocess.run(["/etc/init.d/banip", "reload"], capture_output=True)
+    if file == '/etc/banip/banip.allowlist':
+        # sync fail2ban ignoreip with the allowlist and unban allowlisted IPs
+        subprocess.run(["/usr/libexec/ts-fail2ban"], capture_output=True)
 
 def dns_get_local_list(e_uci, list_type):
     values = e_uci.get('adblock', 'ns_lists', list_type, list=True, default=[])
@@ -454,7 +520,8 @@ def get_countries_from_banip(e_uci):
 
 def list_blocklist(e_uci):
     ret = []
-    feeds = list_feeds()
+    feeds = list_all_feeds(e_uci)
+    custom_feeds = get_custom_feeds(e_uci)
     has_bl = has_bl_entitlement(e_uci)
     try:
         enabled_feeds = list(e_uci.get_all('banip', 'global', 'ban_feed'))
@@ -467,8 +534,10 @@ def list_blocklist(e_uci):
             continue
         feed = feeds[f]
         enabled = f in enabled_feeds
+        # ts-ip lets a custom list override a builtin feed with the same name
+        custom = f in custom_feeds
 
-        if 'nethesis' in feed.get('url_4'):
+        if not custom and 'nethesis' in (feed.get('url_4') or ''):
             type = 'enterprise'
         else:
             type = 'community'
@@ -480,13 +549,18 @@ def list_blocklist(e_uci):
 
         protocols, ports = parse_feed_flag(feed.get('flag'))
 
-        ret.append({ 'name': f, 'type': type, 'enabled': enabled, 'confidence': get_confidence(f, type == 'enterprise'), 'description': feed.get('descr'), 'direction': feed.get('chain', 'in'), 'protocols': protocols, 'ports': ports})
+        ret.append({ 'name': f, 'type': type, 'custom': custom, 'enabled': enabled, 'confidence': get_confidence(f, type == 'enterprise'), 'description': feed.get('descr'), 'direction': feed.get('chain', 'in'), 'protocols': protocols, 'ports': ports})
+        if custom:
+            ret[-1].update({'url_4': feed.get('url_4', ''), 'url_6': feed.get('url_6', '')})
+    # custom lists first, the rest keeps the feeds file order
+    ret.sort(key=lambda x: not x['custom'])
     return { "data": ret }
 
 def list_settings(e_uci):
     ban_icmplimit_default = 25
     ban_synlimit_default = 10
     ban_udplimit_default = 100
+    ns_jails = e_uci.get('banip', 'global', 'ns_jails', list=True, default=[])
     return {
         'data': {
             'enabled': e_uci.get('banip', 'global', 'ban_enabled') == '1',
@@ -494,8 +568,7 @@ def list_settings(e_uci):
             'ban_loginbound': e_uci.get('banip', 'global', 'ban_loginbound', default=False) == '1',
             'ban_logoutbound': e_uci.get('banip', 'global', 'ban_logoutbound', default=False) == '1',
             'ban_loglimit': True if int(e_uci.get('banip', 'global', 'ban_loglimit', default=100)) > 0 else False,
-            'ban_logcount': e_uci.get('banip', 'global', 'ban_logcount', default=1),
-            'ban_logterm': e_uci.get('banip', 'global', 'ban_logterm', list=True, default=[]),
+            'jails': [{'name': j, 'enabled': j in ns_jails} for j in JAILS],
             'ban_icmplimit': e_uci.get('banip', 'global', 'ban_icmplimit', default=ban_icmplimit_default, dtype=int),
             'ban_synlimit': e_uci.get('banip', 'global', 'ban_synlimit', default=ban_synlimit_default, dtype=int),
             'ban_udplimit': e_uci.get('banip', 'global', 'ban_udplimit', default=ban_udplimit_default, dtype=int),
@@ -507,6 +580,11 @@ def list_settings(e_uci):
     }
 
 def edit_blocklist(e_uci, payload):
+    for param, ptype in (('blocklist', str), ('enabled', bool)):
+        if param not in payload:
+            raise ValidationError(param, 'required')
+        if not isinstance(payload[param], ptype):
+            raise ValidationError(param, 'invalid', payload[param])
     try:
         enabled = list(e_uci.get_all('banip', 'global', 'ban_feed'))
     except:
@@ -516,11 +594,108 @@ def edit_blocklist(e_uci, payload):
     if not payload['enabled'] and payload['blocklist'] in enabled:
         enabled.remove(payload['blocklist'])
     # cleanup invalid feeds
-    feeds = list_feeds()
+    feeds = list_all_feeds(e_uci)
     enabled = [feed for feed in enabled if feed in feeds]
     e_uci.set('banip', 'global', 'ban_feed', enabled)
     e_uci.save('banip')
     return {'message': 'success'}
+
+# allowlist and blocklist names share the banip section namespace
+def validate_list_name(e_uci, payload):
+    name = payload.get('name', '')
+    if not isinstance(name, str) or not re.fullmatch(r'[a-z][a-z0-9]{2,15}', name):
+        raise ValidationError('name', 'invalid_name', name)
+    if name.startswith(('yoroi', 'nethesis')) or name in ('allowlist', 'blocklist'):
+        raise ValidationError('name', 'reserved_name', name)
+    if name in builtin_feeds() or name in e_uci.get('banip'):
+        raise ValidationError('name', 'name_already_present', name)
+    return name
+
+def list_allowlist_urls(e_uci):
+    # built-in row: always listed, enabled only with a subscription
+    ret = [{'name': 'nethesis', 'builtin': True, 'url': '', 'description': 'Nethesis global allowlist', 'enabled': has_credentials(e_uci)}]
+    for sid, s in (utils.get_all_by_type(e_uci, 'banip', 'ns_allowurl') or {}).items():
+        ret.append({'name': sid, 'builtin': False, 'url': s.get('url', ''), 'description': s.get('description', ''), 'enabled': s.get('enabled', '1') == '1'})
+    return {'data': ret}
+
+def set_allowlist_url(e_uci, sid, payload):
+    url = validate_url(payload, 'url')
+    description = validate_string(payload, 'description')
+    enabled = validate_bool(payload, 'enabled')
+    for cur, s in (utils.get_all_by_type(e_uci, 'banip', 'ns_allowurl') or {}).items():
+        if cur != sid and s.get('url') == url:
+            raise ValidationError('url', 'url_already_present', url)
+    e_uci.set('banip', sid, 'ns_allowurl')
+    e_uci.set('banip', sid, 'url', url)
+    e_uci.set('banip', sid, 'description', description)
+    e_uci.set('banip', sid, 'enabled', '1' if enabled else '0')
+    e_uci.save('banip')
+
+def add_allowlist_url(e_uci, payload):
+    name = validate_list_name(e_uci, payload)
+    set_allowlist_url(e_uci, name, payload)
+    return {'name': name}
+
+def check_section_exists(e_uci, stype, name, error):
+    # list/dict names are unhashable: report any non-string as not found
+    if not isinstance(name, str) or name not in (utils.get_all_by_type(e_uci, 'banip', stype) or {}):
+        raise ValidationError('name', error, name)
+
+def edit_allowlist_url(e_uci, payload):
+    sid = payload.get('name', '')
+    if sid == 'nethesis':
+        raise ValidationError('name', 'builtin_allowlist_url_not_editable', sid)
+    check_section_exists(e_uci, 'ns_allowurl', sid, 'allowlist_url_not_found')
+    set_allowlist_url(e_uci, sid, payload)
+    return {'message': 'success'}
+
+def delete_allowlist_url(e_uci, payload):
+    sid = payload.get('name', '')
+    if sid == 'nethesis':
+        raise ValidationError('name', 'builtin_allowlist_url_not_deletable', sid)
+    check_section_exists(e_uci, 'ns_allowurl', sid, 'allowlist_url_not_found')
+    e_uci.delete('banip', sid)
+    e_uci.save('banip')
+    return {'message': 'success'}
+
+def set_custom_blocklist(e_uci, name, payload):
+    url_4 = validate_url(payload, 'url_4', False)
+    url_6 = validate_url(payload, 'url_6', False)
+    if not url_4 and not url_6:
+        raise ValidationError('url_4', 'url_required')
+    chain = payload.get('chain', 'in')
+    if chain not in ('in', 'out', 'inout'):
+        raise ValidationError('chain', 'invalid', chain)
+    description = validate_string(payload, 'description')
+    e_uci.set('banip', name, 'ns_blockfeed')
+    e_uci.set('banip', name, 'url_4', url_4)
+    e_uci.set('banip', name, 'url_6', url_6)
+    e_uci.set('banip', name, 'chain', chain)
+    e_uci.set('banip', name, 'description', description)
+    e_uci.save('banip')
+
+def add_custom_blocklist(e_uci, payload):
+    name = validate_list_name(e_uci, payload)
+    enabled = validate_bool(payload, 'enabled') if 'enabled' in payload else True
+    set_custom_blocklist(e_uci, name, payload)
+    edit_blocklist(e_uci, {'blocklist': name, 'enabled': enabled})
+    return {'name': name}
+
+def edit_custom_blocklist(e_uci, payload):
+    name = payload.get('name', '')
+    check_section_exists(e_uci, 'ns_blockfeed', name, 'custom_blocklist_not_found')
+    # enabled is optional on edit: keep the current state when missing
+    enabled = validate_bool(payload, 'enabled') if 'enabled' in payload else None
+    set_custom_blocklist(e_uci, name, payload)
+    if enabled is not None:
+        edit_blocklist(e_uci, {'blocklist': name, 'enabled': enabled})
+    return {'message': 'success'}
+
+def delete_custom_blocklist(e_uci, payload):
+    name = payload.get('name', '')
+    check_section_exists(e_uci, 'ns_blockfeed', name, 'custom_blocklist_not_found')
+    e_uci.delete('banip', name)
+    return edit_blocklist(e_uci, {'blocklist': name, 'enabled': False})
 
 def set_default(e_uci, option, value):
     try:
@@ -566,14 +741,13 @@ def edit_settings(e_uci, payload):
             raise ValidationError('ban_loglimit', 'invalid', payload['ban_loglimit'])
 
         if payload['ban_loglimit']:
-            if 'ban_logcount' not in payload:
-                raise ValidationError('ban_logcount', 'required')
-            if not isinstance(payload['ban_logcount'], int):
-                raise ValidationError('ban_logcount', 'invalid', payload['ban_logcount'])
-            if 'ban_logterm' not in payload:
-                raise ValidationError('ban_logterm', 'required')
-            if not isinstance(payload['ban_logterm'], list):
-                raise ValidationError('ban_logterm', 'invalid', payload['ban_logterm'])
+            # jails is optional: when omitted, ns_jails is left unchanged
+            if 'jails' in payload:
+                if not isinstance(payload['jails'], list):
+                    raise ValidationError('jails', 'invalid', payload['jails'])
+                for item in payload['jails']:
+                    if item not in JAILS:
+                        raise ValidationError('jails', 'invalid', item)
             if 'ban_nftexpiry' not in payload:
                 raise ValidationError('ban_nftexpiry', 'required')
             if not isinstance(payload['ban_nftexpiry'], str):
@@ -602,10 +776,14 @@ def edit_settings(e_uci, payload):
             e_uci.set('banip', 'global', 'ban_udplimit', max(0, payload['ban_udplimit']))
         else:
             e_uci.set('banip', 'global', 'ban_udplimit', 100 if payload['ban_udplimit'] else 0)
+        try:
+            e_uci.delete('banip', 'global', 'ban_logterm')
+        except:
+            pass
 
         if payload['ban_loglimit']:
-            e_uci.set('banip', 'global', 'ban_logcount', payload['ban_logcount'])
-            e_uci.set('banip', 'global', 'ban_logterm', payload['ban_logterm'])
+            if 'jails' in payload:
+                e_uci.set('banip', 'global', 'ns_jails', payload['jails'])
             e_uci.set('banip', 'global', 'ban_nftexpiry', payload['ban_nftexpiry'])
     else:
         e_uci.set('banip', 'global', 'ban_enabled', '0')
@@ -715,6 +893,11 @@ def dns_list_blocklist(e_uci):
     return { "data": ret }
 
 def dns_edit_blocklist(e_uci, payload):
+    for param, ptype in (('blocklist', str), ('enabled', bool)):
+        if param not in payload:
+            raise ValidationError(param, 'required')
+        if not isinstance(payload[param], ptype):
+            raise ValidationError(param, 'invalid', payload[param])
     try:
         enabled = list(e_uci.get_all('adblock', 'global', 'adb_feed'))
     except:
@@ -889,87 +1072,34 @@ def dns_delete_bypass(e_uci, payload):
     return {'message': 'success'}
 
 
-def __parse_expression(expression):
-    if isinstance(expression, str) or isinstance(expression, int):
-        return ipaddress.ip_address(expression)
-    if isinstance(expression, list):
-        return [__parse_expression(item) for item in expression]
-    if isinstance(expression, dict):
-        if "prefix" in expression:
-            return ipaddress.ip_network(expression["prefix"]["addr"] + "/" + str(expression["prefix"]["len"]))
-        elif "range" in expression:
-            return list(ipaddress.summarize_address_range(
-                __parse_expression(expression["range"][0]),
-                __parse_expression(expression["range"][1])
-            ))
-        elif "elem" in expression:
-            if "timeout" not in expression["elem"] or "expires" not in expression["elem"]:
-                return None
-            return {
-                "timeout": expression["elem"]["timeout"],
-                "expires": expression["elem"]["expires"],
-                "val": __parse_expression(expression["elem"]["val"]),
-            }
-
-    logging.warning('Unsupported expression type: {}'.format(type(expression)))
-    return None
-
-
-def __parse_set(blocklist):
-    """
-    This function parses any set returned by nftables and returns a list of entries
-    """
-    blocked_ips = []
-    if ("nftables" in blocklist
-            and len(blocklist["nftables"]) > 1
-            and "set" in blocklist["nftables"][1]
-            and "elem" in blocklist["nftables"][1]["set"]):
-        blocked_ips = [ip for ip in __parse_expression(blocklist["nftables"][1]["set"]["elem"]) if ip is not None]
-
-    return blocked_ips
+def fail2ban_db():
+    # same choice as the fail2ban init script
+    if os.path.ismount('/mnt/data'):
+        return '/mnt/data/fail2ban/fail2ban.sqlite3'
+    return '/var/run/fail2ban/fail2ban.sqlite3'
 
 
 def list_active_blocks():
+    # expired bans and bans of stopped jails stay in bips, so filter them out
+    now = int(time.time())
     try:
-        output_ipv4 = subprocess.run(["nft", "-j", "list", "set", "inet", "banIP", "blocklist.v4"], check=True,
-                                    capture_output=True, text=True)
-        data = json.loads(output_ipv4.stdout)
-    except subprocess.CalledProcessError:
-        data = {}
-
-    blocks = __parse_set(data)
-
-    try:
-        output_ipv6 = subprocess.run(["nft", "-j", "list", "set", "inet", "banIP", "blocklist.v6"], check=True,
-                                    capture_output=True, text=True)
-        data = json.loads(output_ipv6.stdout)
-    except subprocess.CalledProcessError:
-        data = {}
-
-    blocks = blocks + __parse_set(data)
-    blocks = filter(lambda x: isinstance(x, dict) and "val" in x, blocks)
-    blocks = sorted(blocks, key=lambda x: x["timeout"] - x["expires"])
-    response = []
-    for block in blocks:
-        if not isinstance(block["val"], list):
-            block["val"] = [block["val"]]
-        for item in block["val"]:
-            if isinstance(item, ipaddress.IPv4Address) or isinstance(item, ipaddress.IPv6Address):
-                response.append({
-                    "ip": str(item),
-                    "timeout": block["timeout"],
-                    "expires": block["expires"],
-                })
-            if isinstance(item, ipaddress.IPv4Network) or isinstance(item, ipaddress.IPv6Network):
-                for addr in item:
-                    if isinstance(addr, ipaddress.IPv4Address) or isinstance(addr, ipaddress.IPv6Address):
-                        response.append({
-                            "ip": str(addr),
-                            "timeout": block["timeout"],
-                            "expires": block["expires"],
-                        })
-
-    return response
+        db = sqlite3.connect(f'file:{fail2ban_db()}?mode=ro', uri=True)
+        try:
+            rows = db.execute(
+                "SELECT ip, bantime, timeofban + bantime - ?, bips.jail FROM bips JOIN jails ON jails.name = bips.jail "
+                "WHERE jails.enabled = 1 AND (bantime < 0 OR timeofban + bantime > ?) "
+                "ORDER BY bantime < 0, timeofban + bantime", (now, now)).fetchall()
+        finally:
+            db.close()
+    except sqlite3.Error:
+        return []
+    # rows are sorted by expiry: the last one per IP is the longest (-1 is permanent)
+    jails = {}
+    for ip, _, _, jail in rows:
+        jails.setdefault(ip, set()).add(jail)
+    blocks = {ip: {"ip": ip, "timeout": bantime, "expires": -1 if bantime < 0 else left, "jails": sorted(jails[ip])}
+              for ip, bantime, left, _ in rows}
+    return sorted(blocks.values(), key=lambda x: x["timeout"] - x["expires"])
 
 
 def remove_active_block():
@@ -987,17 +1117,59 @@ def remove_active_block():
     if not found:
         return validation_error("ip", "invalid", str(ip))
 
-    if isinstance(ip, ipaddress.IPv4Address):
-        blocklist = "blocklist.v4"
-    else:
-        blocklist = "blocklist.v6"
-
     try:
-        subprocess.run(["nft", "delete", "element", "inet", "banIP", blocklist, "{" + str(ip) + "}"], check=True)
-    except subprocess.CalledProcessError:
+        subprocess.run(["fail2ban-client", "unban", str(ip)], capture_output=True, check=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
         return generic_error("remove_active_block_failed")
 
     return {'message': 'success'}
+
+
+def list_recent_bans():
+    now = int(time.time())
+    try:
+        db = sqlite3.connect(f'file:{fail2ban_db()}?mode=ro', uri=True)
+        try:
+            rows = db.execute(
+                "SELECT ip, bips.jail, timeofban, bantime, "
+                "jails.enabled = 1 AND (bantime < 0 OR timeofban + bantime > ?), data "
+                "FROM bips LEFT JOIN jails ON jails.name = bips.jail ORDER BY timeofban DESC", (now,)).fetchall()
+        finally:
+            db.close()
+    except sqlite3.Error:
+        return []
+    bans = []
+    for ip, jail, timeofban, bantime, active, data in rows:
+        try:
+            data = json.loads(data)
+        except (TypeError, ValueError):
+            data = {}
+        if not isinstance(data, dict):
+            data = {}
+        # fail2ban stores multi-line matches as lists of strings
+        matches = [''.join(m) if isinstance(m, list) else m for m in data.get('matches') or []]
+        bans.append({"ip": ip, "jail": jail, "time": int(timeofban), "timeout": int(bantime), "active": bool(active),
+                     "failures": data.get('failures', 0), "matches": matches})
+    return bans
+
+
+def vl_epoch(ts):
+    # VictoriaLogs timestamps are RFC3339 UTC
+    return calendar.timegm(time.strptime(ts[:19], "%Y-%m-%dT%H:%M:%S"))
+
+
+def list_blocklist_bans():
+    try:
+        vl_addr = EUci().get("victoria-logs", "main", "http_listen_addr", default="127.0.0.1:9428")
+        data = urllib.parse.urlencode({"query": BANIP_LOGS_QUERY, "start": "1h"}).encode()
+        with urllib.request.urlopen(f"http://{vl_addr}/select/logsql/query", data=data, timeout=5) as resp:
+            rows = [json.loads(line) for line in resp.read().splitlines() if line.strip()]
+        bans = [{"ip": r["ip"], "list": r["feed"], "direction": r["chain"], "time": vl_epoch(r["last"]),
+                 "hits": int(r["hits"]),
+                 "matches": [m["_msg"] for m in json.loads(r.get("matches") or "[]")]} for r in rows]
+    except Exception:
+        bans = []
+    return {"data": bans}
 
 
 def is_ip_blocked():
@@ -1081,6 +1253,13 @@ if cmd == 'list':
     print(json.dumps({
         'list-blocklist': {},
         'edit-blocklist': { "blocklist": "blocklist_name", "enabled": True },
+        'list-allowlist-urls': {},
+        'add-allowlist-url': {'name': 'myallow', 'url': 'https://example.com/allow.txt', 'description': 'optional', 'enabled': True},
+        'edit-allowlist-url': {'name': 'myallow', 'url': 'https://example.com/allow.txt', 'description': 'optional', 'enabled': True},
+        'delete-allowlist-url': {'name': 'myallow'},
+        'add-custom-blocklist': {'name': 'myfeed', 'url_4': 'https://example.com/v4.txt', 'url_6': '', 'chain': 'in', 'description': 'optional', 'enabled': True},
+        'edit-custom-blocklist': {'name': 'myfeed', 'url_4': 'https://example.com/v4.txt', 'url_6': '', 'chain': 'in', 'description': 'optional', 'enabled': True},
+        'delete-custom-blocklist': {'name': 'myfeed'},
         'list-settings': {},
         'edit-settings': {
             'enabled': True,
@@ -1088,8 +1267,7 @@ if cmd == 'list':
             'ban_loginbound': True,
             'ban_logoutbound': True,
             'ban_loglimit': True,
-            'ban_logcount': 3,
-            'ban_logterm': ['string'],
+            'jails': ['ns-ssh'],
             'ban_icmplimit': True,
             'ban_synlimit': True,
             'ban_udplimit': True
@@ -1103,6 +1281,8 @@ if cmd == 'list':
         'edit-blocked': {'address': '1.2.3.4', 'description': 'optional'},
         'delete-blocked': {'address': '1.2.3.4'},
         'list-active-blocks': {},
+        'list-recent-bans': {},
+        'list-blocklist-bans': {},
         'remove-active-block': { 'ip': '' },
         'is-ip-blocked': {'ip': ''},
         'dns-list-blocklist': {},
@@ -1133,6 +1313,26 @@ elif cmd == 'call':
         elif action == 'edit-blocklist':
             payload = json.loads(sys.stdin.read())
             ret = edit_blocklist(e_uci, payload)
+        elif action == 'list-allowlist-urls':
+            ret = list_allowlist_urls(e_uci)
+        elif action == 'add-allowlist-url':
+            payload = json.loads(sys.stdin.read())
+            ret = add_allowlist_url(e_uci, payload)
+        elif action == 'edit-allowlist-url':
+            payload = json.loads(sys.stdin.read())
+            ret = edit_allowlist_url(e_uci, payload)
+        elif action == 'delete-allowlist-url':
+            payload = json.loads(sys.stdin.read())
+            ret = delete_allowlist_url(e_uci, payload)
+        elif action == 'add-custom-blocklist':
+            payload = json.loads(sys.stdin.read())
+            ret = add_custom_blocklist(e_uci, payload)
+        elif action == 'edit-custom-blocklist':
+            payload = json.loads(sys.stdin.read())
+            ret = edit_custom_blocklist(e_uci, payload)
+        elif action == 'delete-custom-blocklist':
+            payload = json.loads(sys.stdin.read())
+            ret = delete_custom_blocklist(e_uci, payload)
         elif action == 'list-settings':
             ret = list_settings(e_uci)
         elif action == 'edit-settings':
@@ -1162,6 +1362,10 @@ elif cmd == 'call':
             ret = delete_blocked(payload)
         elif action == 'list-active-blocks':
             ret = list_active_blocks()
+        elif action == 'list-recent-bans':
+            ret = list_recent_bans()
+        elif action == 'list-blocklist-bans':
+            ret = list_blocklist_bans()
         elif action == 'remove-active-block':
             ret = remove_active_block()
         elif action == 'is-ip-blocked':

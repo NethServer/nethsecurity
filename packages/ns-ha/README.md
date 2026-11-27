@@ -42,7 +42,7 @@ The following features are supported:
 - Multi-WAN (mwan3)
 - DPI rules
 - Netifyd informatics configuration
-- Threat shield IP (banip)
+- Threat shield IP (banip, fail2ban)
 - Threat shield DNS (adblock)
 - Reverse proxy (nginx)
 - ACME certificates
@@ -68,11 +68,15 @@ The setup process automatically does the following:
   key-based authentication is allowed
 - configure conntrackd to sync the connection tracking table
 
-Keepalived hotplug locking is disabled by default and is usually not needed. Leave
-`keepalived.globals.ns_lock_timeout` unset unless keepalived state transitions overlap and restart/stop
-events race with each other, as in the dedalo/dpi failover. When the option is set,
-the hotplug chain waits up to the configured timeout before letting the next event proceed.
-To enable the locking mechanism, set `keepalived.globals.ns_lock_timeout` to a positive integer representing the timeout in seconds, suggested value is 120 seconds, since OpenVPN and Netifyd have lng `term_timeout` option.
+Keepalived hotplug events are serialized by a lock: a new event waits up to `keepalived.globals.ns_lock_timeout`
+seconds (default `120`) for the running one before proceeding anyway.
+Only the most recent event is applied: when a newer event starts, the scripts of older events still running or
+waiting skip their actions, and `999-unlock` logs `superseded by a newer event`.
+To disable the lock, set `keepalived.globals.ns_lock_timeout` to `0`:
+```
+uci set keepalived.globals.ns_lock_timeout=0
+uci commit keepalived
+```
 
 In this example:
 - `primary_node_ip` is the primary node, with LAN IP `192.168.100.238`
@@ -605,6 +609,11 @@ Executed when a node becomes the active (master) node:
   - Enables all network interfaces and services that were active on the failed primary using `/usr/libexec/ns-ha-enable` script
   - Activates WireGuard interfaces, IPsec tunnels, and routes imported from `/etc/ha`
 
+WAN interfaces come up first and the gratuitous ARP is sent right after, then the services (dnsmasq, adblock,
+banIP, Snort and the others) are restarted. WireGuard and IPsec interfaces come up after them (`850-vpn`, calling
+`ns-ha-enable --vpn`), followed by the swanctl and OpenVPN restarts, so traffic and protection are back
+before VPNs restore.
+
 #### NOTIFY_BACKUP
 
 Executed on the backup node during normal operation or when the primary node recovers:
@@ -638,7 +647,7 @@ The backup node maintains synchronized configuration but keeps most services dis
 
 **Disabled services on backup:**
 - DHCP and DNS server (dnsmasq)
-- Threat shield (banip, adblock)
+- Threat shield (banip, fail2ban, adblock)
 - OpenVPN server and tunnels
 - MAC binding
 - Multi-WAN (mwan3)
