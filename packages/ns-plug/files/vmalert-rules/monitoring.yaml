@@ -1,0 +1,119 @@
+# Monitoring stack self-monitoring
+#
+# Victoria Metrics, Victoria Logs and vmalert metrics are scraped by Victoria Metrics
+# (/etc/victoria-metrics/scrape.yaml), telegraf ones come from inputs.internal.
+# A dead Victoria Metrics or vmalert can't raise these, the upstream heartbeat covers it.
+
+groups:
+  - name: "monitoring"
+    interval: "1m"
+    eval_alignment: false
+    rules:
+      - alert: MonitoringTargetDown
+        expr: 'up == 0'
+        for: "3m"
+        labels:
+          severity: "critical"
+          alertgroup: "monitoring"
+        annotations:
+          summary_en: "{{ $labels.job }} is not responding"
+          summary_it: "{{ $labels.job }} non risponde"
+          description_en: "{{ $labels.job }} metrics endpoint has not been reachable for more than 3 minutes"
+          description_it: "L'endpoint delle metriche di {{ $labels.job }} non è raggiungibile da più di 3 minuti"
+
+      - alert: MetricsIngestStopped
+        # Telegraf is the only influx writer
+        expr: 'sum(rate(vm_rows_inserted_total{type="influx"}[5m])) == 0'
+        for: "5m"
+        labels:
+          severity: "critical"
+          alertgroup: "monitoring"
+        annotations:
+          summary_en: "Metrics are not being collected"
+          summary_it: "Le metriche non vengono raccolte"
+          description_en: "Telegraf has not written any metric to Victoria Metrics for more than 10 minutes"
+          description_it: "Telegraf non scrive metriche su Victoria Metrics da più di 10 minuti"
+
+      - alert: LogsIngestStopped
+        expr: 'sum(increase(vl_rows_ingested_total[30m])) == 0'
+        for: "5m"
+        labels:
+          severity: "critical"
+          alertgroup: "monitoring"
+        annotations:
+          summary_en: "Logs are not being collected"
+          summary_it: "I log non vengono raccolti"
+          description_en: "Victoria Logs has not received any log line for more than 30 minutes"
+          description_it: "Victoria Logs non riceve log da più di 30 minuti"
+
+      - alert: MonitoringStorageReadOnly
+        expr: 'vm_storage_is_read_only == 1 or vl_storage_is_read_only == 1'
+        for: "1m"
+        labels:
+          severity: "critical"
+          alertgroup: "monitoring"
+        annotations:
+          summary_en: "{{ $labels.job }} storage is read-only"
+          summary_it: "Lo storage di {{ $labels.job }} è in sola lettura"
+          description_en: "{{ $labels.job }} stopped saving data in {{ $labels.path }}, usually because the disk is almost full"
+          description_it: "{{ $labels.job }} ha smesso di salvare dati in {{ $labels.path }}, di solito perché il disco è quasi pieno"
+
+      - alert: MonitoringDataDropped
+        # reason="debug" only shows up when debug ingestion is requested by hand
+        expr: 'sum by (job) (increase({__name__=~"vm_rows_ignored_total|vl_rows_dropped_total|vl_too_long_lines_skipped_total|vl_errors_total", reason!="debug"}[10m])) > 0'
+        labels:
+          severity: "warning"
+          alertgroup: "monitoring"
+        annotations:
+          summary_en: "{{ $labels.job }} is dropping data"
+          summary_it: "{{ $labels.job }} sta scartando dati"
+          description_en: "{{ $labels.job }} rejected {{ $value }} rows in the last 10 minutes"
+          description_it: "{{ $labels.job }} ha scartato {{ $value }} righe negli ultimi 10 minuti"
+
+      - alert: AlertDeliveryFailing
+        expr: 'sum(rate(vmalert_alerts_send_errors_total[5m])) > 0'
+        for: "15m"
+        labels:
+          severity: "critical"
+          alertgroup: "monitoring"
+        annotations:
+          summary_en: "Alerts can't be delivered"
+          summary_it: "Gli allarmi non vengono inviati"
+          description_en: "vmalert has been failing to send alerts to the remote alertmanager for more than 15 minutes"
+          description_it: "vmalert non riesce a inviare gli allarmi all'alertmanager remoto da più di 15 minuti"
+
+      - alert: AlertRulesFailing
+        expr: 'sum by (group) (rate(vmalert_alerting_rules_errors_total[5m])) > 0 or vmalert_config_last_reload_successful == 0'
+        for: "10m"
+        labels:
+          severity: "critical"
+          alertgroup: "monitoring"
+        annotations:
+          summary_en: "Alert rules are not being evaluated"
+          summary_it: "Le regole di allarme non vengono valutate"
+          description_en: "vmalert fails to evaluate rules or to load its configuration for more than 10 minutes"
+          description_it: "vmalert non riesce a valutare le regole o a caricare la configurazione da più di 10 minuti"
+
+      - alert: TelegrafInputFailing
+        # ping times out on every WAN outage, already covered by WanDown
+        expr: 'sum by (input) (rate(internal_gather_errors[5m])) > 0 or sum by (input) (rate(internal_gather_gather_timeouts{input!="ping"}[5m])) > 0'
+        for: "15m"
+        labels:
+          severity: "warning"
+          alertgroup: "monitoring"
+        annotations:
+          summary_en: "Telegraf input {{ $labels.input }} is failing"
+          summary_it: "L'input {{ $labels.input }} di Telegraf non funziona"
+          description_en: "Telegraf input {{ $labels.input }} has been failing or timing out for more than 15 minutes, check the telegraf logs"
+          description_it: "L'input {{ $labels.input }} di Telegraf fallisce o va in timeout da più di 15 minuti, controllare i log di telegraf"
+
+      - alert: TelegrafMetricsDropped
+        expr: 'sum by (output) (increase(internal_write_metrics_dropped[15m])) > 0'
+        labels:
+          severity: "warning"
+          alertgroup: "monitoring"
+        annotations:
+          summary_en: "Telegraf dropped metrics"
+          summary_it: "Telegraf ha scartato delle metriche"
+          description_en: "Telegraf dropped {{ $value }} metrics in the last 15 minutes because its buffer was full"
+          description_it: "Telegraf ha scartato {{ $value }} metriche negli ultimi 15 minuti perché il buffer era pieno"

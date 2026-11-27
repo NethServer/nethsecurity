@@ -75,6 +75,12 @@ ssh -L 8428:127.0.0.1:8428 root@remote_host
 Then open `http://127.0.0.1:8428` in your web browser to see all exposed endpoints.
 The UI to query metrics is available at `http://127.0.0.1:8428/vmui`.
 
+### Monitoring stack scrape
+
+Victoria Metrics scrapes its own `/metrics`, Victoria Logs' and vmalert's every 30 seconds, using `/etc/victoria-metrics/scrape.yaml`. Only the metrics needed by the `monitoring` alert group are kept, plus `up{job="..."}` for each target. They're labeled `db="monitoring-metrics"`, like Telegraf's own `internal_*` metrics. Scrape status is at `http://127.0.0.1:8428/targets`.
+
+The `monitoring` group alerts when a target is down, metrics or logs stop coming in, storage goes read-only, rows get dropped, alerts can't be delivered or evaluated, or a Telegraf input keeps failing. If Victoria Metrics or vmalert dies entirely nothing local can fire, the upstream heartbeat covers that case.
+
 ## Alerting Rules
 
 All alert rules are defined as YAML files in `/etc/vmalert/rules/*.yaml`. Each file corresponds to a specific monitoring category.

@@ -1,0 +1,36 @@
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Health metrics of the monitoring stack itself, used by the vmalert monitoring rules.
+
+global:
+  scrape_interval: 30s
+
+scrape_configs:
+  - job_name: victoria-metrics
+    static_configs:
+      - targets: ["127.0.0.1:8428"]
+        labels: {db: "monitoring-metrics"}
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: "vm_storage_is_read_only|vm_rows_inserted_total|vm_rows_ignored_total"
+        action: keep
+
+  - job_name: victoria-logs
+    static_configs:
+      - targets: ["127.0.0.1:9428"]
+        labels: {db: "monitoring-metrics"}
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: "vl_storage_is_read_only|vl_rows_ingested_total|vl_rows_dropped_total|vl_too_long_lines_skipped_total|vl_errors_total"
+        action: keep
+
+  - job_name: vmalert
+    static_configs:
+      - targets: ["127.0.0.1:8082"]
+        labels: {db: "monitoring-metrics"}
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: "vmalert_alerts_send_errors_total|vmalert_alerting_rules_errors_total|vmalert_config_last_reload_successful"
+        action: keep

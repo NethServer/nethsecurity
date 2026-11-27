@@ -51,6 +51,7 @@ start_service() {
     procd_append_param command -storageDataPath="$storage_path"
     procd_append_param command -retentionPeriod="$retention_period"
     procd_append_param command -httpListenAddr="$http_listen_addr"
+    procd_append_param command -promscrape.config=/etc/victoria-metrics/scrape.yaml
     procd_close_instance
 }
 

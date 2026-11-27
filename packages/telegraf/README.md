@@ -77,6 +77,7 @@ snort
 swanctl
 sysntpd
 telegraf
+victoria-logs
 victoria-metrics
 vmalert
 ```
@@ -122,6 +123,17 @@ curl -s 'http://127.0.0.1:8428/api/v1/query?query=mwan_interface_online'
 **Metric format**:
 ```
 storage_status_error = 1 (error) or 0 (ok / not configured)
+```
+
+### Telegraf Self-Monitoring (internal.conf)
+
+**How it works**: `inputs.internal` exports Telegraf's own stats, limited to `internal_gather` (per input, tagged `input`) and `internal_write` (per output, tagged `output`). They drive the `TelegrafInputFailing` and `TelegrafMetricsDropped` alerts.
+
+**Metric format**:
+```
+internal_gather_errors{input="exec"} = errors logged by the input
+internal_gather_gather_timeouts{input="nftables"} = collections that took longer than the interval
+internal_write_metrics_dropped{output="influxdb"} = metrics dropped because the buffer was full
 ```
 
 ### Process Resource Monitoring (procstat.conf)
