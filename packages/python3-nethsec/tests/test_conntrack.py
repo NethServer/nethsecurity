@@ -362,6 +362,41 @@ def test_connection_info():
     result = conntrack.__parse_connection_info(flow)
     assert 'source_port' not in result
     assert 'destination_port' not in result
+    assert not any(k.endswith(('_nat', '_nat_port')) for k in result)
+
+
+def test_connection_nat():
+    flow = ElementTree.fromstring("""<flow>
+        <meta direction="original">
+            <layer3><src>10.0.0.5</src><dst>203.0.113.1</dst></layer3>
+            <layer4 protoname="tcp"><sport>40000</sport><dport>8080</dport></layer4>
+        </meta>
+        <meta direction="reply">
+            <layer3><src>192.168.1.10</src><dst>198.51.100.7</dst></layer3>
+            <layer4 protoname="tcp"><sport>80</sport><dport>61000</dport></layer4>
+        </meta>
+        <meta direction="independent"><id>1</id></meta>
+    </flow>""")
+    result = conntrack.__parse_connection_info(flow)
+    assert result['destination'] == '203.0.113.1'
+    assert result['destination_nat'] == '192.168.1.10'
+    assert result['destination_nat_port'] == '80'
+    assert result['source'] == '10.0.0.5'
+    assert result['source_nat'] == '198.51.100.7'
+    assert result['source_nat_port'] == '61000'
+
+
+def test_connection_deltatime():
+    flow = ElementTree.fromstring(conntrack_response).findall('flow')[0]
+    assert 'deltatime' not in conntrack.__parse_connection_info(flow)
+    flow = ElementTree.fromstring("""<flow>
+        <meta direction="original">
+            <layer3><src>10.0.0.5</src><dst>203.0.113.1</dst></layer3>
+            <layer4 protoname="tcp"><sport>40000</sport><dport>443</dport></layer4>
+        </meta>
+        <meta direction="independent"><timeout>7</timeout><id>1</id><deltatime>53</deltatime></meta>
+    </flow>""")
+    assert conntrack.__parse_connection_info(flow)['deltatime'] == 53
 
 
 def test_fetch_connection_list(mocker: MockFixture):

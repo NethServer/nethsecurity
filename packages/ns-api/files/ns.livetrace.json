@@ -1,0 +1,13 @@
+{
+  "livetrace-manager": {
+    "description": "Trace live traffic of a client",
+    "write": {},
+    "read": {
+      "ubus": {
+        "ns.livetrace": [
+          "*"
+        ]
+      }
+    }
+  }
+}

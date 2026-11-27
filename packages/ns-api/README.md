@@ -8019,6 +8019,15 @@ Fields that might miss from some entries:
 - `end_port`
 - `unreplied`
 - `state`
+- `deltatime`: seconds since the connection started, only with conntrack timestamps
+  (`net.netfilter.nf_conntrack_timestamp=1`)
+- `destination_nat`, `destination_nat_port`: real destination address and port when the destination was translated
+  (port forward, DNAT), read from the reply source
+- `source_nat`, `source_nat_port`: translated source address and port when the source was translated
+  (masquerade, SNAT), read from the reply destination
+- the `_nat_port` fields are missing for protocols without ports, like ICMP
+
+`timeout`: seconds before the entry expires if no more packets are seen.
 
 ### drop
 
@@ -8054,6 +8063,217 @@ Example response:
    "message": "success"
 }
 ```
+
+## ns.livetrace
+
+Trace the live traffic of one client to find which layer blocks it.
+One session at a time. Results exist only while the session runs: nothing is kept after it ends.
+Collector errors are logged to the system log (`/var/log/messages`), ident `ns-livetrace`.
+
+### start
+
+Start a session. Only one session can run: stop the running one first.
+
+Parameters:
+
+- `ip`: client IP address
+- `duration`: seconds, from 10 to 600, default 60
+- `port`: optional, destination port of new connections, from 1 to 65535
+- `protocol`: optional, `tcp` or `udp`
+
+Missing, `null`, `0` and `""` mean not set. `port` and `protocol` do not filter DNS queries.
+
+```bash
+api-cli ns.livetrace start --data '{"ip": "10.10.10.50", "duration": 120, "port": 443, "protocol": "tcp"}'
+```
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+Errors:
+
+- validation: `invalid_ip_address` (also for scoped, IPv4-mapped, multicast, loopback and unspecified addresses),
+  `invalid_duration`, `invalid_port`, `invalid_protocol`
+- `collector_not_started`: the collector did not start, its error, if any, is in the system log
+- `session_busy`: another session is running
+
+### stop
+
+Stop the running session:
+
+```bash
+api-cli ns.livetrace stop
+```
+
+Example response:
+
+```json
+{
+   "message": "success"
+}
+```
+
+### status
+
+Return the state of the running session. With no session running, `running` is `false` and the other
+fields are empty, `0` or `false`, except `device_interfaces`:
+
+```bash
+api-cli ns.livetrace status
+```
+
+Example response:
+
+```json
+{
+   "running": true,
+   "ip": "10.10.10.50",
+   "duration": 120,
+   "port": 0,
+   "protocol": "",
+   "remaining": 87,
+   "blocked": [
+      {
+         "protocol": "tcp",
+         "source": "10.10.10.50",
+         "destination": "1.0.0.1",
+         "destination_name": "one.one.one.one",
+         "destination_port": "80",
+         "layer": "threat_shield_ip",
+         "table": "banIP",
+         "chain": "_outbound",
+         "rule": "blocklist.v4",
+         "in_interface": "eth2",
+         "out_interface": "eth1",
+         "count": 5,
+         "first_seen": 1793706147,
+         "last_seen": 1793706152
+      }
+   ],
+   "dns": [
+      {
+         "name": "doubleclick.com",
+         "type": "A",
+         "result": "NXDOMAIN",
+         "addresses": [],
+         "filtered": true,
+         "count": 1,
+         "last_seen": 1793706213
+      }
+   ],
+   "connections": [
+      {
+         "source": "10.10.10.50",
+         "destination": "1.1.1.1",
+         "destination_name": "one.one.one.one",
+         "protocol": "tcp",
+         "source_port": "39494",
+         "destination_port": "80",
+         "source_stats": {
+            "packets": 6,
+            "bytes": 391
+         },
+         "destination_stats": {
+            "packets": 4,
+            "bytes": 602
+         },
+         "source_nat": "192.0.2.10",
+         "source_nat_port": "39494",
+         "id": "4272941068",
+         "timeout": "115",
+         "state": "TIME_WAIT",
+         "labels": [
+            "netify-analyzed"
+         ],
+         "in_interface": "eth2",
+         "out_interface": "eth1",
+         "rule": "Accept lan to wan forwarding",
+         "application": "wikimedia",
+         "dpi_protocol": "DNS",
+         "host": "auth.wikimedia.org"
+      }
+   ],
+   "truncated": false,
+   "device_interfaces": {
+      "eth1": "wan",
+      "eth2": "blue",
+      "tuntun1": "tun1"
+   }
+}
+```
+
+Fields:
+
+- `port`, `protocol`: session filters, `0` and `""` when not set
+- `destination_name`: in `blocked` and `connections`, the name the client resolved the destination
+  address from during the session, read from its DNS replies; empty if unknown. With more names on the same
+  address the last one resolved is shown
+- `truncated`: true if something was skipped: new connections over the rate limit, more than 200 `blocked` or
+  `dns` entries, more than 1000 traced connections (the oldest ones lose `rule` and their traced interfaces in
+  `connections`)
+- `device_interfaces`: UCI interface of each device of `in_interface` and `out_interface`, from the current
+  configuration: the first one on the device, an alias only if the device has no other interface; the `ns_` prefix
+  of VPN interfaces is removed. Devices with no interface, or named like it (WireGuard, IPsec), are not listed
+
+`blocked`: new connections dropped or rejected.
+
+- `layer`: `firewall`, `dpi`, `threat_shield_ip`, `ips`, `dns_filter`, `mac_binding`, `routing` or the nftables table name
+- `rule`: fw4 rule name, matching set name (e.g. banIP list) or nftables rule text
+- `count`: number of distinct connections
+- `application`, `host`: only with layer `dpi`, read from ns-flows, empty if the flow is unknown
+- layer `routing` has empty `table` and `chain`, `rule` is one of:
+  - `no_route`: no route to the destination, or packet refused by reverse path filtering;
+    multicast and TTL 1 packets are not reported
+  - `private_to_wan`: a private destination (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, fc00::/7)
+    left through the device of the default route: missing route or tunnel down; the connection is also in `connections`
+
+`dns`: queries sent by the client and their replies.
+
+- `result`: response code (`NOERROR`, `NXDOMAIN`, ...), empty if no reply was seen
+- `addresses`: addresses of the last reply, at most 10; empty for query types other than `A` and `AAAA`
+- `filtered`: true if adblock is enabled and the name, or a parent domain, is in its list;
+  the most specific allowlist or blocklist entry wins
+
+`connections`: conntrack entries of the client, same format as `ns.conntrack list`, `timeout` and NAT fields
+included. Filled only while the session is running.
+With conntrack timestamps (`net.netfilter.nf_conntrack_timestamp=1`) only connections started after the session
+start are listed; otherwise all current connections of the client.
+
+- `rule`: fw4 rule that accepted the connection, only if the connection was traced
+- `in_interface`, `out_interface`: from the trace, or from a route lookup if the connection was not traced
+- `application`, `dpi_protocol`, `host`: read from ns-flows, if the flow is classified
+
+Limitations:
+
+- only the first packet of each new connection and DPI-blocked packets are traced
+- rate limit: 50 packets per second per direction, burst 100; needs `net.netfilter.nf_conntrack_acct=1` (OpenWrt default)
+- Snort (IPS) drops are not shown: a connection dropped by Snort is listed in `connections`
+- a DPI block shows up after the flow is classified: the first packets pass
+- chains with priority lower than -199 (e.g. the raw table) are not visible
+- DNS filter detection covers adblock with dnsmasq only, not FlashStart
+- `filtered` is also set when the query goes to an external resolver, and for adblock SafeSearch domains
+  (rewritten, not blocked)
+- DNS over TCP and DNS over HTTPS are not captured
+- with `port` or `protocol` set, ICMP is not traced
+- connections opened before the session have no `rule`; the route lookup of their interfaces ignores
+  policy routing (multi-WAN) and port forwards
+- a wrong route is detected only when a private destination leaves through the device of the default route
+- an address of the firewall (e.g. the WAN IP) traces the connections arriving to it from outside, port forwards
+  included; connections opened by the firewall itself are not traced
+- port forwards: trace the public source IP with the public port; tracing the internal server shows no `rule`
+  and no `out_interface`; connections show the public destination address and port
+- after a ruleset reload (firewall, banIP, DPI) `nft monitor trace` is restarted: packets traced before the restart
+  have an empty `rule` and may show the inner chain (e.g. `reject_to_wan`), connections started during the
+  restart are not listed
+- if the traced IP is the remote side of a masqueraded connection, a DPI-blocked reply shows the WAN address and
+  the client port as destination and is also listed in `connections`: trace the client instead
+- if the collector is killed with SIGKILL, `nft monitor`, `tcpdump` and the `inet ns_livetrace` table stay
+  until `stop` or the next `start`
 
 ## ns.objects
 
