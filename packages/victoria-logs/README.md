@@ -80,6 +80,50 @@ uci commit victoria-logs
 /etc/init.d/victoria-logs restart
 ```
 
+## Reading logs from the shell
+
+`ns-logs` reads the logs from Victoria Logs the way `less`, `tail` and `grep` did on `/var/log/messages`. Lines have the same layout as the old file, in local time. On a terminal the output opens in `less`, otherwise it's printed, so it can still be piped to `grep` or `awk`.
+
+Without options it shows the last 7 days, starting from the oldest line. Use `--since` and `--until` for a different range, with a duration (`30m`, `2h`, `7d`), a local date and time (`2026-10-01`, `"2026-10-01 10:00"`) or `--since all` for everything. `--boot` shows the current boot, `--boot -1` the previous one and `--boot list` all the boots in the logs. `--info` prints the first and last log, the number of lines and the retention.
+
+| Before | Now |
+|---|---|
+| `less /var/log/messages` | `ns-logs` |
+| `tail -n 100 /var/log/messages` | `ns-logs -n 100` |
+| `tail -f /var/log/messages` | `ns-logs -f` |
+| `grep -i dnsmasq /var/log/messages` | `ns-logs -i dnsmasq` |
+| `grep error /var/log/messages \| grep -v ntpd \| grep -v DHCP` | `ns-logs error -v ntpd -v DHCP` |
+| `grep -C 3 error /var/log/messages` | `ns-logs -C 3 error` |
+
+The pattern matches the app name and the message as plain text, use `-E` for a regular expression ([RE2 syntax](https://github.com/google/re2/wiki/Syntax)). `-C` takes context lines from the same app only.
+
+Other options:
+
+- `-a APP`: only lines from that app, can be repeated, e.g. `-a banIP -a fail2ban`
+- `-p LEVEL`: only that severity and above, e.g. `-p err` or `-p warning`
+- `--apps`: list the apps that logged in the range, with their line count
+- `-c`: count the matching lines, add `--per 1h` or `--per 1d` for a count per hour or day
+- `-o json`: print every field as JSON
+- `-q QUERY`: use a [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) filter instead of the pattern options, `--show-query` prints the filter built from the options
+
+Examples:
+
+```bash
+# banIP lines of the last week, counted per day
+ns-logs -a banIP --since 7d -c --per 1d
+
+# errors during the previous boot
+ns-logs --boot -1 -p err
+
+# errors on October 1st, without ntpd
+ns-logs --since 2026-10-01 --until 2026-10-02 -p err -v ntpd
+
+# follow everything from dnsmasq and odhcpd
+ns-logs -f -a dnsmasq -a odhcpd
+```
+
+`vlogscli`, the Victoria Logs interactive shell, is installed too.
+
 ## Web UI
 
 Victoria Logs exposes a Web UI at `/select/vmui` on port 9428.
