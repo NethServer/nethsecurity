@@ -4,6 +4,16 @@ Netifyd is a network intelligence platform that provides DPI (Deep Packet Inspec
 
 For detailed information, visit [https://www.netify.ai/](https://www.netify.ai/).
 
+## NFQueue capture
+
+On start, `ns-netifyd-configure start` writes `/etc/netifyd/interfaces.d/10-nfqueue.conf` and builds the `inet netifyd` nft table.
+There's one queue per CPU core for each role, between 2 and 8: LAN (forward chain) uses the queues from 50, WAN (input and output chains) the ones from 58.
+The table isn't removed when netifyd stops: `queue flags bypass` lets the packets through when nobody is listening.
+
+The table comment is a hash of its chains. The table is rebuilt only when it no longer matches the configuration, otherwise only the bypass sets are refreshed, so the script is safe to run again.
+A reload refreshes the bypass sets, and restarts netifyd when the table changed (for example after a `firewall_traffic` change), since a chain can't be removed while netifyd is reading its queue.
+Run `ns-netifyd-configure --help` for the details.
+
 ## NFQueue bypass lists
 
 To improve performance, you can configure bypass lists that prevent netifyd from analyzing traffic matching certain IP addresses or CIDR blocks. This is useful for:
@@ -22,6 +32,7 @@ Each bypass entry can be:
 - **With description:** `192.168.1.0/24 | My local network` or `192.168.1.0/24|My local network`
 
 Descriptions are optional; entries without `|` are treated as addresses only.
+Invalid addresses are skipped with a warning, double quotes are removed from descriptions and descriptions are cut at 128 characters.
 
 ### UCI configuration
 

@@ -77,7 +77,7 @@ piece is loaded because something named it.
                                       the actual [netifyd] tuning: flow map, TTLs, caches, protocols,
                                       max_detection_pkts, netify-api, netlink buffers
 /etc/netifyd/
-├── interfaces.d/10-nfqueue.conf      capture sources — on NethSecurity these are nfqueue, not devices
+├── interfaces.d/10-nfqueue.conf      capture sources — nfqueue, generated on start by ns-netifyd-configure
 ├── plugins.d/*.conf                  plugin LOADERS (ini). One section = one plugin instance
 ├── netify-<name>.json                per-instance plugin config, named by its loader's conf_filename
 ├── address-groups.d/NN-<tag>.conf    @tag groups; one address per line
@@ -101,7 +101,8 @@ until the next reload and then vanishes. Change the generator or its UCI input i
 | File | Written by | Real input |
 |---|---|---|
 | `netify-proc-flow-actions.json` | `/usr/sbin/dpi-config` (via `/usr/sbin/dpi`) | `/etc/config/dpi` |
-| `table inet netifyd` (nftables) | `/usr/sbin/ns-netifyd-configure` (on start and reload) | `/etc/config/netifyd` → `ns_config` |
+| `table inet netifyd` (nftables) | `/usr/sbin/ns-netifyd-configure` (table rebuilt only when its hash changed, bypass sets every run) | `/etc/config/netifyd` → `ns_config` |
+| `interfaces.d/10-nfqueue.conf` | `/usr/sbin/ns-netifyd-configure` (on start) | CPU core count |
 | `netify-application-catalog.json` and the other catalog/category files | `dpi-data-update` (nightly cron) | Netify's data service |
 | `/usr/share/nftables.d/table-pre/` DPI chains | `/usr/sbin/dpi-nft` | `/etc/config/dpi` |
 | `address-groups.d/30-*.conf` | `nethsec.dpi.write_address_groups` (on commit, by `ns.ovpnrw`, by `/usr/sbin/dpi`) | `/etc/config/objects`, `dhcp`, `users` |
