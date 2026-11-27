@@ -8019,6 +8019,8 @@ Fields that might miss from some entries:
 - `end_port`
 - `unreplied`
 - `state`
+- `deltatime`: seconds since the connection started, only with conntrack timestamps
+  (`net.netfilter.nf_conntrack_timestamp=1`)
 - `destination_nat`, `destination_nat_port`: real destination address and port when the destination was translated
   (port forward, DNAT), read from the reply source
 - `source_nat`, `source_nat_port`: translated source address and port when the source was translated
@@ -8239,6 +8241,8 @@ Fields:
 
 `connections`: conntrack entries of the client, same format as `ns.conntrack list`, `timeout` and NAT fields
 included. Filled only while the session is running.
+With conntrack timestamps (`net.netfilter.nf_conntrack_timestamp=1`) only connections started after the session
+start are listed; otherwise all current connections of the client.
 
 - `rule`: fw4 rule that accepted the connection, only if the connection was traced
 - `in_interface`, `out_interface`: from the trace, or from a route lookup if the connection was not traced

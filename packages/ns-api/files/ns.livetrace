@@ -228,8 +228,9 @@ def conntrack_queries(ip, port, protocol):
     return queries
 
 
-def live_connections(state, flows, names):
+def live_connections(state, flows, names, start):
     dpi = dpi_flows()
+    now = time.time()
     seen = set()
     connections = []
     untraced = []
@@ -239,6 +240,9 @@ def live_connections(state, flows, names):
             if conn["id"] in seen:
                 continue
             seen.add(conn["id"])
+            # with conntrack timestamps, skip connections started before the session (1s slack)
+            if "deltatime" in conn and now - conn["deltatime"] < start - 1:
+                continue
             # interfaces and rule, if the session traced it
             key = "|".join(conn.get(field, "") for field in FLOW_FIELDS)
             conn.update(flows.get(key, {}))
@@ -296,7 +300,7 @@ def status():
         blocked["destination_name"] = names.get(blocked["destination"], "")
     if running:
         remaining = max(0, int(start + state["duration"] - time.time()))
-        connections = live_connections(state, flows, names)
+        connections = live_connections(state, flows, names, start)
     else:
         remaining = 0
         connections = []

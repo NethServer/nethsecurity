@@ -60,6 +60,9 @@ def __parse_connection_info(flow: Element) -> dict:
                 result['unreplied'] = True
             if child.find('state') is not None:
                 result['state'] = child.find('state').text
+            # seconds since the connection started, only with conntrack timestamps enabled
+            if child.find('deltatime') is not None:
+                result['deltatime'] = int(child.find('deltatime').text)
             result['labels'] = []
             for label in child.findall('labels/label'):
                 result['labels'].append(label.text)

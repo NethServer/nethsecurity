@@ -386,6 +386,19 @@ def test_connection_nat():
     assert result['source_nat_port'] == '61000'
 
 
+def test_connection_deltatime():
+    flow = ElementTree.fromstring(conntrack_response).findall('flow')[0]
+    assert 'deltatime' not in conntrack.__parse_connection_info(flow)
+    flow = ElementTree.fromstring("""<flow>
+        <meta direction="original">
+            <layer3><src>10.0.0.5</src><dst>203.0.113.1</dst></layer3>
+            <layer4 protoname="tcp"><sport>40000</sport><dport>443</dport></layer4>
+        </meta>
+        <meta direction="independent"><timeout>7</timeout><id>1</id><deltatime>53</deltatime></meta>
+    </flow>""")
+    assert conntrack.__parse_connection_info(flow)['deltatime'] == 53
+
+
 def test_fetch_connection_list(mocker: MockFixture):
     process_result = mocker.stub('subprocess_return')
     process_result.stdout = conntrack_response
