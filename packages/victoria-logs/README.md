@@ -93,9 +93,9 @@ Without options it shows the last 7 days, starting from the oldest line. Use `--
 | `tail -f /var/log/messages` | `ns-logs -f` |
 | `grep -i dnsmasq /var/log/messages` | `ns-logs -i dnsmasq` |
 | `grep error /var/log/messages \| grep -v ntpd \| grep -v DHCP` | `ns-logs error -v ntpd -v DHCP` |
-| `grep -C 3 error /var/log/messages` | `ns-logs -C 3 error` |
+| `grep -C 3 error /var/log/messages` | `ns-logs \| grep -C 3 error` |
 
-The pattern matches the app name and the message as plain text, use `-E` for a regular expression ([RE2 syntax](https://github.com/google/re2/wiki/Syntax)). `-C` takes context lines from the same app only.
+The pattern matches the app name and the message as plain text, use `-E` for a regular expression ([RE2 syntax](https://github.com/google/re2/wiki/Syntax)).
 
 Other options:
 

@@ -21,6 +21,7 @@ from euci import EUci
 
 LEVELS = ["emerg", "alert", "crit", "err", "warning", "notice", "info", "debug"]
 UNITS = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800, "y": 31536000}
+PAGE = 500
 EXAMPLES = """examples:
   ns-logs                               last 7 days in less
   ns-logs -f                            follow new logs, like tail -f
@@ -98,6 +99,10 @@ def request(endpoint, params):
         sys.exit(f"ns-logs: cannot reach VictoriaLogs at {ADDRESS}: {e.reason}")
 
 
+def row_key(row):
+    return row["_time"], row.get("_stream_id"), row.get("_msg")
+
+
 def rows(query, **params):
     with request("query", {"query": query, **params}) as resp:
         for line in resp:
@@ -115,15 +120,15 @@ def format_row(row, args):
     if args.output == "json":
         return json.dumps(row)
     if "app_name" not in row:
-        # stream_context separator between chunks, or the result of a -q with stats pipes
-        return "--" if row.get("_msg") == "---" else json.dumps(row)
+        # the result of a -q with stats pipes
+        return json.dumps(row)
     # same layout as the ns-file rsyslog template used for /var/log/messages
     ts = vl_time(row["_time"]).astimezone()
     pid = row.get("proc_id", "-")
     tag = row.get("app_name", "-") + ("" if pid == "-" else f"[{pid}]")
-    return (
-        f"{ts:%b %e %H:%M:%S} {row.get('hostname', '-')} {tag}: {row.get('_msg', '')}"
-    )
+    # older logs kept the trailing newline, escape the rest like rsyslog did in the file
+    msg = row.get("_msg", "").rstrip("\n").replace("\n", "#012")
+    return f"{ts:%b %e %H:%M:%S} {row.get('hostname', '-')} {tag}: {msg}"
 
 
 def stats():
@@ -178,18 +183,29 @@ def records(args, filters):
         yield from sorted(
             rows(f"{time_filter(start, end)} {filters}", limit=args.lines), key=time_key
         )
-    elif args.context:
-        yield from rows(
-            f"{time_filter(start, end)} {filters} | stream_context before {args.context} after {args.context}"
-        )
     else:
-        # shortcut: sorting a whole range needs too much memory, so it's sorted one hour at a time
-        while start < end:
-            chunk_end = min(start + timedelta(hours=1), end)
-            yield from rows(
-                f"{time_filter(start, chunk_end)} {filters} | sort by (_time)"
-            )
-            start = chunk_end
+        yield from forward(filters, start, end)
+
+
+def forward(filters, start, end):
+    """Every row from start to end, in pages read whole: VictoriaLogs cuts queries kept open over 30s by a slow reader."""
+    since, seen = f"_time:>={rfc3339(start)}", set()
+    while True:
+        query = (
+            f"{since} _time:<{rfc3339(end)} {filters} | sort by (_time) limit {PAGE}"
+        )
+        batch = list(rows(query))
+        yield from (r for r in batch if row_key(r) not in seen)
+        if len(batch) < PAGE:
+            return
+        last = batch[-1]["_time"]
+        if batch[0]["_time"] == last:
+            # shortcut: a whole page with the same timestamp, the rest of its rows is skipped
+            since, seen = f"_time:>{last}", set()
+        else:
+            # the next page starts again from the last timestamp, skip the rows already printed
+            since = f"_time:>={last}"
+            seen = {row_key(r) for r in batch if r["_time"] == last}
 
 
 def follow(args, filters):
@@ -266,13 +282,14 @@ def show(args, filters):
     if sys.stdout.isatty():
         pager = subprocess.Popen(["less", "-F"], stdin=subprocess.PIPE, text=True)
         out = pager.stdin
+    fd = out.fileno()
     try:
         for row in records(args, filters):
             out.write(format_row(row, args) + "\n")
         out.close()
     except BrokenPipeError:
         # less was closed early: the unflushed buffer goes to /dev/null instead of failing again at exit
-        os.dup2(os.open(os.devnull, os.O_WRONLY), out.fileno())
+        os.dup2(os.open(os.devnull, os.O_WRONLY), fd)
     if pager:
         pager.wait()
 
@@ -337,13 +354,6 @@ def main():
     )
     parser.add_argument(
         "-f", "--follow", action="store_true", help="keep printing new lines"
-    )
-    parser.add_argument(
-        "-C",
-        "--context",
-        type=int,
-        metavar="N",
-        help="N lines of the same app around each match",
     )
     parser.add_argument(
         "-c", "--count", action="store_true", help="print the number of matching lines"
