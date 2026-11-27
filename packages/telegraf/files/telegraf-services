@@ -50,6 +50,7 @@ MONITORED_SERVICES = {
     "swanctl",
     "sysntpd",
     "telegraf",
+    "victoria-logs",
     "victoria-metrics",
     "vmalert",
 }

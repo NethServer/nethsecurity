@@ -37,6 +37,7 @@ GO_PKG_TAGS:= \
 	inputs.ethtool \
 	inputs.exec \
 	inputs.file \
+	inputs.internal \
 	inputs.mem \
 	inputs.net \
 	inputs.netstat \
@@ -94,6 +95,7 @@ define Package/telegraf/install
 	$(INSTALL_DATA) ./files/telegraf.conf.d/mwan.conf $(1)/etc/telegraf.conf.d/mwan.conf
 	$(INSTALL_DATA) ./files/telegraf.conf.d/ha.conf $(1)/etc/telegraf.conf.d/ha.conf
 	$(INSTALL_DATA) ./files/telegraf.conf.d/procstat.conf $(1)/etc/telegraf.conf.d/procstat.conf
+	$(INSTALL_DATA) ./files/telegraf.conf.d/internal.conf $(1)/etc/telegraf.conf.d/internal.conf
 	$(INSTALL_DIR) $(1)/etc/rsyslog.d/rules.d
 	$(INSTALL_DATA) ./files/rsyslog-rules.conf $(1)/etc/rsyslog.d/rules.d/telegraf.conf
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
