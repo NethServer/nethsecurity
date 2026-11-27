@@ -6,11 +6,12 @@
 #
 
 import json
+import os
 import subprocess
 import sys
 
 from euci import EUci
-from nethsec import utils, users
+from nethsec import inventory, utils, users
 
 cmd = sys.argv[1]
 
@@ -20,7 +21,8 @@ if cmd == 'list':
             'username': 'str',
             'password': 'str',
             'old_password': 'str',
-        }
+        },
+        'get-info': {}
     }))
 elif cmd == 'call':
     action = sys.argv[2]
@@ -28,45 +30,56 @@ elif cmd == 'call':
     if action == 'set-password':
         try:
             data = json.load(sys.stdin)
-            rpcd_user_list = utils.get_all_by_type(e_uci, 'rpcd', 'login')
-            user_list = utils.get_all_by_type(e_uci, 'users', 'user')
-            # check if username is inside config
-            if data['username'] not in [user['username'] for user in rpcd_user_list.values()]:
-                raise utils.ValidationError('username', 'invalid', data['username'])
-
-            if not users.check_old_password(data.get('username'), data.get('old_password', '')):
-                raise utils.ValidationError('old_password', 'invalid_old_password')
-            if users.check_old_password(data.get('username'), data.get('password', '')):
-                raise utils.ValidationError('new_password', 'cannot_reuse_old_password')
-            # if user is not root, change rpcd config
-            if data['username'] != 'root':
-                password_hash = users.shadow_password(data['password'])
-                for user_key, user in rpcd_user_list.items():
-                    if user['username'] == data['username']:
-                        e_uci.set('rpcd', user_key, 'password', password_hash)
-                        e_uci.save('rpcd')
-                        e_uci.commit('rpcd')
-                        break
-                # sync password inside local users db
-                for user_key, user in user_list.items():
-                    is_local = users.get_database_type(e_uci, user['database']) == 'local'
-                    if user['name'] == data['username'] and is_local:
-                        e_uci.set('users', user_key, 'password', password_hash)
-                        e_uci.save('users')
-                        e_uci.commit('users')
-                        break
-
+            is_own_account = data["username"] == os.environ.get("NS_API_USER")
+            if not is_own_account and not users.caller_is_superuser(e_uci):
+                print(json.dumps(utils.generic_error("forbidden")))
             else:
-                # otherwise, change `passwd` file using pre-existing ubus call
-                subprocess.run(['ubus', 'call', 'luci', 'setPassword', json.dumps({
-                    'username': data['username'],
-                    'password': data['password']
-                })], capture_output=True, check=True)
+                rpcd_user_list = utils.get_all_by_type(e_uci, 'rpcd', 'login')
+                user_list = utils.get_all_by_type(e_uci, 'users', 'user')
+                # check if username is inside config
+                if data['username'] not in [user['username'] for user in rpcd_user_list.values()]:
+                    raise utils.ValidationError('username', 'invalid', data['username'])
 
-            print(json.dumps({'message': 'success'}))
+                if not users.check_old_password(data.get('username'), data.get('old_password', '')):
+                    raise utils.ValidationError('old_password', 'invalid_old_password')
+                if users.check_old_password(data.get('username'), data.get('password', '')):
+                    raise utils.ValidationError('new_password', 'cannot_reuse_old_password')
+                # if user is not root, change rpcd config
+                if data['username'] != 'root':
+                    password_hash = users.shadow_password(data['password'])
+                    for user_key, user in rpcd_user_list.items():
+                        if user['username'] == data['username']:
+                            e_uci.set('rpcd', user_key, 'password', password_hash)
+                            e_uci.save('rpcd')
+                            e_uci.commit('rpcd')
+                            break
+                    # sync password inside local users db
+                    for user_key, user in user_list.items():
+                        is_local = users.get_database_type(e_uci, user['database']) == 'local'
+                        if user['name'] == data['username'] and is_local:
+                            e_uci.set('users', user_key, 'password', password_hash)
+                            e_uci.save('users')
+                            e_uci.commit('users')
+                            break
+
+                else:
+                    # otherwise, change `passwd` file using pre-existing ubus call
+                    subprocess.run(['ubus', 'call', 'luci', 'setPassword', json.dumps({
+                        'username': data['username'],
+                        'password': data['password']
+                    })], capture_output=True, check=True)
+
+                print(json.dumps({'message': 'success'}))
         except KeyError as ex:
             print(json.dumps(utils.validation_error(ex.args[0], 'required')))
         except utils.ValidationError as ex:
             print(json.dumps(utils.validation_error(ex.parameter, ex.message, ex.value)))
         except subprocess.CalledProcessError as ex:
             print(json.dumps(utils.generic_error(f'subprocess {ex.cmd[0]} failed')))
+    elif action == "get-info":
+        info = {
+            "is_superuser": users.caller_is_superuser(e_uci),
+            "default_password": inventory.fact_default_password(e_uci)["default_password"],
+            "ordinary_admins": inventory.fact_rpcd_users(e_uci)["count"],
+        }
+        print(json.dumps(info))
